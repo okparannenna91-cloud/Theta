@@ -1,0 +1,344 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+model Workspace {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  slug            String   @unique
+  plan            String   @default("free") // free, growth, pro, theta_plus, lifetime
+  billingInterval String?  // monthly, annual
+  isLifetime      Boolean  @default(false)
+  fastSpringCustomerId String?
+  fastSpringOrderId    String?
+  paystackCustomerId   String?
+  paystackAuthCode     String?
+  subscriptionId       String?
+  billingProvider      String?  // paystack, fastspring
+  billingStatus        String   @default("active") // active, past_due, canceled, deactivated
+  billingEmail         String?
+  nextBillingDate      DateTime?
+  currency             String?  @default("USD")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  billingLogs   BillingLog[]
+
+  members       WorkspaceMember[]
+  projects      Project[]
+  tasks         Task[]
+  boards        Board[]
+  teams         Team[]
+  notifications Notification[]
+  activities    Activity[]
+  chatMessages  ChatMessage[]
+  invites       Invite[]
+  integrations  Integration[]
+  calendarEvents CalendarEvent[]
+
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  role        String   @default("member") // owner, admin, member
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  clerkId   String   @unique
+  email     String
+  name      String?
+  imageUrl  String?
+  lastActiveAt DateTime? @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaces    WorkspaceMember[]
+  projects      Project[]
+  tasks         Task[]
+  teams         TeamMember[]
+  notifications Notification[]
+  activities    Activity[]
+  chatMessages  ChatMessage[]
+  calendarEvents CalendarEvent[]
+  preferences   UserPreference?
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  color       String?
+  coverImage  String?
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  teamId      String?  @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team         Team?        @relation(fields: [teamId], references: [id])
+  tasks        Task[]
+  boards       Board[]
+  teamMembers  TeamMember[]
+  chatMessages ChatMessage[]
+
+  @@map("projects")
+}
+
+model Task {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  status      String    @default("todo")
+  priority    String    @default("medium")
+  dueDate     DateTime?
+  coverImage  String?
+  workspaceId String    @db.ObjectId
+  projectId   String    @db.ObjectId
+  userId      String    @db.ObjectId
+  boardId     String?   @db.ObjectId
+  columnId    String?   @db.ObjectId
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  board     Board?    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@map("tasks")
+}
+
+model Board {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  workspaceId String   @db.ObjectId
+  projectId   String   @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  columns   Column[]
+  tasks     Task[]
+
+  @@map("boards")
+}
+
+model Column {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  boardId   String   @db.ObjectId
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@map("columns")
+}
+
+model Team {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  workspaceId String   @db.ObjectId
+  status      String   @default("active") // active, archived
+  defaultRole String   @default("member") // owner, admin, member, guest
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members   TeamMember[]
+  projects  Project[]
+  chatMessages ChatMessage[]
+  calendarEvents CalendarEvent[]
+  invites   Invite[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  teamId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  projectId String?  @db.ObjectId
+  role      String   @default("member")
+  createdAt DateTime @default(now())
+
+  team    Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@unique([teamId, userId])
+  @@map("team_members")
+}
+
+model Notification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  message     String
+  type        String
+  read        Boolean  @default(false)
+  metadata    Json?    @db.Json
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Activity {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  action      String
+  entityType  String
+  entityId    String
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  metadata    Json?    @db.Json
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("activities")
+}
+
+model CalendarEvent {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  start       DateTime
+  end         DateTime
+  allDay      Boolean  @default(false)
+  color       String?  @default("#4f46e5")
+  type        String   @default("event") // event, task, meeting
+  recurrence  String?  @default("none") // none, daily, weekly, monthly, yearly
+  
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  teamId      String?  @db.ObjectId
+  
+  reminders   Json?    @db.Json // Array of reminder times: [15, 60, 1440] (minutes)
+  metadata    Json?    @db.Json
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("calendar_events")
+}
+
+model ChatMessage {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  content     String
+  workspaceId String   @db.ObjectId
+  projectId   String?  @db.ObjectId
+  teamId      String?  @db.ObjectId
+  userId      String   @db.ObjectId
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  team      Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+model Invite {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  email       String
+  token       String    @unique
+  role        String    @default("member")
+  workspaceId String    @db.ObjectId
+  teamId      String?   @db.ObjectId
+  status      String    @default("pending") // pending, revoked, expired
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  team      Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("invites")
+}
+
+model Integration {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  type        String   // slack, calendar
+  workspaceId String   @db.ObjectId
+  config      Json     @db.Json
+  accessToken String?
+  refreshToken String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("integrations")
+}
+
+model UserPreference {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String   @unique @db.ObjectId
+  dismissedPopups   Json?    @db.Json
+  onboardingComplete Boolean @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model Subscription {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique
+  status    String   // active, inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subscriptions")
+}
+
+model BillingLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  action      String   // payment_success, payment_failed, subscription_updated, etc.
+  provider    String   // paystack, fastspring
+  amount      Float?
+  currency    String?
+  metadata    Json?    @db.Json
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("billing_logs")
+}
