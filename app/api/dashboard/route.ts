@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
-import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import { prisma, getPrismaClient } from "@/lib/prisma";
 
 export async function GET(req: Request) {
   try {
@@ -50,13 +50,15 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Access denied to this workspace" }, { status: 403 });
     }
 
+    const db = getPrismaClient(workspaceId);
+
     // Base filter for projects/tasks
     const whereProject: any = { workspaceId };
 
     if (teamId) {
       whereProject.teamId = teamId;
       // Also verify team membership if specific team is requested
-      const teamMembership = await prisma.teamMember.findUnique({
+      const teamMembership = await db.teamMember.findUnique({
         where: {
           teamId_userId: {
             teamId,
@@ -67,31 +69,25 @@ export async function GET(req: Request) {
       if (!teamMembership) {
         return NextResponse.json({ error: "Access denied to this team" }, { status: 403 });
       }
-    } else {
-      // If no team specified, we might want to show personal projects OR all workspace projects.
-      // For now, let's show all workspace projects (collaboration focus).
-      // If you want to only show personal projects when no team is selected:
-      // whereProject.teamId = null; 
-      // whereProject.userId = user.id;
     }
 
-    const projectsCount = await prisma.project.count({
+    const projectsCount = await db.project.count({
       where: whereProject,
     });
 
     // Fetch tasks linked to these projects
-    const tasksCount = await prisma.task.count({
+    const tasksCount = await db.task.count({
       where: {
         project: whereProject,
         status: { not: "completed" }
       },
     });
 
-    const teamsCount = await prisma.teamMember.count({
+    const teamsCount = await db.teamMember.count({
       where: { userId: user.id },
     });
 
-    const allTasks = await prisma.task.findMany({
+    const allTasks = await db.task.findMany({
       where: {
         project: whereProject
       },
@@ -105,7 +101,7 @@ export async function GET(req: Request) {
         ? Math.round((completedTasksCount / allTasks.length) * 100)
         : 0;
 
-    const recentProjects = await prisma.project.findMany({
+    const recentProjects = await db.project.findMany({
       where: whereProject,
       take: 5,
       orderBy: { createdAt: "desc" },
@@ -116,7 +112,7 @@ export async function GET(req: Request) {
       },
     });
 
-    const recentTasks = await prisma.task.findMany({
+    const recentTasks = await db.task.findMany({
       where: {
         project: whereProject
       },
@@ -134,10 +130,24 @@ export async function GET(req: Request) {
     // Real Activity Trends (Last 7 days)
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const activities = await prisma.activity.findMany({
+    const activities = await db.activity.findMany({
       where: {
         userId: user.id,
         createdAt: { gte: sevenDaysAgo }
+      }
+    });
+
+    const recentActivities = await db.activity.findMany({
+      where: { workspaceId },
+      take: 10,
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            name: true,
+            imageUrl: true
+          }
+        }
       }
     });
 
@@ -151,7 +161,7 @@ export async function GET(req: Request) {
     });
 
     // Project structure for treemap
-    const projectsWithTasks = await prisma.project.findMany({
+    const projectsWithTasks = await db.project.findMany({
       where: whereProject,
       include: {
         _count: { select: { tasks: true } }
@@ -174,6 +184,15 @@ export async function GET(req: Request) {
         status: t.status,
         project: t.project,
         priority: t.priority
+      })),
+      recentActivities: recentActivities.map((a: any) => ({
+        id: a.id,
+        action: a.action,
+        entityType: a.entityType,
+        entityId: a.entityId,
+        metadata: a.metadata,
+        createdAt: a.createdAt,
+        user: a.user
       })),
       activityTrends,
       statusDistribution: [

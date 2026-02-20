@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaClient, findAcrossShards } from "@/lib/prisma";
+import { Task } from "@prisma/client";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -28,17 +29,14 @@ export async function PATCH(
     const body = await req.json();
     const data = updateSchema.parse(body);
 
-    const task = await prisma.task.findUnique({
-      where: {
-        id: params.id,
-      },
-    });
+    const { data: task, db } = await findAcrossShards<Task>("task", { id: params.id });
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    // Verify workspace access
+    // Verify workspace access (Workspace records are on Shard 1 / primary)
+    const { prisma } = await import("@/lib/prisma");
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -57,7 +55,7 @@ export async function PATCH(
       updateData.dueDate = new Date(data.dueDate);
     }
 
-    const updated = await prisma.task.update({
+    const updated = await db.task.update({
       where: { id: params.id },
       data: updateData,
       include: {
@@ -93,17 +91,14 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const task = await prisma.task.findUnique({
-      where: {
-        id: params.id,
-      },
-    });
+    const { data: task, db } = await findAcrossShards<Task>("task", { id: params.id });
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
     // Verify workspace access
+    const { prisma } = await import("@/lib/prisma");
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -117,7 +112,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    await prisma.task.delete({
+    await db.task.delete({
       where: { id: params.id },
     });
 

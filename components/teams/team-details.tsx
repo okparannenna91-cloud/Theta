@@ -158,8 +158,23 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
         },
         onSuccess: () => {
             toast.success("Invite revoked");
-            queryClient.invalidateQueries({ queryKey: ["team-invites"] });
+            queryClient.invalidateQueries({ queryKey: ["team-invites", team.id] });
         },
+    });
+
+    const resendInviteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await fetch(`/api/invites?id=${id}`, { method: "PATCH" });
+            if (!res.ok) throw new Error("Failed to resend invite");
+            return res.json();
+        },
+        onSuccess: () => {
+            toast.success("Invite resent successfully");
+            queryClient.invalidateQueries({ queryKey: ["team-invites", team.id] });
+        },
+        onError: () => {
+            toast.error("Failed to resend invite");
+        }
     });
 
     const removeMemberMutation = useMutation({
@@ -438,14 +453,25 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                                     {invite.status}
                                                 </Badge>
                                                 {isAdmin && invite.status === "pending" && (
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                        onClick={() => revokeInviteMutation.mutate(invite.id)}
-                                                    >
-                                                        Revoke
-                                                    </Button>
+                                                    <div className="flex items-center gap-1">
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                                                            disabled={resendInviteMutation.isPending}
+                                                            onClick={() => resendInviteMutation.mutate(invite.id)}
+                                                        >
+                                                            {resendInviteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Resend"}
+                                                        </Button>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                            onClick={() => revokeInviteMutation.mutate(invite.id)}
+                                                        >
+                                                            Revoke
+                                                        </Button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>

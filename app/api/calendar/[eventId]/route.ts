@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, findAcrossShards } from "@/lib/prisma";
+import { CalendarEvent } from "@prisma/client";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -30,9 +31,7 @@ export async function PATCH(
         const body = await req.json();
         const data = updateSchema.parse(body);
 
-        const event = await prisma.calendarEvent.findUnique({
-            where: { id: eventId }
-        });
+        const { data: event, db } = await findAcrossShards<any>("calendarEvent", { id: eventId });
 
         if (!event) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -45,7 +44,7 @@ export async function PATCH(
             // Skipping for brevity, but should be added
         }
 
-        const updatedEvent = await prisma.calendarEvent.update({
+        const updatedEvent = await db.calendarEvent.update({
             where: { id: eventId },
             data: {
                 ...data,
@@ -74,9 +73,7 @@ export async function DELETE(
 
         const eventId = params.eventId;
 
-        const event = await prisma.calendarEvent.findUnique({
-            where: { id: eventId }
-        });
+        const { data: event, db } = await findAcrossShards<any>("calendarEvent", { id: eventId });
 
         if (!event) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
@@ -86,12 +83,13 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        await prisma.calendarEvent.delete({
+        await db.calendarEvent.delete({
             where: { id: eventId }
         });
 
         return NextResponse.json({ message: "Event deleted" });
-    } catch (error) {
+    }
+    catch (error) {
         console.error("Calendar DELETE error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }

@@ -124,3 +124,40 @@ export async function acceptInvite(token: string, userId: string) {
 
     return { workspace: invite.workspace };
 }
+
+/**
+ * Resend an invite (refresh token and expiry)
+ */
+export async function resendInvite(inviteId: string) {
+    const invite = await prisma.invite.findUnique({
+        where: { id: inviteId },
+        include: { workspace: true }
+    });
+
+    if (!invite) {
+        throw new Error("Invite not found");
+    }
+
+    if (invite.acceptedAt) {
+        throw new Error("Invite already accepted");
+    }
+
+    const token = generateInviteToken();
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7);
+
+    const updatedInvite = await prisma.invite.update({
+        where: { id: inviteId },
+        data: {
+            token,
+            expiresAt,
+            status: "pending",
+            createdAt: new Date(), // Reset creation time for visibility
+        },
+    });
+
+    return {
+        invite: updatedInvite,
+        workspaceName: invite.workspace.name
+    };
+}

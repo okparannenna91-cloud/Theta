@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaClient } from "@/lib/prisma";
 import { startOfDay, subDays, eachDayOfInterval, format } from "date-fns";
 
 export async function GET(req: Request) {
@@ -25,9 +25,11 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
 
+        const db = getPrismaClient(workspaceId);
+
         // 1. Activity Over Time (Last 7 days)
         const sevenDaysAgo = subDays(startOfDay(new Date()), 6);
-        const activities = await prisma.activity.findMany({
+        const activities = await db.activity.findMany({
             where: {
                 workspaceId,
                 createdAt: { gte: sevenDaysAgo }
@@ -47,7 +49,7 @@ export async function GET(req: Request) {
         });
 
         // 2. Task Status Distribution
-        const tasks = await prisma.task.findMany({
+        const tasks = await db.task.findMany({
             where: { workspaceId },
             select: { status: true, title: true, projectId: true }
         });
@@ -64,7 +66,7 @@ export async function GET(req: Request) {
         ];
 
         // 3. Resource Allocation (Tasks per Project)
-        const projects = await prisma.project.findMany({
+        const projects = await db.project.findMany({
             where: { workspaceId },
             select: { id: true, name: true }
         });

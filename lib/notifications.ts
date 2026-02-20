@@ -1,6 +1,5 @@
 import { prisma } from "./prisma";
 import { getAblyServer, getWorkspaceChannel } from "./ably";
-import { sendSlackNotification } from "./integrations/slack";
 
 export type NotificationType =
     | "task_assigned"
@@ -75,18 +74,8 @@ async function publishToAbly(workspaceId: string, notification: any) {
  */
 export async function triggerSlackNotification(workspaceId: string, title: string, message: string) {
     try {
-        const integration = await prisma.integration.findFirst({
-            where: {
-                workspaceId,
-                type: "slack"
-            }
-        });
-
-        if (integration && integration.accessToken) {
-            const config = integration.config as any;
-            const channelId = config.channelId || "#general"; // Default to general if not specified
-            await sendSlackNotification(integration.accessToken, channelId, `*${title}*\n${message}`);
-        }
+        const { notifyWorkspace } = await import("./integrations/slack");
+        await notifyWorkspace(workspaceId, message, title);
     } catch (error) {
         console.error("Failed to trigger Slack notification:", error);
     }

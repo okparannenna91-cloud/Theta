@@ -66,26 +66,43 @@ Teams: ${teams.length > 0 ? teams.map(t => t.name).join(", ") : "None yet"}
         let text = "";
         const finalPrompt = `${BOOTS_SYSTEM_PROMPT}${workspaceContext}\n\nUser Question: ${prompt}`;
 
-        if (imageUrl) {
-            // Fetch image data
-            const imageResp = await fetch(imageUrl);
-            const arrayBuffer = await imageResp.arrayBuffer();
-            const base64Data = Buffer.from(arrayBuffer).toString("base64");
-            const mimeType = imageResp.headers.get("content-type") || "image/jpeg";
+        try {
+            if (imageUrl) {
+                // Fetch image data
+                const imageResp = await fetch(imageUrl);
+                const arrayBuffer = await imageResp.arrayBuffer();
+                const base64Data = Buffer.from(arrayBuffer).toString("base64");
+                const mimeType = imageResp.headers.get("content-type") || "image/jpeg";
 
-            const result = await visionModel.generateContent([
-                finalPrompt,
-                {
-                    inlineData: {
-                        data: base64Data,
-                        mimeType,
+                const result = await visionModel.generateContent([
+                    finalPrompt,
+                    {
+                        inlineData: {
+                            data: base64Data,
+                            mimeType,
+                        },
                     },
-                },
-            ]);
-            text = result.response.text();
-        } else {
-            const result = await model.generateContent(finalPrompt);
-            text = result.response.text();
+                ]);
+                text = result.response.text();
+            } else {
+                const result = await model.generateContent(finalPrompt);
+                text = result.response.text();
+            }
+        } catch (geminiError: any) {
+            console.warn("Gemini AI failed, attempting Cohere fallback...", geminiError);
+
+            // Vision tasks cannot fallback to Cohere easily (different API/capabilities)
+            if (imageUrl) {
+                throw geminiError;
+            }
+
+            try {
+                const { generateWithCohere } = await import("@/lib/cohere");
+                text = await generateWithCohere(prompt, `${BOOTS_SYSTEM_PROMPT}${workspaceContext}`);
+            } catch (cohereError: any) {
+                console.error("Cohere fallback also failed:", cohereError);
+                throw geminiError; // Throw original error if fallback fails
+            }
         }
 
         // Increment usage if workspaceId is provided
@@ -98,7 +115,7 @@ Teams: ${teams.length > 0 ? teams.map(t => t.name).join(", ") : "None yet"}
     } catch (error: any) {
         if (error.status === 429) {
             return NextResponse.json(
-                { error: "Boots is taking a short break (Rate Limit reached on Free Tier). Please try again in 60 seconds." },
+                { error: "Boots is taking a short break (Rate Limit reached). Please try again in a moment." },
                 { status: 429 }
             );
         }

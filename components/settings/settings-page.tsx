@@ -26,11 +26,15 @@ import {
   Laptop,
   Slack,
   Calendar,
-  ExternalLink
+  ExternalLink,
+  Check
 } from "lucide-react";
+import { usePreferences } from "@/hooks/use-preferences";
+import { toast } from "sonner";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const { preferences, updatePreference, isUpdating } = usePreferences();
   const [mounted, setMounted] = useState(false);
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
@@ -39,17 +43,23 @@ export default function SettingsPage() {
   // Avoid hydration mismatch
   useEffect(() => setMounted(true), []);
 
+  const handleThemeChange = (newTheme: string) => {
+    setTheme(newTheme);
+    updatePreference({ theme: newTheme });
+    toast.success(`Theme updated to ${newTheme}`);
+  };
+
   if (!mounted) return null;
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto">
+    <div className="p-4 sm:p-6 lg:p-8 max-w-4xl mx-auto font-sans">
       <motion.div
         initial={{ opacity: 0, x: -20 }}
         animate={{ opacity: 1, x: 0 }}
         className="mb-6 lg:mb-8"
       >
-        <h1 className="text-3xl font-bold mb-2">Settings</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-3xl font-black tracking-tight mb-2">Settings</h1>
+        <p className="text-muted-foreground font-medium">
           Manage your personal preferences and account security.
         </p>
       </motion.div>
@@ -59,47 +69,56 @@ export default function SettingsPage() {
         <section className="space-y-4">
           <div className="flex items-center gap-2 px-1">
             <Palette className="h-5 w-5 text-indigo-500" />
-            <h2 className="text-xl font-semibold">Appearance</h2>
+            <h2 className="text-xl font-bold tracking-tight">Appearance</h2>
           </div>
-          <Card>
+          <Card className="border-none shadow-sm bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm">
             <CardHeader>
-              <CardTitle className="text-base">Interface Theme</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-base font-bold">Interface Theme</CardTitle>
+              <CardDescription className="font-medium">
                 Select how Theta looks on your device.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <button
-                  onClick={() => setTheme("light")}
-                  className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${theme === "light" ? "border-primary bg-primary/5" : "border-muted hover:bg-muted/50"
+                  onClick={() => handleThemeChange("light")}
+                  className={`relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all duration-300 ${theme === "light"
+                    ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-900/10 shadow-lg shadow-indigo-500/10"
+                    : "border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-white dark:hover:bg-slate-800"
                     }`}
                 >
-                  <Sun className={`h-6 w-6 ${theme === "light" ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className="text-sm font-medium">Light</span>
+                  {theme === "light" && <Check className="absolute top-2 right-2 h-4 w-4 text-indigo-600 animate-in zoom-in" />}
+                  <Sun className={`h-6 w-6 ${theme === "light" ? "text-indigo-600" : "text-slate-400"}`} />
+                  <span className={`text-sm font-bold ${theme === "light" ? "text-indigo-600" : "text-slate-600 dark:text-slate-400"}`}>Light</span>
                 </button>
                 <button
-                  onClick={() => setTheme("dark")}
-                  className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${theme === "dark" ? "border-primary bg-primary/5" : "border-muted hover:bg-muted/50"
+                  onClick={() => handleThemeChange("dark")}
+                  className={`relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all duration-300 ${theme === "dark"
+                    ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-900/10 shadow-lg shadow-indigo-500/10"
+                    : "border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-white dark:hover:bg-slate-800"
                     }`}
                 >
-                  <Moon className={`h-6 w-6 ${theme === "dark" ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className="text-sm font-medium">Dark</span>
+                  {theme === "dark" && <Check className="absolute top-2 right-2 h-4 w-4 text-indigo-600 animate-in zoom-in" />}
+                  <Moon className={`h-6 w-6 ${theme === "dark" ? "text-indigo-600" : "text-slate-400"}`} />
+                  <span className={`text-sm font-bold ${theme === "dark" ? "text-indigo-600" : "text-slate-600 dark:text-slate-400"}`}>Dark</span>
                 </button>
                 <button
-                  onClick={() => setTheme("system")}
-                  className={`flex flex-col items-center gap-3 p-4 rounded-xl border-2 transition-all ${theme === "system" ? "border-primary bg-primary/5" : "border-muted hover:bg-muted/50"
+                  onClick={() => handleThemeChange("system")}
+                  className={`relative flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all duration-300 ${theme === "system"
+                    ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-900/10 shadow-lg shadow-indigo-500/10"
+                    : "border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-white dark:hover:bg-slate-800"
                     }`}
                 >
-                  <Laptop className={`h-6 w-6 ${theme === "system" ? "text-primary" : "text-muted-foreground"}`} />
-                  <span className="text-sm font-medium">System</span>
+                  {theme === "system" && <Check className="absolute top-2 right-2 h-4 w-4 text-indigo-600 animate-in zoom-in" />}
+                  <Laptop className={`h-6 w-6 ${theme === "system" ? "text-indigo-600" : "text-slate-400"}`} />
+                  <span className={`text-sm font-bold ${theme === "system" ? "text-indigo-600" : "text-slate-600 dark:text-slate-400"}`}>System</span>
                 </button>
               </div>
 
               <div className="flex items-center justify-between pt-2">
                 <div className="space-y-0.5">
-                  <Label className="text-base">Compact Mode</Label>
-                  <p className="text-sm text-muted-foreground">减少元素间距以显示更多内容。</p>
+                  <Label className="text-base font-bold">Compact Mode</Label>
+                  <p className="text-sm text-muted-foreground font-medium">Reduce spacing between elements to show more content.</p>
                 </div>
                 <Switch
                   checked={compactMode}

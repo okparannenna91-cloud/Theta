@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, getPrismaClient } from "@/lib/prisma";
 import { canCreateCalendarEvent, getPlanLimitMessage } from "@/lib/plan-limits";
 import { z } from "zod";
 
@@ -32,7 +32,9 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        const events = await prisma.calendarEvent.findMany({
+        const db = getPrismaClient(workspaceId);
+
+        const events = await db.calendarEvent.findMany({
             where: {
                 workspaceId,
                 OR: [
@@ -80,7 +82,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
 
-        const event = await prisma.calendarEvent.create({
+        const db = getPrismaClient(data.workspaceId);
+
+        const event = await db.calendarEvent.create({
             data: {
                 ...data,
                 userId: user.id,

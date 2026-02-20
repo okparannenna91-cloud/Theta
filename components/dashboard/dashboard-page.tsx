@@ -6,7 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FolderKanban, CheckSquare, Users, TrendingUp } from "lucide-react";
+import { FolderKanban, CheckSquare, Users, TrendingUp, Activity, Clock } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { formatDistanceToNow } from "date-fns";
 
 import { useWorkspace } from "@/hooks/use-workspace";
 
@@ -278,6 +280,68 @@ export default function DashboardPage() {
           </Card>
         </motion.div>
       </div>
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+      >
+        <Card className="border-none shadow-lg">
+          <CardHeader className="flex flex-row items-center gap-2">
+            <Activity className="h-5 w-5 text-indigo-500" />
+            <div>
+              <CardTitle>Recent Activity</CardTitle>
+              <CardDescription>Live updates from your workspace</CardDescription>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {data?.recentActivities?.length > 0 ? (
+              <div className="space-y-6">
+                {data.recentActivities.map((activity: any) => (
+                  <div key={activity.id} className="flex gap-4 relative">
+                    <Avatar className="h-9 w-9 shrink-0 ring-2 ring-background z-10">
+                      <AvatarImage src={activity.user?.imageUrl || ""} />
+                      <AvatarFallback>{activity.user?.name?.[0] || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1 space-y-1">
+                      <p className="text-sm font-medium">
+                        <span className="font-black text-slate-900 dark:text-slate-100">
+                          {activity.user?.name || "System"}
+                        </span>
+                        {" "}
+                        <span className="text-muted-foreground">
+                          {activity.action === "created" ? "created a new" :
+                            activity.action === "updated" ? "updated a" :
+                              activity.action === "deleted" ? "deleted a" :
+                                activity.action}
+                        </span>
+                        {" "}
+                        <span className="font-bold text-indigo-600 dark:text-indigo-400">
+                          {activity.entityType}
+                        </span>
+                      </p>
+                      {activity.metadata?.taskTitle && (
+                        <p className="text-xs bg-slate-50 dark:bg-slate-800/50 p-2 rounded-lg border border-slate-100 dark:border-slate-800">
+                          {activity.metadata.taskTitle}
+                        </p>
+                      )}
+                      <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground font-medium">
+                        <Clock className="h-3 w-3" />
+                        {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12">
+                <Activity className="w-12 h-12 text-muted-foreground/20 mx-auto mb-4" />
+                <p className="text-muted-foreground font-medium">No recent activity found.</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
     </div>
   );
 }

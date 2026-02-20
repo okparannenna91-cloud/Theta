@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaClient } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { z } from "zod";
 
@@ -44,11 +44,12 @@ export async function GET(req: Request) {
       );
     }
 
+    const db = getPrismaClient(workspaceId);
     let projectWhere: any = { workspaceId, teamId: null };
 
     // If teamId is provided, we only show tasks from projects belonging to that team
     if (teamId) {
-      const membership = await prisma.teamMember.findUnique({
+      const membership = await db.teamMember.findUnique({
         where: {
           teamId_userId: { teamId, userId: user.id },
         },
@@ -59,7 +60,7 @@ export async function GET(req: Request) {
       projectWhere = { workspaceId, teamId };
     }
 
-    const tasks = await prisma.task.findMany({
+    const tasks = await db.task.findMany({
       where: {
         workspaceId: workspaceId as string,
         project: projectWhere,
@@ -104,8 +105,10 @@ export async function POST(req: Request) {
       );
     }
 
+    const db = getPrismaClient(data.workspaceId);
+
     // Verify project belongs to workspace and user has access
-    const project = await prisma.project.findFirst({
+    const project = await db.project.findFirst({
       where: {
         id: data.projectId as string,
         workspaceId: data.workspaceId as string,
@@ -121,7 +124,7 @@ export async function POST(req: Request) {
 
     // Check plan limits strictly
     try {
-      const workspace = await prisma.workspace.findUnique({
+      const workspace = await db.workspace.findUnique({
         where: { id: data.workspaceId },
         include: { _count: { select: { tasks: true } } }
       });
@@ -133,7 +136,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
-    const task = await prisma.task.create({
+    const task = await db.task.create({
       data: {
         title: data.title,
         description: data.description,
@@ -169,6 +172,14 @@ export async function POST(req: Request) {
         taskTitle: task.title,
         projectId: task.projectId,
       }
+    );
+
+    // Slack Notification
+    const { notifyWorkspace } = await import("@/lib/integrations/slack");
+    await notifyWorkspace(
+      data.workspaceId,
+      `New task created: *${task.title}* in project *${task.project.name}*`,
+      "Task Created"
     );
 
     return NextResponse.json(task);

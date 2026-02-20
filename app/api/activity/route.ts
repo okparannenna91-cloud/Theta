@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, getPrismaClient } from "@/lib/prisma";
 import { PlanName } from "@/lib/plan-limits";
 
 export async function GET(req: Request) {
@@ -59,7 +59,9 @@ export async function GET(req: Request) {
     if (entityId) whereClause.entityId = entityId;
     if (entityType) whereClause.entityType = entityType;
 
-    const activities = await prisma.activity.findMany({
+    const db = getPrismaClient(workspaceId);
+
+    const activities = await db.activity.findMany({
       where: whereClause,
       include: {
         user: {

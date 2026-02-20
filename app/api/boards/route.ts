@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, getPrismaClient } from "@/lib/prisma";
 import { canCreateBoard, getPlanLimitMessage } from "@/lib/plan-limits";
 import { z } from "zod";
 
@@ -49,11 +49,12 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    const db = getPrismaClient(workspaceId);
     let projectWhere: any = { workspaceId };
 
     if (teamId) {
       // Verify team membership
-      const teamMembership = await prisma.teamMember.findUnique({
+      const teamMembership = await db.teamMember.findUnique({
         where: {
           teamId_userId: { teamId, userId: user.id },
         },
@@ -64,7 +65,7 @@ export async function GET(req: Request) {
       projectWhere.teamId = teamId;
     }
 
-    const boards = await prisma.board.findMany({
+    const boards = await db.board.findMany({
       where: {
         project: projectWhere,
       },
@@ -133,8 +134,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    const db = getPrismaClient(project.workspaceId);
+    const { prisma } = await import("@/lib/prisma");
+
     // Check plan limits strictly
-    const boardCount = await prisma.board.count({
+    const boardCount = await db.board.count({
       where: { workspaceId: project.workspaceId }
     });
 
@@ -145,7 +149,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
-    const board = await prisma.board.create({
+    const board = await db.board.create({
       data: {
         name: data.name,
         projectId: data.projectId,
@@ -156,7 +160,7 @@ export async function POST(req: Request) {
     // Create default columns
     const defaultColumns = ["Todo", "In Progress", "Done"];
     for (let i = 0; i < defaultColumns.length; i++) {
-      await prisma.column.create({
+      await db.column.create({
         data: {
           name: defaultColumns[i],
           boardId: board.id,
@@ -165,7 +169,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const boardWithColumns = await prisma.board.findUnique({
+    const boardWithColumns = await db.board.findUnique({
       where: { id: board.id },
       include: {
         columns: true,

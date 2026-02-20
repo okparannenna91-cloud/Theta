@@ -60,35 +60,67 @@ export async function exchangeSlackCode(code: string): Promise<any> {
 }
 
 /**
- * Send a notification to Slack
- * This is a stub - implement full Slack API integration
+ * Send a notification to a specific workspace if they have Slack integrated
  */
-export async function sendSlackNotification(
-    accessToken: string,
-    channel: string,
-    message: string
+export async function notifyWorkspace(
+    workspaceId: string,
+    message: string,
+    title?: string
 ): Promise<void> {
     try {
+        const { prisma } = await import("@/lib/prisma");
+        const integration = await prisma.integration.findFirst({
+            where: {
+                workspaceId,
+                type: "slack",   // Integration model uses `type` not `provider`
+            },
+        });
+
+        if (!integration || !integration.accessToken) return;
+
+        const config = integration.config as any;
+        const channel = config?.channelId || config?.channel || "general";
+
+        if (!channel) return;
+
+        // Richly formatted message with blocks
+        const blocks = [
+            {
+                type: "section",
+                text: {
+                    type: "mrkdwn",
+                    text: title ? `*${title}*\n${message}` : message,
+                },
+            },
+            {
+                type: "context",
+                elements: [
+                    {
+                        type: "mrkdwn",
+                        text: `Sent from *Theta Platform* at ${new Date().toLocaleTimeString()}`,
+                    },
+                ],
+            },
+        ];
+
         const response = await fetch("https://slack.com/api/chat.postMessage", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${accessToken}`,
+                Authorization: `Bearer ${integration.accessToken}`,
             },
             body: JSON.stringify({
                 channel,
-                text: message,
+                text: title ? `${title}: ${message}` : message,
+                blocks,
             }),
         });
 
         const data = await response.json();
-
         if (!data.ok) {
-            console.error("Slack API error:", data.error);
-            throw new Error(data.error);
+            console.error("Slack notification error:", data.error);
         }
     } catch (error) {
-        console.error("Failed to send Slack notification:", error);
-        throw error;
+        console.error("Failed to notify workspace via Slack:", error);
     }
 }

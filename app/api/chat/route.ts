@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, getPrismaClient } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { publishToChannel, getChatChannel } from "@/lib/ably";
 import { z } from "zod";
@@ -12,6 +12,7 @@ const chatSchema = z.object({
     workspaceId: z.string(),
     projectId: z.string().optional(),
     teamId: z.string().optional(),
+    attachment: z.any().optional(),
 });
 
 export async function GET(req: Request) {
@@ -50,8 +51,20 @@ export async function GET(req: Request) {
             }
         }
 
+        // Determine workspaceId for sharding
+        let effectiveWorkspaceId = workspaceId;
+        if (!effectiveWorkspaceId && teamId) {
+            const team = await prisma.team.findUnique({
+                where: { id: teamId },
+                select: { workspaceId: true }
+            });
+            effectiveWorkspaceId = team?.workspaceId || null;
+        }
+
+        const db = getPrismaClient(effectiveWorkspaceId);
+
         // Get chat messages
-        const messages = await prisma.chatMessage.findMany({
+        const messages = await db.chatMessage.findMany({
             where: {
                 teamId: teamId || null,
                 workspaceId: teamId ? undefined : (workspaceId as string),
@@ -98,8 +111,10 @@ export async function POST(req: Request) {
             if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
+        const db = getPrismaClient(data.workspaceId);
+
         // Check plan limits strictly for chat messages
-        const chatCount = await prisma.chatMessage.count({
+        const chatCount = await db.chatMessage.count({
             where: { workspaceId: data.workspaceId }
         });
 
@@ -111,13 +126,14 @@ export async function POST(req: Request) {
         }
 
         // Create message
-        const message = await prisma.chatMessage.create({
+        const message = await db.chatMessage.create({
             data: {
                 content: data.content,
                 workspaceId: data.workspaceId,
                 projectId: data.projectId || null,
                 teamId: data.teamId || null,
                 userId: user.id as string,
+                attachment: (data.attachment as any) || null,
             },
             include: {
                 user: {

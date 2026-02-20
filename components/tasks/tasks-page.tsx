@@ -10,7 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select } from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, CheckCircle2, Circle, Clock, AlertCircle } from "lucide-react";
@@ -308,42 +308,52 @@ export default function TasksPage() {
             <div>
               <Label htmlFor="project">Project</Label>
               <Select
-                id="project"
                 value={projectId}
-                onChange={(e) => setProjectId(e.target.value)}
-                required
+                onValueChange={(val) => setProjectId(val)}
               >
-                <option value="">Select a project</option>
-                {projects?.map((project: any) => (
-                  <option key={project.id} value={project.id}>
-                    {project.name}
-                  </option>
-                ))}
+                <SelectTrigger id="project">
+                  <SelectValue placeholder="Select a project" />
+                </SelectTrigger>
+                <SelectContent>
+                  {projects?.map((project: any) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
               </Select>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="status">Status</Label>
                 <Select
-                  id="status"
                   value={status}
-                  onChange={(e) => setStatus(e.target.value)}
+                  onValueChange={(val) => setStatus(val)}
                 >
-                  <option value="todo">Todo</option>
-                  <option value="in-progress">In Progress</option>
-                  <option value="completed">Completed</option>
+                  <SelectTrigger id="status">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="todo">Todo</SelectItem>
+                    <SelectItem value="in-progress">In Progress</SelectItem>
+                    <SelectItem value="completed">Completed</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label htmlFor="priority">Priority</Label>
                 <Select
-                  id="priority"
                   value={priority}
-                  onChange={(e) => setPriority(e.target.value)}
+                  onValueChange={(val) => setPriority(val)}
                 >
-                  <option value="low">Low</option>
-                  <option value="medium">Medium</option>
-                  <option value="high">High</option>
+                  <SelectTrigger id="priority">
+                    <SelectValue placeholder="Priority" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="low">Low</SelectItem>
+                    <SelectItem value="medium">Medium</SelectItem>
+                    <SelectItem value="high">High</SelectItem>
+                  </SelectContent>
                 </Select>
               </div>
             </div>

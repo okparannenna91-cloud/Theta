@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { findAcrossShards } from "@/lib/prisma";
+import { Board } from "@prisma/client";
 
 export async function GET(
   req: Request,
@@ -12,13 +13,30 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const board = await prisma.board.findFirst({
+    const { data: board, db } = await findAcrossShards<any>("board", { id: params.id });
+
+    if (!board) {
+      return NextResponse.json({ error: "Board not found" }, { status: 404 });
+    }
+
+    // Verify workspace access (Workspace records are on Shard 1 / primary)
+    const { prisma } = await import("@/lib/prisma");
+    const membership = await prisma.workspaceMember.findUnique({
       where: {
-        id: params.id,
-        project: {
+        workspaceId_userId: {
+          workspaceId: board.workspaceId,
           userId: user.id,
         },
       },
+    });
+
+    if (!membership) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // Now fetch full details from the shard
+    const fullBoard = await db.board.findUnique({
+      where: { id: params.id },
       include: {
         columns: {
           orderBy: { order: "asc" },
@@ -46,7 +64,7 @@ export async function GET(
       return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
 
-    return NextResponse.json(board);
+    return NextResponse.json(fullBoard);
   } catch (error) {
     console.error("Get board error:", error);
     return NextResponse.json(

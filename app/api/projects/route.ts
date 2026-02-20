@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaClient } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { canCreateProject, getPlanLimitMessage, PlanName, enforcePlanLimit } from "@/lib/plan-limits";
 import { getProjectCount } from "@/lib/usage-tracking";
@@ -42,11 +42,12 @@ export async function GET(req: Request) {
       );
     }
 
+    const db = getPrismaClient(workspaceId);
     let whereClause: any = { workspaceId, teamId: null };
 
     if (teamId) {
       // Verify team membership
-      const membership = await prisma.teamMember.findUnique({
+      const membership = await db.teamMember.findUnique({
         where: {
           teamId_userId: {
             teamId,
@@ -62,7 +63,7 @@ export async function GET(req: Request) {
       whereClause = { workspaceId, teamId };
     }
 
-    const projects = await prisma.project.findMany({
+    const projects = await db.project.findMany({
       where: whereClause,
       include: {
         _count: {
@@ -101,6 +102,9 @@ export async function POST(req: Request) {
       );
     }
 
+    const db = getPrismaClient(data.workspaceId);
+    const { prisma } = await import("@/lib/prisma");
+
     // Get workspace and check plan limits
     const workspace = await prisma.workspace.findUnique({
       where: { id: data.workspaceId },
@@ -126,7 +130,7 @@ export async function POST(req: Request) {
     }
 
     if (data.teamId) {
-      const membership = await prisma.teamMember.findUnique({
+      const membership = await db.teamMember.findUnique({
         where: {
           teamId_userId: {
             teamId: data.teamId,
@@ -143,7 +147,7 @@ export async function POST(req: Request) {
       }
 
       // Verify team belongs to workspace
-      const team = await prisma.team.findFirst({
+      const team = await db.team.findFirst({
         where: { id: data.teamId, workspaceId: data.workspaceId },
       });
 
@@ -155,7 +159,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const project = await prisma.project.create({
+    const project = await db.project.create({
       data: {
         name: data.name,
         description: data.description,

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { isWorkspaceAdmin } from "@/lib/workspace";
-import { createInvite } from "@/lib/invite";
+import { createInvite, resendInvite } from "@/lib/invite";
 import { canAddMember, getPlanLimitMessage } from "@/lib/plan-limits";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
@@ -188,5 +188,53 @@ export async function DELETE(req: Request) {
     } catch (error) {
         console.error("Revoke invite error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+}
+
+export async function PATCH(req: Request) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(req.url);
+        const inviteId = searchParams.get("id");
+
+        if (!inviteId) {
+            return NextResponse.json({ error: "Invite ID is required" }, { status: 400 });
+        }
+
+        const { invite, workspaceName } = await resendInvite(inviteId);
+
+        // Verify user is admin of workspace
+        const isAdmin = await isWorkspaceAdmin(user.id, invite.workspaceId);
+        if (!isAdmin) {
+            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        // Generate invite link
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const inviteLink = `${baseUrl}/invites/${invite.token}`;
+
+        // Send email
+        const { sendInviteEmail } = await import("@/lib/email");
+        await sendInviteEmail({
+            to: invite.email,
+            workspaceName: workspaceName || "Theta Workspace",
+            inviteLink,
+            role: invite.role,
+        });
+
+        return NextResponse.json({
+            ...invite,
+            inviteLink,
+        });
+    } catch (error: any) {
+        console.error("Resend invite error:", error);
+        return NextResponse.json(
+            { error: error.message || "Internal server error" },
+            { status: 500 }
+        );
     }
 }

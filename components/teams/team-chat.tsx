@@ -3,10 +3,12 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as Ably from "ably";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Loader2, User, Hash, MessageSquare } from "lucide-react";
+import { Send, Loader2, User, Hash, MessageSquare, Paperclip, X, FileText, ImageIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@clerk/nextjs";
+import { FileUpload } from "@/components/common/file-upload";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface TeamChatProps {
     teamId: string;
@@ -16,6 +18,8 @@ interface TeamChatProps {
 export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
     const { user } = useUser();
     const [message, setMessage] = useState("");
+    const [attachment, setAttachment] = useState<any>(null);
+    const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [messages, setMessages] = useState<any[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
@@ -80,19 +84,22 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
 
     const sendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!message.trim() || !teamId) return;
+        if ((!message.trim() && !attachment) || !teamId) return;
 
         const content = message;
+        const currentAttachment = attachment;
         setMessage("");
+        setAttachment(null);
 
         try {
             await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    content,
+                    content: content || (currentAttachment ? "Sent an attachment" : ""),
                     workspaceId,
                     teamId,
+                    attachment: currentAttachment,
                 }),
             });
         } catch (error) {
@@ -156,6 +163,25 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                                                 : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tl-none"
                                                 }`}
                                         >
+                                            {msg.attachment && (
+                                                <div className="mb-2">
+                                                    {msg.attachment.category === "image" ? (
+                                                        <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer">
+                                                            <img src={msg.attachment.url} alt="Attachment" className="rounded-lg max-w-full max-h-48 object-cover" />
+                                                        </a>
+                                                    ) : (
+                                                        <a
+                                                            href={msg.attachment.url}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="flex items-center gap-2 p-2 bg-black/10 rounded-lg hover:bg-black/20 transition-colors"
+                                                        >
+                                                            <FileText className="h-4 w-4" />
+                                                            <span className="truncate max-w-[150px]">{msg.attachment.originalName}</span>
+                                                        </a>
+                                                    )}
+                                                </div>
+                                            )}
                                             {msg.content}
                                         </div>
                                     </div>
@@ -168,9 +194,49 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
 
             {/* Input Area */}
             <div className="p-4 border-t bg-slate-50/50 dark:bg-slate-900/50">
+                {attachment && (
+                    <div className="mb-2 flex items-center justify-between p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-100 dark:border-purple-800">
+                        <div className="flex items-center gap-2 text-xs font-medium text-purple-700 dark:text-purple-300">
+                            {attachment.category === "image" ? <ImageIcon className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
+                            <span className="truncate">{attachment.originalName}</span>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-4 w-4 rounded-full" onClick={() => setAttachment(null)}>
+                            <X className="h-3 w-3" />
+                        </Button>
+                    </div>
+                )}
                 <form onSubmit={sendMessage} className="flex gap-2">
+                    <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+                        <DialogTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="text-slate-500 hover:text-purple-600 shrink-0"
+                                disabled={!isConnected}
+                            >
+                                <Paperclip className="h-5 w-5" />
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>Upload Attachment</DialogTitle>
+                            </DialogHeader>
+                            <FileUpload
+                                onChange={(url) => {
+                                    setAttachment({
+                                        url,
+                                        originalName: "Attachment",
+                                        category: url.match(/\.(jpeg|jpg|gif|png)$/) ? "image" : "document"
+                                    });
+                                    setIsUploadOpen(false);
+                                }}
+                                onRemove={() => setAttachment(null)}
+                            />
+                        </DialogContent>
+                    </Dialog>
                     <Input
-                        placeholder="Type a message to your team..."
+                        placeholder={attachment ? "Add a comment..." : "Type a message to your team..."}
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-purple-500"
@@ -179,7 +245,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                     <Button
                         type="submit"
                         size="icon"
-                        disabled={!isConnected || !message.trim()}
+                        disabled={!isConnected || (!message.trim() && !attachment)}
                         className="bg-purple-600 hover:bg-purple-700 shrink-0"
                     >
                         <Send className="h-4 w-4" />
