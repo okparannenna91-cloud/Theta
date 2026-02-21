@@ -1,7 +1,13 @@
 "use client";
 
 import { useI18n } from "@/lib/i18n";
-import { Select } from "@/components/ui/select";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import { Globe } from "lucide-react";
 
 export function LanguageSwitcher() {
@@ -12,17 +18,21 @@ export function LanguageSwitcher() {
             <Globe className="h-4 w-4 text-muted-foreground" />
             <Select
                 value={language}
-                onChange={(e) => setLanguage(e.target.value as any)}
-                className="w-[120px] h-9 text-xs"
+                onValueChange={(val: any) => setLanguage(val)}
             >
-                <option value="en">English</option>
-                <option value="es">Español</option>
-                <option value="fr">Français</option>
-                <option value="de">Deutsch</option>
-                <option value="zh">中文</option>
-                <option value="ar">العربية</option>
-                <option value="ja">日本語</option>
-                <option value="ru">Русский</option>
+                <SelectTrigger className="w-[120px] h-9 text-xs">
+                    <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                    <SelectItem value="en">English</SelectItem>
+                    <SelectItem value="es">Español</SelectItem>
+                    <SelectItem value="fr">Français</SelectItem>
+                    <SelectItem value="de">Deutsch</SelectItem>
+                    <SelectItem value="zh">中文</SelectItem>
+                    <SelectItem value="ar">العربية</SelectItem>
+                    <SelectItem value="ja">日本語</SelectItem>
+                    <SelectItem value="ru">Русский</SelectItem>
+                </SelectContent>
             </Select>
         </div>
     );

@@ -26,7 +26,13 @@ import { UserButton } from "@clerk/nextjs";
 import { ModeToggle } from "./mode-toggle";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { Select } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useI18n } from "@/lib/i18n";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -115,14 +121,18 @@ export function Sidebar() {
           <div className="px-4 pb-4">
             <Select
               value={activeWorkspaceId || ""}
-              onChange={(e) => switchWorkspace(e.target.value)}
-              className="h-9 text-xs font-semibold bg-accent/50 border-none hover:bg-accent transition-colors cursor-pointer"
+              onValueChange={switchWorkspace}
             >
-              {workspaces?.map((w: any) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
+              <SelectTrigger className="h-9 text-xs font-semibold bg-accent/50 border-none hover:bg-accent transition-colors cursor-pointer">
+                <SelectValue placeholder="Select workspace" />
+              </SelectTrigger>
+              <SelectContent>
+                {workspaces?.map((w: any) => (
+                  <SelectItem key={w.id} value={w.id}>
+                    {w.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
             </Select>
           </div>
         </div>
