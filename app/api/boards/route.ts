@@ -135,7 +135,6 @@ export async function POST(req: Request) {
     }
 
     const db = getPrismaClient(project.workspaceId);
-    const { prisma } = await import("@/lib/prisma");
 
     // Check plan limits strictly
     const boardCount = await db.board.count({

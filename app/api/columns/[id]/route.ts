@@ -39,7 +39,6 @@ export async function PATCH(
         }
 
         // Verify workspace access (Workspace records are on Shard 1 / primary)
-        const { prisma } = await import("@/lib/prisma");
         const membership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
@@ -101,7 +100,6 @@ export async function DELETE(
         }
 
         // Verify workspace access
-        const { prisma } = await import("@/lib/prisma");
         const membership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
