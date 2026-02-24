@@ -22,9 +22,7 @@ This guide will help you set up and run the Theta project management SaaS locall
  
 4. **Run the development server:**
    ```bash
-   npm run lint
-   npm run build
-   npm run dev
+     npm run dev
    ```
 
 5. **Open http://localhost:3000** || **Open http://thetapm.site**
