@@ -44,6 +44,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useAbly } from "@/hooks/use-ably";
+import { getBoardChannel } from "@/lib/ably";
+import { useCallback } from "react";
 
 async function fetchBoard(id: string) {
   const res = await fetch(`/api/boards/${id}`);
@@ -192,6 +195,16 @@ export default function KanbanBoard({
   const [newColumnName, setNewColumnName] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [targetColumnId, setTargetColumnId] = useState<string | null>(null);
+
+  const boardChannel = getBoardChannel(activeWorkspaceId || "", boardId);
+
+  const handleAblyUpdate = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+  }, [queryClient, boardId]);
+
+  useAbly(boardChannel, "task:created", handleAblyUpdate);
+  useAbly(boardChannel, "task:updated", handleAblyUpdate);
+  useAbly(boardChannel, "task:deleted", handleAblyUpdate);
 
   const { data: board, isLoading } = useQuery({
     queryKey: ["board", boardId],

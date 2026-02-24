@@ -4,90 +4,107 @@
 
 @layer base {
   :root {
-    /* Light Mode */
-    --background: 210 20% 98%;
+    /* Light Mode - Refined */
+    --background: 0 0% 100%;
     --foreground: 222 47% 11%;
-    /* Dark navy — always readable */
     --card: 0 0% 100%;
     --card-foreground: 222 47% 11%;
     --popover: 0 0% 100%;
     --popover-foreground: 222 47% 11%;
-    --primary: 238 76% 56%;
-    /* Indigo */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 40% 93%;
+    --primary: 262 83% 58%;
+    /* Vibrant Purple */
+    --primary-foreground: 210 20% 98%;
+    --secondary: 210 40% 96%;
     --secondary-foreground: 222 47% 11%;
-    --muted: 210 40% 94%;
-    --muted-foreground: 215 16% 40%;
-    /* Darker for readability */
-    --accent: 238 76% 95%;
-    --accent-foreground: 238 76% 30%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 262 83% 96%;
+    --accent-foreground: 262 83% 40%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 214 32% 88%;
-    --input: 214 32% 88%;
-    --ring: 238 76% 56%;
-    --radius: 0.5rem;
+    --destructive-foreground: 210 20% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 262 83% 58%;
+    --radius: 0.75rem;
   }
 
   .dark {
-    /* Dark Mode — deep navy */
-    --background: 222 47% 6%;
+    /* Dark Mode - Deep & Sophisticated */
+    --background: 224 71% 4%;
     --foreground: 213 31% 91%;
-    --card: 222 47% 8%;
+    --card: 224 71% 4%;
     --card-foreground: 213 31% 91%;
-    --popover: 222 47% 8%;
+    --popover: 224 71% 5%;
     --popover-foreground: 213 31% 91%;
-    --primary: 238 76% 62%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 217 33% 15%;
-    --secondary-foreground: 213 31% 91%;
-    --muted: 217 33% 13%;
-    --muted-foreground: 215 20% 60%;
-    --accent: 217 33% 14%;
-    --accent-foreground: 213 31% 91%;
-    --destructive: 0 63% 40%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 217 33% 14%;
-    --input: 217 33% 14%;
-    --ring: 238 76% 62%;
+    --primary: 263 70% 50%;
+    --primary-foreground: 210 20% 98%;
+    --secondary: 215 27.9% 16.9%;
+    --secondary-foreground: 210 20% 98%;
+    --muted: 215 27.9% 12.9%;
+    --muted-foreground: 215 20.2% 65.1%;
+    --accent: 215 27.9% 16.9%;
+    --accent-foreground: 210 20% 98%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 20% 98%;
+    --border: 215 27.9% 16.9%;
+    --input: 215 27.9% 16.9%;
+    --ring: 263 70% 50%;
   }
 }
 
 @layer base {
   * {
-    @apply border-border;
+    @apply border-border selection:bg-primary/20 selection:text-primary;
   }
 
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02";
   }
 
-  /* Fix: guarantee inputs/selects are readable in all themes */
-  input,
-  textarea,
-  select {
-    color: hsl(var(--foreground));
-  }
-
-  /* Headings always use strong foreground */
   h1,
   h2,
   h3,
   h4,
   h5,
   h6 {
-    color: hsl(var(--foreground));
+    @apply font-semibold tracking-tight;
   }
 }
 
-/* ───────────────────────────────────────
-   Custom Scrollbars — minimal & elegant
-─────────────────────────────────────── */
+@layer utilities {
+  .glass {
+    @apply bg-white/40 dark:bg-slate-950/40 backdrop-blur-md border border-white/20 dark:border-white/10;
+  }
+
+  .glass-card {
+    @apply glass rounded-2xl transition-all duration-300 hover:shadow-[0_8px_32px_0_rgba(31, 38, 135, 0.15)] hover:border-primary/20;
+  }
+
+  .mesh-gradient {
+    background-color: hsla(224, 71%, 4%, 1);
+    background-image:
+      radial-gradient(at 0% 0%, hsla(263, 70%, 50%, 0.15) 0px, transparent 50%),
+      radial-gradient(at 100% 0%, hsla(263, 70%, 50%, 0.1) 0px, transparent 50%),
+      radial-gradient(at 50% 100%, hsla(263, 70%, 50%, 0.05) 0px, transparent 50%);
+  }
+
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-br from-foreground to-foreground/70;
+  }
+
+  .premium-shadow {
+    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.1);
+  }
+
+  .modern-button {
+    @apply transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:pointer-events-none hover:brightness-110;
+  }
+}
+
 ::-webkit-scrollbar {
-  width: 5px;
-  height: 5px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -101,91 +118,4 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.4);
-}
-
-/* ───────────────────────────────────────
-   Mobile Optimizations
-─────────────────────────────────────── */
-@layer utilities {
-  .touch-manipulation {
-    touch-action: manipulation;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  html {
-    -webkit-text-size-adjust: 100%;
-    text-size-adjust: 100%;
-  }
-
-  @media (prefers-reduced-motion: no-preference) {
-    html {
-      scroll-behavior: smooth;
-    }
-  }
-}
-
-/* ───────────────────────────────────────
-   Utility Animations
-─────────────────────────────────────── */
-@layer utilities {
-  .animate-pulse-slow {
-    animation: pulse-slow 8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  }
-
-  .animate-shimmer {
-    animation: shimmer 2s infinite;
-  }
-
-  .animate-float {
-    animation: float 6s ease-in-out infinite;
-  }
-
-  .glass {
-    @apply bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/20 dark:border-slate-800/20 shadow-xl;
-  }
-
-  .premium-shadow {
-    box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.15);
-  }
-
-  .modern-button {
-    @apply transition-all duration-300 active:scale-95 disabled:opacity-50 disabled:pointer-events-none;
-  }
-
-  .gradient-mask {
-    -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
-    mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
-  }
-}
-
-@keyframes pulse-slow {
-
-  0%,
-  100% {
-    opacity: 1;
-    transform: scale(1.05);
-  }
-
-  50% {
-    opacity: 0.8;
-    transform: scale(1.1);
-  }
-}
-
-@keyframes shimmer {
-  100% {
-    transform: translateX(100%);
-  }
-}
-
-@keyframes float {
-
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-
-  50% {
-    transform: translateY(-10px);
-  }
 }

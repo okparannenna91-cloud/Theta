@@ -41,8 +41,26 @@ model Workspace {
   integrations  Integration[]
   calendarEvents CalendarEvent[]
   tags           Tag[]
+  statuses       Status[]
+  automations    Automation[]
 
   @@map("workspaces")
+}
+
+model Automation {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  trigger     String   // e.g. TASK_STATUS_UPDATED, TASK_CREATED
+  condition   String?  // e.g. JSON string of conditions
+  action      String   // e.g. SET_PRIORITY, SET_ASSIGNEE, SEND_NOTIFICATION
+  actionValue String?
+  workspaceId String   @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("automations")
 }
 
 model WorkspaceMember {
@@ -78,6 +96,7 @@ model User {
   chatMessages  ChatMessage[]
   calendarEvents CalendarEvent[]
   comments      Comment[]
+  timeLogs      TimeLog[]
   preferences   UserPreference?
 
   @@map("users")
@@ -130,7 +149,21 @@ model Task {
   subtasks  Subtask[]
   comments  Comment[]
   tagIds    String[]  @db.ObjectId
-  tags      Tag[]     @relation(fields: [tagIds], references: [id])
+  tags      Tag[]     @relation("TaskTags", fields: [tagIds], references: [id])
+  
+  statusId  String?   @db.ObjectId
+  customStatus Status? @relation(fields: [statusId], references: [id])
+  
+  estimatedHours Int?
+  progress       Int       @default(0)
+  
+  timeLogs       TimeLog[]
+  
+  dependencyIds String[] @db.ObjectId
+  dependencies  Task[]   @relation("TaskDependencies", fields: [dependencyIds], references: [id])
+  
+  dependentIds  String[] @db.ObjectId
+  dependents    Task[]   @relation("TaskDependencies", fields: [dependentIds], references: [id])
 
   @@map("tasks")
 }
@@ -168,11 +201,40 @@ model Tag {
   workspaceId String    @db.ObjectId
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   taskIds     String[]  @db.ObjectId
-  tasks       Task[]    @relation(fields: [taskIds], references: [id])
+  tasks       Task[]    @relation("TaskTags", fields: [taskIds], references: [id])
   createdAt   DateTime  @default(now())
 
   @@unique([workspaceId, name])
   @@map("tags")
+}
+
+model Status {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  color       String?   @default("#4f46e5")
+  order       Int       @default(0)
+  workspaceId String    @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, name])
+  @@map("statuses")
+}
+
+model TimeLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  duration    Int      // in seconds
+  description String?
+  userId      String   @db.ObjectId
+  taskId      String   @db.ObjectId
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("time_logs")
 }
 
 model Board {

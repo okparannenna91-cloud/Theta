@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { z } from "zod";
+import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel } from "@/lib/ably";
 
 const taskSchema = z.object({
   title: z.string().min(1),
@@ -159,6 +160,20 @@ export async function POST(req: Request) {
         },
       },
     });
+
+    // Notify via Ably
+    const workspaceChannel = getWorkspaceChannel(task.workspaceId);
+    await publishToChannel(workspaceChannel, "task:created", task);
+
+    if (task.boardId) {
+      const boardChannel = getBoardChannel(task.workspaceId, task.boardId);
+      await publishToChannel(boardChannel, "task:created", task);
+    }
+
+    if (task.projectId) {
+      const projectChannel = getProjectChannel(task.workspaceId, task.projectId);
+      await publishToChannel(projectChannel, "task:created", task);
+    }
 
     // Log activity
     const { createActivity } = await import("@/lib/activity");

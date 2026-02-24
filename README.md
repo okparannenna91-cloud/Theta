@@ -9,18 +9,22 @@ A complete, production-ready project management SaaS application built with Next
 - 🏢 **Workspace Isolation** - Strict data separation between workspaces with independent settings, billing, and team management.
 - 📊 **Dynamic Dashboard** - Real-time overview of project progress, task status, and team activity with visual analytics.
 - 📁 **Project Management** - Organize work into projects with cover images, descriptions, and privacy settings.
-- ✅ **Advanced Task System** - Task management with priorities, status tracking, due dates, and rich media attachments.
+- ✅ **Advanced Task System** - Task management with priorities, status tracking, due dates, estimates, and progress monitoring.
 - 📋 **Kanban Boards** - Visual project management with fluid drag-and-drop boards and custom columns.
 - 👥 **Team Collaboration** - Role-based access control (RBAC), team member management, and workspace-wide permissions.
 - 📅 **Smart Calendar** - Integrated scheduling system with support for recurring events and team-wide visibility.
 
 ### Advanced Capabilities
+- 📈 **Strategic Portfolio** - High-level organizational overview to monitor project health across the entire workspace.
+- 📊 **Gantt & Timeline** - Professional project visualization tools for scheduling and dependency tracking.
+- ⏱️ **Time Tracking** - Built-in manual stopwatch and manual logging to track task duration.
 - 🤖 **Boots AI Assistant** - Specialized AI generation powered by Google Gemini for project descriptions, task breakdowns, and content drafting.
+- ⚡ **Workflow Automations** - Custom rules system to automate task priority, notifications, and status transitions.
 - 🔔 **Real-time Notifications** - Instant updates via Ably integration for task assignments, mentions, and system alerts.
 - 📈 **Detailed Analytics** - In-depth insights into workspace usage, team productivity, and project health.
-- 📝 **Audit Logs** - Comprehensive activity tracking across all workspace entities for transparency and security.
+- 📝 **Audit Logs** - Detailed task activity history showing exactly who changed what and when.
 - 🔍 **Global Search** - Lightning-fast search across projects, tasks, members, and documents.
-- 💬 **Integrated Chat** - Real-time team communication channels nested within workspaces.
+- 💬 **Discussion & Mentions** - Real-time task comments with @mention support for team members.
 - 🔗 **Third-Party Integrations** - Connect with external tools like Slack for seamless workflow automation.
 - 📤 **Universal File Management** - Cloudinary-powered management for images, videos, and documents with plan-based storage limits.
 

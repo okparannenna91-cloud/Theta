@@ -32,6 +32,8 @@ import { toast } from "sonner";
 import { TaskSubtasks } from "./task-subtasks";
 import { TaskComments } from "./task-comments";
 import { TagSelector } from "./tag-selector";
+import { TimeTracker } from "./time-tracker";
+import { TaskActivity } from "./task-activity";
 
 interface TaskDialogProps {
     task: any;
@@ -49,8 +51,18 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     const [dueDate, setDueDate] = useState<Date | undefined>(
         task?.dueDate ? new Date(task?.dueDate) : undefined
     );
+    const [estimatedHours, setEstimatedHours] = useState(task?.estimatedHours || 0);
+    const [progress, setProgress] = useState(task?.progress || 0);
+    const [dependencyIds, setDependencyIds] = useState<string[]>(task?.dependencyIds || []);
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [summary, setSummary] = useState<string | null>(null);
+
+    const activeWorkspace = queryClient.getQueryData<any[]>(["workspaces"])?.find(w => w.id === workspaceId);
+    const statuses = activeWorkspace?.statuses || [
+        { id: "todo", name: "To Do" },
+        { id: "in_progress", name: "In Progress" },
+        { id: "done", name: "Done" },
+    ];
 
     useEffect(() => {
         if (task) {
@@ -59,6 +71,9 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             setStatus(task.status);
             setPriority(task.priority);
             setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
+            setEstimatedHours(task.estimatedHours || 0);
+            setProgress(task.progress || 0);
+            setDependencyIds(task.dependencyIds || []);
         }
     }, [task]);
 
@@ -145,11 +160,18 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
                         <hr className="border-slate-100 dark:border-slate-800" />
 
                         {/* Comments */}
-                        <TaskComments taskId={task.id} />
+                        <TaskComments taskId={task.id} workspaceId={workspaceId} />
+
+                        <hr className="border-slate-100 dark:border-slate-800" />
+
+                        {/* Activity */}
+                        <TaskActivity taskId={task.id} workspaceId={workspaceId} />
                     </div>
 
                     {/* Sidebar */}
                     <div className="w-full lg:w-72 p-6 space-y-8 bg-slate-50 dark:bg-slate-950/50 rounded-r-2xl border-l border-slate-200/50 dark:border-slate-800/50">
+                        <TimeTracker taskId={task.id} />
+
                         <div className="space-y-6">
                             <Button
                                 variant="outline"
@@ -192,9 +214,9 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
                                         <SelectValue placeholder="Status" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="todo">To Do</SelectItem>
-                                        <SelectItem value="in_progress">In Progress</SelectItem>
-                                        <SelectItem value="done">Done</SelectItem>
+                                        {statuses.map((s: any) => (
+                                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -250,6 +272,37 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
                                         </div>
                                     </PopoverContent>
                                 </Popover>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Estimate (h)</Label>
+                                    <Input
+                                        type="number"
+                                        value={estimatedHours}
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value) || 0;
+                                            setEstimatedHours(val);
+                                            handleUpdate("estimatedHours", val);
+                                        }}
+                                        className="h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold"
+                                    />
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Progress (%)</Label>
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        max="100"
+                                        value={progress}
+                                        onChange={(e) => {
+                                            const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                                            setProgress(val);
+                                            handleUpdate("progress", val);
+                                        }}
+                                        className="h-9 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-lg text-xs font-bold"
+                                    />
+                                </div>
                             </div>
 
                             <TagSelector

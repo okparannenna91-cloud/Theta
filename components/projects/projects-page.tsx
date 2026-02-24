@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, FolderKanban, Trash2 } from "lucide-react";
 import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
+import Link from "next/link";
 import Image from "next/image";
 
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -132,41 +133,43 @@ export default function ProjectsPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
           >
-            <Card className="hover:shadow-lg transition-shadow overflow-hidden group">
-              {project.coverImage && (
-                <div className="relative h-32 w-full">
-                  <Image
-                    src={project.coverImage}
-                    alt={project.name}
-                    fill
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                </div>
-              )}
-              <CardHeader className={project.coverImage ? "pt-4" : ""}>
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    {!project.coverImage && <FolderKanban className="h-5 w-5 text-blue-600" />}
-                    <CardTitle>{project.name}</CardTitle>
+            <Link href={`/projects/${project.id}`}>
+              <Card className="hover:shadow-lg transition-shadow overflow-hidden group cursor-pointer">
+                {project.coverImage && (
+                  <div className="relative h-32 w-full">
+                    <Image
+                      src={project.coverImage}
+                      alt={project.name}
+                      fill
+                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    />
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => deleteMutation.mutate(project.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                {project.description && (
-                  <CardDescription className="line-clamp-2">{project.description}</CardDescription>
                 )}
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  {project._count?.tasks || 0} tasks
-                </p>
-              </CardContent>
-            </Card>
+                <CardHeader className={project.coverImage ? "pt-4" : ""}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      {!project.coverImage && <FolderKanban className="h-5 w-5 text-blue-600" />}
+                      <CardTitle>{project.name}</CardTitle>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => deleteMutation.mutate(project.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  {project.description && (
+                    <CardDescription className="line-clamp-2">{project.description}</CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">
+                    {project._count?.tasks || 0} tasks
+                  </p>
+                </CardContent>
+              </Card>
+            </Link>
           </motion.div>
         ))}
       </div>

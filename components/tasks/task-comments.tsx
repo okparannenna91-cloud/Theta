@@ -23,9 +23,10 @@ interface Comment {
 
 interface TaskCommentsProps {
     taskId: string;
+    workspaceId: string;
 }
 
-export function TaskComments({ taskId }: TaskCommentsProps) {
+export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
     const [content, setContent] = useState("");
     const { user: currentUser } = useUser();
     const queryClient = useQueryClient();
@@ -38,6 +39,24 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
             return res.json();
         },
     });
+
+    const { data: members } = useQuery({
+        queryKey: ["members", workspaceId],
+        queryFn: async () => {
+            const res = await fetch(`/api/workspaces/${workspaceId}/members`);
+            if (!res.ok) throw new Error("Failed to fetch members");
+            return res.json();
+        },
+        enabled: !!workspaceId,
+    });
+
+    const [mentionSearch, setMentionSearch] = useState("");
+    const [showMentions, setShowMentions] = useState(false);
+
+    const filteredMembers = members?.filter((m: any) =>
+        m.name?.toLowerCase().includes(mentionSearch.toLowerCase()) ||
+        m.email?.toLowerCase().includes(mentionSearch.toLowerCase())
+    ).slice(0, 5);
 
     const createCommentMutation = useMutation({
         mutationFn: async (content: string) => {
@@ -134,12 +153,53 @@ export function TaskComments({ taskId }: TaskCommentsProps) {
             <form onSubmit={handlePostComment} className="flex flex-col gap-3">
                 <div className="relative group">
                     <Textarea
-                        placeholder="Write a comment..."
+                        placeholder="Write a comment... (use @ to mention)"
                         value={content}
-                        onChange={(e) => setContent(e.target.value)}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setContent(val);
+
+                            const lastWord = val.split(" ").pop();
+                            if (lastWord?.startsWith("@")) {
+                                setMentionSearch(lastWord.slice(1));
+                                setShowMentions(true);
+                            } else {
+                                setShowMentions(false);
+                            }
+                        }}
                         className="min-h-[80px] bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm transition-all resize-none shadow-sm"
                         disabled={createCommentMutation.isPending}
                     />
+
+                    {showMentions && filteredMembers?.length > 0 && (
+                        <div className="absolute bottom-full left-0 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 mb-2 overflow-hidden animate-in fade-in slide-in-from-bottom-2">
+                            <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mention Team Member</span>
+                            </div>
+                            {filteredMembers.map((member: any) => (
+                                <button
+                                    key={member.id}
+                                    type="button"
+                                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-left transition-colors"
+                                    onClick={() => {
+                                        const parts = content.split(" ");
+                                        parts.pop();
+                                        setContent([...parts, `@${member.name || member.email}`].join(" ") + " ");
+                                        setShowMentions(false);
+                                    }}
+                                >
+                                    <Avatar className="h-6 w-6">
+                                        <AvatarImage src={member.imageUrl || ""} />
+                                        <AvatarFallback>{(member.name || "U")[0]}</AvatarFallback>
+                                    </Avatar>
+                                    <div className="flex flex-col min-w-0">
+                                        <span className="text-xs font-bold truncate">{member.name || "Anonymous"}</span>
+                                        <span className="text-[10px] text-muted-foreground truncate">{member.email}</span>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
                     <div className="absolute bottom-2 right-2">
                         <Button
                             type="submit"

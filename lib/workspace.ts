@@ -82,10 +82,10 @@ export async function createWorkspace(
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "");
-    
+
     let slug = baseSlug;
     let counter = 1;
-    
+
     // Ensure slug is unique
     while (await prisma.workspace.findUnique({ where: { slug } })) {
       slug = `${baseSlug}-${counter}`;
@@ -103,6 +103,15 @@ export async function createWorkspace(
             role: "owner",
           },
         },
+        statuses: {
+          createMany: {
+            data: [
+              { name: "Todo", color: "#64748b", order: 0 },
+              { name: "In Progress", color: "#3b82f6", order: 1 },
+              { name: "Done", color: "#22c55e", order: 2 },
+            ]
+          }
+        }
       },
       include: {
         members: true,
@@ -126,6 +135,10 @@ export async function getUserWorkspaces(userId: string) {
       include: {
         workspace: {
           include: {
+            tags: true,
+            statuses: {
+              orderBy: { order: "asc" }
+            },
             _count: {
               select: {
                 members: true,
