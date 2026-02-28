@@ -84,7 +84,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                             <div className="h-full flex flex-col items-center justify-center text-center p-8 bg-slate-50 dark:bg-slate-900 border-2 border-dashed rounded-3xl">
                                 <Columns className="h-12 w-12 text-slate-300 mb-4" />
                                 <h3 className="text-lg font-black mb-2">No Board Found</h3>
-                                <p className="text-sm text-muted-foreground mb-6">This project doesn't have a Kanban board yet.</p>
+                                <p className="text-sm text-muted-foreground mb-6">This project doesn&apos;t have a Kanban board yet.</p>
                                 <Button asChild>
                                     <Link href="/boards">Create First Board</Link>
                                 </Button>

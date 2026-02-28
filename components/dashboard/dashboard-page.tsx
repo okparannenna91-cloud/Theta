@@ -339,7 +339,7 @@ export default function DashboardPage() {
                       </p>
                       {activity.metadata?.taskTitle && (
                         <p className="text-sm font-black p-3 bg-white/50 dark:bg-slate-900/50 rounded-xl border border-primary/10 shadow-sm text-muted-foreground italic">
-                          "{activity.metadata.taskTitle}"
+                          &quot;{activity.metadata.taskTitle}&quot;
                         </p>
                       )}
                       <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-black uppercase tracking-widest">

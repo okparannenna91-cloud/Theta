@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import * as Ably from "ably";
 import { motion, AnimatePresence } from "framer-motion";
 import { Send, Loader2, User, Hash, MessageSquare, Paperclip, X, FileText, ImageIcon } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUser } from "@clerk/nextjs";
@@ -166,8 +167,14 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                                             {msg.attachment && (
                                                 <div className="mb-2">
                                                     {msg.attachment.category === "image" ? (
-                                                        <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer">
-                                                            <img src={msg.attachment.url} alt="Attachment" className="rounded-lg max-w-full max-h-48 object-cover" />
+                                                        <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" className="block relative h-48 w-full overflow-hidden rounded-lg">
+                                                            <Image
+                                                                src={msg.attachment.url}
+                                                                alt="Attachment"
+                                                                fill
+                                                                className="object-cover"
+                                                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                                            />
                                                         </a>
                                                     ) : (
                                                         <a

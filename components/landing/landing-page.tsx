@@ -356,7 +356,7 @@ export default function LandingPage() {
                 <div className="space-y-8 min-h-[300px]">
                   <div className="flex justify-start">
                     <div className="bg-secondary/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 p-6 rounded-[2rem] rounded-tl-none max-w-[85%] text-sm font-medium leading-relaxed border border-white/5">
-                      Operational. I've analyzed the current project trajectory. Shall we initialize the sprint optimization sequence?
+                      Operational. I&apos;ve analyzed the current project trajectory. Shall we initialize the sprint optimization sequence?
                     </div>
                   </div>
                   <div className="flex justify-end">

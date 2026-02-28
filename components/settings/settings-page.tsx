@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import React from "react";
 import { motion } from "framer-motion";
 import { useTheme } from "next-themes";
 import {
@@ -250,7 +251,6 @@ export default function SettingsPage() {
           </Button>
         </div>
       </div>
-    </div>
-    </MotionWrapper >
+    </MotionWrapper>
   );
 }

@@ -78,7 +78,12 @@
   }
 
   .glass-card {
-    @apply glass rounded-2xl transition-all duration-300 hover:shadow-[0_8px_32px_0_rgba(31, 38, 135, 0.15)] hover:border-primary/20;
+    @apply glass rounded-2xl transition-all duration-300;
+  }
+
+  .glass-card:hover {
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
+    border-color: hsl(var(--primary) / 0.2);
   }
 
   .mesh-gradient {
