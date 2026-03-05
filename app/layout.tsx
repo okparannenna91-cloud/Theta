@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Theta | Redefining Project Management",
     description: "Ship faster with real-time updates, AI-driven insights, and enterprise-grade security.",
-    url: "https://theta.app",
+    url: "https://thetapm.site",
     siteName: "Theta",
     images: [
       {

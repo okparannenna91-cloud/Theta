@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { model, visionModel } from "@/lib/gemini";
+import { generateWithOpenAI, generateWithVision } from "@/lib/openai";
 
-const BOOTS_SYSTEM_PROMPT = `You are Boots, a helpful and efficient AI assistant for project management. 
+const BOOTS_SYSTEM_PROMPT = `You are Boots, a helpful and efficient AI assistant for project management on thetapm.site. 
 Your name comes from "you get it - work!" Keep responses concise, actionable, and professional. 
 Focus on helping users get work done faster. Be friendly but direct.`;
 
@@ -56,52 +56,36 @@ export async function POST(req: Request) {
 
             workspaceContext = `
 CURRENT WORKSPACE CONTEXT:
-Projects: ${projects.length > 0 ? projects.map(p => p.name).join(", ") : "None yet"}
-Recent Tasks: ${tasks.length > 0 ? tasks.map(t => `${t.title} [${t.status}, ${t.priority}]`).join(", ") : "None yet"}
-Teams: ${teams.length > 0 ? teams.map(t => t.name).join(", ") : "None yet"}
+Projects: ${projects.length > 0 ? projects.map((p: any) => p.name).join(", ") : "None yet"}
+Recent Tasks: ${tasks.length > 0 ? tasks.map((t: any) => `${t.title} [${t.status}, ${t.priority}]`).join(", ") : "None yet"}
+Teams: ${teams.length > 0 ? teams.map((t: any) => t.name).join(", ") : "None yet"}
 ---
 `;
         }
 
-        let text = "";
-        const finalPrompt = `${BOOTS_SYSTEM_PROMPT}${workspaceContext}\n\nUser Question: ${prompt}`;
+        const systemPromptWithContext = `${BOOTS_SYSTEM_PROMPT}${workspaceContext}`;
 
+        let text = "";
         try {
             if (imageUrl) {
-                // Fetch image data
-                const imageResp = await fetch(imageUrl);
-                const arrayBuffer = await imageResp.arrayBuffer();
-                const base64Data = Buffer.from(arrayBuffer).toString("base64");
-                const mimeType = imageResp.headers.get("content-type") || "image/jpeg";
-
-                const result = await visionModel.generateContent([
-                    finalPrompt,
-                    {
-                        inlineData: {
-                            data: base64Data,
-                            mimeType,
-                        },
-                    },
-                ]);
-                text = result.response.text();
+                text = await generateWithVision(prompt, imageUrl, systemPromptWithContext) || "";
             } else {
-                const result = await model.generateContent(finalPrompt);
-                text = result.response.text();
+                text = await generateWithOpenAI(prompt, systemPromptWithContext) || "";
             }
-        } catch (geminiError: any) {
-            console.warn("Gemini AI failed, attempting Cohere fallback...", geminiError);
+        } catch (openaiError: any) {
+            console.warn("OpenAI failed, attempting Cohere fallback...", openaiError);
 
             // Vision tasks cannot fallback to Cohere easily (different API/capabilities)
             if (imageUrl) {
-                throw geminiError;
+                throw openaiError;
             }
 
             try {
                 const { generateWithCohere } = await import("@/lib/cohere");
-                text = await generateWithCohere(prompt, `${BOOTS_SYSTEM_PROMPT}${workspaceContext}`);
+                text = await generateWithCohere(prompt, systemPromptWithContext);
             } catch (cohereError: any) {
                 console.error("Cohere fallback also failed:", cohereError);
-                throw geminiError; // Throw original error if fallback fails
+                throw openaiError; // Throw original error if fallback fails
             }
         }
 
