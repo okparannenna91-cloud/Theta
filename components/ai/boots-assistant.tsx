@@ -30,7 +30,32 @@ export function BootsAssistant() {
         },
     ]);
     const [isLoading, setIsLoading] = useState(false);
+    const [usage, setUsage] = useState<{ current: number; max: number } | null>(null);
+    const isLimitReached = usage ? (usage.max !== -1 && usage.current >= usage.max) : false;
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (activeWorkspaceId && isOpen) {
+            fetchUsage();
+        }
+    }, [activeWorkspaceId, isOpen]);
+
+    const fetchUsage = async () => {
+        try {
+            const res = await fetch(`/api/billing/usage?workspaceId=${activeWorkspaceId}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.bootsRequests) {
+                    setUsage({
+                        current: data.bootsRequests.current,
+                        max: data.bootsRequests.max
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch usage:", error);
+        }
+    };
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -76,6 +101,9 @@ export function BootsAssistant() {
             };
 
             setMessages((prev) => [...prev, bootsMessage]);
+
+            // Re-fetch usage to show updated count
+            fetchUsage();
         } catch (error: any) {
             toast.error(error.message || "Boots is having trouble connecting.");
         } finally {
@@ -120,7 +148,9 @@ export function BootsAssistant() {
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="font-bold text-sm tracking-tight leading-none text-white">Boots AI</span>
-                                    <span className="text-[10px] text-white/70 font-medium">Always here to help</span>
+                                    <span className="text-[10px] text-white/70 font-medium">
+                                        {usage && usage.max !== -1 ? `${usage.current}/${usage.max} Requests` : "Always here to help"}
+                                    </span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
@@ -211,18 +241,18 @@ export function BootsAssistant() {
                                     <form onSubmit={handleSend} className="flex w-full items-center gap-2">
                                         <div className="relative flex-1">
                                             <Input
-                                                placeholder="Write anything to Boots..."
+                                                placeholder={isLimitReached ? "Request limit reached" : "Write anything to Boots..."}
                                                 value={input}
                                                 onChange={(e) => setInput(e.target.value)}
                                                 className="pr-10 bg-slate-50 dark:bg-slate-800 border-none focus-visible:ring-indigo-500 h-11 rounded-xl"
-                                                disabled={isLoading}
+                                                disabled={isLoading || isLimitReached}
                                             />
                                             <Sparkles className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-indigo-500/50 pointer-events-none" />
                                         </div>
                                         <Button
                                             type="submit"
                                             size="icon"
-                                            disabled={!input.trim() || isLoading}
+                                            disabled={!input.trim() || isLoading || isLimitReached}
                                             className="h-11 w-11 rounded-xl bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-200 dark:shadow-none shrink-0"
                                         >
                                             <Send className="h-5 w-5" />

@@ -35,7 +35,7 @@ export async function POST(req: Request) {
         let workspaceContext = "";
         if (workspaceId) {
             const { prisma } = await import("@/lib/prisma");
-            const [projects, tasks, teams] = await Promise.all([
+            const [projects, tasks, teams, integrations] = await Promise.all([
                 prisma.project.findMany({
                     where: { workspaceId },
                     take: 5,
@@ -51,6 +51,12 @@ export async function POST(req: Request) {
                     where: { workspaceId },
                     take: 5,
                     select: { name: true }
+                }),
+                prisma.integration.findMany({
+                    where: { workspaceId },
+                    take: 10,
+                    // @ts-ignore
+                    select: { provider: true }
                 })
             ]);
 
@@ -59,6 +65,7 @@ CURRENT WORKSPACE CONTEXT:
 Projects: ${projects.length > 0 ? projects.map((p: any) => p.name).join(", ") : "None yet"}
 Recent Tasks: ${tasks.length > 0 ? tasks.map((t: any) => `${t.title} [${t.status}, ${t.priority}]`).join(", ") : "None yet"}
 Teams: ${teams.length > 0 ? teams.map((t: any) => t.name).join(", ") : "None yet"}
+Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) => i.provider).join(", ") : "None connected"}
 ---
 `;
         }

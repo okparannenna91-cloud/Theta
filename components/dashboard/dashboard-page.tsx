@@ -32,6 +32,7 @@ import {
 
 import { MotionWrapper, FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
 import { useI18n } from "@/lib/i18n";
+import { LiquidLoader } from "@/components/ui/liquid-loader";
 
 export default function DashboardPage() {
   const { t } = useI18n();
@@ -45,14 +46,8 @@ export default function DashboardPage() {
 
   if (isLoading) {
     return (
-      <div className="p-4 sm:p-10 space-y-8 max-w-7xl mx-auto">
-        <Skeleton className="h-12 w-64 rounded-xl" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {[1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-2xl" />
-          ))}
-        </div>
-        <Skeleton className="h-[400px] w-full rounded-2xl" />
+      <div className="min-h-[80vh] flex items-center justify-center">
+        <LiquidLoader text="Assembling your Dashboard..." />
       </div>
     );
   }

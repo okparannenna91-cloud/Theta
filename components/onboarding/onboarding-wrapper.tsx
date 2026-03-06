@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { OnboardingModal } from "./onboarding-modal";
+import { LiquidLoader } from "@/components/ui/liquid-loader";
 
 export function OnboardingWrapper({ children }: { children: React.ReactNode }) {
     const [showOnboarding, setShowOnboarding] = useState(false);
@@ -22,7 +23,13 @@ export function OnboardingWrapper({ children }: { children: React.ReactNode }) {
         }
     }, [preferences, isLoading]);
 
-    if (isLoading) return null;
+    if (isLoading) {
+        return (
+            <div className="fixed inset-0 bg-slate-950 flex items-center justify-center">
+                <LiquidLoader text="Initializing Workspace..." />
+            </div>
+        );
+    }
 
     return (
         <>

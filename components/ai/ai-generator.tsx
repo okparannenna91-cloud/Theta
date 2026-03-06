@@ -49,13 +49,14 @@ export function AiGenerator({
             });
 
             if (!res.ok) {
-                throw new Error("Generation failed");
+                const errorData = await res.json();
+                throw new Error(errorData.error || "Generation failed");
             }
 
             const data = await res.json();
             setResult(data.text);
-        } catch (error) {
-            toast.error("Boots couldn't generate content. Please try again.");
+        } catch (error: any) {
+            toast.error(error.message || "Boots couldn't generate content. Please try again.");
         } finally {
             setIsLoading(false);
         }

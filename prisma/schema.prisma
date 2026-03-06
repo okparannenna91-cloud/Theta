@@ -401,11 +401,14 @@ model Invite {
 
 model Integration {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  type        String   // slack, calendar
+  type        String?  // slack, calendar (Optional/Legacy)
+  provider    String?  // github, bitbucket, asana, trello, woocommerce
   workspaceId String   @db.ObjectId
-  config      Json     @db.Json
+  config      Json?    @db.Json
   accessToken String?
   refreshToken String?
+  expiresAt   DateTime?
+  metadata    Json?    @db.Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

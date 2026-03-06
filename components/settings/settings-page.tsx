@@ -32,6 +32,7 @@ import {
 import { usePreferences } from "@/hooks/use-preferences";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { toast } from "sonner";
+import IntegrationDashboard from "@/components/integrations/integration-dashboard";
 
 import { MotionWrapper, FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
 
@@ -217,30 +218,8 @@ export default function SettingsPage() {
               </div>
               <h2 className="text-2xl font-black tracking-tight">Integrations</h2>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card className="glass-card border-none group overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 blur-3xl -z-10" />
-                <CardHeader className="flex flex-row items-center gap-5 space-y-0 p-8">
-                  <div className="p-4 bg-[#4A154B]/10 rounded-2xl group-hover:bg-[#4A154B] transition-colors duration-500 group-hover:scale-110">
-                    <Slack className="h-8 w-8 text-[#4A154B] group-hover:text-white transition-colors duration-500" />
-                  </div>
-                  <div>
-                    <CardTitle className="text-xl font-black tracking-tight">Slack</CardTitle>
-                    <CardDescription className="font-bold text-xs uppercase tracking-wider text-muted-foreground mt-1">Real-time Sync</CardDescription>
-                  </div>
-                </CardHeader>
-                <CardContent className="px-8 pb-8 pt-0">
-                  <Button
-                    variant="outline"
-                    className="w-full rounded-2xl h-12 font-black uppercase tracking-[0.2em] text-[10px] border-primary/20 hover:border-primary/50 transition-all duration-300 shadow-sm"
-                    onClick={() => window.open(`/api/integrations/slack?workspaceId=${activeWorkspaceId}`, "_blank")}
-                    disabled={!activeWorkspaceId}
-                  >
-                    Authorize Connector
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+
+            <IntegrationDashboard />
           </section>
         </FadeIn>
 
