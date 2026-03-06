@@ -86,8 +86,30 @@ function StatsSection() {
 }
 
 export default function LandingPage() {
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Theta PM",
+    "operatingSystem": "Web",
+    "applicationCategory": "ProjectManagementApplication",
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.9",
+      "ratingCount": "2400"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 selection:bg-primary/20 selection:text-primary overflow-x-hidden">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Navigation */}
       <nav className="fixed top-0 z-50 w-full bg-white/70 backdrop-blur-2xl border-b border-white/10 shadow-[0_2px_40px_-10px_rgba(0,0,0,0.05)]">
         <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">

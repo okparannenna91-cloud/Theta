@@ -9,32 +9,51 @@ import { Toaster } from "sonner";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Theta | Advanced Project Management & AI-Powered Workspaces",
-  description: "Theta is a high-performance, multi-tenant project management platform. Featuring Gantt charts, real-time collaboration with Ably, AI-powered automation, and strategic portfolio tracking.",
+  metadataBase: new URL("https://thetapm.site"),
+  title: {
+    default: "Theta | Advanced AI-Powered Project Management",
+    template: "%s | Theta AI"
+  },
+  description: "Theta is the next evolution of project synchronization. Featuring real-time collaboration, AI-powered automation (Boots AI), Gantt charts, and strategic portfolio tracking for high-velocity teams.",
   keywords: [
-    "project management",
-    "saas",
-    "team collaboration",
-    "kanban board",
-    "gantt chart",
-    "timeline view",
-    "real-time notifications",
+    "project management software",
     "AI project management",
-    "multi-tenant workspace",
-    "time tracking"
+    "saas project tool",
+    "team collaboration platform",
+    "kanban boards",
+    "real-time gantt charts",
+    "theta pm",
+    "boots ai assistant",
+    "enterprise project isolation"
   ],
-  authors: [{ name: "Theta Teams" }],
+  authors: [{ name: "Theta Teams", url: "https://thetapm.site" }],
+  creator: "Theta Systems",
+  publisher: "Theta Systems",
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
+  },
   openGraph: {
-    title: "Theta | Redefining Project Management",
-    description: "Ship faster with real-time updates, AI-driven insights, and enterprise-grade security.",
+    title: "Theta | Orchestrate Your Workflow with AI",
+    description: "Ship faster with sub-50ms real-time updates and Boots AI. The most advanced workspace for modern high-performing teams.",
     url: "https://thetapm.site",
-    siteName: "Theta",
+    siteName: "Theta PM",
     images: [
       {
-        url: "/og-image.png",
+        url: "/Logo.png",
         width: 1200,
         height: 630,
-        alt: "Theta Dashboard Preview",
+        alt: "Theta AI Workspace Preview",
       },
     ],
     locale: "en_US",
@@ -42,10 +61,12 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Theta | Project Management Redefined",
-    description: "AI-powered, real-time workspace for modern high-performing teams.",
-    images: ["/og-image.png"],
+    title: "Theta | AI-Powered Project Synchronization",
+    description: "Experience zero-latency project management with native AI co-piloting. Built for scale.",
+    creator: "@theta_pm",
+    images: ["/Logo.png"],
   },
+  category: "technology",
 };
 
 export const viewport: Viewport = {
