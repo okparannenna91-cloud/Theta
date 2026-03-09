@@ -21,7 +21,7 @@ export async function generateWithCohere(prompt: string, systemPrompt?: string) 
     const response = await cohere.chat({
         message: prompt,
         preamble: systemPrompt,
-        model: "command-r-plus", // Professional model similar to Gemini 1.5
+        model: "command-r", // Professional model similar to Gemini 1.5
     });
 
     return response.text;
