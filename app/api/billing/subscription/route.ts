@@ -40,6 +40,7 @@ export async function GET(req: Request) {
             workspace,
             status: workspace.billingStatus || "active", // Default to active for free plans
             isIvnoConfigured: !!(process.env.IVNO_API_KEY && process.env.IVNO_API_SECRET),
+            isPaystackConfigured: !!(process.env.PAYSTACK_SECRET_KEY && process.env.PAYSTACK_PUBLIC_KEY),
             updatedAt: workspace.updatedAt
         });
     } catch (error: any) {

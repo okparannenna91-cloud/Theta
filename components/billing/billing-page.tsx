@@ -347,12 +347,12 @@ export default function BillingPage() {
 
                   <div className="mt-auto">
                     <Button
-                      className={`w-full font-black py-6 transition-all duration-300 ${isCurrentPlan || (currency === "USD" && !subscription?.isIvnoConfigured)
+                      className={`w-full font-black py-6 transition-all duration-300 ${isCurrentPlan || (currency === "USD" && !subscription?.isIvnoConfigured) || (currency === "NGN" && !subscription?.isPaystackConfigured)
                         ? "bg-slate-100 text-slate-500 hover:bg-slate-100 border-none cursor-not-allowed"
                         : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 shadow-lg translate-y-0 hover:-translate-y-1 active:translate-y-0"
                         }`}
                       variant={isCurrentPlan ? "secondary" : "default"}
-                      disabled={isCurrentPlan || isInitializingPayment === plan.id || (currency === "USD" && !subscription?.isIvnoConfigured)}
+                      disabled={isCurrentPlan || isInitializingPayment === plan.id || (currency === "USD" && !subscription?.isIvnoConfigured) || (currency === "NGN" && !subscription?.isPaystackConfigured)}
                       onClick={() => {
                         if (currency === "USD") {
                           handleIvnoCheckout(plan.id);
@@ -364,9 +364,10 @@ export default function BillingPage() {
                       {isInitializingPayment === plan.id ? "Initializing..." :
                         isCurrentPlan ? "Current Active Plan" :
                           (currency === "USD" && !subscription?.isIvnoConfigured) ? "Checkout Coming Soon" :
-                            plan.planKey === "lifetime" ? "Get Lifetime" :
-                              "Upgrade Now"}
-                      {!isCurrentPlan && !(currency === "USD" && !subscription?.isIvnoConfigured) && <ArrowRight className="ml-2 h-4 w-4" />}
+                            (currency === "NGN" && !subscription?.isPaystackConfigured) ? "Checkout Coming Soon" :
+                              plan.planKey === "lifetime" ? "Get Lifetime" :
+                                "Upgrade Now"}
+                      {!isCurrentPlan && !((currency === "USD" && !subscription?.isIvnoConfigured) || (currency === "NGN" && !subscription?.isPaystackConfigured)) && <ArrowRight className="ml-2 h-4 w-4" />}
                     </Button>
                   </div>
                 </CardContent>
