@@ -41,7 +41,7 @@ export async function createIvnoPayment(data: IvnoPaymentRequest): Promise<IvnoP
         },
         body: JSON.stringify({
             ...data,
-            include_fee: data.include_fee ?? true
+            include_fee: data.include_fee ?? false
         }),
     });
 
