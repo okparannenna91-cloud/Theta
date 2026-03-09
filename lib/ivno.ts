@@ -23,8 +23,8 @@ export interface IvnoPaymentResponse {
 export async function createIvnoPayment(data: IvnoPaymentRequest): Promise<IvnoPaymentResponse> {
     const apiKey = process.env.IVNO_API_KEY;
     const apiSecret = process.env.IVNO_API_SECRET;
-    // The guide specifies this exact endpoint
-    const apiUrl = process.env.IVNO_API_URL || "https://app.ivno.io/payments/create";
+    // According to full docs: https://app.ivno.io/api/ivno/v1/payments/create
+    const apiUrl = process.env.IVNO_API_URL || "https://app.ivno.io/api/ivno/v1/payments/create";
 
     if (!apiKey || !apiSecret) {
         throw new Error("IVNO_API_KEY or IVNO_API_SECRET is not defined");
