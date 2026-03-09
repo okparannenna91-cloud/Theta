@@ -14,12 +14,11 @@ model Workspace {
   plan            String   @default("free") // free, growth, pro, theta_plus, lifetime
   billingInterval String?  // monthly, annual
   isLifetime      Boolean  @default(false)
-  fastSpringCustomerId String?
-  fastSpringOrderId    String?
   paystackCustomerId   String?
   paystackAuthCode     String?
   subscriptionId       String?
-  billingProvider      String?  // paystack, fastspring
+  billingProvider      String?  // paystack, ivno
+  ivnoOrderId          String?   @unique
   billingStatus        String   @default("active") // active, past_due, canceled, deactivated
   billingEmail         String?
   nextBillingDate      DateTime?
@@ -445,7 +444,7 @@ model BillingLog {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   workspaceId String   @db.ObjectId
   action      String   // payment_success, payment_failed, subscription_updated, etc.
-  provider    String   // paystack, fastspring
+  provider    String   // paystack, ivno
   amount      Float?
   currency    String?
   metadata    Json?    @db.Json

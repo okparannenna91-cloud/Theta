@@ -31,10 +31,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const prisma = getPrismaClient(workspaceId);
-
         // Save or update the integration
         const integration = await prisma.integration.upsert({
+
             where: {
                 id: (await prisma.integration.findFirst({
                     where: {

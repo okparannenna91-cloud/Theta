@@ -29,7 +29,7 @@ A complete, production-ready project management SaaS application built with Next
 - 📤 **Universal File Management** - Cloudinary-powered management for images, videos, and documents with plan-based storage limits.
 
 ### Administrative & Billing
-- 💳 **Enterprise Billing** - Checkout.com-powered subscription management with multiple plan tiers.
+- 💳 **Dual Billing System** - Ivno-powered crypto/USD and Paystack NGN subscription management with multiple plan tiers.
 - 🌍 **Internationalization** - Built-in multi-language support (i18n) for global teams.
 - ✉️ **Secure Invites** - Token-based invitation system for bringing members into specific workspaces or teams.
 - 👤 **Profile & Settings** - Granular user preferences and workspace configuration options.
@@ -41,7 +41,7 @@ A complete, production-ready project management SaaS application built with Next
 - **Styling**: TailwindCSS + shadcn/ui
 - **Authentication**: Clerk
 - **Database**: MongoDB with Prisma ORM
-- **Payments**: Checkout.com
+- **Payments**: Ivno (USD/Crypto) & Paystack (NGN)
 - **File Storage**: Cloudinary
 - **AI**: Google Gemini (Boots AI)
 - **Email**: Resend
@@ -57,7 +57,8 @@ A complete, production-ready project management SaaS application built with Next
 - Node.js 18+ installed
 - MongoDB database (Atlas or local)
 - Clerk account for authentication
-- Checkout.com account for payment processing
+- Ivno account for USD/Crypto payment processing
+- Paystack account for NGN payment processing
 - Cloudinary account for file storage
 - Google AI Studio (Gemini) API key
 - Resend account for email delivery
@@ -65,52 +66,53 @@ A complete, production-ready project management SaaS application built with Next
 
 ### Installation
 
-1. **Clone and install dependencies:**
-   ```bash
-   npm install
-   ```
+1.  **Clone and install dependencies:**
+    ```bash
+    npm install
+    ```
 
-2. **Configure Environment:**
-   Create a `.env` file in the root directory and populate it with the following:
-   ```env
-   # Database
-   MONGODB_URI="your_mongodb_connection_string"
+2.  **Configure Environment:**
+    Create a `.env` file in the root directory and populate it with the following:
+    ```env
+    # Database
+    MONGODB_URI="your_mongodb_connection_string"
 
-   # Authentication (Clerk)
-   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="your_clerk_publishable_key"
-   CLERK_SECRET_KEY="your_clerk_secret_key"
+    # Authentication (Clerk)
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY="your_clerk_publishable_key"
+    CLERK_SECRET_KEY="your_clerk_secret_key"
 
-   # Payments (Checkout.com)
-   CHECKOUT_SECRET_KEY="sk_test_..."
-   CHECKOUT_PUBLIC_KEY="pk_test_..."
-   CHECKOUT_WEBHOOK_SECRET="whsec_..."
+    # Payments (Ivno & Paystack)
+    IVNO_API_KEY="your_ivno_api_key"
+    IVNO_API_SECRET="your_ivno_api_secret"
+    PAYSTACK_SECRET_KEY="sk_test_..."
+    PAYSTACK_PUBLIC_KEY="pk_test_..."
 
-   # File Storage (Cloudinary)
-   CLOUDINARY_CLOUD_NAME="your_cloud_name"
-   CLOUDINARY_API_KEY="your_api_key"
-   CLOUDINARY_API_SECRET="your_api_secret"
+    # File Storage (Cloudinary)
+    CLOUDINARY_CLOUD_NAME="your_cloud_name"
+    CLOUDINARY_API_KEY="your_api_key"
+    CLOUDINARY_API_SECRET="your_api_secret"
 
-   # AI (Google Gemini)
-   GEMINI_API_KEY="your_gemini_api_key"
+    # AI (Google Gemini)
+    GEMINI_API_KEY="your_gemini_api_key"
 
-   # Real-time (Ably)
-   ABLY_API_KEY="your_ably_api_key"
-   NEXT_PUBLIC_ABLY_PUBLISHABLE_KEY="your_ably_publishable_key"
+    # Real-time (Ably)
+    ABLY_API_KEY="your_ably_api_key"
+    NEXT_PUBLIC_ABLY_PUBLISHABLE_KEY="your_ably_publishable_key"
 
-   # Email (Resend)
-   RESEND_API_KEY="re_..."
-   ```
+    # Email (Resend)
+    RESEND_API_KEY="re_..."
+    ```
 
-3. **Initialize Database:**
-   ```bash
-   npx prisma generate
-   npx prisma db push
-   ```
+3.  **Initialize Database:**
+    ```bash
+    npx prisma generate
+    npx prisma db push
+    ```
 
-4. **Launch Development Server:**
-   ```bash
-   npm run dev
-   ```
+4.  **Launch Development Server:**
+    ```bash
+    npm run dev
+    ```
 
 Navigate to [http://localhost:3000](http://localhost:3000) to see the application.
 
@@ -125,8 +127,8 @@ The application uses Next.js App Router with specialized route groupings:
   - `calendar/`, `notifications/`, `analytics/` - Support modules.
 - `api/` - Backend service layer (Workspace-protected).
   - `ai/` - Boots AI content generation endpoints.
-  - `billing/` & `checkout/` - Subscription and payment processing.
-  - `webhooks/` - Handlers for Checkout.com and other external events.
+  - `billing/`, `ivno/` & `paystack/` - Subscription and payment processing.
+  - `webhooks/` - Handlers for Ivno, Paystack and other external events.
   - `upload/` - Secure file upload signatures and management.
 - `pricing/` - Public-facing subscription plans page.
 
@@ -136,7 +138,7 @@ The core processing engine of Theta:
 - `billing-plans.ts` - Definition of subscription tiers and pricing.
 - `plan-limits.ts` - Middleware-level enforcement of feature and storage quotas.
 - `usage-tracking.ts` - Service for monitoring real-time consumption (AI requests, storage, etc.).
-- `gemini.ts` - Configuration and prompt engineering for Boots AI.
+- `openai.ts` - Configuration and prompt engineering for Boots AI.
 - `ably.ts` - Real-time pub/sub infrastructure for notifications and chat.
 - `notifications.ts` - Multi-channel notification delivery logic.
 - `integrations/` - Third-party service connectors (e.g., Slack).
@@ -146,7 +148,7 @@ The core processing engine of Theta:
 - `ui/` - Atomic design system components built on shadcn/ui.
 - `layout/` - Shell components including Sidebar, Navbar, and Workspace Switcher.
 - `ai/` - Interactive Boots AI interface components.
-- `billing/` - Checkout forms, pricing tables, and usage meters.
+- `billing/` - Ivno & Paystack checkout forms, pricing tables, and usage meters.
 - `common/` - Shared high-level components like `FileUpload` and `DataTable`.
 
 ## ⚙️ Key System Implementations
@@ -161,8 +163,8 @@ The application features a robust usage enforcement system:
 - **AI Credits**: Periodic reset of AI generation requests based on plan tier.
 - **Member Limits**: Controls on the number of team members in a workspace.
 
-### Boots AI (Gemini)
-Boots AI is deeply integrated into the workflow. It uses Google's Gemini Pro model to:
+### Boots AI (OpenAI)
+Boots AI is deeply integrated into the workflow. It uses OpenAI's model to:
 1.  Draft project roadmaps and descriptions.
 2.  Generate task lists from high-level project goals.
 3.  Summarize activity logs and project progress.

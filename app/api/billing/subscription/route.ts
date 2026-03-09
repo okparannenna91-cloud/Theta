@@ -39,7 +39,7 @@ export async function GET(req: Request) {
         return NextResponse.json({
             workspace,
             status: workspace.billingStatus || "active", // Default to active for free plans
-            isFastSpringConfigured: !!process.env.FASTSPRING_HMAC_KEY,
+            isIvnoConfigured: !!(process.env.IVNO_API_KEY && process.env.IVNO_API_SECRET),
             updatedAt: workspace.updatedAt
         });
     } catch (error: any) {

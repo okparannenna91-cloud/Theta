@@ -43,9 +43,10 @@ export async function POST(request: NextRequest) {
                     provider: "github",
                     // We assume we stored tracked repo IDs in metadata or config
                     OR: [
-                        { metadata: { is: { repoId: repoId } } },
-                        { config: { is: { repoId: repoId } } }
+                        { metadata: { equals: { repoId: repoId } } },
+                        { config: { equals: { repoId: repoId } } }
                     ]
+
                 }
             });
             if (integration) {

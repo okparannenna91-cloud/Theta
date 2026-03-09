@@ -34,7 +34,7 @@ export default function PrivacyPolicy() {
 
                     <section>
                         <h2 className="text-2xl font-bold text-slate-900 mb-4">4. Payment Processing</h2>
-                        <p>Payment information is processed securely through our third-party providers, FastSpring and Paystack. We do not store your credit card details on our own servers.</p>
+                        <p>Payment information is processed securely through our third-party providers, Ivno and Paystack. We do not store your credit card details on our own servers.</p>
                     </section>
                 </div>
             </div>

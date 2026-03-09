@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import Script from "next/script";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -31,18 +30,6 @@ import { Switch } from "@/components/ui/switch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { UsageMeter } from "./usage-meter";
 
-// Helper to push to FastSpring
-const pushFastSpring = (productPath: string, workspaceId: string) => {
-  if (typeof window !== 'undefined' && (window as any).fastspring) {
-    (window as any).fastspring.builder.push({
-      products: [{ path: productPath, quantity: 1 }],
-      tags: { workspaceId: workspaceId },
-    });
-  } else {
-    console.error("FastSpring SBL not loaded");
-    toast.error("Payment system is initializing. Please try again.");
-  }
-};
 
 export default function BillingPage() {
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
@@ -112,6 +99,34 @@ export default function BillingPage() {
     }
   };
 
+  const handleIvnoCheckout = async (planId: string) => {
+    if (!activeWorkspaceId) return;
+
+    setIsInitializingPayment(planId);
+    try {
+      const response = await fetch("/api/ivno/initialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planId,
+          interval: billingInterval,
+          workspaceId: activeWorkspaceId
+        }),
+      });
+
+      const data = await response.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error(data.error || "Failed to initialize payment");
+      }
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setIsInitializingPayment(null);
+    }
+  };
+
   if (usageLoading || subLoading) {
     return (
       <div className="p-4 sm:p-6 lg:p-8 space-y-6">
@@ -131,14 +146,6 @@ export default function BillingPage() {
 
   return (
     <div className="max-w-7xl mx-auto p-4 sm:p-6 lg:p-8 space-y-8">
-      {/* FastSpring SBL Script */}
-      <Script
-        id="fsc-api"
-        src="https://d1f8f9xcsvx3ha.cloudfront.net/sbl/0.8.5/fastspring-builder.min.js"
-        type="text/javascript"
-        data-storefront="theta-saas.test.onfastspring.com/popup-theta"
-        strategy="lazyOnload"
-      />
 
       <motion.div
         initial={{ opacity: 0, y: -10 }}
@@ -176,7 +183,7 @@ export default function BillingPage() {
                 <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <span className="flex items-center gap-1">
                     <CreditCard className="h-3.5 w-3.5" />
-                    {provider ? `via ${provider === 'paystack' ? 'Paystack' : 'FastSpring'}` : 'No provider'}
+                    {provider ? `via ${provider === 'paystack' ? 'Paystack' : 'Ivno'}` : 'No provider'}
                   </span>
                   {workspace.nextBillingDate && (
                     <span className="flex items-center gap-1">
@@ -196,11 +203,6 @@ export default function BillingPage() {
                 >
                   Status: {billingStatus}
                 </Badge>
-                {provider === "fastspring" && (
-                  <Button variant="outline" size="sm" onClick={() => window.open("https://theta-saas.test.onfastspring.com/account", "_blank")}>
-                    Manage <ExternalLink className="ml-2 h-3.5 w-3.5" />
-                  </Button>
-                )}
               </div>
             </div>
           </CardHeader>
@@ -286,10 +288,6 @@ export default function BillingPage() {
           const isCurrentPlan = currentPlanKey === plan.planKey;
           const isPopular = plan.planKey === "pro";
 
-          const fsPath = plan.fastSpringPaths
-            ? (billingInterval === 'annual' ? plan.fastSpringPaths.annual : plan.fastSpringPaths.monthly)
-            : null;
-
           const price = getPlanPrice(plan.id, billingInterval, currency);
 
           const formattedPrice = currency === "USD"
@@ -349,15 +347,15 @@ export default function BillingPage() {
 
                   <div className="mt-auto">
                     <Button
-                      className={`w-full font-black py-6 transition-all duration-300 ${isCurrentPlan || (currency === "USD" && !subscription?.isFastSpringConfigured)
+                      className={`w-full font-black py-6 transition-all duration-300 ${isCurrentPlan || (currency === "USD" && !subscription?.isIvnoConfigured)
                         ? "bg-slate-100 text-slate-500 hover:bg-slate-100 border-none cursor-not-allowed"
                         : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-100 shadow-lg translate-y-0 hover:-translate-y-1 active:translate-y-0"
                         }`}
                       variant={isCurrentPlan ? "secondary" : "default"}
-                      disabled={isCurrentPlan || isInitializingPayment === plan.id || (currency === "USD" && !subscription?.isFastSpringConfigured)}
+                      disabled={isCurrentPlan || isInitializingPayment === plan.id || (currency === "USD" && !subscription?.isIvnoConfigured)}
                       onClick={() => {
                         if (currency === "USD") {
-                          if (fsPath && activeWorkspaceId) pushFastSpring(fsPath, activeWorkspaceId);
+                          handleIvnoCheckout(plan.id);
                         } else {
                           handlePaystackCheckout(plan.id);
                         }
@@ -365,10 +363,10 @@ export default function BillingPage() {
                     >
                       {isInitializingPayment === plan.id ? "Initializing..." :
                         isCurrentPlan ? "Current Active Plan" :
-                          (currency === "USD" && !subscription?.isFastSpringConfigured) ? "Checkout Coming Soon" :
+                          (currency === "USD" && !subscription?.isIvnoConfigured) ? "Checkout Coming Soon" :
                             plan.planKey === "lifetime" ? "Get Lifetime" :
                               "Upgrade Now"}
-                      {!isCurrentPlan && !(currency === "USD" && !subscription?.isFastSpringConfigured) && <ArrowRight className="ml-2 h-4 w-4" />}
+                      {!isCurrentPlan && !(currency === "USD" && !subscription?.isIvnoConfigured) && <ArrowRight className="ml-2 h-4 w-4" />}
                     </Button>
                   </div>
                 </CardContent>

@@ -11,7 +11,7 @@ This guide will help you set up and run the Theta project management SaaS locall
 
 2. **Set up environment variables:**
    - Copy `.env.example` to `.env`.
-   - Fill in the required API keys for MongoDB, Clerk, Checkout.com, Ably, Cloudinary, Paystack, Gemini, Fastspring and Resend.
+   - Fill in the required API keys for MongoDB, Clerk, Ivno, Ably, Cloudinary, Paystack, Gemini, and Resend.
    - Optional: Add Slack keys for integration features.
 
 3. **Initialize Prisma:**
@@ -42,25 +42,14 @@ Use the `.env.example` file as a template for your `.env` file.
 
 #### 3. Billing Setup (Required for Payments)
 
-Theta uses a dual-billing system: **FastSpring** for global USD payments and **Paystack** for local NGN payments.
+Theta uses a dual-billing system: **Ivno** for global USD/Crypto payments and **Paystack** for local NGN payments.
 
-##### A. FastSpring Dashboard (USD)
-1. **Products**: Create the following products in your FastSpring Dashboard. Ensure the "Path" matches exactly.
-   
-| Plan | Billing | Price (USD) | **Product Path (Required)** | Type |
-| :--- | :--- | :--- | :--- | :--- |
-| Growth | Monthly | $12.00 | `theta-growth-monthly` | Subscription |
-| Growth | Annual | $115.20 | `theta-growth-annual` | Subscription |
-| Pro | Monthly | $29.00 | `theta-pro-monthly` | Subscription |
-| Pro | Annual | $278.40 | `theta-pro-annual` | Subscription |
-| Theta Plus | Monthly | $99.00 | `theta-plus-monthly` | Subscription |
-| Theta Plus | Annual | $950.40 | `theta-plus-annual` | Subscription |
-| Lifetime | One-time | $999.00 | `theta-lifetime` | One-Time Support |
-
+##### A. Ivno Dashboard (USD/Crypto)
+1. **Setup**: Get your API Key and API Secret from your Ivno merchant dashboard.
 2. **Webhooks**: 
-   - URL: `https://your-domain.com/api/webhooks/fastspring`
-   - Events: `subscription.activated`, `subscription.updated`, `subscription.canceled`, `subscription.deactivated`, `order.completed`, `payment.failed`.
-   - Copy the **HMAC Key** to your `.env` as `FASTSPRING_HMAC_KEY`.
+   - URL: `https://your-domain.com/api/webhooks/ivno`
+   - Events: Ensure you enable payment status updates.
+   - Add `IVNO_API_KEY` and `IVNO_API_SECRET` to your `.env`.
 
 ##### B. Paystack Dashboard (NGN)
 1. **Plans**: Create the following plans in your Paystack Dashboard. Ensure the "Plan Code" matches exactly.

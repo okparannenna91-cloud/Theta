@@ -117,7 +117,7 @@ export async function sendPaymentSuccessEmail(to: string, plan: string, amount: 
                 </div>
                 <hr style="border: none; border-top: 1px solid #eee; margin: 32px 0;" />
                 <p style="color: #999; font-size: 12px;">
-                    Theta SaaS - Secure Project Management
+                    Theta PM - Secure Project Management
                 </p>
             </div>
         `,

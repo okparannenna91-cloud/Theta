@@ -16,10 +16,6 @@ export type BillingPlan = {
   features: string[];
   description: string;
   planKey: "free" | "growth" | "pro" | "theta_plus" | "lifetime";
-  fastSpringPaths?: {
-    monthly: string;
-    annual: string;
-  };
   paystackPlanCodes?: {
     monthly: string;
     annual: string;
@@ -64,10 +60,6 @@ export const BILLING_PLANS: BillingPlan[] = [
     currency: "USD",
     mode: "subscription",
     description: "For small growing teams",
-    fastSpringPaths: {
-      monthly: "theta-growth-monthly",
-      annual: "theta-growth-annual",
-    },
     paystackPlanCodes: {
       monthly: "PLN_growth_monthly",
       annual: "PLN_growth_annual",
@@ -97,10 +89,6 @@ export const BILLING_PLANS: BillingPlan[] = [
     currency: "USD",
     mode: "subscription",
     description: "For professional teams",
-    fastSpringPaths: {
-      monthly: "theta-pro-monthly",
-      annual: "theta-pro-annual",
-    },
     paystackPlanCodes: {
       monthly: "PLN_pro_monthly",
       annual: "PLN_pro_annual",
@@ -131,10 +119,6 @@ export const BILLING_PLANS: BillingPlan[] = [
     currency: "USD",
     mode: "subscription",
     description: "For enterprise-grade teams",
-    fastSpringPaths: {
-      monthly: "theta-plus-monthly",
-      annual: "theta-plus-annual",
-    },
     paystackPlanCodes: {
       monthly: "PLN_plus_monthly",
       annual: "PLN_plus_annual",
@@ -164,10 +148,6 @@ export const BILLING_PLANS: BillingPlan[] = [
     currency: "USD",
     mode: "one_time",
     description: "One-time payment, lifetime access",
-    fastSpringPaths: {
-      monthly: "theta-lifetime",
-      annual: "theta-lifetime",
-    },
     paystackPlanCodes: {
       monthly: "LIFETIME_NGN",
       annual: "LIFETIME_NGN",
