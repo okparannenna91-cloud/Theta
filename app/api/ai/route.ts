@@ -74,25 +74,42 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
 
         let text = "";
         try {
-            if (imageUrl) {
-                text = await generateWithVision(prompt, imageUrl, systemPromptWithContext) || "";
-            } else {
-                text = await generateWithOpenAI(prompt, systemPromptWithContext) || "";
-            }
-        } catch (openaiError: any) {
-            console.warn("OpenAI failed, attempting Cohere fallback...", openaiError);
+            // Priority 1: OpenAI
+            try {
+                if (imageUrl) {
+                    text = await generateWithVision(prompt, imageUrl, systemPromptWithContext) || "";
+                } else {
+                    text = await generateWithOpenAI(prompt, systemPromptWithContext) || "";
+                }
+            } catch (openaiError: any) {
+                // Check if it's a rate limit error (status 429)
+                if (openaiError.status === 429) {
+                    console.warn("OpenAI Rate limited, attempting Cohere fallback...");
+                    // Try Cohere as fallback for rate limits
+                    if (imageUrl) throw openaiError; // Vision can't easily fallback to Cohere
 
-            // Vision tasks cannot fallback to Cohere easily (different API/capabilities)
+                    const { generateWithCohere } = await import("@/lib/cohere");
+                    text = await generateWithCohere(prompt, systemPromptWithContext);
+                } else {
+                    throw openaiError; // Re-throw other errors to hit standard catch
+                }
+            }
+        } catch (error: any) {
+            console.warn("Primary AI providers failed, attempting general fallback...", error);
+
             if (imageUrl) {
-                throw openaiError;
+                throw error; // Vision must stay OpenAI for now
             }
 
             try {
-                const { generateWithCohere } = await import("@/lib/cohere");
-                text = await generateWithCohere(prompt, systemPromptWithContext);
+                // Last ditch attempt with Cohere if not already tried for 429 above
+                if (!text) {
+                    const { generateWithCohere } = await import("@/lib/cohere");
+                    text = await generateWithCohere(prompt, systemPromptWithContext);
+                }
             } catch (cohereError: any) {
-                console.error("Cohere fallback also failed:", cohereError);
-                throw openaiError; // Throw original error if fallback fails
+                console.error("General fallback also failed:", cohereError);
+                throw error; // Throw previous provider's error
             }
         }
 
@@ -106,7 +123,7 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
     } catch (error: any) {
         if (error.status === 429) {
             return NextResponse.json(
-                { error: "Boots is taking a short break (Rate Limit reached). Please try again in a moment." },
+                { error: "Boots is taking a short break (Rate Limit reached). Please wait about 30 seconds and try again." },
                 { status: 429 }
             );
         }

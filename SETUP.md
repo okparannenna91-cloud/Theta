@@ -89,7 +89,38 @@ Paystack handles subscription charging automatically, but Theta uses a cron job 
 - Get your `RESEND_API_KEY` from the [Resend Dashboard](https://resend.com/dashboard).
 - This is used for sending workspace invitations and system notifications.
 
-### Optional Integrations
+### Third-Party Integrations
+
+Theta supports extensive multi-platform integrations via OAuth and Webhooks.
+
+#### 1. GitHub
+- Create a GitHub OAuth App.
+- Set Homepage: `https://thetapm.site`.
+- Set Callback: `https://thetapm.site/api/integrations/github/callback`.
+- Add `GITHUB_CLIENT_ID` and `GITHUB_CLIENT_SECRET` to `.env`.
+- For webhooks, use `GITHUB_WEBHOOK_SECRET` and endpoint `https://thetapm.site/api/integrations/github/webhook`.
+
+#### 2. Bitbucket
+- Create an OAuth Consumer in Bitbucket.
+- Callback URL: `https://thetapm.site/api/integrations/bitbucket/callback`.
+- Add `BITBUCKET_CLIENT_ID` and `BITBUCKET_CLIENT_SECRET`.
+- Webhook: `https://thetapm.site/api/integrations/bitbucket/webhook`.
+
+#### 3. Asana
+- Create an App in Asana Developer Console.
+- Redirect URI: `https://thetapm.site/api/integrations/asana/callback`.
+- Add `ASANA_CLIENT_ID` and `ASANA_CLIENT_SECRET`.
+- Webhook: `https://thetapm.site/api/integrations/asana/webhook`.
+
+#### 4. Trello
+- Get your Developer API Key from [Trello Developer Portal](https://trello.com/app-key).
+- Add `TRELLO_API_KEY` to `.env`.
+- Webhook: `https://thetapm.site/api/integrations/trello/webhook`.
+
+#### 5. WooCommerce
+- Enabled via consumer key/secret generated in WooCommerce Settings -> Advanced -> REST API.
+
+- Webhook: `https://thetapm.site/api/integrations/woocommerce/webhook?workspaceId=<YOUR_ID>`.
 
 #### Slack
 - Create a Slack App in the [Slack API Dashboard](https://api.slack.com/apps).

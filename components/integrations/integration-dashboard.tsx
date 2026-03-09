@@ -33,6 +33,16 @@ import { useWorkspace } from "@/hooks/use-workspace";
 import { FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
 import { cn } from "@/lib/utils";
 import { LiquidLoader } from "@/components/ui/liquid-loader";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface IntegrationRecord {
     id: string;
@@ -116,6 +126,9 @@ export default function IntegrationDashboard() {
     const [limits, setLimits] = useState<{ max: number; current: number; hasAccess: boolean }>({ max: 0, current: 0, hasAccess: false });
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState<string | null>(null);
+    const [isManualModalOpen, setIsManualModalOpen] = useState(false);
+    const [selectedManualProvider, setSelectedManualProvider] = useState<any>(null);
+    const [manualInputs, setManualInputs] = useState<any>({});
 
     useEffect(() => {
         if (activeWorkspaceId) {
@@ -146,24 +159,45 @@ export default function IntegrationDashboard() {
     const handleConnect = (providerId: string) => {
         if (!activeWorkspaceId) return;
 
-        // Figma and Canva are link-based for MVP, others are OAuth
-        if (providerId === "figma" || providerId === "canva") {
-            toast.info(`${providerId} will be embedded directly in your project views.`);
+        // Figma and Canva are link-based for MVP
+        const provider = PROVIDERS.find(p => p.id === providerId);
+        if (provider?.linkOnly || providerId === "trello" || providerId === "woocommerce") {
+            setSelectedManualProvider(provider);
+            setManualInputs({});
+            setIsManualModalOpen(true);
             return;
         }
 
         const connectUrl = `/api/integrations/${providerId}/connect?workspaceId=${activeWorkspaceId}`;
         window.open(connectUrl, "_blank", "width=600,height=700");
 
-        // Poll for status or just wait
-        toast.promise(
-            new Promise((resolve) => setTimeout(resolve, 5000)),
-            {
-                loading: `Connecting to ${providerId}...`,
-                success: "Integration initiated. Please complete the flow in the new window.",
-                error: "Failed to connect."
+        toast.info(`Initializing ${providerId} connection...`);
+    };
+
+    const handleManualSubmit = async () => {
+        if (!activeWorkspaceId || !selectedManualProvider) return;
+
+        try {
+            const res = await fetch(`/api/integrations/${selectedManualProvider.id}/connect`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    workspaceId: activeWorkspaceId,
+                    ...manualInputs
+                })
+            });
+
+            if (res.ok) {
+                toast.success(`${selectedManualProvider.name} connected successfully.`);
+                setIsManualModalOpen(false);
+                fetchIntegrations();
+            } else {
+                const data = await res.json();
+                toast.error(data.error || "Failed to connect.");
             }
-        );
+        } catch (error) {
+            toast.error("An error occurred during connection.");
+        }
     };
 
     const handleDisconnect = async (id: string, providerName: string) => {
@@ -341,6 +375,98 @@ export default function IntegrationDashboard() {
                     </Card>
                 </FadeIn>
             </div>
+
+            <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
+                <DialogContent className="glass-card border-none sm:max-w-[425px]">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black flex items-center gap-3">
+                            Connect {selectedManualProvider?.name}
+                        </DialogTitle>
+                        <DialogDescription className="font-medium text-muted-foreground">
+                            {selectedManualProvider?.id === 'trello' && "Enter your Personal Trello Token to sync boards."}
+                            {selectedManualProvider?.id === 'woocommerce' && "Link your WooCommerce store via REST API keys."}
+                            {selectedManualProvider?.id === 'figma' && "Add your Figma file URL to enable live embeds."}
+                            {selectedManualProvider?.id === 'canva' && "Store your Canva design link for quick access."}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-6 py-6 font-bold uppercase tracking-wider text-[10px]">
+                        {selectedManualProvider?.id === 'trello' && (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Developer Key (Optional)</Label>
+                                    <Input
+                                        placeholder="Trello API Key"
+                                        className="h-12 rounded-xl bg-white/5 border-white/10"
+                                        value={manualInputs.apiKey || ""}
+                                        onChange={(e) => setManualInputs({ ...manualInputs, apiKey: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Member Token</Label>
+                                    <Input
+                                        type="password"
+                                        placeholder="Secret Token"
+                                        className="h-12 rounded-xl bg-white/5 border-white/10"
+                                        value={manualInputs.token || ""}
+                                        onChange={(e) => setManualInputs({ ...manualInputs, token: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        {selectedManualProvider?.id === 'woocommerce' && (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <Label>Store URL</Label>
+                                    <Input
+                                        placeholder="https://your-store.com"
+                                        className="h-12 rounded-xl bg-white/5 border-white/10"
+                                        value={manualInputs.siteUrl || ""}
+                                        onChange={(e) => setManualInputs({ ...manualInputs, siteUrl: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Consumer Key</Label>
+                                    <Input
+                                        placeholder="ck_..."
+                                        className="h-12 rounded-xl bg-white/5 border-white/10"
+                                        value={manualInputs.consumerKey || ""}
+                                        onChange={(e) => setManualInputs({ ...manualInputs, consumerKey: e.target.value })}
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label>Consumer Secret</Label>
+                                    <Input
+                                        type="password"
+                                        placeholder="cs_..."
+                                        className="h-12 rounded-xl bg-white/5 border-white/10"
+                                        value={manualInputs.consumerSecret || ""}
+                                        onChange={(e) => setManualInputs({ ...manualInputs, consumerSecret: e.target.value })}
+                                    />
+                                </div>
+                            </div>
+                        )}
+                        {(selectedManualProvider?.id === 'figma' || selectedManualProvider?.id === 'canva') && (
+                            <div className="space-y-2">
+                                <Label>{selectedManualProvider?.name} File/Design URL</Label>
+                                <Input
+                                    placeholder="https://..."
+                                    className="h-12 rounded-xl bg-white/5 border-white/10"
+                                    value={manualInputs.config_url || ""}
+                                    onChange={(e) => setManualInputs({ ...manualInputs, config_url: e.target.value })}
+                                />
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button
+                            className="w-full h-12 rounded-2xl font-black uppercase tracking-widest text-xs"
+                            onClick={handleManualSubmit}
+                        >
+                            Confirm Connection
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
