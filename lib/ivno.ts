@@ -30,6 +30,8 @@ export async function createIvnoPayment(data: IvnoPaymentRequest): Promise<IvnoP
         throw new Error("IVNO_API_KEY or IVNO_API_SECRET is not defined");
     }
 
+    console.log(`[Ivno] Initializing payment at ${apiUrl}...`);
+
     const response = await fetch(apiUrl, {
         method: "POST",
         headers: {
@@ -39,15 +41,23 @@ export async function createIvnoPayment(data: IvnoPaymentRequest): Promise<IvnoP
         },
         body: JSON.stringify({
             ...data,
-            include_fee: data.include_fee ?? true // Default to true if not specified
+            include_fee: data.include_fee ?? true
         }),
     });
 
-    const result = await response.json();
+    const text = await response.text();
+    let result: any;
+
+    try {
+        result = JSON.parse(text);
+    } catch (e) {
+        console.error("[Ivno] Received non-JSON response:", text);
+        throw new Error(`Ivno API error (Non-JSON): ${text.substring(0, 150)}...`);
+    }
 
     if (!response.ok || result.success === false) {
         console.error("Ivno Payment Creation Error:", result);
-        throw new Error(result.message || `Failed to create Ivno payment: ${response.statusText}`);
+        throw new Error(result.message || result.error || `Failed to create Ivno payment: ${response.statusText}`);
     }
 
     return result as IvnoPaymentResponse;
