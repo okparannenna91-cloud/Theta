@@ -8,17 +8,23 @@ export interface IvnoPaymentRequest {
     webhook_url: string;
     email: string;
     domain: string;
+    include_fee?: boolean;
 }
 
 export interface IvnoPaymentResponse {
-    checkout_url: string;
-    payment_id?: string;
+    success: boolean;
+    payment_url: string;
+    transaction_id: string;
+    orderId: string;
+    amount: number;
+    currency: string;
 }
 
 export async function createIvnoPayment(data: IvnoPaymentRequest): Promise<IvnoPaymentResponse> {
     const apiKey = process.env.IVNO_API_KEY;
     const apiSecret = process.env.IVNO_API_SECRET;
-    const apiUrl = process.env.IVNO_API_URL || "https://api.ivno.com/v1/payments";
+    // The guide specifies this exact endpoint
+    const apiUrl = process.env.IVNO_API_URL || "https://app.ivno.io/payments/create";
 
     if (!apiKey || !apiSecret) {
         throw new Error("IVNO_API_KEY or IVNO_API_SECRET is not defined");
@@ -28,18 +34,21 @@ export async function createIvnoPayment(data: IvnoPaymentRequest): Promise<IvnoP
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            "X-API-Key": apiKey,
-            "X-API-Secret": apiSecret,
-            "Authorization": `Bearer ${apiKey}`, // Keeping Bearer just in case, but adding specific headers
+            "X-Api-Key": apiKey,
+            "X-Api-Secret": apiSecret,
         },
-        body: JSON.stringify(data),
+        body: JSON.stringify({
+            ...data,
+            include_fee: data.include_fee ?? true // Default to true if not specified
+        }),
     });
 
-    if (!response.ok) {
-        const error = await response.text();
-        console.error("Ivno Payment Creation Error:", error);
-        throw new Error(`Failed to create Ivno payment: ${response.statusText}`);
+    const result = await response.json();
+
+    if (!response.ok || result.success === false) {
+        console.error("Ivno Payment Creation Error:", result);
+        throw new Error(result.message || `Failed to create Ivno payment: ${response.statusText}`);
     }
 
-    return await response.json();
+    return result as IvnoPaymentResponse;
 }

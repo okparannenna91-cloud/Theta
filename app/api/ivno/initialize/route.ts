@@ -73,10 +73,10 @@ export async function POST(req: Request) {
 
         const response = await createIvnoPayment(paymentData);
 
-        if (response.checkout_url) {
-            return NextResponse.json({ url: response.checkout_url });
+        if (response.payment_url) {
+            return NextResponse.json({ url: response.payment_url });
         } else {
-            return NextResponse.json({ error: "Failed to initialize Ivno payment — no checkout_url returned" }, { status: 500 });
+            return NextResponse.json({ error: "Failed to initialize Ivno payment — no payment_url returned" }, { status: 500 });
         }
     } catch (error: any) {
         console.error("[Ivno] Initialization Error:", error);
