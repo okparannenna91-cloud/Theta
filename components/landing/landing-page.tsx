@@ -27,6 +27,8 @@ import Image from "next/image";
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import { MotionWrapper, FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
+import Hyperspeed from "@/components/Hyperspeed";
+import { hyperspeedPresets } from "@/components/HyperspeedPresets";
 
 // Fixed AnimatedNumber component with premium styling
 function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
@@ -42,7 +44,7 @@ function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string
   }, [value]);
 
   return (
-    <span className="text-5xl md:text-7xl font-black text-slate-900 tracking-tighter tabular-nums">
+    <span className="text-5xl md:text-7xl font-black text-slate-900 dark:text-white tracking-tighter tabular-nums">
       {displayValue.toLocaleString()}{suffix}
     </span>
   );
@@ -105,13 +107,13 @@ export default function LandingPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 selection:bg-primary/20 selection:text-primary overflow-x-hidden">
+    <div className="min-h-screen bg-background selection:bg-primary/20 selection:text-primary overflow-x-hidden">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       {/* Navigation */}
-      <nav className="fixed top-0 z-50 w-full bg-white/70 backdrop-blur-2xl border-b border-white/10 shadow-[0_2px_40px_-10px_rgba(0,0,0,0.05)]">
+      <nav className="fixed top-0 z-50 w-full bg-background/70 backdrop-blur-2xl border-b border-primary/10 shadow-[0_2px_40px_-10px_rgba(0,0,0,0.05)]">
         <div className="max-w-7xl mx-auto px-6 py-5 flex items-center justify-between">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
@@ -150,8 +152,11 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
-        <div className="absolute inset-0 z-0 mesh-gradient opacity-40"></div>
-        <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_120%,rgba(139,92,246,0.15),transparent_50%)]"></div>
+        <div className="absolute inset-0 z-0">
+          <Hyperspeed effectOptions={hyperspeedPresets.four} />
+        </div>
+        <div className="absolute inset-0 z-0 mesh-gradient opacity-30 pointer-events-none"></div>
+        <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_120%,rgba(139,92,246,0.15),transparent_50%)] pointer-events-none"></div>
 
         <div className="max-w-7xl mx-auto px-6 relative z-10 py-20 lg:py-32">
           <div className="flex flex-col items-center text-center max-w-5xl mx-auto">
@@ -183,7 +188,7 @@ export default function LandingPage() {
                   </Button>
                 </SignUpButton>
                 <Link href="/pricing">
-                  <Button size="lg" variant="outline" className="h-20 px-14 border-primary/20 bg-white/50 backdrop-blur-xl hover:bg-white/80 text-foreground font-black uppercase tracking-[0.15em] text-sm rounded-[2rem] transition-all duration-500 hover:border-primary/40 shadow-xl">
+                  <Button size="lg" variant="outline" className="h-20 px-14 border-primary/20 bg-background/50 backdrop-blur-xl hover:bg-background/80 text-foreground font-black uppercase tracking-[0.15em] text-sm rounded-[2rem] transition-all duration-500 hover:border-primary/40 shadow-xl">
                     Full Protocol
                   </Button>
                 </Link>
@@ -686,7 +691,7 @@ export default function LandingPage() {
                 </div>
                 <span className="text-3xl font-black text-gradient tracking-tighter">Theta</span>
               </div>
-              <p className="text-slate-500 text-base leading-relaxed max-w-xs mb-10 font-medium">
+              <p className="text-slate-500 dark:text-slate-400 text-base leading-relaxed max-w-xs mb-10 font-medium">
                 Building the most intelligent, feature-complete project synchronization platform for modern teams.
               </p>
               <div className="flex gap-4">
@@ -707,9 +712,9 @@ export default function LandingPage() {
                   {col.links.map(([name, href], j) => (
                     <li key={j}>
                       {href.startsWith("/") ? (
-                        <Link href={href} className="text-slate-500 font-medium hover:text-primary transition-colors text-sm">{name}</Link>
+                        <Link href={href} className="text-slate-500 dark:text-slate-400 font-medium hover:text-primary transition-colors text-sm">{name}</Link>
                       ) : (
-                        <a href={href} className="text-slate-500 font-medium hover:text-primary transition-colors text-sm">{name}</a>
+                        <a href={href} className="text-slate-500 dark:text-slate-400 font-medium hover:text-primary transition-colors text-sm">{name}</a>
                       )}
                     </li>
                   ))}
@@ -718,7 +723,7 @@ export default function LandingPage() {
             ))}
           </div>
 
-          <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-10 border-t border-white/5 text-slate-600 text-xs font-black uppercase tracking-[0.2em]">
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-10 border-t border-white/5 text-slate-600 dark:text-slate-400 text-xs font-black uppercase tracking-[0.2em]">
             <p>&copy; 2026 Theta Systems. Built by Pioneers.</p>
             <div className="flex gap-8">
               <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Protocol</Link>

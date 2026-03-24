@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Check, Info } from "lucide-react";
-import { SignUpButton } from "@clerk/nextjs";
+import { SignUpButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import Link from "next/link";
 import { BILLING_PLANS, BillingInterval, getPlanPrice, getAnnualDiscount } from "@/lib/billing-plans";
 import { Switch } from "@/components/ui/switch";
@@ -15,7 +15,8 @@ export default function PricingPage() {
   const [interval, setBillingInterval] = useState<BillingInterval>("monthly");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+    <div className="min-h-screen bg-background relative overflow-hidden">
+      <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/10 via-background to-purple-500/10 pointer-events-none" />
       <nav className="container mx-auto px-4 py-4 sm:py-6 flex items-center justify-between">
         <Link href="/" className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
           Theta
@@ -39,20 +40,20 @@ export default function PricingPage() {
           <h1 className="text-4xl sm:text-5xl md:text-6xl font-extrabold mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent px-2 tracking-tight">
             Powering Next-Gen Teams
           </h1>
-          <p className="text-lg sm:text-xl text-slate-600 max-w-2xl mx-auto px-4">
+          <p className="text-lg sm:text-xl text-muted-foreground max-w-2xl mx-auto px-4">
             Scale your engineering with Theta. Transparent pricing for teams of all sizes.
           </p>
         </motion.div>
 
         <div className="flex items-center justify-center gap-4 mb-12">
-          <Label htmlFor="billing-cycle" className={`${interval === "monthly" ? "text-indigo-600 font-semibold" : "text-slate-500"}`}>Monthly</Label>
+          <Label htmlFor="billing-cycle" className={`${interval === "monthly" ? "text-indigo-600 dark:text-indigo-400 font-semibold" : "text-slate-500 dark:text-slate-400"}`}>Monthly</Label>
           <Switch
             id="billing-cycle"
             checked={interval === "annual"}
             onCheckedChange={(checked) => setBillingInterval(checked ? "annual" : "monthly")}
           />
-          <Label htmlFor="billing-cycle" className={`${interval === "annual" ? "text-indigo-600 font-semibold" : "text-slate-500"}`}>
-            Annual <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full ml-1 font-bold">-{getAnnualDiscount()}%</span>
+          <Label htmlFor="billing-cycle" className={`${interval === "annual" ? "text-indigo-600 dark:text-indigo-400 font-semibold" : "text-slate-500 dark:text-slate-400"}`}>
+            Annual <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full ml-1 font-bold">-{getAnnualDiscount()}%</span>
           </Label>
         </div>
 
@@ -85,11 +86,11 @@ export default function PricingPage() {
                     </div>
                   )}
                   <CardHeader>
-                    <CardTitle className="text-xl font-bold text-slate-900">{plan.name}</CardTitle>
+                    <CardTitle className="text-xl font-bold text-foreground">{plan.name}</CardTitle>
                     <div className="mt-4 flex items-baseline">
-                      <span className="text-4xl font-extrabold text-slate-900">{displayPrice}</span>
+                      <span className="text-4xl font-extrabold text-foreground">{displayPrice}</span>
                       {plan.mode === "subscription" && (
-                        <span className="text-slate-500 ml-1">/mo</span>
+                        <span className="text-muted-foreground ml-1">/mo</span>
                       )}
                     </div>
                     {plan.mode === "subscription" && interval === "annual" && plan.priceMonthlyUSD > 0 && (
@@ -98,7 +99,7 @@ export default function PricingPage() {
                     {plan.mode === "one_time" && (
                       <p className="text-xs text-slate-500 font-medium mt-1">One-time payment</p>
                     )}
-                    <CardDescription className="mt-4 text-slate-600 min-h-[40px]">
+                    <CardDescription className="mt-4 text-muted-foreground min-h-[40px]">
                       {plan.description}
                     </CardDescription>
                   </CardHeader>
@@ -111,23 +112,38 @@ export default function PricingPage() {
                             <div className="mt-0.5 rounded-full bg-green-100 p-0.5">
                               <Check className="h-3.5 w-3.5 text-green-600" />
                             </div>
-                            <span className="text-sm text-slate-700 leading-tight">{feature}</span>
+                            <span className="text-sm text-foreground/80 leading-tight">{feature}</span>
                           </li>
                         ))}
                       </ul>
                     </div>
 
-                    <SignUpButton mode="modal">
-                      <Button
-                        className={`w-full py-6 text-base font-bold transition-all ${isPopular
-                          ? "bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-indigo-200"
-                          : "bg-slate-900 hover:bg-slate-800"
-                          }`}
-                        variant="default"
-                      >
-                        {plan.planKey === "free" ? "Get Started" : plan.planKey === "lifetime" ? "Buy Lifetime" : "Upgrade Now"}
-                      </Button>
-                    </SignUpButton>
+                    <SignedOut>
+                      <SignUpButton mode="modal">
+                        <Button
+                          className={`w-full py-6 text-base font-bold transition-all ${isPopular
+                            ? "bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-indigo-200"
+                            : "bg-primary hover:bg-primary/90"
+                            }`}
+                          variant="default"
+                        >
+                          {plan.planKey === "free" ? "Get Started" : plan.planKey === "lifetime" ? "Buy Lifetime" : "Upgrade Now"}
+                        </Button>
+                      </SignUpButton>
+                    </SignedOut>
+                    <SignedIn>
+                      <Link href="/dashboard" className="w-full">
+                        <Button
+                          className={`w-full py-6 text-base font-bold transition-all ${isPopular
+                            ? "bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-indigo-200"
+                            : "bg-primary hover:bg-primary/90"
+                            }`}
+                          variant="default"
+                        >
+                          {plan.planKey === "free" ? "Go to Dashboard" : "Upgrade in App"}
+                        </Button>
+                      </Link>
+                    </SignedIn>
                   </CardContent>
                 </Card>
               </motion.div>
