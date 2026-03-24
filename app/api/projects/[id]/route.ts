@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, findAcrossShards } from "@/lib/prisma";
+import { Project } from "@prisma/client";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -19,19 +20,23 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const project = await prisma.project.findUnique({
-      where: {
-        id: params.id,
-      },
-      include: {
-        tasks: true,
-        boards: true,
-      },
+    const { data: project, db } = await findAcrossShards<Project>("project", {
+      id: params.id,
     });
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
+
+    // Re-fetch project with relations using the specific shard DB found
+    const fullProject = await (db as any).project.findUnique({
+      where: { id: params.id },
+      include: {
+        tasks: true,
+        boards: true,
+        _count: { select: { tasks: true } }
+      }
+    });
 
     // Verify workspace access
     const membership = await prisma.workspaceMember.findUnique({
@@ -47,7 +52,7 @@ export async function GET(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    return NextResponse.json(project);
+    return NextResponse.json(fullProject);
   } catch (error) {
     console.error("Get project error:", error);
     return NextResponse.json(
@@ -70,10 +75,8 @@ export async function PATCH(
     const body = await req.json();
     const data = updateSchema.parse(body);
 
-    const project = await prisma.project.findUnique({
-      where: {
-        id: params.id,
-      },
+    const { data: project, db } = await findAcrossShards<Project>("project", {
+      id: params.id,
     });
 
     if (!project) {
@@ -94,7 +97,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const updated = await prisma.project.update({
+    const updated = await (db as any).project.update({
       where: { id: params.id },
       data,
     });
@@ -122,10 +125,8 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const project = await prisma.project.findUnique({
-      where: {
-        id: params.id,
-      },
+    const { data: project, db } = await findAcrossShards<Project>("project", {
+      id: params.id,
     });
 
     if (!project) {
@@ -146,7 +147,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Access denied. Only project creators or workspace admins can delete projects." }, { status: 403 });
     }
 
-    await prisma.project.delete({
+    await (db as any).project.delete({
       where: { id: params.id },
     });
 

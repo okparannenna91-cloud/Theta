@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { getPrismaClient, prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { z } from "zod";
 import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel } from "@/lib/ably";
@@ -125,7 +125,7 @@ export async function POST(req: Request) {
 
     // Check plan limits strictly
     try {
-      const workspace = await db.workspace.findUnique({
+      const workspace = await prisma.workspace.findUnique({
         where: { id: data.workspaceId },
         include: { _count: { select: { tasks: true } } }
       });

@@ -154,7 +154,11 @@ export default function ProjectsPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => deleteMutation.mutate(project.id)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        deleteMutation.mutate(project.id);
+                      }}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>

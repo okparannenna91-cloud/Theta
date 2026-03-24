@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { prisma, findAcrossShards } from "@/lib/prisma";
+import { Task, Comment } from "@prisma/client";
 import { z } from "zod";
 
 const commentSchema = z.object({
@@ -17,7 +18,13 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const comments = await prisma.comment.findMany({
+        const { data: task, db } = await findAcrossShards<Task>("task", { id: params.id });
+        
+        if (!task) {
+            return NextResponse.json({ error: "Task not found" }, { status: 404 });
+        }
+
+        const comments = await (db as any).comment.findMany({
             where: { taskId: params.id },
             include: {
                 user: {
@@ -51,10 +58,7 @@ export async function POST(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const task = await prisma.task.findUnique({
-            where: { id: params.id },
-            select: { workspaceId: true },
-        });
+        const { data: task, db } = await findAcrossShards<Task>("task", { id: params.id });
 
         if (!task) {
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -77,7 +81,7 @@ export async function POST(
         const body = await req.json();
         const data = commentSchema.parse(body);
 
-        const comment = await prisma.comment.create({
+        const comment = await (db as any).comment.create({
             data: {
                 content: data.content,
                 taskId: params.id,
