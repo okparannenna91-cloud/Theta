@@ -5,15 +5,33 @@ import { Upload, X, FileText, Image as ImageIcon, Film, Loader2 } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 interface FileUploadProps {
-    workspaceId: string;
-    onUploadComplete: (data: any) => void;
+    value?: string | any[];
+    onChange?: (url: string) => void;
+    onRemove?: () => void;
+    workspaceId?: string;
+    onUploadComplete?: (data: any) => void;
     label?: string;
     className?: string;
+    accept?: string;
+    maxSize?: number;
+    category?: string;
 }
 
-export function FileUpload({ workspaceId, onUploadComplete, label, className }: FileUploadProps) {
+export function FileUpload({ 
+    value, 
+    onChange, 
+    onRemove, 
+    workspaceId, 
+    onUploadComplete, 
+    label, 
+    className,
+    accept = "*/*",
+    maxSize = 25,
+    category = "file"
+}: FileUploadProps) {
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -21,10 +39,16 @@ export function FileUpload({ workspaceId, onUploadComplete, label, className }: 
         const file = e.target.files?.[0];
         if (!file) return;
 
+        if (file.size > maxSize * 1024 * 1024) {
+            toast.error(`File is too large. Max size ${maxSize}MB`);
+            return;
+        }
+
         setIsUploading(true);
         const formData = new FormData();
         formData.append("file", file);
-        formData.append("workspaceId", workspaceId);
+        if (workspaceId) formData.append("workspaceId", workspaceId);
+        if (category) formData.append("category", category);
 
         try {
             const res = await fetch("/api/upload", {
@@ -38,7 +62,10 @@ export function FileUpload({ workspaceId, onUploadComplete, label, className }: 
             }
 
             const data = await res.json();
-            onUploadComplete(data);
+            
+            if (onUploadComplete) onUploadComplete(data);
+            if (onChange) onChange(data.url || data.secure_url || data.path); // Handle different response shapes
+            
             toast.success("File uploaded successfully");
         } catch (error: any) {
             toast.error(error.message);
@@ -48,6 +75,34 @@ export function FileUpload({ workspaceId, onUploadComplete, label, className }: 
         }
     };
 
+    if (value && typeof value === 'string' && value.length > 0) {
+        return (
+            <div className={cn("relative w-full h-40 group", className)}>
+                {category === 'image' || value.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
+                   <div className="relative w-full h-full rounded-2xl overflow-hidden border">
+                      <Image src={value} alt="Upload" fill className="object-cover" />
+                   </div>
+                ) : (
+                    <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-2xl h-full bg-slate-50 dark:bg-slate-900/50">
+                        <FileText className="h-10 w-10 text-indigo-500 mb-2" />
+                        <p className="text-[10px] font-black uppercase text-muted-foreground truncate max-w-full px-4">{value.split('/').pop()}</p>
+                    </div>
+                )}
+                <Button
+                    onClick={() => {
+                        if (onRemove) onRemove();
+                        if (onChange) onChange("");
+                    }}
+                    variant="destructive"
+                    size="icon"
+                    className="absolute -top-2 -right-2 h-7 w-7 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                    <X className="h-4 w-4" />
+                </Button>
+            </div>
+        );
+    }
+
     return (
         <div className={cn("relative", className)}>
             <input
@@ -56,6 +111,7 @@ export function FileUpload({ workspaceId, onUploadComplete, label, className }: 
                 ref={fileInputRef}
                 onChange={handleFileChange}
                 disabled={isUploading}
+                accept={accept}
             />
             <Button
                 type="button"
