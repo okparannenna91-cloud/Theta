@@ -93,7 +93,7 @@ export default function DocsPage() {
                         <Card className="group hover:border-indigo-500/30 transition-all cursor-pointer shadow-lg hover:shadow-2xl hover:-translate-y-1 border-slate-200/60 dark:border-white/5 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl relative overflow-hidden h-52">
                             <div className="absolute top-0 left-0 w-1 h-full bg-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
                             
-                            <Link href={`/docs/${doc.id}`} className="absolute inset-0" />
+                            <Link href={`/wiki/${doc.id}`} className="absolute inset-0" />
 
                             <CardHeader className="p-6">
                                 <div className="flex items-start justify-between relative z-10">
