@@ -1,4 +1,4 @@
-export const hyperspeedPresets = {
+export const hyperspeedPresets: Record<string, any> = {
   one: {
     onSpeedUp: () => {},
     onSlowDown: () => {},
