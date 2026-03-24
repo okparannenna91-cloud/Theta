@@ -953,10 +953,11 @@ class App {
 
     this.renderer = new THREE.WebGLRenderer({
       antialias: false,
-      alpha: true
+      alpha: true,
+      powerPreference: "high-performance"
     });
     this.renderer.setSize(initW, initH, false);
-    this.renderer.setPixelRatio(window.devicePixelRatio);
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
 
     this.composer = new EffectComposer(this.renderer);
     container.appendChild(this.renderer.domElement);
@@ -1045,7 +1046,7 @@ class App {
       new BloomEffect({
         luminanceThreshold: 0.2,
         luminanceSmoothing: 0,
-        resolutionScale: 1
+        resolutionScale: 0.5
       })
     );
 
