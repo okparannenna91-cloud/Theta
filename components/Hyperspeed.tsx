@@ -1298,9 +1298,17 @@ const Hyperspeed: FC<HyperspeedProps> = ({ effectOptions = DEFAULT_EFFECT_OPTION
       options.distortion = distortions[options.distortion];
     }
 
-    const myApp = new App(container, options);
-    appRef.current = myApp;
-    myApp.loadAssets().then(myApp.init);
+    try {
+      const myApp = new App(container, options);
+      appRef.current = myApp;
+      myApp.loadAssets().then(() => {
+        if (appRef.current && !appRef.current.disposed) {
+          myApp.init();
+        }
+      });
+    } catch (error) {
+      console.error('WebGL initialization failed:', error);
+    }
 
     return () => {
       if (appRef.current) {
