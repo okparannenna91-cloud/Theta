@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { findAcrossShards } from "@/lib/prisma";
 import { Board } from "@prisma/client";
 import { z } from "zod";
+import { publishToChannel, getBoardChannel } from "@/lib/ably";
 
 const columnSchema = z.object({
     name: z.string().min(1),
@@ -50,6 +51,10 @@ export async function POST(
                 boardId: params.id,
             },
         });
+
+        // Notify via Ably
+        const boardChannel = getBoardChannel(board.workspaceId, params.id);
+        await publishToChannel(boardChannel, "column:created", column);
 
         return NextResponse.json(column);
     } catch (error) {

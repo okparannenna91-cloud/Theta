@@ -205,6 +205,9 @@ export default function KanbanBoard({
   useAbly(boardChannel, "task:created", handleAblyUpdate);
   useAbly(boardChannel, "task:updated", handleAblyUpdate);
   useAbly(boardChannel, "task:deleted", handleAblyUpdate);
+  useAbly(boardChannel, "column:created", handleAblyUpdate);
+  useAbly(boardChannel, "column:updated", handleAblyUpdate);
+  useAbly(boardChannel, "column:deleted", handleAblyUpdate);
 
   const { data: board, isLoading } = useQuery({
     queryKey: ["board", boardId],
@@ -230,7 +233,36 @@ export default function KanbanBoard({
       columnId: string;
       order: number;
     }) => updateTaskOrder(taskId, columnId, order),
-    onSuccess: () => {
+    onMutate: async (newTask) => {
+      // Cancel refetches so they don't overwrite optimistic update
+      await queryClient.cancelQueries({ queryKey: ["board", boardId] });
+
+      // Snapshot previous value
+      const previousBoard = queryClient.getQueryData(["board", boardId]);
+
+      // Optimistically update to the new value
+      if (previousBoard) {
+        queryClient.setQueryData(["board", boardId], {
+          ...previousBoard,
+          tasks: (previousBoard as any).tasks.map((t: any) =>
+            t.id === newTask.taskId
+              ? { ...t, columnId: newTask.columnId, order: newTask.order }
+              : t
+          ),
+        });
+      }
+
+      return { previousBoard };
+    },
+    onError: (err, newTask, context) => {
+      // Rollback on error
+      if (context?.previousBoard) {
+        queryClient.setQueryData(["board", boardId], context.previousBoard);
+      }
+      toast.error("Failed to move task");
+    },
+    onSettled: () => {
+      // Sync with server
       queryClient.invalidateQueries({ queryKey: ["board", boardId] });
     },
   });
@@ -305,22 +337,48 @@ export default function KanbanBoard({
 
     if (!over) return;
 
-    const taskId = active.id;
+    const activeId = active.id;
     const overId = over.id;
 
-    let columnId = "";
+    const activeTaskData = tasks.find((t: any) => t.id === activeId);
+    if (!activeTaskData) return;
+
+    // Check if we dropped on a column or a task
     const overColumn = columns.find((c: any) => c.id === overId);
+    let targetColumnId = "";
+    let targetOrder = 0;
+
     if (overColumn) {
-      columnId = overId;
+      // Dropped directly on a column (empty area)
+      targetColumnId = overId;
+      const columnTasks = tasks.filter((t: any) => t.columnId === targetColumnId);
+      targetOrder = columnTasks.length > 0
+        ? Math.max(...columnTasks.map((t: any) => t.order)) + 10
+        : 10;
     } else {
+      // Dropped on another task
       const overTask = tasks.find((t: any) => t.id === overId);
-      if (overTask) {
-        columnId = overTask.columnId;
-      }
+      if (!overTask) return;
+
+      targetColumnId = overTask.columnId;
+      
+      const columnTasks = tasks
+        .filter((t: any) => t.columnId === targetColumnId)
+        .sort((a: any, b: any) => a.order - b.order);
+
+      const oldIndex = columnTasks.findIndex((t: any) => t.id === activeId);
+      const newIndex = columnTasks.findIndex((t: any) => t.id === overId);
+
+      // Re-order locally using arrayMove to get the new order values
+      const newColumnTasks = arrayMove(columnTasks, oldIndex, newIndex);
+      
+      // Simple logic: we just update the moved task's order based on its neighbors or index
+      // For more reliability we could re-index everything, but for now we'll just put it above/below
+      targetOrder = overTask.order + (newIndex > oldIndex ? 1 : -1);
     }
 
-    if (columnId) {
-      updateMutation.mutate({ taskId, columnId, order: 0 });
+    if (targetColumnId && (targetColumnId !== activeTaskData.columnId || activeId !== overId)) {
+      updateMutation.mutate({ taskId: activeId, columnId: targetColumnId, order: targetOrder });
     }
   };
 

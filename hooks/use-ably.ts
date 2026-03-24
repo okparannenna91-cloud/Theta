@@ -3,25 +3,19 @@
 import { useEffect, useRef } from "react";
 import * as Ably from "ably";
 import { useUser } from "@clerk/nextjs";
+import { useAblyContext } from "@/components/providers/ably-provider";
 
 /**
- * Hook to subscribe to Ably channels
+ * Hook to subscribe to Ably channels using the global client from AblyProvider
  */
 export function useAbly(channelName: string, eventName: string, callback: (message: any) => void) {
     const { user } = useUser();
-    const clientRef = useRef<Ably.Realtime | null>(null);
+    const ablyClient = useAblyContext();
 
     useEffect(() => {
-        if (!user) return;
+        if (!user || !ablyClient) return;
 
-        // Initialize Ably client with token auth
-        const client = new Ably.Realtime({
-            authUrl: "/api/ably/token",
-            clientId: user.id,
-        });
-        clientRef.current = client;
-
-        const channel = client.channels.get(channelName);
+        const channel = ablyClient.channels.get(channelName);
 
         // Subscribe to event
         channel.subscribe(eventName, (message) => {
@@ -29,11 +23,9 @@ export function useAbly(channelName: string, eventName: string, callback: (messa
         });
 
         return () => {
-            channel.unsubscribe();
-            client.connection.close();
-            clientRef.current = null;
+            channel.unsubscribe(eventName);
         };
-    }, [channelName, eventName, callback, user]);
+    }, [channelName, eventName, callback, user, ablyClient]);
 
-    return clientRef.current;
+    return ablyClient;
 }

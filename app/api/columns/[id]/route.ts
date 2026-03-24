@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma, findAcrossShards } from "@/lib/prisma";
 import { Column } from "@prisma/client";
 import { z } from "zod";
+import { publishToChannel, getBoardChannel } from "@/lib/ably";
 
 const columnSchema = z.object({
     name: z.string().min(1).optional(),
@@ -59,7 +60,11 @@ export async function PATCH(
                 order: data.order,
             },
         });
-
+        
+        // Notify via Ably
+        const boardChannel = getBoardChannel(board.workspaceId, updatedColumn.boardId);
+        await publishToChannel(boardChannel, "column:updated", updatedColumn);
+        
         return NextResponse.json(updatedColumn);
     } catch (error) {
         if (error instanceof z.ZodError) {
@@ -116,6 +121,10 @@ export async function DELETE(
         await db.column.delete({
             where: { id: params.id },
         });
+
+        // Notify via Ably
+        const boardChannel = getBoardChannel(board.workspaceId, column.boardId);
+        await publishToChannel(boardChannel, "column:deleted", { id: params.id });
 
         return NextResponse.json({ success: true });
     } catch (error) {

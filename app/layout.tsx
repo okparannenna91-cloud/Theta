@@ -4,6 +4,7 @@ import "./globals.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { AblyProvider } from "@/components/providers/ably-provider";
 import { Toaster } from "sonner";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -93,10 +94,12 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <QueryProvider>
-              <I18nProvider>
-                {children}
-                <Toaster richColors position="top-center" />
-              </I18nProvider>
+              <AblyProvider>
+                <I18nProvider>
+                  {children}
+                  <Toaster richColors position="top-center" />
+                </I18nProvider>
+              </AblyProvider>
             </QueryProvider>
           </ThemeProvider>
         </body>
