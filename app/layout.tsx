@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   creator: "Theta Systems",
   publisher: "Theta Systems",
   alternates: {
-    canonical: "/",
+    canonical: './',
   },
   robots: {
     index: true,
