@@ -94,7 +94,8 @@ export async function POST(
             },
         });
 
-        // TODO: Trigger notification or Ably publish for live comments
+        const { publishToChannel, getTaskChannel } = await import("@/lib/ably");
+        await publishToChannel(getTaskChannel(task.workspaceId, params.id), "comment:created", comment);
 
         return NextResponse.json(comment);
     } catch (error) {

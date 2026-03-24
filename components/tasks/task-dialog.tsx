@@ -34,6 +34,7 @@ import { TaskComments } from "./task-comments";
 import { TagSelector } from "./tag-selector";
 import { TimeTracker } from "./time-tracker";
 import { TaskActivity } from "./task-activity";
+import { TaskAttachments } from "./task-attachments";
 
 interface TaskDialogProps {
     task: any;
@@ -156,6 +157,9 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
 
                         {/* Subtasks */}
                         <TaskSubtasks taskId={task.id} />
+
+                        {/* Attachments */}
+                        <TaskAttachments taskId={task.id} workspaceId={workspaceId} attachments={task.attachments || []} />
 
                         <hr className="border-slate-100 dark:border-slate-800" />
 

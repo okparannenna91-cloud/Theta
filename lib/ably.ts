@@ -41,6 +41,13 @@ export function getBoardChannel(workspaceId: string, boardId: string): string {
 }
 
 /**
+ * Generate channel name for task
+ */
+export function getTaskChannel(workspaceId: string, taskId: string): string {
+    return `workspace:${workspaceId}:task:${taskId}`;
+}
+
+/**
  * Generate channel name for chat
  */
 export function getChatChannel(workspaceId: string, projectId?: string): string {

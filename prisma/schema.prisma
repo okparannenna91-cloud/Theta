@@ -42,8 +42,61 @@ model Workspace {
   tags           Tag[]
   statuses       Status[]
   automations    Automation[]
+  documents     Document[]
+  forms         Form[]
 
   @@map("workspaces")
+}
+
+model Form {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  fields      Json     // Array of form field definitions
+  isPublic    Boolean  @default(false)
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  responses FormResponse[]
+
+  @@map("forms")
+}
+
+model FormResponse {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  formId    String   @db.ObjectId
+  data      Json
+  createdAt DateTime @default(now())
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@map("form_responses")
+}
+
+model Document {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  content     String?  // HTML or JSON content (TipTap)
+  emoji       String?  @default("📄")
+  coverImage  String?
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  parentId    String?  @db.ObjectId // For nested pages
+  isPublic    Boolean  @default(false)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    Document? @relation("DocumentHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children  Document[] @relation("DocumentHierarchy")
+
+  @@map("documents")
 }
 
 model Automation {
@@ -96,6 +149,7 @@ model User {
   calendarEvents CalendarEvent[]
   comments      Comment[]
   timeLogs      TimeLog[]
+  documents     Document[]
   preferences   UserPreference?
 
   @@map("users")
@@ -163,6 +217,8 @@ model Task {
   
   dependentIds  String[] @db.ObjectId
   dependents    Task[]   @relation("TaskDependencies", fields: [dependentIds], references: [id])
+  
+  attachments   Json?    @db.Json
 
   @@map("tasks")
 }
@@ -189,6 +245,8 @@ model Comment {
   task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  attachments Json?    @db.Json
 
   @@map("comments")
 }

@@ -9,6 +9,8 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@clerk/nextjs";
+import { useAbly } from "@/hooks/use-ably";
+import { getTaskChannel } from "@/lib/ably";
 
 interface Comment {
     id: string;
@@ -30,6 +32,16 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
     const [content, setContent] = useState("");
     const { user: currentUser } = useUser();
     const queryClient = useQueryClient();
+
+    const taskChannel = getTaskChannel(workspaceId, taskId);
+
+    useAbly(taskChannel, "comment:created", () => {
+        queryClient.invalidateQueries({ queryKey: ["comments", taskId] });
+    });
+
+    useAbly(taskChannel, "comment:deleted", () => {
+        queryClient.invalidateQueries({ queryKey: ["comments", taskId] });
+    });
 
     const { data: comments, isLoading } = useQuery<Comment[]>({
         queryKey: ["comments", taskId],

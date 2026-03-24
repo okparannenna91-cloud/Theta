@@ -5,8 +5,22 @@ import { useWorkspace } from "@/hooks/use-workspace";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import { FolderKanban, CheckSquare, Clock, AlertTriangle, TrendingUp } from "lucide-react";
-import { motion } from "framer-motion";
+import { FolderKanban, CheckSquare, Clock, AlertTriangle, TrendingUp, PieChart as PieChartIcon, Activity } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+    AreaChart, 
+    Area, 
+    XAxis, 
+    YAxis, 
+    CartesianGrid, 
+    Tooltip, 
+    ResponsiveContainer,
+    PieChart,
+    Pie,
+    Cell,
+    BarChart,
+    Bar
+} from "recharts";
 
 import { MotionWrapper, FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
 
@@ -89,6 +103,94 @@ export function PortfolioPage() {
                         </CardContent>
                     </Card>
                 </ScaleIn>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Activity Trend Chart */}
+                <FadeIn delay={0.4} className="lg:col-span-2">
+                    <Card className="glass-card h-[400px]">
+                        <CardHeader className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                                    <Activity className="h-4 w-4 text-primary" />
+                                    Workspace Performance
+                                </CardTitle>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="h-[300px]">
+                            <ResponsiveContainer width="100%" height="100%">
+                                <AreaChart data={[
+                                    { day: "Mon", tasks: 12 }, { day: "Tue", tasks: 19 }, { day: "Wed", tasks: 15 },
+                                    { day: "Thu", tasks: 22 }, { day: "Fri", tasks: 30 }, { day: "Sat", tasks: 18 },
+                                    { day: "Sun", tasks: 10 }
+                                ]}>
+                                    <defs>
+                                        <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
+                                            <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3}/>
+                                            <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0}/>
+                                        </linearGradient>
+                                    </defs>
+                                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{fontSize: 10, fontWeight: 'bold'}} />
+                                    <YAxis hide />
+                                    <Tooltip 
+                                      contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 4px 20px rgba(0,0,0,0.1)', fontSize: '12px'}} 
+                                    />
+                                    <Area 
+                                      type="monotone" 
+                                      dataKey="tasks" 
+                                      stroke="#8b5cf6" 
+                                      strokeWidth={3}
+                                      fillOpacity={1} 
+                                      fill="url(#colorTasks)" 
+                                    />
+                                </AreaChart>
+                            </ResponsiveContainer>
+                        </CardContent>
+                    </Card>
+                </FadeIn>
+
+                {/* Project Distribution */}
+                <FadeIn delay={0.5}>
+                    <Card className="glass-card h-[400px]">
+                        <CardHeader>
+                            <CardTitle className="text-sm font-black uppercase tracking-[0.2em] text-muted-foreground flex items-center gap-2">
+                                <PieChartIcon className="h-4 w-4 text-primary" />
+                                Project Velocity
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-col items-center">
+                            <div className="h-[220px] w-full">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <PieChart>
+                                        <Pie
+                                            data={projectHealth.map((p: any) => ({ name: p.name, value: p.progress || 10 }))}
+                                            innerRadius={60}
+                                            outerRadius={80}
+                                            paddingAngle={5}
+                                            dataKey="value"
+                                        >
+                                            {projectHealth.map((entry: any, index: number) => (
+                                                <Cell key={`cell-${index}`} fill={["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b"][index % 4]} />
+                                            ))}
+                                        </Pie>
+                                        <Tooltip />
+                                    </PieChart>
+                                </ResponsiveContainer>
+                            </div>
+                            <div className="w-full space-y-2 mt-4">
+                                {projectHealth.slice(0, 3).map((p: any, i: number) => (
+                                    <div key={p.id} className="flex items-center justify-between">
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-2 w-2 rounded-full" style={{ backgroundColor: ["#8b5cf6", "#3b82f6", "#10b981"][i % 3] }} />
+                                            <span className="text-[10px] font-bold truncate max-w-[100px]">{p.name}</span>
+                                        </div>
+                                        <span className="text-[10px] font-black">{Math.round(p.progress)}%</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </FadeIn>
             </div>
 
             <div className="space-y-6">

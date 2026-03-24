@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, CheckCircle2, Circle, Clock, AlertCircle } from "lucide-react";
+import { Plus, CheckCircle2, Circle, Clock, AlertCircle, Paperclip, X } from "lucide-react";
 import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -167,42 +167,67 @@ export default function TasksPage() {
     );
   }
 
+  const [view, setView] = useState<"list" | "table">("list");
+
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 lg:mb-8">
+    <div className="p-4 sm:p-6 lg:p-8 bg-slate-50/30 dark:bg-slate-950/30 min-h-full">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <motion.div
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           className="flex-1"
         >
-          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Tasks</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Manage your tasks and track progress
+          <div className="flex items-center gap-3 mb-1">
+             <div className="p-2 bg-indigo-600 rounded-lg shadow-lg shadow-indigo-500/20">
+               <CheckCircle2 className="h-5 w-5 text-white" />
+             </div>
+             <h1 className="text-2xl sm:text-3xl font-black tracking-tight">Tasks</h1>
+          </div>
+          <p className="text-sm text-muted-foreground font-medium">
+            Project-wide task orchestration and tracking
           </p>
         </motion.div>
-        <Button onClick={() => setIsOpen(true)} className="w-full sm:w-auto shadow-sm hover:shadow-md transition-all active:scale-95">
-          <Plus className="h-4 w-4 mr-2" />
-          New Task
-        </Button>
+        
+        <div className="flex items-center gap-2 w-full sm:w-auto">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1 rounded-xl flex items-center shadow-sm">
+             <Button 
+               variant={view === "list" ? "secondary" : "ghost"} 
+               size="sm" 
+               className={cn("h-8 rounded-lg text-xs font-bold", view === "list" && "shadow-sm")}
+               onClick={() => setView("list")}
+             >
+               List
+             </Button>
+             <Button 
+               variant={view === "table" ? "secondary" : "ghost"} 
+               size="sm"
+               className={cn("h-8 rounded-lg text-xs font-bold", view === "table" && "shadow-sm")}
+               onClick={() => setView("table")}
+             >
+               Table
+             </Button>
+          </div>
+
+          <Button onClick={() => setIsOpen(true)} className="flex-1 sm:flex-none bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 font-bold transition-all active:scale-95">
+            <Plus className="h-4 w-4 mr-2" />
+            New Task
+          </Button>
+        </div>
       </div>
 
-      <div className="space-y-4">
-        {tasks?.map((task: any, i: number) => (
-          <motion.div
-            key={task.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-          >
+      {view === "list" ? (
+        <div className="space-y-4 max-w-5xl mx-auto">
+          {tasks?.map((task: any, i: number) => (
             <motion.div
-              layout
-              whileHover={{ scale: 1.01 }}
-              transition={{ type: "spring", stiffness: 300 }}
+              key={task.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.03 }}
             >
-              <Card className="hover:border-primary/50 transition-colors cursor-default shadow-sm hover:shadow-md">
-                <CardHeader>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex items-start gap-2 sm:gap-3 flex-1 min-w-0">
+              <Card className="hover:border-indigo-500/30 transition-all cursor-default shadow-sm hover:shadow-md border-slate-200/60 dark:border-slate-800/60 bg-white/80 dark:bg-slate-900/80 backdrop-blur-sm group">
+                <CardHeader className="p-4 sm:p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1 min-w-0">
                       <button
                         onClick={() =>
                           updateMutation.mutate({
@@ -213,26 +238,40 @@ export default function TasksPage() {
                             },
                           })
                         }
-                        className="flex-shrink-0 mt-1 hover:scale-110 transition-transform"
+                        className="flex-shrink-0 mt-1 hover:scale-125 transition-transform active:scale-90"
                       >
                         {getStatusIcon(task.status)}
                       </button>
                       <div className="flex-1 min-w-0">
-                        <CardTitle className="text-base sm:text-lg break-words leading-tight">{task.title}</CardTitle>
+                        <div className="flex items-center gap-2 mb-1">
+                          <CardTitle className={cn("text-base font-bold transition-all", task.status === "completed" && "line-through text-muted-foreground")}>
+                            {task.title}
+                          </CardTitle>
+                          {task.attachments?.length > 0 && (
+                             <Badge variant="outline" className="text-[10px] h-4 px-1 border-slate-200 dark:border-slate-800 font-bold">
+                               <Paperclip className="h-2.5 w-2.5 mr-0.5 rotate-45" />
+                               {task.attachments.length}
+                             </Badge>
+                          )}
+                        </div>
                         {task.description && (
-                          <p className="text-xs sm:text-sm text-muted-foreground mt-1 line-clamp-2">
+                          <p className="text-xs text-muted-foreground mt-1 line-clamp-1 italic">
                             {task.description}
                           </p>
                         )}
-                        <div className="flex flex-wrap items-center gap-2 mt-2">
-                          <Badge className={cn("text-[10px] font-bold uppercase tracking-wider px-2", getPriorityColor(task.priority))}>
+                        <div className="flex flex-wrap items-center gap-2 mt-3">
+                          <Badge className={cn("text-[10px] font-black uppercase tracking-widest px-2 py-0.5 border-none", getPriorityColor(task.priority))}>
                             {task.priority}
                           </Badge>
                           {task.project && (
-                            <Badge variant="outline" className="text-[10px] font-medium truncate max-w-[120px] sm:max-w-none bg-accent/30 border-none">
-                              {task.project.name}
+                            <Badge variant="outline" className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 border-none px-2 py-0.5">
+                               {task.project.name}
                             </Badge>
                           )}
+                          <div className="ml-auto text-[10px] font-bold text-muted-foreground uppercase flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <Clock className="h-3 w-3" />
+                             Added Recently
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -240,17 +279,93 @@ export default function TasksPage() {
                       variant="ghost"
                       size="icon"
                       onClick={() => deleteMutation.mutate(task.id)}
-                      className="flex-shrink-0 text-muted-foreground hover:text-destructive transition-colors"
+                      className="h-8 w-8 text-slate-300 hover:text-red-500 hover:bg-red-500/5 transition-all"
                     >
-                      <AlertCircle className="h-4 w-4" />
+                      <X className="h-4 w-4" />
                     </Button>
                   </div>
                 </CardHeader>
               </Card>
             </motion.div>
-          </motion.div>
-        ))}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <div className="border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-xl bg-white dark:bg-slate-900 animate-in fade-in slide-in-from-bottom-4">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse min-w-[700px]">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800">
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 w-12 text-center">Done</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Task Name</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Project</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Status</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400">Priority</th>
+                  <th className="p-4 text-[10px] font-black uppercase tracking-widest text-slate-400 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {tasks?.map((task: any) => (
+                  <tr key={task.id} className="border-b border-slate-100 dark:border-slate-800/50 hover:bg-indigo-50/30 dark:hover:bg-indigo-900/5 transition-colors group">
+                    <td className="p-4 text-center">
+                      <button
+                        onClick={() =>
+                          updateMutation.mutate({
+                            id: task.id,
+                            data: {
+                              status:
+                                task.status === "completed" ? "todo" : "completed",
+                            },
+                          })
+                        }
+                        className="hover:scale-110 transition-transform active:scale-95"
+                      >
+                        {getStatusIcon(task.status)}
+                      </button>
+                    </td>
+                    <td className="p-4">
+                      <div className="flex flex-col">
+                         <span className={cn("text-xs font-bold truncate max-w-[200px]", task.status === "completed" && "line-through text-muted-foreground")}>
+                           {task.title}
+                         </span>
+                         {task.description && <span className="text-[10px] text-muted-foreground truncate max-w-[200px] mt-0.5 italic">{task.description}</span>}
+                      </div>
+                    </td>
+                    <td className="p-4">
+                       <Badge variant="secondary" className="text-[10px] font-bold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-none">
+                         {task.project?.name || "No Project"}
+                       </Badge>
+                    </td>
+                    <td className="p-4">
+                       <div className="flex items-center gap-1.5 capitalize text-[10px] font-bold text-slate-600 dark:text-slate-400">
+                          <div className={cn("h-1.5 w-1.5 rounded-full", 
+                            task.status === "completed" ? "bg-emerald-500" : 
+                            task.status === "in-progress" ? "bg-blue-500" : "bg-slate-400"
+                          )} />
+                          {task.status.replace(/-/g, " ")}
+                       </div>
+                    </td>
+                    <td className="p-4">
+                      <Badge className={cn("text-[9px] font-black uppercase tracking-widest px-2", getPriorityColor(task.priority))}>
+                        {task.priority}
+                      </Badge>
+                    </td>
+                    <td className="p-4 text-right">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => deleteMutation.mutate(task.id)}
+                        className="h-7 w-7 text-muted-foreground hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        <AlertCircle className="h-3.5 w-3.5" />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {tasks?.length === 0 && (
         <div className="text-center py-12">

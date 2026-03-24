@@ -25,7 +25,8 @@ import {
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { ModeToggle } from "./mode-toggle";
-import { NotificationBell } from "@/components/notifications/notification-bell";
+import { NotificationCenter } from "@/components/notifications/notification-center";
+import { useUser } from "@clerk/nextjs";
 import { useWorkspace } from "@/hooks/use-workspace";
 import {
   Select,
@@ -42,6 +43,7 @@ export function Sidebar() {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { t } = useI18n();
   const { workspaces, activeWorkspaceId, switchWorkspace } = useWorkspace();
+  const { user } = useUser();
 
   const navigation = [
     { name: t("dashboard"), href: "/dashboard", icon: LayoutDashboard },
@@ -70,7 +72,9 @@ export function Sidebar() {
           </span>
         </Link>
         <div className="flex items-center gap-2">
-          <NotificationBell />
+          {activeWorkspaceId && user && (
+            <NotificationCenter workspaceId={activeWorkspaceId} userId={user.id} />
+          )}
           <ModeToggle />
           <UserButton />
           <button
@@ -118,7 +122,9 @@ export function Sidebar() {
                 Theta
               </span>
             </Link>
-            <NotificationBell />
+            {activeWorkspaceId && user && (
+              <NotificationCenter workspaceId={activeWorkspaceId} userId={user.id} />
+            )}
           </div>
           <div className="px-6 pb-6 pt-2">
             <Select

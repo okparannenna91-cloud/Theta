@@ -28,6 +28,18 @@ export async function DELETE(
             where: { id: params.id },
         });
 
+        const { publishToChannel, getTaskChannel } = await import("@/lib/ably");
+        
+        // Fetch task to get workspaceId for channel lookup
+        const task = await db.task.findUnique({
+          where: { id: comment.taskId },
+          select: { workspaceId: true }
+        });
+
+        if (task) {
+          await publishToChannel(getTaskChannel(task.workspaceId, comment.taskId), "comment:deleted", { id: params.id });
+        }
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("Delete comment error:", error);
