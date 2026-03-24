@@ -154,6 +154,8 @@ export default function TasksPage() {
     }
   };
 
+  const [view, setView] = useState<"list" | "table">("list");
+
   if (isLoading) {
     return (
       <div className="p-4 sm:p-6 lg:p-8">
@@ -167,7 +169,7 @@ export default function TasksPage() {
     );
   }
 
-  const [view, setView] = useState<"list" | "table">("list");
+
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 bg-slate-50/30 dark:bg-slate-950/30 min-h-full">
