@@ -71,6 +71,10 @@ export default function BoardsPage() {
       setIsOpen(false);
       setName("");
       setProjectId("");
+      import("sonner").then(({ toast }) => toast.success("Board created successfully"));
+    },
+    onError: (error: any) => {
+      import("sonner").then(({ toast }) => toast.error(error.message || "Failed to create board"));
     },
   });
 

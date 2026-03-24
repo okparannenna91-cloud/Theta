@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, getPrismaClient } from "@/lib/prisma";
+import { prisma, getPrismaClient, findAcrossShards } from "@/lib/prisma";
+import { Project } from "@prisma/client";
 import { canCreateBoard, getPlanLimitMessage } from "@/lib/plan-limits";
 import { z } from "zod";
 
@@ -107,10 +108,8 @@ export async function POST(req: Request) {
     const data = boardSchema.parse(body);
 
     // Verify project belongs to a workspace the user is a member of
-    const project = await prisma.project.findUnique({
-      where: {
-        id: data.projectId,
-      },
+    const { data: project, db: projectDb } = await findAcrossShards<Project>("project", {
+      id: data.projectId,
     });
 
     if (!project) {
