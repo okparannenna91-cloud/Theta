@@ -125,6 +125,83 @@ async function deleteColumn(columnId: string) {
   return res.json();
 }
 
+function TaskCardContent({ task }: { task: any }) {
+  const getPriorityInfo = (priority: string) => {
+    switch (priority) {
+      case "high":
+        return { color: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-200/50" };
+      case "medium":
+        return { color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200/50" };
+      default:
+        return { color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200/50" };
+    }
+  };
+
+  const priorityInfo = getPriorityInfo(task.priority);
+  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !isSameDay(new Date(task.dueDate), new Date());
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-start justify-between gap-2">
+        <h4 className="font-semibold text-sm leading-tight text-slate-900 dark:text-slate-100">{task.title}</h4>
+        {task.assigneeId && (
+          <div className="h-6 w-6 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0 border border-slate-200 dark:border-slate-700" title="Assignee">
+             <UserIcon className="h-3 w-3 text-slate-400" />
+          </div>
+        )}
+        {!task.assigneeId && (
+          <div className="h-6 w-6 rounded-full border border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800" title="Unassigned">
+            <UserIcon className="h-3 w-3 text-slate-300 dark:text-slate-600" />
+          </div>
+        )}
+      </div>
+
+      {task.description && (
+        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
+          {task.description}
+        </p>
+      )}
+
+      {task.tags && task.tags.length > 0 && (
+         <div className="flex flex-wrap gap-1">
+           {task.tags.map((tag: any) => (
+             <Badge key={tag.id} variant="outline" className="text-[9px] px-1.5 py-0 font-bold uppercase tracking-wider" style={{ borderColor: tag.color, color: tag.color, backgroundColor: `${tag.color}10` }}>
+               {tag.name}
+             </Badge>
+           ))}
+         </div>
+      )}
+
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 dark:border-slate-800/50">
+        <Badge
+          variant="outline"
+          className={`text-[9px] font-black uppercase tracking-widest px-1.5 py-0 border ${priorityInfo.color}`}
+        >
+          {task.priority}
+        </Badge>
+
+        <div className="flex items-center gap-3">
+          {task.subtasks && task.subtasks.length > 0 && (
+            <div className="flex items-center gap-1 text-[10px] text-slate-500 font-bold">
+              <ListIcon className="h-3 w-3" />
+              <span>
+                {task.subtasks.filter((s: any) => s.completed).length}/{task.subtasks.length}
+              </span>
+            </div>
+          )}
+
+          {task.dueDate && (
+            <div className={cn("flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded", isOverdue ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400" : "text-slate-500")}>
+              <Calendar className="h-3 w-3" />
+              <span>{format(new Date(task.dueDate), "MMM d")}</span>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function SortableTask({ task, onClick }: { task: any; onClick: () => void }) {
   const {
     attributes,
@@ -138,22 +215,17 @@ function SortableTask({ task, onClick }: { task: any; onClick: () => void }) {
   const style = {
     transform: CSS.Translate.toString(transform),
     transition,
-    opacity: isDragging ? 0.3 : 1,
-    scale: isDragging ? 1.02 : 1,
   };
 
-  const getPriorityInfo = (priority: string) => {
-    switch (priority) {
-      case "high":
-        return { color: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-200/50" };
-      case "medium":
-        return { color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200/50" };
-      default:
-        return { color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200/50" };
-    }
-  };
-
-  const priorityInfo = getPriorityInfo(task.priority);
+  if (isDragging) {
+    return (
+      <div 
+        ref={setNodeRef} 
+        style={style} 
+        className="rounded-2xl border-2 border-dashed border-indigo-300 dark:border-indigo-800 bg-indigo-50/50 dark:bg-indigo-900/20 h-[100px] w-full" 
+      />
+    );
+  }
 
   return (
     <Card
@@ -166,44 +238,9 @@ function SortableTask({ task, onClick }: { task: any; onClick: () => void }) {
         if (transform) return;
         onClick();
       }}
-      className={`p-4 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-primary/20 transition-all group relative bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md ${isDragging ? 'shadow-2xl z-50 ring-2 ring-primary' : ''}`}
+      className="p-4 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-indigo-500/20 transition-all group relative bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md rounded-2xl"
     >
-      <div className="space-y-3">
-        <div className="flex items-start justify-between gap-2">
-          <h4 className="font-semibold text-sm leading-tight text-slate-900 dark:text-slate-100">{task.title}</h4>
-        </div>
-
-        {task.description && (
-          <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-            {task.description}
-          </p>
-        )}
-
-        <div className="flex flex-wrap items-center gap-2 pt-1">
-          <Badge
-            variant="outline"
-            className={`text-[10px] font-bold uppercase tracking-wider px-1.5 py-0 border ${priorityInfo.color}`}
-          >
-            {task.priority}
-          </Badge>
-
-          {task.tags?.map((tag: any) => (
-            <div
-              key={tag.id}
-              className="h-1.5 w-4 rounded-full"
-              style={{ backgroundColor: tag.color }}
-              title={tag.name}
-            />
-          ))}
-
-          {task.dueDate && (
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium ml-auto">
-              <Calendar className="h-3 w-3" />
-              <span>{format(new Date(task.dueDate), "MMM d")}</span>
-            </div>
-          )}
-        </div>
-      </div>
+      <TaskCardContent task={task} />
     </Card>
   );
 }
@@ -644,6 +681,26 @@ export default function KanbanBoard({
           onDragEnd={handleDragEnd}
         >
           <div className="flex gap-6 overflow-x-auto pb-6 h-full items-start px-2 custom-scrollbar">
+            {columns.length === 0 && (
+              <div className="w-full flex flex-col items-center justify-center p-12 mt-10 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm shadow-sm">
+                <div className="h-20 w-20 bg-indigo-50 dark:bg-indigo-900/20 rounded-full flex items-center justify-center mb-6">
+                  <LayoutGrid className="h-10 w-10 text-indigo-500" />
+                </div>
+                <h3 className="text-xl font-black text-slate-900 dark:text-white mb-2">Build Your Workflow</h3>
+                <p className="text-muted-foreground text-center max-w-md mb-8">
+                  Your board is currently empty. Start by creating columns to represent the stages of your workflow (e.g., Todo, In Progress, Done).
+                </p>
+                <Button 
+                  size="lg" 
+                  className="bg-indigo-600 hover:bg-indigo-700 font-bold rounded-xl shadow-lg shadow-indigo-500/20"
+                  onClick={() => setIsColumnDialogOpen(true)}
+                >
+                  <Plus className="h-5 w-5 mr-2" />
+                  Create Your First Column
+                </Button>
+              </div>
+            )}
+            
             {columns.map((column: any) => {
               const columnTasks = filteredTasks.filter((t: any) => t.columnId === column.id);
               return (
@@ -703,53 +760,65 @@ export default function KanbanBoard({
                         ))}
                       </SortableContext>
 
-                      <Dialog open={isTaskDialogOpen && targetColumnId === column.id} onOpenChange={(open) => {
-                        if (!open) {
-                          setIsTaskDialogOpen(false);
-                          setTargetColumnId(null);
-                          setNewTaskTitle("");
-                        }
-                      }}>
-                        <DialogTrigger asChild>
-                          <Button
-                            variant="ghost"
-                            onClick={() => {
-                              setTargetColumnId(column.id);
-                              setIsTaskDialogOpen(true);
+                      {isTaskDialogOpen && targetColumnId === column.id ? (
+                        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl shadow-sm border border-indigo-500 mt-2">
+                          <Input
+                            autoFocus
+                            placeholder="What needs to be done?"
+                            value={newTaskTitle}
+                            onChange={(e) => setNewTaskTitle(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && newTaskTitle.trim() && !createTaskMutation.isPending) {
+                                createTaskMutation.mutate(column.id);
+                              } else if (e.key === "Escape") {
+                                setIsTaskDialogOpen(false);
+                                setTargetColumnId(null);
+                                setNewTaskTitle("");
+                              }
                             }}
-                            className="w-full text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 mt-2 border-dashed border-2 py-6 rounded-xl transition-all group"
-                          >
-                            <Plus className="h-4 w-4 mr-2 group-hover:scale-125 transition-transform" />
-                            <span className="text-xs font-bold uppercase tracking-wider">Add Task</span>
-                          </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                          <DialogHeader>
-                            <DialogTitle>Add New Task to {column.name}</DialogTitle>
-                          </DialogHeader>
-                          <div className="space-y-4 py-4">
-                            <div className="space-y-2">
-                              <Label htmlFor="task-title">Task Title</Label>
-                              <Input
-                                id="task-title"
-                                placeholder="What needs to be done?"
-                                value={newTaskTitle}
-                                onChange={(e) => setNewTaskTitle(e.target.value)}
-                                autoFocus
-                              />
-                            </div>
-                          </div>
-                          <DialogFooter>
-                            <Button variant="outline" onClick={() => setIsTaskDialogOpen(false)}>Cancel</Button>
-                            <Button
-                              disabled={!newTaskTitle || createTaskMutation.isPending}
+                            className="border-none focus-visible:ring-0 shadow-none px-0 h-auto text-sm font-bold bg-transparent"
+                          />
+                          <div className="flex items-center justify-end gap-2 mt-3">
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="text-xs font-bold"
+                              onClick={() => {
+                                setIsTaskDialogOpen(false);
+                                setTargetColumnId(null);
+                                setNewTaskTitle("");
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button 
+                              size="sm" 
+                              className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700"
+                              disabled={!newTaskTitle.trim() || createTaskMutation.isPending} 
                               onClick={() => createTaskMutation.mutate(column.id)}
                             >
-                              {createTaskMutation.isPending ? "Creating..." : "Create Task"}
+                              {createTaskMutation.isPending ? "Adding..." : "Add Task"}
                             </Button>
-                          </DialogFooter>
-                        </DialogContent>
-                      </Dialog>
+                          </div>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          onClick={() => {
+                            setTargetColumnId(column.id);
+                            setIsTaskDialogOpen(true);
+                          }}
+                          className={cn(
+                            "w-full text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all group",
+                            columnTasks.length === 0 ? "h-32 border-2 border-dashed flex-col gap-2" : "h-12 mt-2"
+                          )}
+                        >
+                          <Plus className={cn("transition-transform group-hover:scale-125", columnTasks.length === 0 ? "h-6 w-6" : "h-4 w-4 mr-2")} />
+                          <span className={cn("font-bold uppercase tracking-wider", columnTasks.length === 0 ? "text-sm" : "text-xs")}>
+                            {columnTasks.length === 0 ? "Drop tasks here or Add Task" : "Add Task"}
+                          </span>
+                        </Button>
+                      )}
                     </div>
                   </Card>
                 </div>
@@ -797,10 +866,9 @@ export default function KanbanBoard({
 
           <DragOverlay>
             {activeTask ? (
-              <div className="p-4 bg-white dark:bg-slate-900 border-2 border-indigo-500 rounded-2xl shadow-2xl opacity-100 scale-105 transition-transform rotate-2 w-[312px]">
-                <h4 className="font-bold text-sm mb-2">{activeTask.title}</h4>
-                <Badge className="bg-indigo-500/10 text-indigo-600 border-none font-bold uppercase text-[10px] tracking-widest">{activeTask.priority}</Badge>
-              </div>
+              <Card className="p-4 cursor-grabbing shadow-2xl scale-105 rotate-3 border-2 border-indigo-500 bg-white dark:bg-slate-900 rounded-2xl w-[312px]">
+                <TaskCardContent task={activeTask} />
+              </Card>
             ) : null}
           </DragOverlay>
         </DndContext>
