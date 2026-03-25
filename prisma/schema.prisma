@@ -85,6 +85,7 @@ model Document {
   coverImage  String?
   workspaceId String   @db.ObjectId
   userId      String   @db.ObjectId
+  projectId   String?  @db.ObjectId // For project-specific docs
   parentId    String?  @db.ObjectId // For nested pages
   isPublic    Boolean  @default(false)
   archived    Boolean  @default(false)
@@ -93,6 +94,7 @@ model Document {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   parent    Document? @relation("DocumentHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children  Document[] @relation("DocumentHierarchy")
 
@@ -174,6 +176,7 @@ model Project {
   boards       Board[]
   teamMembers  TeamMember[]
   chatMessages ChatMessage[]
+  documents    Document[]
 
   @@map("projects")
 }

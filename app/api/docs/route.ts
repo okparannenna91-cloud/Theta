@@ -9,15 +9,26 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const workspaceId = searchParams.get("workspaceId");
+        const projectId = searchParams.get("projectId");
 
         if (!workspaceId) return NextResponse.json({ error: "workspaceId required" }, { status: 400 });
 
+        const where: any = {
+            workspaceId,
+            parentId: null,
+            archived: false,
+        };
+
+        if (projectId) {
+            where.projectId = projectId;
+        } else {
+            // If fetching workspace docs, maybe only fetch those without a projectId
+            // Or fetched all if desired. Let's assume workspace-level docs have projectId: null
+            where.projectId = null;
+        }
+
         const documents = await prisma.document.findMany({
-            where: {
-                workspaceId,
-                parentId: null,
-                archived: false,
-            },
+            where,
             orderBy: { updatedAt: "desc" },
             include: {
                 children: {
@@ -29,6 +40,7 @@ export async function GET(req: Request) {
 
         return NextResponse.json(documents);
     } catch (error) {
+        console.error("GET docs error:", error);
         return NextResponse.json({ error: "Internal Error" }, { status: 500 });
     }
 }
@@ -45,6 +57,7 @@ export async function POST(req: Request) {
                 title: data.title || "Untitled",
                 workspaceId: data.workspaceId,
                 userId: user.id,
+                projectId: data.projectId || null,
                 parentId: data.parentId || null,
                 emoji: data.emoji || "📄",
                 content: ""

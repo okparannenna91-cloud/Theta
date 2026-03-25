@@ -32,8 +32,35 @@ export async function GET(
     const fullProject = await (db as any).project.findUnique({
       where: { id: params.id },
       include: {
-        tasks: true,
-        boards: true,
+        tasks: {
+          include: {
+            user: true,
+            comments: true,
+            subtasks: true,
+            tags: true,
+          }
+        },
+        boards: {
+          include: {
+            columns: true,
+            _count: { select: { tasks: true } }
+          }
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            imageUrl: true,
+            email: true,
+          }
+        },
+        team: {
+          include: {
+            members: {
+              include: { user: true }
+            }
+          }
+        },
         _count: { select: { tasks: true } }
       }
     });

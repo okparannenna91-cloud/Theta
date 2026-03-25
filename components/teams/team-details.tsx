@@ -41,6 +41,7 @@ import { toast } from "sonner";
 import { TeamChat } from "./team-chat";
 import { format } from "date-fns";
 import Image from "next/image";
+import Link from "next/link";
 
 interface TeamDetailsProps {
     team: any;
@@ -53,6 +54,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
     const [inviteEmail, setInviteEmail] = useState("");
     const [inviteRole, setInviteRole] = useState("member");
     const [copiedLink, setCopiedLink] = useState(false);
+    const [memberSearch, setMemberSearch] = useState("");
 
     // Team Edit State
     const [editName, setEditName] = useState(team.name);
@@ -92,6 +94,24 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
         queryFn: async () => {
             const res = await fetch(`/api/activity?workspaceId=${team.workspaceId}&entityId=${team.id}&entityType=team`);
             if (!res.ok) throw new Error("Failed to fetch activity");
+            return res.json();
+        }
+    });
+
+    const { data: projects, isLoading: isLoadingProjects } = useQuery({
+        queryKey: ["team-projects", team.id],
+        queryFn: async () => {
+            const res = await fetch(`/api/projects?workspaceId=${team.workspaceId}&teamId=${team.id}`);
+            if (!res.ok) throw new Error("Failed to fetch projects");
+            return res.json();
+        }
+    });
+
+    const { data: boards, isLoading: isLoadingBoards } = useQuery({
+        queryKey: ["team-boards", team.id],
+        queryFn: async () => {
+            const res = await fetch(`/api/boards?workspaceId=${team.workspaceId}&teamId=${team.id}`);
+            if (!res.ok) throw new Error("Failed to fetch boards");
             return res.json();
         }
     });
@@ -218,6 +238,8 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
 
     const tabs = [
         { id: "members", label: "Members", icon: Users },
+        { id: "projects", label: "Projects", icon: Archive },
+        { id: "boards", label: "Boards", icon: Shield },
         { id: "chat", label: "Chat", icon: MessageSquare },
         { id: "invites", label: "Invitations", icon: UserPlus },
         { id: "activity", label: "Activity", icon: Activity },
@@ -309,10 +331,23 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                             initial={{ opacity: 0, y: 10 }}
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, y: -10 }}
-                            className="space-y-4"
+                            className="space-y-6"
                         >
+                            <div className="relative max-w-md">
+                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                <Input
+                                    placeholder="Search members by name or email..."
+                                    className="pl-10 h-11 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl"
+                                    value={memberSearch}
+                                    onChange={(e) => setMemberSearch(e.target.value)}
+                                />
+                            </div>
+
                             <div className="grid grid-cols-1 gap-4">
-                                {members?.map((member: any) => (
+                                {members?.filter((m: any) =>
+                                    m.user?.name?.toLowerCase().includes(memberSearch.toLowerCase()) ||
+                                    m.user?.email?.toLowerCase().includes(memberSearch.toLowerCase())
+                                ).map((member: any) => (
                                     <div key={member.id} className="group flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-xl border hover:shadow-md transition-all">
                                         <div className="flex items-center gap-4">
                                             <div className="h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center font-bold text-lg overflow-hidden">
@@ -375,6 +410,91 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                     </div>
                                 ))}
                             </div>
+                        </motion.div>
+                    )}
+
+                    {/* PROJECTS TAB */}
+                    {activeTab === "projects" && (
+                        <motion.div
+                            key="projects"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                        >
+                            {isLoadingProjects ? (
+                                [1, 2, 3].map(i => <Card key={i} className="h-48 animate-pulse bg-slate-100 dark:bg-slate-800" />)
+                            ) : projects?.length > 0 ? (
+                                projects.map((project: any) => (
+                                    <Link key={project.id} href={`/projects/${project.id}`}>
+                                        <Card className="group hover:shadow-lg transition-all border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer h-full">
+                                            {project.coverImage && (
+                                                <div className="h-32 w-full relative">
+                                                    <Image src={project.coverImage} alt={project.name} fill className="object-cover" />
+                                                </div>
+                                            )}
+                                            <CardHeader>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                                                        <Archive className="h-4 w-4 text-blue-500" />
+                                                    </div>
+                                                    <CardTitle className="text-lg group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{project.name}</CardTitle>
+                                                </div>
+                                                <CardDescription className="line-clamp-2">{project.description || "No description provided."}</CardDescription>
+                                            </CardHeader>
+                                        </Card>
+                                    </Link>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-20 text-center bg-slate-50 dark:bg-slate-900 border-2 border-dashed rounded-3xl">
+                                    <Archive className="h-12 w-12 mx-auto text-slate-300 mb-4" />
+                                    <p className="text-slate-500 font-medium">No projects associated with this team yet.</p>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+
+                    {/* BOARDS TAB */}
+                    {activeTab === "boards" && (
+                        <motion.div
+                            key="boards"
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+                        >
+                             {isLoadingBoards ? (
+                                [1, 2, 3].map(i => <Card key={i} className="h-40 animate-pulse bg-slate-100 dark:bg-slate-800" />)
+                            ) : boards?.length > 0 ? (
+                                boards.map((board: any) => (
+                                    <Link key={board.id} href={`/boards/${board.id}`}>
+                                        <Card className="group hover:shadow-xl transition-all border-slate-200 dark:border-slate-800 cursor-pointer h-full">
+                                            <CardHeader>
+                                                <div className="flex items-center justify-between mb-2">
+                                                   <Badge className="bg-indigo-500/10 text-indigo-600 border-none uppercase text-[10px] tracking-widest">{board.project?.name}</Badge>
+                                                   <Shield className="h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors" />
+                                                </div>
+                                                <CardTitle className="text-lg group-hover:text-indigo-600 transition-colors">{board.name}</CardTitle>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                                    <div className="flex items-center gap-1">
+                                                        <Activity className="h-3 w-3" />
+                                                        <span>{board._count?.tasks} tasks</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <Users className="h-3 w-3" />
+                                                        <span>{board.columns?.length || 0} columns</span>
+                                                    </div>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    </Link>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-12 text-center bg-slate-50 dark:bg-slate-900 border-2 border-dashed rounded-3xl">
+                                    <Shield className="h-10 w-10 mx-auto text-slate-300 mb-4" />
+                                    <p className="text-slate-500 font-medium">No boards found in team projects.</p>
+                                </div>
+                            )}
                         </motion.div>
                     )}
 
