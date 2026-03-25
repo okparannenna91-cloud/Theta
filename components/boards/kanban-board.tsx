@@ -558,6 +558,23 @@ export default function KanbanBoard({
     },
   });
 
+  const batchDeleteMutation = useMutation({
+    mutationFn: async (taskIds: string[]) => {
+      const res = await fetch(`/api/tasks/bulk-delete`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskIds }),
+      });
+      if (!res.ok) throw new Error("Failed to delete tasks");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      setSelectedTaskIds([]);
+      toast.success("Tasks deleted successfully");
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="p-8 flex items-center justify-center h-full">
@@ -658,23 +675,6 @@ export default function KanbanBoard({
       updateMutation.mutate({ taskId: activeId, columnId: targetColumnIdOffset, order: targetOrder });
     }
   };
-
-  const batchDeleteMutation = useMutation({
-    mutationFn: async (taskIds: string[]) => {
-      const res = await fetch(`/api/tasks/bulk-delete`, {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ taskIds }),
-      });
-      if (!res.ok) throw new Error("Failed to delete tasks");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
-      setSelectedTaskIds([]);
-      toast.success("Tasks deleted successfully");
-    },
-  });
 
   const handleBatchDelete = () => {
     if (confirm(`Are you sure you want to delete ${selectedTaskIds.length} tasks?`)) {
