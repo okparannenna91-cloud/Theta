@@ -392,6 +392,28 @@ export default function KanbanBoard({
     },
   });
 
+  const [editingColumn, setEditingColumn] = useState<any>(null);
+  const [colName, setColName] = useState("");
+  const [colWip, setColWip] = useState<number | null>(null);
+  const [colColor, setColColor] = useState("#4f46e5");
+
+  const updateColumnMutation = useMutation({
+    mutationFn: async ({ id, ...data }: any) => {
+      const res = await fetch(`/api/columns/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+      if (!res.ok) throw new Error("Failed to update column");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      setEditingColumn(null);
+      import("sonner").then(({ toast }) => toast.success("Column updated"));
+    },
+  });
+
   if (isLoading) {
     return (
       <div className="p-8 flex items-center justify-center h-full">
@@ -468,28 +490,6 @@ export default function KanbanBoard({
   const allTags = Array.from(
     new Map(tasks.flatMap((t: any) => t.tags || []).map((tag: any) => [tag.id, tag])).values()
   ) as any[];
-
-  const [editingColumn, setEditingColumn] = useState<any>(null);
-  const [colName, setColName] = useState("");
-  const [colWip, setColWip] = useState<number | null>(null);
-  const [colColor, setColColor] = useState("#4f46e5");
-
-  const updateColumnMutation = useMutation({
-    mutationFn: async ({ id, ...data }: any) => {
-      const res = await fetch(`/api/columns/${id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update column");
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
-      setEditingColumn(null);
-      import("sonner").then(({ toast }) => toast.success("Column updated"));
-    },
-  });
 
   const handleOpenColumnSettings = (column: any) => {
     setEditingColumn(column);
