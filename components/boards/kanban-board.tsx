@@ -749,6 +749,7 @@ export default function KanbanBoard({
                         className="h-6 w-6 rounded-full border-2 border-slate-50 dark:border-slate-950 bg-slate-200 shadow-sm overflow-hidden"
                         title={user.name}
                       >
+                         {/* eslint-disable-next-line @next/next/no-img-element */}
                          <img src={user.avatar} className="h-full w-full object-cover" alt={user.name} />
                       </div>
                     ))}

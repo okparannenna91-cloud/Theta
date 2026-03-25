@@ -181,7 +181,7 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
                      </div>
                      <div className="p-6 space-y-6">
                           <DialogDescription className="text-center font-medium text-slate-600 dark:text-slate-400">
-                               You are about to permanently delete <span className="font-black text-slate-900 dark:text-white">"{project.name}"</span>. 
+                               You are about to permanently delete <span className="font-black text-slate-900 dark:text-white">&quot;{project.name}&quot;</span>. 
                                This action cannot be undone and all associated data will be lost in the void.
                           </DialogDescription>
                           <DialogFooter className="flex gap-2 sm:justify-center w-full">

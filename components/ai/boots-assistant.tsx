@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Send, X, Loader2, Bot, User, Trash2, Maximize2, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -34,13 +34,7 @@ export function BootsAssistant() {
     const isLimitReached = usage ? (usage.max !== -1 && usage.current >= usage.max) : false;
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    useEffect(() => {
-        if (activeWorkspaceId && isOpen) {
-            fetchUsage();
-        }
-    }, [activeWorkspaceId, isOpen]);
-
-    const fetchUsage = async () => {
+    const fetchUsage = useCallback(async () => {
         try {
             const res = await fetch(`/api/billing/usage?workspaceId=${activeWorkspaceId}`);
             if (res.ok) {
@@ -55,7 +49,13 @@ export function BootsAssistant() {
         } catch (error) {
             console.error("Failed to fetch usage:", error);
         }
-    };
+    }, [activeWorkspaceId]);
+
+    useEffect(() => {
+        if (activeWorkspaceId && isOpen) {
+            fetchUsage();
+        }
+    }, [activeWorkspaceId, isOpen, fetchUsage]);
 
     useEffect(() => {
         if (scrollRef.current) {

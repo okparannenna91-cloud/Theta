@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
     Github,
@@ -130,13 +130,7 @@ export default function IntegrationDashboard() {
     const [selectedManualProvider, setSelectedManualProvider] = useState<any>(null);
     const [manualInputs, setManualInputs] = useState<any>({});
 
-    useEffect(() => {
-        if (activeWorkspaceId) {
-            fetchIntegrations();
-        }
-    }, [activeWorkspaceId]);
-
-    const fetchIntegrations = async () => {
+    const fetchIntegrations = useCallback(async () => {
         try {
             setIsLoading(true);
             const res = await fetch(`/api/integrations?workspaceId=${activeWorkspaceId}`);
@@ -152,7 +146,13 @@ export default function IntegrationDashboard() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [activeWorkspaceId]);
+
+    useEffect(() => {
+        if (activeWorkspaceId) {
+            fetchIntegrations();
+        }
+    }, [activeWorkspaceId, fetchIntegrations]);
 
     const isLimitReached = limits.max !== -1 && limits.current >= limits.max;
 
