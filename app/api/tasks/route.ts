@@ -127,12 +127,15 @@ export async function POST(req: Request) {
     try {
       const workspace = await prisma.workspace.findUnique({
         where: { id: data.workspaceId },
-        include: { _count: { select: { tasks: true } } }
+        select: { plan: true }
       });
       if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
+      const { getTaskCount } = await import("@/lib/usage-tracking");
+      const taskCount = await getTaskCount(data.workspaceId);
+
       const { enforcePlanLimit } = await import("@/lib/plan-limits");
-      await enforcePlanLimit(data.workspaceId, "tasks", workspace._count.tasks);
+      await enforcePlanLimit(data.workspaceId, "tasks", taskCount);
     } catch (error: any) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }

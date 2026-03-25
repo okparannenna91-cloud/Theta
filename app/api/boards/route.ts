@@ -8,6 +8,7 @@ import { z } from "zod";
 const boardSchema = z.object({
   name: z.string().min(1),
   projectId: z.string(),
+  description: z.string().optional(),
 });
 
 export async function GET(req: Request) {
@@ -152,6 +153,7 @@ export async function POST(req: Request) {
         name: data.name,
         projectId: data.projectId,
         workspaceId: project.workspaceId,
+        description: data.description || "",
       },
     });
 

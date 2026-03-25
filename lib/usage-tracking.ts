@@ -17,15 +17,15 @@ export interface UsageStats {
  * Get comprehensive usage statistics for a workspace
  */
 export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
+    const { getPrismaClient } = await import("./prisma");
+    const shardPrisma = getPrismaClient(workspaceId);
+
     const workspace = await prisma.workspace.findUnique({
         where: { id: workspaceId },
         include: {
             _count: {
                 select: {
-                    projects: true,
-                    tasks: true,
-                    teams: true,
-                    members: true,
+                    members: true, // Members ARE on Shard 1 with the Workspace metadata
                 },
             },
         },
@@ -41,21 +41,16 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
     const plan = workspace.plan as PlanName;
     const limits = getPlanLimits(plan);
 
-    // Get additional counts
-    const boardCount = await prisma.board.count({
-        where: { workspaceId },
-    });
-
-    const calendarEventCount = await prisma.calendarEvent.count({
-        where: { workspaceId },
-    });
-
-    const chatMessageCount = await prisma.chatMessage.count({
-        where: { workspaceId },
-    });
+    // Count projects, tasks, teams across the correct shard
+    const projectCount = await shardPrisma.project.count({ where: { workspaceId } });
+    const taskCount = await shardPrisma.task.count({ where: { workspaceId } });
+    const teamCount = await shardPrisma.team.count({ where: { workspaceId } });
+    const boardCount = await shardPrisma.board.count({ where: { workspaceId } });
+    const calendarEventCount = await shardPrisma.calendarEvent.count({ where: { workspaceId } });
+    const chatMessageCount = await shardPrisma.chatMessage.count({ where: { workspaceId } });
 
     // Calculate storage
-    const storageActivities = await prisma.activity.findMany({
+    const storageActivities = await shardPrisma.activity.findMany({
         where: {
             workspaceId,
             action: "file_upload"
@@ -74,8 +69,7 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    // Track Boots AI requests (assuming an Activity log exists for 'ai_generation')
-    const bootsRequestCount = await prisma.activity.count({
+    const bootsRequestCount = await shardPrisma.activity.count({
         where: {
             workspaceId,
             action: "ai_generation",
@@ -94,9 +88,9 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
     };
 
     return {
-        projects: createStat(workspace._count.projects, limits.maxProjects),
-        tasks: createStat(workspace._count.tasks, limits.maxTasks),
-        teams: createStat(workspace._count.teams, limits.maxTeams),
+        projects: createStat(projectCount, limits.maxProjects),
+        tasks: createStat(taskCount, limits.maxTasks),
+        teams: createStat(teamCount, limits.maxTeams),
         members: createStat(workspace._count.members, limits.maxMembers),
         boards: createStat(boardCount, limits.maxBoards),
         calendarEvents: createStat(calendarEventCount, limits.maxCalendarEvents),
@@ -121,40 +115,38 @@ export async function checkLimitExceeded(
  * Get project count for workspace
  */
 export async function getProjectCount(workspaceId: string): Promise<number> {
-    return await prisma.project.count({
+    const { getPrismaClient } = await import("./prisma");
+    return await getPrismaClient(workspaceId).project.count({
         where: { workspaceId },
     });
 }
 
-/**
- * Get task count for workspace
- */
 export async function getTaskCount(workspaceId: string): Promise<number> {
-    return await prisma.task.count({
+    const { getPrismaClient } = await import("./prisma");
+    return await getPrismaClient(workspaceId).task.count({
         where: { workspaceId },
     });
 }
 
-/**
- * Get team count for workspace
- */
 export async function getTeamCount(workspaceId: string): Promise<number> {
-    return await prisma.team.count({
+    const { getPrismaClient } = await import("./prisma");
+    return await getPrismaClient(workspaceId).team.count({
         where: { workspaceId },
     });
 }
 
-/**
- * Get member count for workspace
- */
 export async function getMemberCount(workspaceId: string): Promise<number> {
+    // Members are on Shard 1 with workspace metadata
     return await prisma.workspaceMember.count({
         where: { workspaceId },
     });
 }
 
 export async function calculateStorageUsed(workspaceId: string): Promise<number> {
-    const storageActivities = await prisma.activity.findMany({
+    const { getPrismaClient } = await import("./prisma");
+    const shardPrisma = getPrismaClient(workspaceId);
+    
+    const storageActivities = await shardPrisma.activity.findMany({
         where: {
             workspaceId,
             action: "file_upload"
@@ -172,14 +164,12 @@ export async function calculateStorageUsed(workspaceId: string): Promise<number>
     return totalBytes / (1024 * 1024); // in MB
 }
 
-/**
- * Get Boots AI request count for current month
- */
 export async function getBootsRequestCount(workspaceId: string): Promise<number> {
+    const { getPrismaClient } = await import("./prisma");
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    return await prisma.activity.count({
+    return await getPrismaClient(workspaceId).activity.count({
         where: {
             workspaceId,
             action: "ai_generation",
@@ -188,9 +178,6 @@ export async function getBootsRequestCount(workspaceId: string): Promise<number>
     });
 }
 
-/**
- * Increment Boots AI usage counter (via Activity log)
- */
 export async function incrementBootsUsage(workspaceId: string, userId: string): Promise<void> {
     const { createActivity } = await import("./activity");
     await createActivity(

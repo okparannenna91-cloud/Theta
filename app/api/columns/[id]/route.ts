@@ -8,6 +8,8 @@ import { publishToChannel, getBoardChannel } from "@/lib/ably";
 const columnSchema = z.object({
     name: z.string().min(1).optional(),
     order: z.number().optional(),
+    wipLimit: z.number().nullable().optional(),
+    color: z.string().nullable().optional(),
 });
 
 export async function PATCH(
@@ -56,8 +58,10 @@ export async function PATCH(
         const updatedColumn = await db.column.update({
             where: { id: params.id },
             data: {
-                name: data.name,
-                order: data.order,
+                ...(data.name !== undefined && { name: data.name }),
+                ...(data.order !== undefined && { order: data.order }),
+                ...(data.wipLimit !== undefined && { wipLimit: data.wipLimit }),
+                ...(data.color !== undefined && { color: data.color }),
             },
         });
         

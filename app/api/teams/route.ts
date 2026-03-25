@@ -41,7 +41,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const teams = await prisma.team.findMany({
+    const { getPrismaClient } = await import("@/lib/prisma");
+    const db = getPrismaClient(workspaceId);
+
+    const teams = await db.team.findMany({
       where: {
         workspaceId,
       },
@@ -104,6 +107,9 @@ export async function POST(req: Request) {
       );
     }
 
+    const { getPrismaClient } = await import("@/lib/prisma");
+    const db = getPrismaClient(workspaceId);
+
     // Verify workspace membership (admin/owner to create teams?)
     const membership = await prisma.workspaceMember.findUnique({
       where: {
@@ -122,17 +128,20 @@ export async function POST(req: Request) {
     try {
       const workspace = await prisma.workspace.findUnique({
         where: { id: workspaceId },
-        include: { _count: { select: { teams: true } } }
+        select: { plan: true }
       });
       if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
+      const { getTeamCount } = await import("@/lib/usage-tracking");
+      const teamCount = await getTeamCount(workspaceId);
+
       const { enforcePlanLimit } = await import("@/lib/plan-limits");
-      await enforcePlanLimit(workspaceId, "teams", workspace._count.teams);
+      await enforcePlanLimit(workspaceId, "teams", teamCount);
     } catch (error: any) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
-    const team = await prisma.team.create({
+    const team = await db.team.create({
       data: {
         name,
         description,

@@ -105,14 +105,10 @@ export async function POST(req: Request) {
     const db = getPrismaClient(data.workspaceId);
     const { prisma } = await import("@/lib/prisma");
 
-    // Get workspace and check plan limits
+    // Get workspace metadata from primary shard
     const workspace = await prisma.workspace.findUnique({
       where: { id: data.workspaceId },
-      include: {
-        _count: {
-          select: { projects: true },
-        },
-      },
+      select: { plan: true },
     });
 
     if (!workspace) {
@@ -122,9 +118,12 @@ export async function POST(req: Request) {
       );
     }
 
+    // Get project count from correct shard
+    const projectCount = await getProjectCount(data.workspaceId);
+
     // Check plan limits strictly
     try {
-      await enforcePlanLimit(data.workspaceId, "projects", workspace._count.projects);
+      await enforcePlanLimit(data.workspaceId, "projects", projectCount);
     } catch (error: any) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }

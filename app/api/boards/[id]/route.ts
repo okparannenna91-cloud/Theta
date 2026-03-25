@@ -67,6 +67,69 @@ export async function GET(
     return NextResponse.json(fullBoard);
   } catch (error) {
     console.error("Get board error:", error);
+export async function PATCH(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const { name, description, icon, isFavorite, visibility } = body;
+
+    const { db } = await findAcrossShards<any>("board", { id: params.id });
+
+    if (!db) {
+      return NextResponse.json({ error: "Board not found" }, { status: 404 });
+    }
+
+    const updatedBoard = await db.board.update({
+      where: { id: params.id },
+      data: {
+        ...(name !== undefined && { name }),
+        ...(description !== undefined && { description }),
+        ...(icon !== undefined && { icon }),
+        ...(isFavorite !== undefined && { isFavorite }),
+        ...(visibility !== undefined && { visibility }),
+      },
+    });
+
+    return NextResponse.json(updatedBoard);
+  } catch (error) {
+    console.error("Update board error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { db } = await findAcrossShards<any>("board", { id: params.id });
+
+    if (!db) {
+      return NextResponse.json({ error: "Board not found" }, { status: 404 });
+    }
+
+    await db.board.delete({
+      where: { id: params.id },
+    });
+
+    return NextResponse.json({ message: "Board deleted" });
+  } catch (error) {
+    console.error("Delete board error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
