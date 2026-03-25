@@ -8,6 +8,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import { useUser } from "@clerk/nextjs";
 import {
   ArrowLeft,
   Plus,
@@ -27,7 +29,12 @@ import {
   Lock,
   Users as UsersIcon,
   ChevronRight,
-  ChevronLeft
+  ChevronLeft,
+  GripVertical,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  MessageSquare
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -69,6 +76,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -122,6 +130,18 @@ async function deleteColumn(columnId: string) {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete column");
+  return res.json();
+}
+
+async function updateColumnOrders(columns: any[]) {
+  const res = await fetch(`/api/boards/${columns[0].boardId}/columns/reorder`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ 
+      columnOrders: columns.map((c, i) => ({ id: c.id, order: i * 10 })) 
+    }),
+  });
+  if (!res.ok) throw new Error("Failed to update column order");
   return res.json();
 }
 
@@ -202,7 +222,17 @@ function TaskCardContent({ task }: { task: any }) {
   );
 }
 
-function SortableTask({ task, onClick }: { task: any; onClick: () => void }) {
+function SortableTask({ 
+  task, 
+  onClick, 
+  isSelected, 
+  onSelect 
+}: { 
+  task: any; 
+  onClick: () => void;
+  isSelected: boolean;
+  onSelect: (checked: boolean) => void;
+}) {
   const {
     attributes,
     listeners,
@@ -234,14 +264,55 @@ function SortableTask({ task, onClick }: { task: any; onClick: () => void }) {
       {...attributes}
       {...listeners}
       onClick={(e) => {
-        // Prevent opening dialog if it's a drag action
+        // Prevent opening dialog if it's a drag action or checkbox click
         if (transform) return;
         onClick();
       }}
-      className="p-4 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-indigo-500/20 transition-all group relative bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md rounded-2xl"
+      className={cn(
+        "p-4 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-indigo-500/20 transition-all group relative bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-md rounded-2xl",
+        isSelected && "ring-2 ring-indigo-500 bg-indigo-50/30 dark:bg-indigo-900/10"
+      )}
     >
+      <div 
+        className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Checkbox 
+          checked={isSelected} 
+          onCheckedChange={(checked) => onSelect(!!checked)}
+          className="h-4 w-4 rounded-md border-slate-300 dark:border-slate-700 data-[state=checked]:bg-indigo-600 data-[state=checked]:border-indigo-600"
+        />
+      </div>
       <TaskCardContent task={task} />
     </Card>
+  );
+}
+
+function SortableColumn({ column, children }: { column: any; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: column.id,
+    data: { type: "Column", column },
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+  };
+
+  if (isDragging) {
+    return (
+      <div 
+        ref={setNodeRef} 
+        style={style} 
+        className="flex-shrink-0 w-[320px] h-full rounded-2xl border-2 border-dashed border-indigo-200 dark:border-indigo-800 bg-indigo-50/10 dark:bg-indigo-900/5 mr-6 flex flex-col"
+      />
+    );
+  }
+
+  return (
+    <div ref={setNodeRef} style={style} className="flex-shrink-0 w-[320px] h-full flex flex-col group/col">
+       {React.cloneElement(children as React.ReactElement, { attributes, listeners })}
+    </div>
   );
 }
 
@@ -269,19 +340,55 @@ export default function KanbanBoard({
   const [filterTag, setFilterTag] = useState<string>("all");
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [editedName, setEditedName] = useState("");
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [presenceUsers, setPresenceUsers] = useState<any[]>([]);
+  const [activeColumn, setActiveColumn] = useState<any>(null);
 
+  const { user } = useUser();
   const boardChannel = getBoardChannel(activeWorkspaceId || "", boardId);
 
   const handleAblyUpdate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ["board", boardId] });
   }, [queryClient, boardId]);
 
-  useAbly(boardChannel, "task:created", handleAblyUpdate);
+  const ablyClient = useAbly(boardChannel, "task:created", handleAblyUpdate);
   useAbly(boardChannel, "task:updated", handleAblyUpdate);
   useAbly(boardChannel, "task:deleted", handleAblyUpdate);
   useAbly(boardChannel, "column:created", handleAblyUpdate);
   useAbly(boardChannel, "column:updated", handleAblyUpdate);
   useAbly(boardChannel, "column:deleted", handleAblyUpdate);
+
+  // Presence logic
+  useEffect(() => {
+    if (!boardChannel || !user || !ablyClient) return;
+    
+    const channel = ablyClient.channels.get(boardChannel);
+    
+    channel.presence.get().then((members: any) => {
+      if (members) setPresenceUsers(members.map((m: any) => m.data));
+    }).catch(() => {});
+    
+    channel.presence.subscribe("enter", (member) => {
+      setPresenceUsers(prev => {
+        if (prev.find(u => u.id === member.data.id)) return prev;
+        return [...prev, member.data];
+      });
+    });
+    
+    channel.presence.subscribe("leave", (member) => {
+      setPresenceUsers(prev => prev.filter(u => u.id !== member.data.id));
+    });
+
+    channel.presence.enter({
+      id: user.id,
+      name: user.fullName || user.username,
+      avatar: user.imageUrl
+    });
+
+    return () => {
+      channel.presence.leave();
+    };
+  }, [boardChannel, user, ablyClient]);
 
   const { data: board, isLoading } = useQuery({
     queryKey: ["board", boardId],
@@ -479,17 +586,45 @@ export default function KanbanBoard({
 
   const handleDragStart = (event: any) => {
     const { active } = event;
-    setActiveTask(active.data.current.task);
+    const type = active.data.current?.type;
+    if (type === "Task") {
+      setActiveTask(active.data.current.task);
+    } else if (type === "Column") {
+      setActiveColumn(active.data.current.column);
+    }
   };
 
   const handleDragEnd = async (event: any) => {
     const { active, over } = event;
     setActiveTask(null);
+    setActiveColumn(null);
 
     if (!over) return;
 
     const activeId = active.id;
     const overId = over.id;
+
+    const activeType = active.data.current?.type;
+    if (activeType === "Column") {
+      if (activeId !== overId) {
+        const oldIndex = columns.findIndex((c: any) => c.id === activeId);
+        const newIndex = columns.findIndex((c: any) => c.id === overId);
+        const newColumns = arrayMove(columns, oldIndex, newIndex);
+        
+        // Optimistic UI update
+        queryClient.setQueryData(["board", boardId], {
+          ...board,
+          columns: newColumns
+        });
+
+        // Update column orders in DB
+        updateColumnOrders(newColumns).catch((err) => {
+          toast.error("Failed to save column order");
+          queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+        });
+      }
+      return;
+    }
 
     const activeTaskData = tasks.find((t: any) => t.id === activeId);
     if (!activeTaskData) return;
@@ -515,12 +650,35 @@ export default function KanbanBoard({
 
       const oldIndex = columnTasks.findIndex((t: any) => t.id === activeId);
       const newIndex = columnTasks.findIndex((t: any) => t.id === overId);
-      const newColumnTasks = arrayMove(columnTasks, oldIndex, newIndex);
+      // const newColumnTasks = arrayMove(columnTasks, oldIndex, newIndex); // Removed as it wasn't used after assignment
       targetOrder = overTask.order + (newIndex > oldIndex ? 1 : -1);
     }
 
     if (targetColumnIdOffset && (targetColumnIdOffset !== activeTaskData.columnId || activeId !== overId)) {
       updateMutation.mutate({ taskId: activeId, columnId: targetColumnIdOffset, order: targetOrder });
+    }
+  };
+
+  const batchDeleteMutation = useMutation({
+    mutationFn: async (taskIds: string[]) => {
+      const res = await fetch(`/api/tasks/bulk-delete`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ taskIds }),
+      });
+      if (!res.ok) throw new Error("Failed to delete tasks");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      setSelectedTaskIds([]);
+      toast.success("Tasks deleted successfully");
+    },
+  });
+
+  const handleBatchDelete = () => {
+    if (confirm(`Are you sure you want to delete ${selectedTaskIds.length} tasks?`)) {
+      batchDeleteMutation.mutate(selectedTaskIds);
     }
   };
 
@@ -581,6 +739,24 @@ export default function KanbanBoard({
                   {board?.visibility === "private" ? <Lock className="h-3 w-3" /> : <UsersIcon className="h-3 w-3" />}
                   <span>{board?.visibility}</span>
                 </div>
+                
+                {/* Presence Avatars */}
+                {presenceUsers.length > 0 && (
+                  <div className="flex items-center -space-x-2 ml-4">
+                    {presenceUsers.map((user: any) => (
+                      <div 
+                        key={user.id} 
+                        className="h-6 w-6 rounded-full border-2 border-slate-50 dark:border-slate-950 bg-slate-200 shadow-sm overflow-hidden"
+                        title={user.name}
+                      >
+                         <img src={user.avatar} className="h-full w-full object-cover" alt={user.name} />
+                      </div>
+                    ))}
+                    <div className="h-6 w-6 rounded-full border-2 border-slate-50 dark:border-slate-950 bg-emerald-500 flex items-center justify-center text-[8px] text-white font-bold" title="Live">
+                       LIVE
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -701,107 +877,122 @@ export default function KanbanBoard({
               </div>
             )}
             
-            {columns.map((column: any) => {
-              const columnTasks = filteredTasks.filter((t: any) => t.columnId === column.id);
-              return (
-                <div key={column.id} className="flex-shrink-0 w-[320px] h-full flex flex-col">
-                  <Card className="bg-slate-100/80 dark:bg-slate-900/80 border-none shadow-none h-full flex flex-col rounded-2xl overflow-hidden overflow-y-auto outline-1 outline-slate-200 dark:outline-slate-800 outline">
-                    <div className="p-4 flex items-center justify-between sticky top-0 bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur-md z-10 border-b border-slate-200/50 dark:border-slate-800/50">
-                      <div className="flex items-center gap-2">
-                        <div
-                          className="h-2 w-2 rounded-full"
-                          style={{ backgroundColor: column.color || "#4f46e5" }}
-                        />
-                        <h3 className="font-black text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400">{column.name}</h3>
-                        <Badge variant="outline" className="bg-white dark:bg-slate-800 border-none shadow-sm text-[10px] h-5 min-w-5 flex items-center justify-center px-1 font-bold">
-                          {columnTasks.length}
-                          {column.wipLimit && (
-                            <span className="text-slate-400 font-medium ml-1">/ {column.wipLimit}</span>
-                          )}
-                        </Badge>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
-                            <MoreVertical className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
-                          <DropdownMenuItem className="flex items-center gap-2" onClick={() => handleOpenColumnSettings(column)}>
-                            <Edit2 className="h-4 w-4" />
-                            <span>Rename</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="flex items-center gap-2" onClick={() => handleOpenColumnSettings(column)}>
-                            <Settings className="h-4 w-4" />
-                            <span>Column Settings</span>
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="flex items-center gap-2 text-destructive focus:text-destructive"
-                            onClick={() => deleteColumnMutation.mutate(column.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                            <span>Delete Column</span>
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                    <div className="p-3 gap-3 flex flex-col flex-1 pb-20">
-                      <SortableContext
-                        id={column.id}
-                        items={columnTasks.map((t: any) => t.id)}
-                        strategy={verticalListSortingStrategy}
-                      >
-                        {columnTasks.map((task: any) => (
-                          <SortableTask
-                            key={task.id}
-                            task={task}
-                            onClick={() => setSelectedTask(task)}
-                          />
-                        ))}
-                      </SortableContext>
-
-                      {isTaskDialogOpen && targetColumnId === column.id ? (
-                        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl shadow-sm border border-indigo-500 mt-2">
-                          <Input
-                            autoFocus
-                            placeholder="What needs to be done?"
-                            value={newTaskTitle}
-                            onChange={(e) => setNewTaskTitle(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && newTaskTitle.trim() && !createTaskMutation.isPending) {
-                                createTaskMutation.mutate(column.id);
-                              } else if (e.key === "Escape") {
-                                setIsTaskDialogOpen(false);
-                                setTargetColumnId(null);
-                                setNewTaskTitle("");
-                              }
-                            }}
-                            className="border-none focus-visible:ring-0 shadow-none px-0 h-auto text-sm font-bold bg-transparent"
-                          />
-                          <div className="flex items-center justify-end gap-2 mt-3">
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="text-xs font-bold"
-                              onClick={() => {
-                                setIsTaskDialogOpen(false);
-                                setTargetColumnId(null);
-                                setNewTaskTitle("");
-                              }}
-                            >
-                              Cancel
-                            </Button>
-                            <Button 
-                              size="sm" 
-                              className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700"
-                              disabled={!newTaskTitle.trim() || createTaskMutation.isPending} 
-                              onClick={() => createTaskMutation.mutate(column.id)}
-                            >
-                              {createTaskMutation.isPending ? "Adding..." : "Add Task"}
-                            </Button>
+            <SortableContext 
+              items={columns.map((c: any) => c.id)} 
+              strategy={horizontalListSortingStrategy}
+            >
+              {columns.map((column: any) => {
+                const columnTasks = filteredTasks.filter((t: any) => t.columnId === column.id);
+                return (
+                  <SortableColumn key={column.id} column={column}>
+                    <Card className="bg-slate-100/80 dark:bg-slate-900/80 border-none shadow-none h-full flex flex-col rounded-2xl overflow-hidden overflow-y-auto outline-1 outline-slate-200 dark:outline-slate-800 outline">
+                      <div className="p-4 flex items-center justify-between sticky top-0 bg-slate-100/95 dark:bg-slate-900/95 backdrop-blur-md z-10 border-b border-slate-200/50 dark:border-slate-800/50">
+                        <div className="flex items-center gap-2">
+                          <div className="cursor-grab active:cursor-grabbing p-1 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors" {...(column as any).attributes} {...(column as any).listeners}>
+                            <GripVertical className="h-3 w-3 text-slate-400" />
                           </div>
+                          <div
+                            className="h-2 w-2 rounded-full"
+                            style={{ backgroundColor: column.color || "#4f46e5" }}
+                          />
+                          <h3 className="font-black text-xs uppercase tracking-widest text-slate-500 dark:text-slate-400">{column.name}</h3>
+                          <Badge variant="outline" className="bg-white dark:bg-slate-800 border-none shadow-sm text-[10px] h-5 min-w-5 flex items-center justify-center px-1 font-bold">
+                            {columnTasks.length}
+                            {column.wipLimit && (
+                              <span className="text-slate-400 font-medium ml-1">/ {column.wipLimit}</span>
+                            )}
+                          </Badge>
                         </div>
-                      ) : (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
+                              <MoreVertical className="h-4 w-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end" className="w-48">
+                            <DropdownMenuItem className="flex items-center gap-2" onClick={() => handleOpenColumnSettings(column)}>
+                              <Edit2 className="h-4 w-4" />
+                              <span>Rename</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="flex items-center gap-2" onClick={() => handleOpenColumnSettings(column)}>
+                              <Settings className="h-4 w-4" />
+                              <span>Column Settings</span>
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="flex items-center gap-2 text-destructive focus:text-destructive"
+                              onClick={() => deleteColumnMutation.mutate(column.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              <span>Delete Column</span>
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      <div className="p-3 gap-3 flex flex-col flex-1 pb-20">
+                        <SortableContext
+                          id={column.id}
+                          items={columnTasks.map((t: any) => t.id)}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {columnTasks.map((task: any) => (
+                            <SortableTask
+                              key={task.id}
+                              task={task}
+                              isSelected={selectedTaskIds.includes(task.id)}
+                              onSelect={(checked) => {
+                                setSelectedTaskIds(prev => 
+                                  checked 
+                                    ? [...prev, task.id] 
+                                    : prev.filter(id => id !== task.id)
+                                );
+                              }}
+                              onClick={() => setSelectedTask(task)}
+                            />
+                          ))}
+                        </SortableContext>
+
+                        {isTaskDialogOpen && targetColumnId === column.id ? (
+                          <div className="bg-white dark:bg-slate-900 p-3 rounded-xl shadow-sm border border-indigo-500 mt-2">
+                            <Input
+                              autoFocus
+                              placeholder="What needs to be done?"
+                              value={newTaskTitle}
+                              onChange={(e) => setNewTaskTitle(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === "Enter" && newTaskTitle.trim() && !createTaskMutation.isPending) {
+                                  createTaskMutation.mutate(column.id);
+                                } else if (e.key === "Escape") {
+                                  setIsTaskDialogOpen(false);
+                                  setTargetColumnId(null);
+                                  setNewTaskTitle("");
+                                }
+                              }}
+                              className="border-none focus-visible:ring-0 shadow-none px-0 h-auto text-sm font-bold bg-transparent"
+                            />
+                            <div className="flex items-center justify-end gap-2 mt-3">
+                              <Button 
+                                variant="ghost" 
+                                size="sm" 
+                                className="text-xs font-bold"
+                                onClick={() => {
+                                  setIsTaskDialogOpen(false);
+                                  setTargetColumnId(null);
+                                  setNewTaskTitle("");
+                                }}
+                              >
+                                Cancel
+                              </Button>
+                              <Button 
+                                size="sm" 
+                                className="text-xs font-bold bg-indigo-600 hover:bg-indigo-700"
+                                disabled={!newTaskTitle.trim() || createTaskMutation.isPending} 
+                                onClick={() => createTaskMutation.mutate(column.id)}
+                              >
+                                {createTaskMutation.isPending ? "Adding..." : "Add Task"}
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
                         <Button
                           variant="ghost"
                           onClick={() => {
@@ -819,11 +1010,12 @@ export default function KanbanBoard({
                           </span>
                         </Button>
                       )}
-                    </div>
-                  </Card>
-                </div>
-              );
-            })}
+                      </div>
+                    </Card>
+                  </SortableColumn>
+                );
+              })}
+            </SortableContext>
             <div className="flex-shrink-0 w-[320px]">
               <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
                 <DialogTrigger asChild>
@@ -865,7 +1057,19 @@ export default function KanbanBoard({
           </div>
 
           <DragOverlay>
-            {activeTask ? (
+            {activeColumn ? (
+               <div className="flex-shrink-0 w-[320px] h-full flex flex-col opacity-80 scale-105 rotate-1">
+                 <Card className="bg-slate-100 dark:bg-slate-900 border-2 border-indigo-500 shadow-2xl h-full flex flex-col rounded-2xl overflow-hidden">
+                   <div className="p-4 flex items-center justify-between border-b bg-slate-100/50 dark:bg-slate-900/50">
+                     <div className="flex items-center gap-2">
+                        <GripVertical className="h-3 w-3 text-slate-400" />
+                        <div className="h-2 w-2 rounded-full bg-indigo-500" />
+                        <h3 className="font-black text-xs uppercase tracking-widest">{activeColumn.name}</h3>
+                     </div>
+                   </div>
+                 </Card>
+               </div>
+            ) : activeTask ? (
               <Card className="p-4 cursor-grabbing shadow-2xl scale-105 rotate-3 border-2 border-indigo-500 bg-white dark:bg-slate-900 rounded-2xl w-[312px]">
                 <TaskCardContent task={activeTask} />
               </Card>
@@ -1098,6 +1302,41 @@ export default function KanbanBoard({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Batch Selection Bar */}
+      <AnimatePresence>
+        {selectedTaskIds.length > 0 && (
+          <motion.div
+            initial={{ y: 100, opacity: 0, x: "-50%" }}
+            animate={{ y: 0, opacity: 1, x: "-50%" }}
+            exit={{ y: 100, opacity: 0, x: "-50%" }}
+            className="fixed bottom-8 left-1/2 z-50 bg-slate-900 border border-slate-800 text-white rounded-3xl shadow-2xl px-6 py-4 flex items-center gap-8 backdrop-blur-md min-w-[400px]"
+          >
+            <div className="flex items-center gap-3 border-r border-slate-700 pr-8">
+              <div className="h-7 w-7 bg-indigo-500 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-indigo-400/50">
+                {selectedTaskIds.length}
+              </div>
+              <span className="text-sm font-black uppercase tracking-widest text-slate-300">Tasks Selected</span>
+            </div>
+            
+            <div className="flex items-center gap-6">
+              <Button variant="ghost" size="sm" className="text-xs font-bold hover:bg-slate-800 text-slate-400 hover:text-white transition-colors" onClick={() => setSelectedTaskIds([])}>
+                 Cancel
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                className="text-xs font-bold bg-red-500/10 hover:bg-red-500/20 text-red-500 gap-2 rounded-xl transition-all active:scale-95 px-4" 
+                onClick={handleBatchDelete}
+                disabled={batchDeleteMutation.isPending}
+              >
+                 <Trash2 className="h-3.5 w-3.5" />
+                 {batchDeleteMutation.isPending ? "Deleting..." : "Delete Tasks"}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
