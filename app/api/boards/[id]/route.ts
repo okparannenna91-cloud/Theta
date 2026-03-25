@@ -66,7 +66,13 @@ export async function GET(
 
     return NextResponse.json(fullBoard);
   } catch (error) {
-    console.error("Get board error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function PATCH(
   req: Request,
   { params }: { params: { id: string } }
