@@ -9,10 +9,20 @@ const globalForPrisma = globalThis as unknown as {
 
 const createClient = (url: string | undefined) => {
   if (!url) return undefined;
+  
+  // Robust sanitization: trim and remove non-printable characters or trailing dots
+  const sanitizedUrl = url.trim().replace(/[^\x20-\x7E]/g, '').replace(/\.+$/, '');
+  if (!sanitizedUrl) return undefined;
+  
+  // Ensure the URI has a timeout to prevent infinite DNS hangs in Prisma engine
+  const finalUrl = sanitizedUrl.includes('?') 
+    ? `${sanitizedUrl}&connectTimeoutMS=15000` 
+    : `${sanitizedUrl}?connectTimeoutMS=15000`;
+
   return new PrismaClient({
     datasources: {
       db: {
-        url,
+        url: finalUrl,
       },
     },
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
@@ -26,21 +36,32 @@ if (!primaryUri && process.env.NODE_ENV !== "test") {
   console.error("CRITICAL: MONGODB_URI or MONGODB_URI_1 is missing from environment variables.");
 }
 
-// Initialize shards
-export const prismaShard1 = (globalForPrisma.shard1 ?? createClient(primaryUri)) as PrismaClient;
-if (!prismaShard1 && process.env.NODE_ENV !== "test") {
-    throw new Error("Failed to initialize primary database shard (Shard 1). Check MongoDB connection string.");
-}
+// Initialize shards with URI reuse optimization
+const uri1 = process.env.MONGODB_URI_1 || process.env.MONGODB_URI;
+const uri2 = process.env.MONGODB_URI_2;
+const uri3 = process.env.MONGODB_URI_3;
+const uri4 = process.env.MONGODB_URI_4;
 
-export const prismaShard2 = (globalForPrisma.shard2 ?? createClient(process.env.MONGODB_URI_2 || primaryUri)) as PrismaClient;
-export const prismaShard3 = (globalForPrisma.shard3 ?? createClient(process.env.MONGODB_URI_3 || primaryUri)) as PrismaClient;
-export const prismaShard4 = (globalForPrisma.shard4 ?? createClient(process.env.MONGODB_URI_4 || primaryUri)) as PrismaClient;
+export const prismaShard1 = (globalForPrisma.shard1 ?? createClient(uri1)) as PrismaClient;
+
+// Optimization: If secondary shard URIs are missing or identical to Shard 1, reuse Shard 1's client
+export const prismaShard2 = (uri2 && uri2 !== uri1) 
+    ? (globalForPrisma.shard2 ?? createClient(uri2)) as PrismaClient 
+    : prismaShard1;
+
+export const prismaShard3 = (uri3 && uri3 !== uri1 && uri3 !== uri2) 
+    ? (globalForPrisma.shard3 ?? createClient(uri3)) as PrismaClient 
+    : prismaShard1;
+
+export const prismaShard4 = (uri4 && uri4 !== uri1 && uri4 !== uri2 && uri4 !== uri3) 
+    ? (globalForPrisma.shard4 ?? createClient(uri4)) as PrismaClient 
+    : prismaShard1;
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.shard1 = prismaShard1;
-  globalForPrisma.shard2 = prismaShard2;
-  globalForPrisma.shard3 = prismaShard3;
-  globalForPrisma.shard4 = prismaShard4;
+  if (uri2 && uri2 !== uri1) globalForPrisma.shard2 = prismaShard2;
+  if (uri3 && uri3 !== uri1 && uri3 !== uri2) globalForPrisma.shard3 = prismaShard3;
+  if (uri4 && uri4 !== uri1 && uri4 !== uri2 && uri4 !== uri3) globalForPrisma.shard4 = prismaShard4;
 }
 
 // Default export (Legacy support & Global collections)
