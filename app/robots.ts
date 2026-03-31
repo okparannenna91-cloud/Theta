@@ -7,6 +7,6 @@ export default function robots(): MetadataRoute.Robots {
             allow: '/',
             disallow: ['/api/', '/dashboard/', '/settings/'],
         },
-        sitemap: 'https://thetapm.site/sitemap.xml',
+        sitemap: 'https://www.thetapm.site/sitemap.xml',
     }
 }

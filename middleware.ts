@@ -18,6 +18,18 @@ const limiter = rateLimit({
 });
 
 export default clerkMiddleware(async (auth, req) => {
+  // ── Canonical domain enforcement ────────────────────────────────────────
+  // Redirect thetapm.site (non-www) → https://www.thetapm.site permanently.
+  // Must run BEFORE auth so Clerk doesn't add its own redirect on top.
+  const host = req.headers.get('host') ?? '';
+  if (host === 'thetapm.site' || host === 'http://thetapm.site') {
+    const url = req.nextUrl.clone();
+    url.protocol = 'https:';
+    url.host = 'www.thetapm.site';
+    return NextResponse.redirect(url, { status: 308 });
+  }
+  // ────────────────────────────────────────────────────────────────────────
+
   // Rate limiting for API routes
   if (req.nextUrl.pathname.startsWith('/api')) {
     const ip = req.ip || req.headers.get('x-forwarded-for') || '127.0.0.1';

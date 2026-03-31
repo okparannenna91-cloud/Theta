@@ -3,6 +3,20 @@ const nextConfig = {
   images: {
     domains: ['img.clerk.com', 'res.cloudinary.com'],
   },
+
+  // Enforce canonical domain: always redirect to https://www.thetapm.site
+  async redirects() {
+    return [
+      // http://thetapm.site/* → https://www.thetapm.site/*
+      {
+        source: '/:path*',
+        has: [{ type: 'host', value: 'thetapm.site' }],
+        destination: 'https://www.thetapm.site/:path*',
+        permanent: true, // 308
+      },
+    ];
+  },
+
   async headers() {
     return [
       {
