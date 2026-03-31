@@ -25,6 +25,8 @@ import {
     DialogFooter,
 } from "@/components/ui/dialog";
 
+import { usePopups } from "@/components/popups/popup-manager";
+
 interface ProjectSettingsProps {
     project: any;
 }
@@ -33,7 +35,7 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
     const [name, setName] = useState(project.name);
     const [description, setDescription] = useState(project.description || "");
     const [color, setColor] = useState(project.color || "#4f46e5");
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const { showConfirm, showUpgradePrompt } = usePopups();
     const queryClient = useQueryClient();
     const router = useRouter();
 
@@ -55,7 +57,11 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
             toast.success("Project updated successfully");
         },
         onError: (error: any) => {
-            toast.error(error.message);
+            if (error.message.includes("limit") || error.message.includes("Upgrade")) {
+                showUpgradePrompt("projects");
+            } else {
+                toast.error(error.message);
+            }
         }
     });
 
@@ -77,6 +83,16 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
             toast.error(error.message);
         }
     });
+
+    const handleDeleteClick = () => {
+        showConfirm({
+            title: "Total Annihilation",
+            description: `You are about to permanently delete "${project.name}". This action cannot be undone and all associated data will be lost in the void.`,
+            actionLabel: "Confirm Deletion",
+            destructive: true,
+            onAction: () => deleteMutation.mutate()
+        });
+    };
 
     return (
         <div className="max-w-4xl space-y-8 h-full overflow-y-auto pr-2 pb-10">
@@ -161,7 +177,7 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
                          </div>
                          <Button 
                              variant="destructive" 
-                             onClick={() => setIsDeleteDialogOpen(true)}
+                             onClick={handleDeleteClick}
                              className="rounded-2xl font-black uppercase tracking-widest text-[10px] h-11"
                          >
                              <Trash2 className="h-4 w-4 mr-2" />
@@ -170,39 +186,6 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
                     </div>
                 </CardContent>
             </Card>
-
-            <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                <DialogContent className="rounded-3xl p-0 overflow-hidden border-none max-w-md">
-                     <div className="bg-red-50 dark:bg-red-950/50 p-6 flex flex-col items-center text-center">
-                          <div className="h-20 w-20 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 mb-4 animate-pulse">
-                               <AlertTriangle className="h-10 w-10" />
-                          </div>
-                          <DialogTitle className="text-2xl font-black uppercase tracking-tight text-red-600">Total Annihilation</DialogTitle>
-                     </div>
-                     <div className="p-6 space-y-6">
-                          <DialogDescription className="text-center font-medium text-slate-600 dark:text-slate-400">
-                               You are about to permanently delete <span className="font-black text-slate-900 dark:text-white">&quot;{project.name}&quot;</span>. 
-                               This action cannot be undone and all associated data will be lost in the void.
-                          </DialogDescription>
-                          <DialogFooter className="flex gap-2 sm:justify-center w-full">
-                               <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)} className="rounded-xl flex-1 font-black uppercase tracking-widest text-[10px]">
-                                   Cancel
-                               </Button>
-                               <Button 
-                                   variant="destructive" 
-                                   onClick={(e) => {
-                                        e.preventDefault();
-                                        deleteMutation.mutate();
-                                   }} 
-                                   disabled={deleteMutation.isPending}
-                                   className="rounded-xl flex-1 font-black uppercase tracking-widest text-[10px]"
-                               >
-                                   {deleteMutation.isPending ? "Executing..." : "Confirm Deletion"}
-                               </Button>
-                          </DialogFooter>
-                     </div>
-                </DialogContent>
-            </Dialog>
         </div>
     );
 }

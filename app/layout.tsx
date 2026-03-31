@@ -78,6 +78,8 @@ export const viewport: Viewport = {
 
 import { I18nProvider } from "@/lib/i18n";
 
+import { PopupProvider } from "@/components/popups/popup-manager";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -95,10 +97,12 @@ export default function RootLayout({
           >
             <QueryProvider>
               <AblyProvider>
-                <I18nProvider>
-                  {children}
-                  <Toaster richColors position="top-center" />
-                </I18nProvider>
+                <PopupProvider>
+                  <I18nProvider>
+                    {children}
+                    <Toaster richColors position="top-center" />
+                  </I18nProvider>
+                </PopupProvider>
               </AblyProvider>
             </QueryProvider>
           </ThemeProvider>

@@ -83,6 +83,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useAbly } from "@/hooks/use-ably";
+import { usePopups } from "@/components/popups/popup-manager";
 import { getBoardChannel } from "@/lib/ably";
 
 async function fetchBoard(id: string) {
@@ -316,15 +317,15 @@ function SortableColumn({ column, children }: { column: any; children: React.Rea
   );
 }
 
-export default function KanbanBoard({
-  boardId,
-  onBack,
-}: {
+interface KanbanBoardProps {
   boardId: string;
   onBack: () => void;
-}) {
-  const queryClient = useQueryClient();
+}
+
+export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const { activeWorkspaceId } = useWorkspace();
+  const { showConfirm, showUpgradePrompt } = usePopups();
+  const queryClient = useQueryClient();
   const [activeTask, setActiveTask] = useState<any>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
@@ -534,6 +535,13 @@ export default function KanbanBoard({
       setTargetColumnId(null);
       toast.success("Task created");
     },
+    onError: (error: any) => {
+      if (error.message.includes("limit") || error.message.includes("Upgrade")) {
+        showUpgradePrompt("tasks");
+      } else {
+        toast.error(error.message);
+      }
+    }
   });
 
   const [editingColumn, setEditingColumn] = useState<any>(null);
@@ -677,9 +685,13 @@ export default function KanbanBoard({
   };
 
   const handleBatchDelete = () => {
-    if (confirm(`Are you sure you want to delete ${selectedTaskIds.length} tasks?`)) {
-      batchDeleteMutation.mutate(selectedTaskIds);
-    }
+    showConfirm({
+      title: "Bulk Delete Tasks",
+      description: `Are you sure you want to permanently delete these ${selectedTaskIds.length} tasks? This action cannot be reversed.`,
+      actionLabel: `Delete ${selectedTaskIds.length} Tasks`,
+      destructive: true,
+      onAction: () => batchDeleteMutation.mutate(selectedTaskIds)
+    });
   };
 
   const allTags = Array.from(
@@ -1278,9 +1290,13 @@ export default function KanbanBoard({
                 variant="ghost"
                 className="w-full font-bold h-11 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10"
                 onClick={() => {
-                  if (confirm("Are you sure you want to delete this board? This action cannot be undone.")) {
-                    deleteBoardMutation.mutate();
-                  }
+                  showConfirm({
+                    title: "Delete Board",
+                    description: "Are you sure you want to delete this board? This action is permanent and will remove all columns and their task placements.",
+                    actionLabel: "Permanently Delete",
+                    destructive: true,
+                    onAction: () => deleteBoardMutation.mutate()
+                  });
                 }}
               >
                 <Trash2 className="h-4 w-4 mr-2" />

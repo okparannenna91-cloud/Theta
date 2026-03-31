@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { TeamChat } from "./team-chat";
+import { usePopups } from "@/components/popups/popup-manager";
 import { format } from "date-fns";
 import Image from "next/image";
 import Link from "next/link";
@@ -61,7 +62,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
     const [editDescription, setEditDescription] = useState(team.description || "");
     const [editStatus, setEditStatus] = useState(team.status || "active");
     const [editDefaultRole, setEditDefaultRole] = useState(team.defaultRole || "member");
-    const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+    const { showConfirm, showUpgradePrompt } = usePopups();
 
     const queryClient = useQueryClient();
     const isAdmin = team.userRole === "admin" || team.userRole === "owner";
@@ -716,30 +717,18 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                         <Button
                                             variant="destructive"
                                             disabled={!isOwner}
-                                            onClick={() => setIsDeleteDialogOpen(true)}
+                                            onClick={() => {
+                                                showConfirm({
+                                                    title: "Total Annihilation",
+                                                    description: `You are about to permanently delete the team "${team.name}". This action cannot be reversed and all associated tasks, chats, and data will be lost.`,
+                                                    actionLabel: "Confirm Deletion",
+                                                    destructive: true,
+                                                    onAction: () => deleteTeamMutation.mutate()
+                                                });
+                                            }}
                                         >
                                             <Trash2 className="mr-2 h-4 w-4" /> Delete Team
                                         </Button>
-
-                                        <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                                            <DialogContent onClose={() => setIsDeleteDialogOpen(false)}>
-                                                <DialogHeader>
-                                                    <DialogTitle>Delete Team?</DialogTitle>
-                                                    <DialogDescription>
-                                                        This action cannot be undone. All tasks, chats, and data associated with
-                                                        <span className="font-bold text-foreground"> {team.name} </span> will be permanently removed.
-                                                    </DialogDescription>
-                                                </DialogHeader>
-                                                <DialogFooter>
-                                                    <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
-                                                        Cancel
-                                                    </Button>
-                                                    <Button variant="destructive" onClick={() => deleteTeamMutation.mutate()}>
-                                                        Confirm Delete
-                                                    </Button>
-                                                </DialogFooter>
-                                            </DialogContent>
-                                        </Dialog>
 
                                         <Button onClick={() => updateTeamMutation.mutate({
                                             name: editName,
