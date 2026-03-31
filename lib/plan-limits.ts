@@ -330,16 +330,35 @@ export async function enforcePlanLimit(
 ) {
     const { prisma } = await import("./prisma");
 
-    // 1. Fetch workspace and billing status
+    // 1. Fetch workspace, billing status, and owner info
     const workspace = await prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: {
             plan: true,
-            billingStatus: true
+            billingStatus: true,
+            members: {
+                where: { role: "owner" },
+                select: {
+                    user: {
+                        select: {
+                            clerkId: true
+                        }
+                    }
+                }
+            }
         }
     });
 
     if (!workspace) throw new Error("Workspace not found");
+
+    // ── Super Admin Bypass ────────────────────────────────────────────────
+    const superAdminIds = (process.env.SUPER_ADMIN_USER_IDS || "").split(",").map(id => id.trim());
+    const ownerClerkId = workspace.members[0]?.user?.clerkId;
+    
+    if (ownerClerkId && superAdminIds.includes(ownerClerkId)) {
+        return; // Bypass all limits including deactivated workspace status
+    }
+    // ──────────────────────────────────────────────────────────────────────
 
     // 2. Strict Billing Check: Deactivated workspaces can't create anything
     if (workspace.billingStatus === "deactivated") {
