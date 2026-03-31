@@ -15,6 +15,10 @@ export const metadata: Metadata = {
     default: "Theta | Advanced AI-Powered Project Management",
     template: "%s | Theta AI"
   },
+  icons: {
+    icon: "/Logo.png",
+    apple: "/Logo.png",
+  },
   description: "Theta is the next evolution of project synchronization. Featuring real-time collaboration, AI-powered automation (Boots AI), Gantt charts, and strategic portfolio tracking for high-velocity teams.",
   keywords: [
     "project management software",
