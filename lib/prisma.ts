@@ -19,11 +19,22 @@ const createClient = (url: string | undefined) => {
   });
 };
 
+// Default MongoDB URI - Ensure this is set for Shard 1 (Primary)
+const primaryUri = process.env.MONGODB_URI_1 || process.env.MONGODB_URI;
+
+if (!primaryUri && process.env.NODE_ENV !== "test") {
+  console.error("CRITICAL: MONGODB_URI or MONGODB_URI_1 is missing from environment variables.");
+}
+
 // Initialize shards
-export const prismaShard1 = globalForPrisma.shard1 ?? createClient(process.env.MONGODB_URI_1 || process.env.MONGODB_URI);
-export const prismaShard2 = globalForPrisma.shard2 ?? createClient(process.env.MONGODB_URI_2 || process.env.MONGODB_URI);
-export const prismaShard3 = globalForPrisma.shard3 ?? createClient(process.env.MONGODB_URI_3 || process.env.MONGODB_URI);
-export const prismaShard4 = globalForPrisma.shard4 ?? createClient(process.env.MONGODB_URI_4 || process.env.MONGODB_URI);
+export const prismaShard1 = (globalForPrisma.shard1 ?? createClient(primaryUri)) as PrismaClient;
+if (!prismaShard1 && process.env.NODE_ENV !== "test") {
+    throw new Error("Failed to initialize primary database shard (Shard 1). Check MongoDB connection string.");
+}
+
+export const prismaShard2 = (globalForPrisma.shard2 ?? createClient(process.env.MONGODB_URI_2 || primaryUri)) as PrismaClient;
+export const prismaShard3 = (globalForPrisma.shard3 ?? createClient(process.env.MONGODB_URI_3 || primaryUri)) as PrismaClient;
+export const prismaShard4 = (globalForPrisma.shard4 ?? createClient(process.env.MONGODB_URI_4 || primaryUri)) as PrismaClient;
 
 if (process.env.NODE_ENV !== "production") {
   globalForPrisma.shard1 = prismaShard1;
@@ -34,7 +45,7 @@ if (process.env.NODE_ENV !== "production") {
 
 // Default export (Legacy support & Global collections)
 // In this architecture, Shard 1 is the primary DB for Users and Workspace metadata
-export const prisma = prismaShard1 as PrismaClient;
+export const prisma = prismaShard1;
 
 /**
  * Consistent hashing to select a shard based on workspaceId.

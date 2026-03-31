@@ -189,13 +189,16 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json(project);
-  } catch (error) {
+  } catch (error: any) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
-    console.error("Create project error:", error);
+    console.error("Create project critical error:", {
+      message: error.message,
+      stack: error.stack,
+    });
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error.message },
       { status: 500 }
     );
   }

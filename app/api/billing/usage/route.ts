@@ -32,10 +32,14 @@ export async function GET(req: Request) {
         const usage = await getUsageStats(workspaceId);
 
         return NextResponse.json(usage);
-    } catch (error) {
-        console.error("Usage API error:", error);
+    } catch (error: any) {
+        console.error("Usage API endpoint error:", {
+            message: error.message,
+            stack: error.stack,
+            workspaceId
+        });
         return NextResponse.json(
-            { error: "Internal server error" },
+            { error: "Internal server error", details: error.message },
             { status: 500 }
         );
     }

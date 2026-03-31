@@ -1,4 +1,5 @@
-import { prisma } from "./prisma";
+// Remove top-level prisma import to avoid circular dependencies and initialization loops
+// import { prisma } from "./prisma";
 import { PlanName, getPlanLimits, getUsagePercentage, getWarningLevel } from "./plan-limits";
 
 export interface UsageStats {
@@ -19,7 +20,7 @@ export interface UsageStats {
  */
 export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
     try {
-        const { getPrismaClient } = await import("./prisma");
+        const { prisma, getPrismaClient } = await import("./prisma");
         const shardPrisma = getPrismaClient(workspaceId);
 
         const workspace = await prisma.workspace.findUnique({
@@ -134,6 +135,7 @@ export async function getTeamCount(workspaceId: string): Promise<number> {
 
 export async function getMemberCount(workspaceId: string): Promise<number> {
     // Members are on Shard 1 with workspace metadata
+    const { prisma } = await import("./prisma");
     return await prisma.workspaceMember.count({
         where: { workspaceId },
     });
@@ -205,6 +207,7 @@ export async function incrementBootsUsage(workspaceId: string, userId: string): 
  * Check if a workspace has active billing access
  */
 export async function isBillingActive(workspaceId: string): Promise<boolean> {
+    const { prisma } = await import("./prisma");
     const workspace = await prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: { billingStatus: true }

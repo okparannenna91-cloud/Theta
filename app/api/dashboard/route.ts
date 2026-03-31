@@ -222,10 +222,14 @@ export async function GET(req: Request) {
         { range: "7d+", count: 0 },
       ],
     });
-  } catch (error) {
-    console.error("Dashboard API error:", error);
+  } catch (error: any) {
+    console.error("Dashboard API error details:", {
+      message: error.message,
+      stack: error.stack,
+      workspaceId
+    });
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: "Internal server error", details: error.message },
       { status: 500 }
     );
   }
