@@ -64,20 +64,11 @@ export async function POST(req: Request) {
 
         // Check plan limits strictly
         try {
+            const { getCalendarEventCount } = await import("@/lib/usage-tracking");
+            const count = await getCalendarEventCount(data.workspaceId);
+            
             const { enforcePlanLimit } = await import("@/lib/plan-limits");
-            // Fetch workspace to get current count for plan limit enforcement
-            const workspace = await prisma.workspace.findUnique({
-                where: { id: data.workspaceId },
-                include: {
-                    _count: {
-                        select: { calendarEvents: true },
-                    },
-                },
-            });
-            if (!workspace) {
-                return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
-            }
-            await enforcePlanLimit(data.workspaceId, "calendar_events", workspace._count.calendarEvents);
+            await enforcePlanLimit(data.workspaceId, "calendar_events", count);
         } catch (error: any) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }

@@ -178,6 +178,20 @@ export async function getBootsRequestCount(workspaceId: string): Promise<number>
     });
 }
 
+export async function getCalendarEventCount(workspaceId: string): Promise<number> {
+    const { getPrismaClient } = await import("./prisma");
+    return await getPrismaClient(workspaceId).calendarEvent.count({
+        where: { workspaceId },
+    });
+}
+
+export async function getIntegrationCount(workspaceId: string): Promise<number> {
+    const { getPrismaClient } = await import("./prisma");
+    return await getPrismaClient(workspaceId).integration.count({
+        where: { workspaceId },
+    });
+}
+
 export async function incrementBootsUsage(workspaceId: string, userId: string): Promise<void> {
     const { createActivity } = await import("./activity");
     await createActivity(

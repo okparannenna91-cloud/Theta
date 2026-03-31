@@ -16,11 +16,13 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Missing workspaceId" }, { status: 400 });
         }
 
-        const prisma = getPrismaClient(workspaceId);
+        const db = getPrismaClient(workspaceId);
+        const { prisma } = await import("@/lib/prisma");
 
-        // Fetch all integrations for this workspace
+        // Fetch all integrations for this workspace from shards
+        // AND workspace metadata from primary Shard 1
         const [integrations, workspace] = await Promise.all([
-            prisma.integration.findMany({
+            db.integration.findMany({
                 where: { workspaceId },
                 orderBy: { createdAt: "desc" },
             }),

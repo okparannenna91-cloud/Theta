@@ -27,7 +27,10 @@ export async function GET(req: Request) {
             where.projectId = null;
         }
 
-        const documents = await prisma.document.findMany({
+        const { getPrismaClient } = await import("@/lib/prisma");
+        const db = getPrismaClient(workspaceId);
+
+        const documents = await db.document.findMany({
             where,
             orderBy: { updatedAt: "desc" },
             include: {
@@ -52,7 +55,10 @@ export async function POST(req: Request) {
 
         const data = await req.json();
         
-        const document = await prisma.document.create({
+        const { getPrismaClient } = await import("@/lib/prisma");
+        const db = getPrismaClient(data.workspaceId);
+        
+        const document = await db.document.create({
             data: {
                 title: data.title || "Untitled",
                 workspaceId: data.workspaceId,

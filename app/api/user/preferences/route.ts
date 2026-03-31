@@ -15,6 +15,7 @@ export async function GET() {
 
         return NextResponse.json(preferences);
     } catch (error) {
+        console.error("Preferences fetch error:", error);
         return NextResponse.json({ error: "Failed to fetch preferences" }, { status: 500 });
     }
 }

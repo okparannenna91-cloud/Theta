@@ -10,15 +10,24 @@ export async function GET(
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-        const document = await prisma.document.findUnique({
-            where: { id: params.id },
-            include: {
-                children: {
-                    where: { archived: false },
-                    select: { id: true, title: true, emoji: true }
-                }
-            }
+        const { findAcrossShards } = await import("@/lib/prisma");
+        const { data: document, db } = await findAcrossShards<any>("document", {
+            id: params.id
         });
+
+        if (document) {
+            // Need to re-fetch with include since findAcrossShards might not support it easily
+            const fullDoc = await db.document.findUnique({
+                where: { id: params.id },
+                include: {
+                    children: {
+                        where: { archived: false },
+                        select: { id: true, title: true, emoji: true }
+                    }
+                }
+            });
+            return NextResponse.json(fullDoc);
+        }
 
         if (!document) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
@@ -38,7 +47,10 @@ export async function PATCH(
 
         const data = await req.json();
         
-        const document = await prisma.document.update({
+        const { findAcrossShards } = await import("@/lib/prisma");
+        const { db } = await findAcrossShards<any>("document", { id: params.id });
+        
+        const document = await db.document.update({
             where: { id: params.id },
             data: {
               title: data.title,
@@ -65,8 +77,11 @@ export async function DELETE(
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+        const { findAcrossShards } = await import("@/lib/prisma");
+        const { db } = await findAcrossShards<any>("document", { id: params.id });
+
         // Archive rather than hard delete for better UX
-        await prisma.document.update({
+        await db.document.update({
             where: { id: params.id },
             data: { archived: true }
         });

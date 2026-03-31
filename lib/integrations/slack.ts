@@ -68,8 +68,10 @@ export async function notifyWorkspace(
     title?: string
 ): Promise<void> {
     try {
-        const { prisma } = await import("@/lib/prisma");
-        const integration = await prisma.integration.findFirst({
+        const { getPrismaClient } = await import("@/lib/prisma");
+        const db = getPrismaClient(workspaceId);
+
+        const integration = await db.integration.findFirst({
             where: {
                 workspaceId,
                 type: "slack",   // Integration model uses `type` not `provider`
