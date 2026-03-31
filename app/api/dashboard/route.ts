@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma, getPrismaClient } from "@/lib/prisma";
 
 export async function GET(req: Request) {
+  let workspaceId: string | null = null;
   try {
     const { userId } = await auth();
     if (!userId) {
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const teamId = searchParams.get("teamId");
-    let workspaceId = searchParams.get("workspaceId");
+    workspaceId = searchParams.get("workspaceId");
 
     const user = await prisma.user.findUnique({
       where: { clerkId: userId },
