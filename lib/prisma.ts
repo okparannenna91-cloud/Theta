@@ -16,8 +16,12 @@ const createClient = (url: string | undefined) => {
   
   // Ensure the URI has a timeout to prevent infinite DNS hangs in Prisma engine
   const finalUrl = sanitizedUrl.includes('?') 
-    ? `${sanitizedUrl}&connectTimeoutMS=15000` 
-    : `${sanitizedUrl}?connectTimeoutMS=15000`;
+    ? `${sanitizedUrl}&connectTimeoutMS=30000` 
+    : `${sanitizedUrl}?connectTimeoutMS=30000`;
+
+  // Diagnostic: Log masked URI to verify formatting on Vercel
+  const maskedUrl = finalUrl.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
+  console.log(`[Prisma Init] Initializing client with masked URI: ${maskedUrl}`);
 
   return new PrismaClient({
     datasources: {
