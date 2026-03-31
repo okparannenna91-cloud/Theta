@@ -358,8 +358,8 @@ export async function enforcePlanLimit(
     }
 
     // 3. Check Plan Limit
-    const plan = workspace.plan as PlanName;
-    const limits = PLAN_LIMITS[plan];
+    const plan = (workspace.plan as PlanName) || "free";
+    const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
     let isAllowed = true;
 
     switch (feature) {

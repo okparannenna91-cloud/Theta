@@ -7,97 +7,94 @@ export interface UsageStats {
     teams: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
     members: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
     boards: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
-    calendarEvents: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
+    calendar_events: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
     storage: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
-    bootsRequests: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
-    chatMessages: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
+    boots: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
+    chat_messages: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
+    integrations: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
 }
 
 /**
  * Get comprehensive usage statistics for a workspace
  */
 export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
-    const { getPrismaClient } = await import("./prisma");
-    const shardPrisma = getPrismaClient(workspaceId);
+    try {
+        const { getPrismaClient } = await import("./prisma");
+        const shardPrisma = getPrismaClient(workspaceId);
 
-    const workspace = await prisma.workspace.findUnique({
-        where: { id: workspaceId },
-        include: {
-            _count: {
-                select: {
-                    members: true, // Members ARE on Shard 1 with the Workspace metadata
+        const workspace = await prisma.workspace.findUnique({
+            where: { id: workspaceId },
+            include: {
+                _count: {
+                    select: {
+                        members: true,
+                    },
                 },
             },
-        },
-    });
+        });
 
-    if (!workspace) {
-        throw new Error("Workspace not found");
-    }
-
-    // Check if billing is deactivated
-    const isDeactivated = workspace.billingStatus === "deactivated";
-
-    const plan = workspace.plan as PlanName;
-    const limits = getPlanLimits(plan);
-
-    // Count projects, tasks, teams across the correct shard
-    const projectCount = await shardPrisma.project.count({ where: { workspaceId } });
-    const taskCount = await shardPrisma.task.count({ where: { workspaceId } });
-    const teamCount = await shardPrisma.team.count({ where: { workspaceId } });
-    const boardCount = await shardPrisma.board.count({ where: { workspaceId } });
-    const calendarEventCount = await shardPrisma.calendarEvent.count({ where: { workspaceId } });
-    const chatMessageCount = await shardPrisma.chatMessage.count({ where: { workspaceId } });
-
-    // Calculate storage
-    const storageActivities = await shardPrisma.activity.findMany({
-        where: {
-            workspaceId,
-            action: "file_upload"
-        },
-        select: {
-            metadata: true
+        if (!workspace) {
+            throw new Error("Workspace not found");
         }
-    });
 
-    const storageUsed = storageActivities.reduce((acc, curr) => {
-        const metadata = curr.metadata as any;
-        return acc + (metadata?.size || 0);
-    }, 0) / (1024 * 1024); // Convert to MB
+        const isDeactivated = workspace.billingStatus === "deactivated";
+        const plan = workspace.plan as PlanName;
+        const limits = getPlanLimits(plan);
 
-    // Get Boots AI usage for current month
-    const now = new Date();
-    const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const projectCount = await shardPrisma.project.count({ where: { workspaceId } });
+        const taskCount = await shardPrisma.task.count({ where: { workspaceId } });
+        const teamCount = await shardPrisma.team.count({ where: { workspaceId } });
+        const boardCount = await shardPrisma.board.count({ where: { workspaceId } });
+        const calendarEventCount = await shardPrisma.calendarEvent.count({ where: { workspaceId } });
+        const chatMessageCount = await shardPrisma.chatMessage.count({ where: { workspaceId } });
+        const integrationCount = await shardPrisma.integration.count({ where: { workspaceId } });
 
-    const bootsRequestCount = await shardPrisma.activity.count({
-        where: {
-            workspaceId,
-            action: "ai_generation",
-            createdAt: { gte: firstDayOfMonth }
-        }
-    });
+        const storageActivities = await shardPrisma.activity.findMany({
+            where: { workspaceId, action: "file_upload" },
+            select: { metadata: true }
+        });
 
-    const createStat = (current: number, max: number) => {
-        const percentage = isDeactivated ? 100 : getUsagePercentage(current, max);
-        return {
-            current,
-            max,
-            percentage,
-            warning: isDeactivated ? "critical" : getWarningLevel(percentage),
+        const storageUsed = storageActivities.reduce((acc, curr) => {
+            const metadata = curr.metadata as any;
+            return acc + (metadata?.size || 0);
+        }, 0) / (1024 * 1024);
+
+        const now = new Date();
+        const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        const bootsRequestCount = await shardPrisma.activity.count({
+            where: {
+                workspaceId,
+                action: "ai_generation",
+                createdAt: { gte: firstDayOfMonth }
+            }
+        });
+
+        const createStat = (current: number, max: number) => {
+            const percentage = isDeactivated ? 100 : getUsagePercentage(current, max);
+            return {
+                current,
+                max,
+                percentage,
+                warning: isDeactivated ? "critical" : getWarningLevel(percentage),
+            };
         };
-    };
 
-    return {
-        projects: createStat(projectCount, limits.maxProjects),
-        tasks: createStat(taskCount, limits.maxTasks),
-        teams: createStat(teamCount, limits.maxTeams),
-        members: createStat(workspace._count.members, limits.maxMembers),
-        boards: createStat(boardCount, limits.maxBoards),
-        calendarEvents: createStat(calendarEventCount, limits.maxCalendarEvents),
-        storage: createStat(storageUsed, limits.maxStorage),
-        bootsRequests: createStat(bootsRequestCount, limits.maxBootsRequests),
-        chatMessages: createStat(chatMessageCount, limits.maxChatMessages),
-    };
+        return {
+            projects: createStat(projectCount, limits.maxProjects),
+            tasks: createStat(taskCount, limits.maxTasks),
+            teams: createStat(teamCount, limits.maxTeams),
+            members: createStat(workspace._count.members, limits.maxMembers),
+            boards: createStat(boardCount, limits.maxBoards),
+            calendar_events: createStat(calendarEventCount, limits.maxCalendarEvents),
+            storage: createStat(storageUsed, limits.maxStorage),
+            boots: createStat(bootsRequestCount, limits.maxBootsRequests),
+            chat_messages: createStat(chatMessageCount, limits.maxChatMessages),
+            integrations: createStat(integrationCount, limits.maxIntegrations),
+        };
+    } catch (error) {
+        console.error("getUsageStats Error:", error);
+        throw error;
+    }
 }
 
 /**

@@ -135,14 +135,9 @@ export async function getUserWorkspaces(userId: string) {
       include: {
         workspace: {
           include: {
-            tags: true,
-            statuses: {
-              orderBy: { order: "asc" }
-            },
             _count: {
               select: {
                 members: true,
-                projects: true,
               },
             },
           },

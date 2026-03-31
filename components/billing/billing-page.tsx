@@ -218,6 +218,7 @@ export default function BillingPage() {
                   {usage?.projects && <UsageMeter {...usage.projects} label="Projects" />}
                   {usage?.tasks && <UsageMeter {...usage.tasks} label="Tasks" />}
                   {usage?.members && <UsageMeter {...usage.members} label="Members" />}
+                  {usage?.calendar_events && <UsageMeter {...usage.calendar_events} label="Calendar Events" />}
                 </div>
               </div>
               <div className="space-y-4">
@@ -225,9 +226,10 @@ export default function BillingPage() {
                   <ShieldCheck className="h-4 w-4" /> AI & Advanced Features
                 </h4>
                 <div className="space-y-4">
-                  {usage?.bootsRequests && <UsageMeter {...usage.bootsRequests} label="Boots AI Requests" />}
+                  {usage?.boots && <UsageMeter {...usage.boots} label="Boots AI Requests" />}
                   {usage?.storage && <UsageMeter {...usage.storage} label="File Storage" unit="MB" />}
                   {usage?.boards && <UsageMeter {...usage.boards} label="Kanban Boards" />}
+                  {usage?.integrations && <UsageMeter {...usage.integrations} label="Integrations" />}
                 </div>
               </div>
             </div>
