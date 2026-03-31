@@ -351,14 +351,6 @@ export async function enforcePlanLimit(
 
     if (!workspace) throw new Error("Workspace not found");
 
-    // ── Super Admin Bypass ────────────────────────────────────────────────
-    const superAdminIds = (process.env.SUPER_ADMIN_USER_IDS || "").split(",").map(id => id.trim());
-    const ownerClerkId = workspace.members[0]?.user?.clerkId;
-    
-    if (ownerClerkId && superAdminIds.includes(ownerClerkId)) {
-        return; // Bypass all limits including deactivated workspace status
-    }
-    // ──────────────────────────────────────────────────────────────────────
 
     // 2. Strict Billing Check: Deactivated workspaces can't create anything
     if (workspace.billingStatus === "deactivated") {
