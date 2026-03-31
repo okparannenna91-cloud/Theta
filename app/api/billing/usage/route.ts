@@ -4,6 +4,7 @@ import { getUsageStats } from "@/lib/usage-tracking";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 
 export async function GET(req: Request) {
+    let workspaceId: string | null = null;
     try {
         const user = await getCurrentUser();
         if (!user) {
@@ -11,7 +12,7 @@ export async function GET(req: Request) {
         }
 
         const { searchParams } = new URL(req.url);
-        const workspaceId = searchParams.get("workspaceId");
+        workspaceId = searchParams.get("workspaceId");
 
         if (!workspaceId) {
             return NextResponse.json(
