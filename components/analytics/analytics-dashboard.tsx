@@ -121,7 +121,7 @@ export default function AnalyticsDashboard() {
                     </CardHeader>
                     <CardContent className="h-[350px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={analytics?.tasksOverTime}>
+                            <LineChart data={Array.isArray(analytics?.tasksOverTime) ? analytics.tasksOverTime : []}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" opacity={0.5} />
                                 <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
@@ -144,7 +144,7 @@ export default function AnalyticsDashboard() {
                     </CardHeader>
                     <CardContent className="h-[350px] p-0 pr-6 pl-2">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analytics?.teamProductivity} layout="vertical" margin={{ left: 20 }}>
+                            <BarChart data={Array.isArray(analytics?.teamProductivity) ? analytics.teamProductivity : []} layout="vertical" margin={{ left: 20 }}>
                                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#E2E8F0" opacity={0.5} />
                                 <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} />
                                 <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 'bold' }} width={80} />
@@ -165,8 +165,8 @@ export default function AnalyticsDashboard() {
                         <CardDescription className="text-xs font-bold uppercase tracking-widest mt-1">Projects with recent task velocity</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
-                        {analytics?.mostActiveProjects?.length > 0 ? (
-                            analytics?.mostActiveProjects.map((project: any, i: number) => (
+                        {Array.isArray(analytics?.mostActiveProjects) && analytics.mostActiveProjects.length > 0 ? (
+                            analytics.mostActiveProjects.map((project: any, i: number) => (
                                 <div key={project.id} className="flex items-center justify-between group">
                                     <div className="flex items-center gap-4">
                                         <div className="h-10 w-10 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center font-black text-slate-500 group-hover:bg-amber-100 dark:group-hover:bg-amber-900/30 group-hover:text-amber-600 transition-colors">

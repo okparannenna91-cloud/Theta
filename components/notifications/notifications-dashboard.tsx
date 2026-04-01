@@ -58,7 +58,7 @@ export default function NotificationsDashboard() {
     });
 
     const filteredNotifications = useMemo(() => {
-        if (!notifications) return [];
+        if (!Array.isArray(notifications)) return [];
         if (filter === "unread") return notifications.filter((n: any) => !n.read);
         if (filter === "mentions") return notifications.filter((n: any) => n.type === "mention");
         if (filter === "tasks") return notifications.filter((n: any) => n.type.includes("task"));
@@ -91,7 +91,9 @@ export default function NotificationsDashboard() {
         );
     }
 
-    const unreadCount = notifications?.filter((n: any) => !n.read).length || 0;
+    const unreadCount = Array.isArray(notifications) 
+        ? notifications.filter((n: any) => !n.read).length 
+        : 0;
 
     return (
         <div className="p-4 sm:p-6 lg:p-10 max-w-4xl mx-auto space-y-8 pb-20">
