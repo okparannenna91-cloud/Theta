@@ -13,8 +13,10 @@ interface NotificationPanelProps {
     onClearUnread: () => void;
 }
 
-export function NotificationPanel({ notifications, onRefresh, onClearUnread }: NotificationPanelProps) {
+export function NotificationPanel({ notifications: rawNotifications, onRefresh, onClearUnread }: NotificationPanelProps) {
     const { activeWorkspaceId } = useWorkspace();
+    // ✅ Nuclear fix: always guarantee an array regardless of prop shape
+    const notifications = Array.isArray(rawNotifications) ? rawNotifications : [];
 
     const handleMarkAllAsRead = async () => {
         try {
@@ -34,7 +36,7 @@ export function NotificationPanel({ notifications, onRefresh, onClearUnread }: N
         }
     };
 
-    const unreadNotifications = notifications.filter(n => !n.read);
+    const unreadNotifications = notifications.filter((n: any) => !n.read);
 
     return (
         <div className="flex flex-col h-[400px]">

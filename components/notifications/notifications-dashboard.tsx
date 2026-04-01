@@ -19,7 +19,7 @@ export default function NotificationsDashboard() {
     const [filter, setFilter] = useState("all");
 
     // Basic Polling System (every 15 seconds)
-    const { data: notifications, isLoading } = useQuery({
+    const { data: notificationsData, isLoading } = useQuery({
         queryKey: ["notifications", activeWorkspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/notifications?workspaceId=${activeWorkspaceId}`);
@@ -29,6 +29,13 @@ export default function NotificationsDashboard() {
         enabled: !!activeWorkspaceId,
         refetchInterval: 15000 
     });
+
+    // ✅ Nuclear fix: safely extract the array from the API response shape
+    const notifications = Array.isArray(notificationsData?.notifications) 
+        ? notificationsData.notifications 
+        : Array.isArray(notificationsData) 
+        ? notificationsData 
+        : [];
 
     const markReadMutation = useMutation({
         mutationFn: async ({ notificationId, markAllAsRead }: { notificationId?: string, markAllAsRead?: boolean }) => {

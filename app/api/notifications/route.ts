@@ -23,7 +23,9 @@ export async function GET(req: Request) {
             take: 100 // Limit to 100 latest
         });
 
-        return NextResponse.json(notifications);
+        const unreadCount = notifications.filter((n: any) => !n.read).length;
+
+        return NextResponse.json({ notifications, unreadCount });
     } catch (error) {
         console.error("Fetch notifications error:", error);
         return NextResponse.json({ error: "Internal error" }, { status: 500 });
