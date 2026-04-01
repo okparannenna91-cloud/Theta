@@ -68,9 +68,14 @@ export async function POST(req: Request) {
         });
 
         // Generate invite link
-        const protocol = req.headers.get("x-forwarded-proto") || "http";
+        const protocol = req.headers.get("x-forwarded-proto") || "https";
         const host = req.headers.get("host");
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (host ? `${protocol}://${host}` : "https://thetapm.site");
+        let baseUrl = process.env.NEXT_PUBLIC_APP_URL || (host ? `${protocol}://${host}` : "https://thetapm.site");
+        
+        // Final safeguard: If we accidentally get localhost in production, force the correct domain
+        if (baseUrl.includes("localhost")) {
+            baseUrl = "https://thetapm.site";
+        }
         const inviteLink = `${baseUrl}/invites/${invite.token}`;
 
         // Send email
@@ -216,9 +221,14 @@ export async function PATCH(req: Request) {
         }
 
         // Generate invite link
-        const protocol = req.headers.get("x-forwarded-proto") || "http";
+        const protocol = req.headers.get("x-forwarded-proto") || "https";
         const host = req.headers.get("host");
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (host ? `${protocol}://${host}` : "https://thetapm.site");
+        let baseUrl = process.env.NEXT_PUBLIC_APP_URL || (host ? `${protocol}://${host}` : "https://thetapm.site");
+        
+        // Final safeguard: If we accidentally get localhost in production, force the correct domain
+        if (baseUrl.includes("localhost")) {
+            baseUrl = "https://thetapm.site";
+        }
         const inviteLink = `${baseUrl}/invites/${invite.token}`;
 
         // Send email
