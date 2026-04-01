@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canCreateTeam, getPlanLimitMessage } from "@/lib/plan-limits";
 import { z } from "zod";
+export const dynamic = "force-dynamic";
 
 const teamSchema = z.object({
   name: z.string().min(1),
@@ -41,7 +42,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const { getPrismaClient } = await import("@/lib/prisma");
+    const { getPrismaClient, prisma } = await import("@/lib/prisma");
     const db = getPrismaClient(workspaceId);
 
     const teams = await db.team.findMany({
@@ -50,16 +51,10 @@ export async function GET(req: Request) {
       },
       include: {
         members: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                name: true,
-                imageUrl: true,
-                lastActiveAt: true,
-              },
-            },
-          },
+          select: {
+            userId: true,
+            role: true,
+          }
         },
         _count: {
           select: { members: true },
@@ -68,13 +63,31 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(
-      teams.map((team: any) => ({
-        ...team,
-        membersCount: team._count.members,
-        userRole: team.members.find((m: any) => m.userId === user.id)?.role || "member",
+    // Manually resolve user data for the members from Shard 1
+    const allUserIds = [...new Set(teams.flatMap(t => t.members.map(m => m.userId)))];
+    const users = await prisma.user.findMany({
+      where: { id: { in: allUserIds } },
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true,
+        lastActiveAt: true,
+      }
+    });
+
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    const teamsWithUsers = teams.map(team => ({
+      ...team,
+      membersCount: team._count.members,
+      userRole: team.members.find(m => m.userId === user.id)?.role || "member",
+      members: team.members.map(m => ({
+        ...m,
+        user: userMap.get(m.userId) || null
       }))
-    );
+    }));
+
+    return NextResponse.json(teamsWithUsers);
   } catch (error) {
     console.error("Teams API error:", error);
     return NextResponse.json(
