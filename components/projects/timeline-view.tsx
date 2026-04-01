@@ -20,9 +20,11 @@ export function TimelineView({ tasks }: TimelineViewProps) {
         return Array.from({ length: 30 }).map((_, i) => addDays(startDate, i));
     }, [startDate]);
 
+    const safeTasks = Array.isArray(tasks) ? tasks : [];
+
     const tasksWithDates = useMemo(() => {
-        return tasks.filter((t) => t.dueDate).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-    }, [tasks]);
+        return safeTasks.filter((t) => t.dueDate).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
+    }, [safeTasks]);
 
     return (
         <div className="w-full h-full flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 overflow-hidden shadow-sm">

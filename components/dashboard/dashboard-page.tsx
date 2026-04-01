@@ -143,7 +143,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="h-[350px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={data?.activityTrends}>
+                <AreaChart data={Array.isArray(data?.activityTrends) ? data.activityTrends : []}>
                   <defs>
                     <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />

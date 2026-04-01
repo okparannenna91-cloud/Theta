@@ -25,9 +25,9 @@ interface ProjectOverviewProps {
 }
 
 export function ProjectOverview({ project }: ProjectOverviewProps) {
-    const tasks = project.tasks || [];
-    const completedTasks = tasks.filter((t: any) => t.status === "done" || t.status === "Completed").length;
-    const progress = tasks.length > 0 ? (completedTasks / tasks.length) * 100 : 0;
+    const safeTasks = Array.isArray(project?.tasks) ? project.tasks : [];
+    const completedTasks = safeTasks.filter((t: any) => t.status === "done" || t.status === "Completed").length;
+    const progress = safeTasks.length > 0 ? (completedTasks / safeTasks.length) * 100 : 0;
 
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 h-full overflow-y-auto pr-2 pb-10">
@@ -39,7 +39,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
                              <p className="text-[10px] font-black uppercase text-blue-600 tracking-widest">Total Tasks</p>
                         </CardHeader>
                         <CardContent>
-                             <h3 className="text-3xl font-black text-blue-700">{tasks.length}</h3>
+                             <h3 className="text-3xl font-black text-blue-700">{safeTasks.length}</h3>
                         </CardContent>
                      </Card>
                      <Card className="bg-emerald-50/30 dark:bg-emerald-900/10 border-emerald-100 dark:border-emerald-900/30 shadow-sm rounded-2xl">
@@ -55,7 +55,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
                              <p className="text-[10px] font-black uppercase text-amber-600 tracking-widest">Remaining</p>
                         </CardHeader>
                         <CardContent>
-                             <h3 className="text-3xl font-black text-amber-700">{tasks.length - completedTasks}</h3>
+                             <h3 className="text-3xl font-black text-amber-700">{safeTasks.length - completedTasks}</h3>
                         </CardContent>
                      </Card>
                 </div>

@@ -47,7 +47,7 @@ export function GanttChart({ tasks }: GanttChartProps) {
 
                     {/* Gantt Body */}
                     <div className="flex-1">
-                        {tasks.filter(t => t.dueDate).map((task) => {
+                        {(Array.isArray(tasks) ? tasks : []).filter(t => t.dueDate).map((task) => {
                             const taskStart = new Date(task.createdAt);
                             const taskEnd = new Date(task.dueDate);
                             const startOffset = Math.max(0, differenceInDays(taskStart, startDate));

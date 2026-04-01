@@ -13,16 +13,16 @@ interface ProjectTasksViewProps {
 
 export function ProjectTasksView({ project }: ProjectTasksViewProps) {
     const [selectedTask, setSelectedTask] = useState<any | null>(null);
-    const tasks = project.tasks || [];
+    const safeTasks = Array.isArray(project?.tasks) ? project.tasks : [];
 
     return (
         <div className="space-y-4 h-full overflow-y-auto pr-2">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Project Tasks ({tasks.length})</h3>
+                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Project Tasks ({safeTasks.length})</h3>
             </div>
 
             <div className="grid gap-3">
-                {tasks.map((task: any) => (
+                {safeTasks.map((task: any) => (
                     <Card
                         key={task.id}
                         className="group p-4 flex items-center gap-4 hover:border-indigo-500/50 cursor-pointer transition-all shadow-sm"
@@ -63,7 +63,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                 ))}
             </div>
 
-            {tasks.length === 0 && (
+            {safeTasks.length === 0 && (
                 <div className="py-20 flex flex-col items-center justify-center text-center bg-slate-50/50 dark:bg-slate-900/50 rounded-3xl border-2 border-dashed">
                     <p className="text-sm text-muted-foreground italic">No tasks assigned to this project yet.</p>
                 </div>
