@@ -34,28 +34,29 @@ export async function POST(req: Request) {
 
         let workspaceContext = "";
         if (workspaceId) {
-            const { prisma } = await import("@/lib/prisma");
+            const { getPrismaClient } = await import("@/lib/prisma");
+            const db = getPrismaClient(workspaceId);
+            
             const [projects, tasks, teams, integrations] = await Promise.all([
-                prisma.project.findMany({
+                db.project.findMany({
                     where: { workspaceId },
                     take: 5,
                     select: { name: true }
                 }),
-                prisma.task.findMany({
+                db.task.findMany({
                     where: { workspaceId },
                     take: 10,
                     orderBy: { updatedAt: 'desc' },
                     select: { title: true, status: true, priority: true }
                 }),
-                prisma.team.findMany({
+                db.team.findMany({
                     where: { workspaceId },
                     take: 5,
                     select: { name: true }
                 }),
-                prisma.integration.findMany({
+                db.integration.findMany({
                     where: { workspaceId },
                     take: 10,
-                    // @ts-ignore
                     select: { provider: true }
                 })
             ]);
