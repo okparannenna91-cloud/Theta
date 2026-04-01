@@ -68,7 +68,9 @@ export async function POST(req: Request) {
         });
 
         // Generate invite link
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const protocol = req.headers.get("x-forwarded-proto") || "http";
+        const host = req.headers.get("host");
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (host ? `${protocol}://${host}` : "https://thetapm.site");
         const inviteLink = `${baseUrl}/invites/${invite.token}`;
 
         // Send email
@@ -214,7 +216,9 @@ export async function PATCH(req: Request) {
         }
 
         // Generate invite link
-        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+        const protocol = req.headers.get("x-forwarded-proto") || "http";
+        const host = req.headers.get("host");
+        const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (host ? `${protocol}://${host}` : "https://thetapm.site");
         const inviteLink = `${baseUrl}/invites/${invite.token}`;
 
         // Send email
