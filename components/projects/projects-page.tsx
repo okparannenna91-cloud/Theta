@@ -92,7 +92,7 @@ export default function ProjectsPage() {
   };
 
   const processedProjects = useMemo(() => {
-      if (!projects) return [];
+      if (!Array.isArray(projects)) return [];
       
       let filtered = projects.map((p: any) => {
           const tasks = p.tasks || [];
