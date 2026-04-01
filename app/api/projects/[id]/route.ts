@@ -28,44 +28,7 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Re-fetch project with relations using the specific shard DB found
-    const fullProject = await (db as any).project.findUnique({
-      where: { id: params.id },
-      include: {
-        tasks: {
-          include: {
-            user: true,
-            comments: true,
-            subtasks: true,
-            tags: true,
-          }
-        },
-        boards: {
-          include: {
-            columns: true,
-            _count: { select: { tasks: true } }
-          }
-        },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            imageUrl: true,
-            email: true,
-          }
-        },
-        team: {
-          include: {
-            members: {
-              include: { user: true }
-            }
-          }
-        },
-        _count: { select: { tasks: true } }
-      }
-    });
-
-    // Verify workspace access
+    // Verify workspace access first
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -79,8 +42,73 @@ export async function GET(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    return NextResponse.json(fullProject);
-  } catch (error) {
+    // Re-fetch project with relations using the specific shard DB found
+    const fullProject = await (db as any).project.findUnique({
+      where: { id: params.id },
+      include: {
+        tasks: {
+          include: {
+            comments: true,
+            subtasks: true,
+            tags: true,
+          }
+        },
+        boards: {
+          include: {
+            columns: true,
+            _count: { select: { tasks: true } }
+          }
+        },
+        team: {
+          include: {
+            members: true
+          }
+        },
+        _count: { select: { tasks: true } }
+      }
+    });
+
+    if (!fullProject) {
+        return NextResponse.json({ error: "Project details not found" }, { status: 404 });
+    }
+
+    // Collect all user IDs needed
+    const allUserIds = new Set<string>();
+    if (fullProject.userId) allUserIds.add(fullProject.userId);
+    fullProject.tasks?.forEach((t: any) => { if (t.userId) allUserIds.add(t.userId); });
+    fullProject.team?.members?.forEach((m: any) => { if (m.userId) allUserIds.add(m.userId); });
+
+    // Fetch user profiles from the primary shard
+    const users = await prisma.user.findMany({
+      where: { id: { in: Array.from(allUserIds) } },
+      select: {
+          id: true,
+          name: true,
+          imageUrl: true,
+          email: true,
+      }
+    });
+
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    // Manually attach user profiles back
+    const processedProject = {
+        ...fullProject,
+        user: userMap.get(fullProject.userId) || null,
+        tasks: fullProject.tasks?.map((t: any) => ({
+            ...t,
+            user: userMap.get(t.userId) || null
+        })) || [],
+        team: fullProject.team ? {
+            ...fullProject.team,
+            members: fullProject.team.members?.map((m: any) => ({
+                ...m,
+                user: userMap.get(m.userId) || null
+            })) || []
+        } : null
+    };
+
+    return NextResponse.json(processedProject);  } catch (error) {
     console.error("Get project error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
