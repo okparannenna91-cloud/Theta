@@ -12,6 +12,7 @@ import {
     LayoutList, 
     Columns, 
     Calendar, 
+    CalendarDays,
     TrendingUp, 
     GanttChart as GanttIcon,
     Info,
@@ -30,6 +31,7 @@ import { ProjectTasksView } from "@/components/projects/project-tasks-view";
 import KanbanBoard from "@/components/boards/kanban-board";
 import { TimelineView } from "@/components/projects/timeline-view";
 import { GanttChart } from "@/components/projects/gantt-chart";
+import { CalendarView } from "@/components/projects/calendar-view";
 
 async function fetchProject(id: string) {
     const res = await fetch(`/api/projects/${id}`);
@@ -67,6 +69,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         { id: "overview", label: "Overview", icon: Info },
         { id: "tasks", label: "Tasks", icon: LayoutList },
         { id: "boards", label: "Boards", icon: Columns },
+        { id: "calendar", label: "Calendar", icon: CalendarDays },
         { id: "timeline", label: "Timeline", icon: Calendar },
         { id: "gantt", label: "Gantt", icon: GanttIcon },
         { id: "docs", label: "Docs", icon: DocsIcon },
@@ -192,6 +195,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                                     </div>
                                 )}
                              </div>
+                        )}
+
+                        {view === "calendar" && (
+                            <CalendarView tasks={tasks} />
                         )}
 
                         {view === "timeline" && (
