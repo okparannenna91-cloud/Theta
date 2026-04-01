@@ -43,6 +43,14 @@ export function AnalyticsDashboard({ workspaceId }: { workspaceId: string }) {
         );
     }
 
+    // ✅ NUCLEAR FIX: all data accesses have safe array fallbacks
+    const activityData = Array.isArray(data?.activityData) ? data.activityData : [];
+    const statusData = Array.isArray(data?.statusData) ? data.statusData : 
+                       Array.isArray(data?.statusDistribution) ? data.statusDistribution : [];
+    const projectData = Array.isArray(data?.projectData) ? data.projectData : [];
+    const treemapChildren = Array.isArray(data?.treemapData?.children) ? data.treemapData.children :
+                            Array.isArray(data?.workspaceStructure?.[0]?.children) ? data.workspaceStructure[0].children : [];
+
     return (
         <div className="space-y-8 animate-in fade-in duration-700">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -58,7 +66,6 @@ export function AnalyticsDashboard({ workspaceId }: { workspaceId: string }) {
                         <p className="text-[10px] text-muted-foreground mt-1">Increasing activity velocity</p>
                     </CardContent>
                 </Card>
-                {/* Add more stats card similarly if needed */}
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -73,7 +80,7 @@ export function AnalyticsDashboard({ workspaceId }: { workspaceId: string }) {
                     </CardHeader>
                     <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <LineChart data={data.activityData}>
+                            <LineChart data={activityData}>
                                 <defs>
                                     <linearGradient id="colorAct" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#4f46e5" stopOpacity={0.8} />
@@ -110,7 +117,7 @@ export function AnalyticsDashboard({ workspaceId }: { workspaceId: string }) {
                     </CardHeader>
                     <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={data.statusData}>
+                            <BarChart data={statusData}>
                                 <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
                                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, opacity: 0.5 }} />
                                 <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, opacity: 0.5 }} />
@@ -137,7 +144,7 @@ export function AnalyticsDashboard({ workspaceId }: { workspaceId: string }) {
                         <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
-                                    data={data.projectData}
+                                    data={projectData}
                                     cx="50%"
                                     cy="50%"
                                     innerRadius={60}
@@ -145,7 +152,7 @@ export function AnalyticsDashboard({ workspaceId }: { workspaceId: string }) {
                                     paddingAngle={5}
                                     dataKey="value"
                                 >
-                                    {data.projectData.map((entry: any, index: number) => (
+                                    {projectData.map((entry: any, index: number) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                     ))}
                                 </Pie>
@@ -170,7 +177,7 @@ export function AnalyticsDashboard({ workspaceId }: { workspaceId: string }) {
                     <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <Treemap
-                                data={data.treemapData.children}
+                                data={treemapChildren}
                                 dataKey="size"
                                 aspectRatio={4 / 3}
                                 stroke="#fff"
