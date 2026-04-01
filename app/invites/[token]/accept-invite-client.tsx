@@ -39,7 +39,7 @@ export default function AcceptInviteClient({ token, workspaceName }: { token: st
                     <MailOpen className="h-10 w-10 text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-black uppercase tracking-tight mb-2">You've Been Invited!</h1>
+                    <h1 className="text-2xl font-black uppercase tracking-tight mb-2">You&apos;ve Been Invited!</h1>
                     <p className="text-muted-foreground">
                         You have been invited to collaborate in <br/>
                         <span className="font-black text-xl text-slate-900 dark:text-white inline-block mt-2 px-4 py-1 bg-indigo-50 dark:bg-slate-900 rounded-lg border">{workspaceName}</span>
