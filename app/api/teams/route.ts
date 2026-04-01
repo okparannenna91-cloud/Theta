@@ -42,7 +42,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const { getPrismaClient, prisma } = await import("@/lib/prisma");
+    const { getPrismaClient } = await import("@/lib/prisma");
     const db = getPrismaClient(workspaceId);
 
     const teams = await db.team.findMany({
