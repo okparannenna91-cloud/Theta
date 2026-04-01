@@ -42,6 +42,7 @@ export async function GET(req: Request) {
       );
     }
 
+    const { getPrismaClient, prisma: globalPrisma } = await import("@/lib/prisma");
     const db = getPrismaClient(workspaceId);
     let whereClause: any = { workspaceId, teamId: null };
 
@@ -66,6 +67,14 @@ export async function GET(req: Request) {
     const projects = await db.project.findMany({
       where: whereClause,
       include: {
+        tasks: {
+            select: { status: true, dueDate: true }
+        },
+        team: {
+            include: {
+                members: { select: { userId: true, role: true } }
+            }
+        },
         _count: {
           select: { tasks: true },
         },
@@ -73,7 +82,33 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(projects);
+    // Manually resolve User Data across shards
+    const allUserIds = new Set<string>();
+    projects.forEach((p: any) => {
+        p.team?.members?.forEach((m: any) => allUserIds.add(m.userId));
+        allUserIds.add(p.userId);
+    });
+
+    const users = await globalPrisma.user.findMany({
+        where: { id: { in: Array.from(allUserIds) } },
+        select: { id: true, name: true, imageUrl: true }
+    });
+    
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    const enrichedProjects = projects.map((p: any) => ({
+        ...p,
+        user: userMap.get(p.userId) || null,
+        team: p.team ? {
+            ...p.team,
+            members: p.team.members.map((m: any) => ({
+                ...m,
+                user: userMap.get(m.userId) || null
+            }))
+        } : null
+    }));
+
+    return NextResponse.json(enrichedProjects);
   } catch (error) {
     console.error("Projects API error:", error);
     return NextResponse.json(
@@ -82,6 +117,7 @@ export async function GET(req: Request) {
     );
   }
 }
+
 
 export async function POST(req: Request) {
   try {

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
-import { startOfDay, subDays, eachDayOfInterval, format } from "date-fns";
+import { getPrismaClient, prisma as globalPrisma } from "@/lib/prisma";
+import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { subDays, isAfter, isBefore, startOfDay, endOfDay, format } from "date-fns";
 
 export async function GET(req: Request) {
     try {
@@ -12,88 +13,117 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const workspaceId = searchParams.get("workspaceId");
+        const daysParam = searchParams.get("days") || "30";
+        const days = parseInt(daysParam, 10);
 
         if (!workspaceId) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        // Check plan limits for advanced analytics
-        try {
-            const { enforcePlanLimit } = await import("@/lib/plan-limits");
-            await enforcePlanLimit(workspaceId, "analytics", 0);
-        } catch (error: any) {
-            return NextResponse.json({ error: error.message }, { status: 403 });
+        const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
         const db = getPrismaClient(workspaceId);
+        const cutoffDate = subDays(new Date(), days);
 
-        // 1. Activity Over Time (Last 7 days)
-        const sevenDaysAgo = subDays(startOfDay(new Date()), 6);
-        const activities = await db.activity.findMany({
-            where: {
-                workspaceId,
-                createdAt: { gte: sevenDaysAgo }
-            },
-            select: { createdAt: true }
-        });
-
-        const days = eachDayOfInterval({
-            start: sevenDaysAgo,
-            end: new Date()
-        });
-
-        const activityData = days.map(day => {
-            const dateStr = format(day, "MMM dd");
-            const count = activities.filter(a => format(new Date(a.createdAt), "MMM dd") === dateStr).length;
-            return { date: dateStr, activities: count };
-        });
-
-        // 2. Task Status Distribution
-        const tasks = await db.task.findMany({
-            where: { workspaceId },
-            select: { status: true, title: true, projectId: true }
-        });
-
-        const statusMap = tasks.reduce((acc: any, task) => {
-            acc[task.status] = (acc[task.status] || 0) + 1;
-            return acc;
-        }, {});
-
-        const statusData = [
-            { name: "To Do", value: statusMap["todo"] || 0, fill: "#ef4444" },
-            { name: "In Progress", value: statusMap["in-progress"] || 0, fill: "#f59e0b" },
-            { name: "Done", value: statusMap["done"] || 0, fill: "#10b981" }
-        ];
-
-        // 3. Resource Allocation (Tasks per Project)
+        // Fetch fundamental data
         const projects = await db.project.findMany({
             where: { workspaceId },
-            select: { id: true, name: true }
+            include: { _count: { select: { tasks: true } } }
         });
 
-        const projectData = projects.map(p => {
-            const count = tasks.filter(t => t.projectId === p.id).length;
-            return { name: p.name, value: count };
+        const tasks = await db.task.findMany({
+            where: { workspaceId },
+            include: { project: true }
         });
 
-        // 4. Workspace Treemap Data
-        const treemapData = {
-            name: "Workspace",
-            children: projects.map(p => ({
+        const totalProjects = projects.length;
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter((t: any) => t.status === "done" || t.status === "completed");
+        const pendingTasks = tasks.filter((t: any) => t.status !== "done" && t.status !== "completed");
+        const overdueTasks = pendingTasks.filter((t: any) => t.dueDate && isBefore(new Date(t.dueDate), new Date()));
+        
+        const projectCompletionRate = totalTasks > 0 ? (completedTasks.length / totalTasks) * 100 : 0;
+
+        // Grouping Data for Charts (Over Time)
+        const dateMap = new Map();
+        for (let i = days - 1; i >= 0; i--) {
+            const dateStr = format(subDays(new Date(), i), "MMM dd");
+            dateMap.set(dateStr, { date: dateStr, created: 0, completed: 0 });
+        }
+
+        tasks.forEach((task: any) => {
+            if (isAfter(new Date(task.createdAt), cutoffDate)) {
+                const dateStr = format(new Date(task.createdAt), "MMM dd");
+                if (dateMap.has(dateStr)) {
+                    dateMap.get(dateStr).created += 1;
+                }
+            }
+            if ((task.status === "done" || task.status === "completed") && task.updatedAt && isAfter(new Date(task.updatedAt), cutoffDate)) {
+                const dateStr = format(new Date(task.updatedAt), "MMM dd");
+                if (dateMap.has(dateStr)) {
+                    dateMap.get(dateStr).completed += 1;
+                }
+            }
+        });
+
+        const tasksOverTime = Array.from(dateMap.values());
+
+        // Team Productivity (Tasks completed per user)
+        const productivityMap = new Map();
+        completedTasks.forEach((t: any) => {
+            if (t.userId) {
+                productivityMap.set(t.userId, (productivityMap.get(t.userId) || 0) + 1);
+            }
+        });
+
+        // Resolve user ids globally
+        const userIdsToResolve = Array.from(productivityMap.keys());
+        const users = await globalPrisma.user.findMany({
+            where: { id: { in: userIdsToResolve } },
+            select: { id: true, name: true, imageUrl: true }
+        });
+
+        const teamProductivity = users.map((u: any) => ({
+            name: u.name,
+            imageUrl: u.imageUrl,
+            tasksCompleted: productivityMap.get(u.id) || 0
+        })).sort((a: any, b: any) => b.tasksCompleted - a.tasksCompleted);
+
+        // Most Active Projects
+        const projectActivityMap = new Map();
+        tasks.forEach((t: any) => {
+            if (isAfter(new Date(t.updatedAt), cutoffDate)) {
+                projectActivityMap.set(t.projectId, (projectActivityMap.get(t.projectId) || 0) + 1);
+            }
+        });
+
+        const mostActiveProjects = projects
+            .map((p: any) => ({
+                id: p.id,
                 name: p.name,
-                size: tasks.filter(t => t.projectId === p.id).length
+                activityCount: projectActivityMap.get(p.id) || 0
             }))
-        };
+            .sort((a: any, b: any) => b.activityCount - a.activityCount)
+            .slice(0, 5); // Top 5
 
         return NextResponse.json({
-            activityData,
-            statusData,
-            projectData,
-            treemapData
+            totals: {
+                projects: totalProjects,
+                tasks: totalTasks,
+                completedTasks: completedTasks.length,
+                pendingTasks: pendingTasks.length,
+                overdueTasks: overdueTasks.length,
+                projectCompletionRate: Math.round(projectCompletionRate)
+            },
+            tasksOverTime,
+            teamProductivity,
+            mostActiveProjects
         });
-
     } catch (error) {
-        console.error("Analytics GET error:", error);
+        console.error("Analytics API error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }
