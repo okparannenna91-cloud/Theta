@@ -23,6 +23,7 @@ import {
   Building2,
   LayoutList,
   Book,
+  Puzzle,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { ModeToggle } from "./mode-toggle";
@@ -57,6 +58,7 @@ export function Sidebar() {
     { name: t("teams"), href: "/teams", icon: Users },
     { name: t("notifications"), href: "/notifications", icon: Bell },
     { name: t("analytics"), href: "/analytics", icon: TrendingUp },
+    { name: "Apps", href: "/apps", icon: Puzzle },
     { name: t("wiki"), href: "/wiki", icon: Book },
     { name: t("activity"), href: "/activity", icon: Activity },
     { name: t("billing"), href: "/billing", icon: CreditCard },

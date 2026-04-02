@@ -6,6 +6,7 @@ import { OnboardingWrapper } from "@/components/onboarding/onboarding-wrapper";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
 import { BootsAssistant } from "@/components/ai/boots-assistant";
 import { NotificationBell } from "@/components/notifications/notification-bell";
+import { AppsDropdown } from "@/components/apps/apps-dropdown";
 
 export default function DashboardLayout({
   children,
@@ -22,7 +23,8 @@ export default function DashboardLayout({
               <div className="flex items-center gap-4">
                 <CommandSearch />
               </div>
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <AppsDropdown />
                 <NotificationBell />
                 <LanguageSwitcher />
               </div>
