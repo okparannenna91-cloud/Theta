@@ -13,10 +13,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FolderKanban, ListTodo, CheckCircle2, AlertCircle, Clock, Activity, Users } from "lucide-react";
+import { FolderKanban, ListTodo, CheckCircle2, AlertCircle, Clock, Activity, Users, Lock, Sparkles } from "lucide-react";
+import { usePopups } from "@/components/popups/popup-manager";
+import { Button } from "@/components/ui/button";
 
 export default function AnalyticsDashboard() {
     const { activeWorkspaceId } = useWorkspace();
+    const { showUpgradePrompt } = usePopups();
     const [days, setDays] = useState("30");
 
     const { data: analytics, isLoading } = useQuery({
@@ -45,6 +48,33 @@ export default function AnalyticsDashboard() {
     }
 
     if (!analytics) return <div className="p-8 font-medium">No analytics data available for this workspace.</div>;
+
+    const hasAccess = analytics.limits?.hasAccess !== false;
+
+    if (!hasAccess) {
+        return (
+            <div className="p-4 sm:p-6 lg:p-10 max-w-5xl mx-auto">
+                <Card className="border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 rounded-3xl py-20 flex flex-col items-center justify-center text-center shadow-xl shadow-indigo-500/5">
+                    <div className="h-20 w-20 bg-indigo-100 dark:bg-indigo-900/40 rounded-3xl flex items-center justify-center mb-6 text-indigo-600 shadow-inner">
+                        <Lock className="h-10 w-10" />
+                    </div>
+                    <Badge className="bg-indigo-600 mb-4 px-4 py-1.5 font-black uppercase tracking-widest text-[10px]">Premium Feature</Badge>
+                    <h2 className="text-3xl font-black tracking-tight mb-3">Enterprise Velocity Data</h2>
+                    <p className="text-muted-foreground text-sm max-w-md mb-10 leading-relaxed font-medium">
+                        Advanced analytics, team productivity mapping, and growth velocity charts are available on Growth plans and above.
+                    </p>
+                    <Button 
+                        size="lg" 
+                        className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl shadow-xl shadow-indigo-500/20 font-black uppercase tracking-widest text-xs translate-y-0 hover:-translate-y-1 active:translate-y-0 transition-all duration-300"
+                        onClick={() => showUpgradePrompt("advanced_analytics")}
+                    >
+                        <Sparkles className="h-5 w-5 mr-3" />
+                        Upgrade to Growth
+                    </Button>
+                </Card>
+            </div>
+        );
+    }
 
     return (
         <div className="p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto space-y-10">

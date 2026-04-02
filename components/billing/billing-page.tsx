@@ -230,6 +230,8 @@ export default function BillingPage() {
                   {usage?.storage && <UsageMeter {...usage.storage} label="File Storage" unit="MB" />}
                   {usage?.boards && <UsageMeter {...usage.boards} label="Kanban Boards" />}
                   {usage?.integrations && <UsageMeter {...usage.integrations} label="Integrations" />}
+                  {usage?.automations && <UsageMeter {...usage.automations} label="Automations" />}
+                  {usage?.chat_messages && <UsageMeter {...usage.chat_messages} label="Chat Messages" />}
                 </div>
               </div>
             </div>

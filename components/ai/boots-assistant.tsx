@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Send, X, Loader2, Bot, User, Trash2, Maximize2, Minimize2 } from "lucide-react";
+import { Sparkles, Send, X, Loader2, Bot, User, Trash2, Maximize2, Minimize2, ArrowUpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { usePopups } from "@/components/popups/popup-manager";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -19,6 +20,7 @@ interface Message {
 
 export function BootsAssistant() {
     const { activeWorkspaceId } = useWorkspace();
+    const { showUpgradePrompt } = usePopups();
     const [isOpen, setIsOpen] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
     const [input, setInput] = useState("");
@@ -39,10 +41,10 @@ export function BootsAssistant() {
             const res = await fetch(`/api/billing/usage?workspaceId=${activeWorkspaceId}`);
             if (res.ok) {
                 const data = await res.json();
-                if (data.bootsRequests) {
+                if (data.boots) {
                     setUsage({
-                        current: data.bootsRequests.current,
-                        max: data.bootsRequests.max
+                        current: data.boots.current,
+                        max: data.boots.max
                     });
                 }
             }
@@ -78,6 +80,11 @@ export function BootsAssistant() {
         setIsLoading(true);
 
         try {
+            if (isLimitReached) {
+                showUpgradePrompt("boots");
+                return;
+            }
+
             const res = await fetch("/api/ai", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -89,6 +96,11 @@ export function BootsAssistant() {
 
             if (!res.ok) {
                 const error = await res.json();
+                // Specific check for limit error from server
+                if (res.status === 403 && (error.error?.includes("limit") || error.error?.includes("plan"))) {
+                    showUpgradePrompt("boots");
+                    return;
+                }
                 throw new Error(error.error || "Failed to get response");
             }
 
@@ -149,11 +161,22 @@ export function BootsAssistant() {
                                 <div className="flex flex-col">
                                     <span className="font-bold text-sm tracking-tight leading-none text-white">Boots AI</span>
                                     <span className="text-[10px] text-white/70 font-medium">
-                                        {usage && usage.max !== -1 ? `${usage.current}/${usage.max} Requests` : "Always here to help"}
+                                        {usage && usage.max !== -1 ? `${usage.current}/${usage.max} Requests` : isLimitReached ? "Limit Reached" : "Always here to help"}
                                     </span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
+                                {isLimitReached && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 text-xs font-black bg-white/20 hover:bg-white/30 text-white rounded-lg px-3"
+                                        onClick={() => showUpgradePrompt("boots")}
+                                    >
+                                        <ArrowUpCircle className="h-3.5 w-3.5 mr-1.5" />
+                                        Upgrade
+                                    </Button>
+                                )}
                                 <Button
                                     variant="ghost"
                                     size="icon"

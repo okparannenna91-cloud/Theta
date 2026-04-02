@@ -12,26 +12,30 @@ const automationSchema = z.object({
     workspaceId: z.string(),
 });
 
-export async function GET(req: Request) {
-    try {
-        const user = await getCurrentUser();
-        if (!user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
+        const [automations, count] = await Promise.all([
+            prisma.automation.findMany({
+                where: { workspaceId },
+                orderBy: { createdAt: "desc" },
+            }),
+            prisma.automation.count({ where: { workspaceId } })
+        ]);
 
-        const { searchParams } = new URL(req.url);
-        const workspaceId = searchParams.get("workspaceId");
-
-        if (!workspaceId) {
-            return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
-        }
-
-        const automations = await prisma.automation.findMany({
-            where: { workspaceId },
-            orderBy: { createdAt: "desc" },
+        const { getPlanLimits } = await import("@/lib/plan-limits");
+        const workspace = await prisma.workspace.findUnique({
+            where: { id: workspaceId },
+            select: { plan: true }
         });
 
-        return NextResponse.json(automations);
+        const plan = workspace?.plan || "free";
+        const limits = getPlanLimits(plan as any);
+
+        return NextResponse.json({
+            automations,
+            limits: {
+                max: limits.maxAutomations,
+                current: count,
+            }
+        });
     } catch (error) {
         console.error("Get automations error:", error);
         return NextResponse.json(
@@ -41,15 +45,17 @@ export async function GET(req: Request) {
     }
 }
 
-export async function POST(req: Request) {
-    try {
-        const user = await getCurrentUser();
-        if (!user) {
-            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-        }
-
         const body = await req.json();
         const data = automationSchema.parse(body);
+
+        // Check plan limits strictly
+        try {
+            const count = await prisma.automation.count({ where: { workspaceId: data.workspaceId } });
+            const { enforcePlanLimit } = await import("@/lib/plan-limits");
+            await enforcePlanLimit(data.workspaceId, "automations", count);
+        } catch (error: any) {
+            return NextResponse.json({ error: error.message }, { status: 403 });
+        }
 
         const automation = await prisma.automation.create({
             data: {

@@ -27,7 +27,7 @@ import { MotionWrapper, FadeIn, ScaleIn } from "@/components/common/motion-wrapp
 export function PortfolioPage() {
     const { activeWorkspaceId } = useWorkspace();
 
-    const { data: projects, isLoading } = useQuery({
+    const { data: projectsData, isLoading } = useQuery({
         queryKey: ["projects", activeWorkspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/projects?workspaceId=${activeWorkspaceId}`);
@@ -36,6 +36,9 @@ export function PortfolioPage() {
         },
         enabled: !!activeWorkspaceId,
     });
+
+    const projects = Array.isArray(projectsData?.projects) ? projectsData.projects : Array.isArray(projectsData) ? projectsData : [];
+    const totalProjects = projects.length;
 
     if (isLoading) return <div className="p-8 animate-pulse text-muted-foreground font-medium">Loading Portfolio...</div>;
 
@@ -64,7 +67,7 @@ export function PortfolioPage() {
                             <CardTitle className="text-xs font-black uppercase tracking-[0.2em] opacity-80">Active Projects</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="text-5xl font-black drop-shadow-sm">{projects?.length || 0}</div>
+                            <div className="text-5xl font-black drop-shadow-sm">{totalProjects}</div>
                             <div className="flex items-center gap-1 mt-3 px-2 py-1 bg-white/20 rounded-full w-fit text-[10px] font-bold">
                                 <TrendingUp className="h-3 w-3" />
                                 <span>12% INCREASE</span>
@@ -80,7 +83,7 @@ export function PortfolioPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="text-5xl font-black">{totalTasks}</div>
-                            <p className="text-[10px] text-muted-foreground font-bold mt-3 uppercase tracking-wider">Across {projects?.length || 0} projects</p>
+                            <p className="text-[10px] text-muted-foreground font-bold mt-3 uppercase tracking-wider">Across {totalProjects} projects</p>
                         </CardContent>
                     </Card>
                 </ScaleIn>

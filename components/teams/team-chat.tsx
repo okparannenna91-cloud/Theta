@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { useUser } from "@clerk/nextjs";
 import { FileUpload } from "@/components/common/file-upload";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { usePopups } from "@/components/popups/popup-manager";
+import { Badge } from "@/components/ui/badge";
+import { Lock, Sparkles } from "lucide-react";
 
 interface TeamChatProps {
     teamId: string;
@@ -18,10 +21,12 @@ interface TeamChatProps {
 
 export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
     const { user } = useUser();
+    const { showUpgradePrompt } = usePopups();
     const [message, setMessage] = useState("");
     const [attachment, setAttachment] = useState<any>(null);
     const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [messages, setMessages] = useState<any[]>([]);
+    const [limits, setLimits] = useState({ current: 0, max: -1 });
     const [isLoading, setIsLoading] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const ablyRef = useRef<Ably.Realtime | null>(null);
@@ -57,9 +62,12 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
 
             // Fetch history
             const historyRes = await fetch(`/api/chat?teamId=${teamId}`);
-            const history = await historyRes.json();
-            if (Array.isArray(history)) {
-                setMessages(history);
+            const data = await historyRes.json();
+            if (Array.isArray(data.messages)) {
+                setMessages(data.messages);
+                if (data.limits) setLimits(data.limits);
+            } else if (Array.isArray(data)) {
+                setMessages(data);
             }
         } catch (error) {
             console.error("Ably connection error:", error);
@@ -83,9 +91,16 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
         }
     }, [messages]);
 
+    const isLimitReached = limits.max !== -1 && limits.current >= limits.max;
+
     const sendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
         if ((!message.trim() && !attachment) || !teamId) return;
+
+        if (isLimitReached) {
+            showUpgradePrompt("chat");
+            return;
+        }
 
         const content = message;
         const currentAttachment = attachment;
@@ -93,7 +108,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
         setAttachment(null);
 
         try {
-            await fetch("/api/chat", {
+            const res = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -103,6 +118,14 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                     attachment: currentAttachment,
                 }),
             });
+
+            if (!res.ok) {
+                const error = await res.json();
+                if (res.status === 403 && error.error?.includes("limit")) {
+                    showUpgradePrompt("chat");
+                    return;
+                }
+            }
         } catch (error) {
             console.error("Failed to send message:", error);
         }
@@ -243,21 +266,37 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                         </DialogContent>
                     </Dialog>
                     <Input
-                        placeholder={attachment ? "Add a comment..." : "Type a message to your team..."}
+                        placeholder={isLimitReached ? "Chat limit reached. Upgrade to continue." : attachment ? "Add a comment..." : "Type a message to your team..."}
                         value={message}
                         onChange={(e) => setMessage(e.target.value)}
                         className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-purple-500"
-                        disabled={!isConnected}
+                        disabled={!isConnected || isLimitReached}
                     />
                     <Button
                         type="submit"
                         size="icon"
-                        disabled={!isConnected || (!message.trim() && !attachment)}
+                        disabled={!isConnected || isLimitReached || (!message.trim() && !attachment)}
                         className="bg-purple-600 hover:bg-purple-700 shrink-0"
                     >
-                        <Send className="h-4 w-4" />
+                        {isLimitReached ? <Lock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
                     </Button>
                 </form>
+                {isLimitReached && (
+                    <div className="mt-3 flex items-center justify-between p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 animate-in fade-in slide-in-from-bottom-2">
+                         <div className="flex items-center gap-2">
+                             <Sparkles className="h-3 w-3 text-indigo-600" />
+                             <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Upgrade to unlock more messages</span>
+                         </div>
+                         <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-6 text-[9px] font-black uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg px-3"
+                            onClick={() => showUpgradePrompt("chat")}
+                         >
+                             Upgrade
+                         </Button>
+                    </div>
+                )}
             </div>
         </div>
     );

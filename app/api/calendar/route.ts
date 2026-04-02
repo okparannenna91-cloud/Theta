@@ -33,19 +33,33 @@ export async function GET(req: Request) {
         }
 
         const db = getPrismaClient(workspaceId);
+        
+        const [events, count] = await Promise.all([
+            db.calendarEvent.findMany({
+                where: {
+                    workspaceId,
+                    OR: [
+                        { userId: user.id },
+                        { teamId: { not: null } }
+                    ]
+                },
+                orderBy: { start: "asc" }
+            }),
+            db.calendarEvent.count({ where: { workspaceId } })
+        ]);
 
-        const events = await db.calendarEvent.findMany({
-            where: {
-                workspaceId,
-                OR: [
-                    { userId: user.id },
-                    { teamId: { not: null } }
-                ]
-            },
-            orderBy: { start: "asc" }
+        const { getPlanLimits } = await import("@/lib/plan-limits");
+        const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { plan: true } });
+        const plan = workspace?.plan || "free";
+        const limits = getPlanLimits(plan as any);
+
+        return NextResponse.json({
+            events,
+            limits: {
+                max: limits.maxCalendarEvents,
+                current: count,
+            }
         });
-
-        return NextResponse.json(events);
     } catch (error) {
         console.error("Calendar GET error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

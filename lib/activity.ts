@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { getPrismaClient } from "@/lib/prisma";
 
 export async function createActivity(
   userId: string,
@@ -9,14 +9,15 @@ export async function createActivity(
   metadata?: any
 ) {
   try {
-    await prisma.activity.create({
+    const db = getPrismaClient(workspaceId);
+    await db.activity.create({
       data: {
         userId,
         workspaceId,
         action,
         entityType,
         entityId,
-        metadata: metadata ? JSON.stringify(metadata) : null,
+        metadata: metadata || {},
       },
     });
   } catch (error) {

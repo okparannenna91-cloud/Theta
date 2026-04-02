@@ -109,6 +109,13 @@ export async function GET(req: Request) {
             .sort((a: any, b: any) => b.activityCount - a.activityCount)
             .slice(0, 5); // Top 5
 
+        const { getPlanLimits } = await import("@/lib/plan-limits");
+        const workspace = await globalPrisma.workspace.findUnique({
+            where: { id: workspaceId },
+            select: { plan: true }
+        });
+        const limits = getPlanLimits((workspace?.plan as any) || "free");
+
         return NextResponse.json({
             totals: {
                 projects: totalProjects,
@@ -120,7 +127,10 @@ export async function GET(req: Request) {
             },
             tasksOverTime,
             teamProductivity,
-            mostActiveProjects
+            mostActiveProjects,
+            limits: {
+                hasAccess: limits.hasAdvancedAnalytics
+            }
         });
     } catch (error) {
         console.error("Analytics API error:", error);

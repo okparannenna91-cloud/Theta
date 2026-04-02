@@ -77,7 +77,27 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(tasks);
+    const { getTaskCount } = await import("@/lib/usage-tracking");
+    const { getPlanLimits } = await import("@/lib/plan-limits");
+    
+    const [count, workspace] = await Promise.all([
+        getTaskCount(workspaceId),
+        prisma.workspace.findUnique({
+            where: { id: workspaceId },
+            select: { plan: true }
+        })
+    ]);
+
+    const planLimits = getPlanLimits((workspace?.plan as any) || "free");
+
+    return NextResponse.json({
+        tasks,
+        limits: {
+            max: planLimits.maxTasks,
+            current: count,
+            hasAccess: true
+        }
+    });
   } catch (error) {
     console.error("Tasks API error:", error);
     return NextResponse.json(

@@ -27,20 +27,40 @@ import {
   Slack,
   Calendar,
   ExternalLink,
-  Check
+  Check,
+  Zap,
+  Globe,
+  Lock,
+  Code,
+  Sparkles
 } from "lucide-react";
 import { usePreferences } from "@/hooks/use-preferences";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { toast } from "sonner";
 import IntegrationDashboard from "@/components/integrations/integration-dashboard";
+import { usePopups } from "@/components/popups/popup-manager";
+import { useQuery } from "@tanstack/react-query";
 
 import { MotionWrapper, FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const { showUpgradePrompt } = usePopups();
   const { preferences, updatePreference, isUpdating } = usePreferences();
   const { activeWorkspaceId } = useWorkspace();
   const [mounted, setMounted] = useState(false);
+
+  const { data: workspaceData } = useQuery({
+    queryKey: ["workspace-details", activeWorkspaceId],
+    queryFn: async () => {
+      const res = await fetch(`/api/workspaces/${activeWorkspaceId}`);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!activeWorkspaceId
+  });
+
+  const currentPlan = workspaceData?.plan || "free";
   const [emailNotifications, setEmailNotifications] = useState(true);
   const [pushNotifications, setPushNotifications] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
@@ -220,6 +240,75 @@ export default function SettingsPage() {
             </div>
 
             <IntegrationDashboard />
+          </section>
+        </FadeIn>
+
+        {/* Enterprise & API Section */}
+        <FadeIn delay={0.5}>
+          <section className="space-y-6">
+            <div className="flex items-center gap-3 px-1">
+              <div className="p-2 bg-indigo-500/10 rounded-xl">
+                <Code className="h-6 w-6 text-indigo-500" />
+              </div>
+              <div className="flex items-center gap-3">
+                <h2 className="text-2xl font-black tracking-tight">Enterprise & API</h2>
+                <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 font-bold border-none text-[9px] px-2 py-0.5">
+                   Admin Only
+                </Badge>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* White Labeling */}
+              <Card className="glass-card border-none hover:shadow-xl transition-all duration-500 group overflow-hidden">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 bg-purple-500/10 rounded-xl">
+                      <Globe className="h-5 w-5 text-purple-500" />
+                    </div>
+                    {["free", "growth", "pro"].includes(currentPlan) && <Lock className="h-4 w-4 text-muted-foreground/50" />}
+                  </div>
+                  <CardTitle className="text-lg font-black tracking-tight">White Labeling</CardTitle>
+                  <CardDescription className="text-xs font-medium">Remove Theta branding and use your own domain and logo.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <Button 
+                      variant="outline" 
+                      className="w-full rounded-xl border-dashed font-black uppercase tracking-widest text-[10px] h-10 group-hover:border-purple-500/50 transition-all"
+                      onClick={() => showUpgradePrompt("white_label")}
+                    >
+                      {["free", "growth", "pro"].includes(currentPlan) ? (
+                        <>Unlock on Theta Plus <Sparkles className="ml-2 h-3 w-3" /></>
+                      ) : "Configure Branding"}
+                   </Button>
+                </CardContent>
+              </Card>
+
+              {/* API Access */}
+              <Card className="glass-card border-none hover:shadow-xl transition-all duration-500 group overflow-hidden">
+                <CardHeader className="pb-4">
+                   <div className="flex items-center justify-between mb-2">
+                    <div className="p-2 bg-emerald-500/10 rounded-xl">
+                      <Zap className="h-5 w-5 text-emerald-500" />
+                    </div>
+                    {["free", "growth"].includes(currentPlan) && <Lock className="h-4 w-4 text-muted-foreground/50" />}
+                  </div>
+                  <CardTitle className="text-lg font-black tracking-tight">Developer API</CardTitle>
+                  <CardDescription className="text-xs font-medium">Programmatic access to your workspace data and automations.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                   <Button 
+                      variant="outline" 
+                      className="w-full rounded-xl border-dashed font-black uppercase tracking-widest text-[10px] h-10 group-hover:border-emerald-500/50 transition-all"
+                      onClick={() => showUpgradePrompt("api_access")}
+                   >
+                      {["free", "growth"].includes(currentPlan) ? (
+                        <>Unlock on Pro <Sparkles className="ml-2 h-3 w-3" /></>
+                      ) : "Generate API Key"}
+                   </Button>
+                </CardContent>
+              </Card>
+            </div>
           </section>
         </FadeIn>
 

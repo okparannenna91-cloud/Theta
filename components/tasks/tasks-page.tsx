@@ -17,6 +17,7 @@ import { Plus, CheckCircle2, Circle, Clock, AlertCircle, Paperclip, X } from "lu
 import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { usePopups } from "@/components/popups/popup-manager";
 
 async function fetchTasks(workspaceId: string | null) {
   const url = workspaceId ? `/api/tasks?workspaceId=${workspaceId}` : "/api/tasks";
@@ -66,14 +67,18 @@ export default function TasksPage() {
   const [coverImage, setCoverImage] = useState("");
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
+  const { showUpgradePrompt } = usePopups();
 
-  const { data: tasks, isLoading } = useQuery({
+  const { data: tasksData, isLoading } = useQuery({
     queryKey: ["tasks", activeWorkspaceId],
     queryFn: () => fetchTasks(activeWorkspaceId),
     enabled: !!activeWorkspaceId,
   });
 
-  const { data: projects } = useQuery({
+  const tasks = Array.isArray(tasksData?.tasks) ? tasksData.tasks : Array.isArray(tasksData) ? tasksData : [];
+  const taskLimits = tasksData?.limits || { max: -1, current: 0, hasAccess: true };
+
+  const { data: projectsData } = useQuery({
     queryKey: ["projects", activeWorkspaceId],
     queryFn: async () => {
       const url = activeWorkspaceId ? `/api/projects?workspaceId=${activeWorkspaceId}` : "/api/projects";
@@ -83,6 +88,8 @@ export default function TasksPage() {
     },
     enabled: !!activeWorkspaceId,
   });
+
+  const projects = Array.isArray(projectsData?.projects) ? projectsData.projects : Array.isArray(projectsData) ? projectsData : [];
 
   const createMutation = useMutation({
     mutationFn: (data: any) => createTask({ ...data, workspaceId: activeWorkspaceId! }),
@@ -120,6 +127,13 @@ export default function TasksPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectId || !activeWorkspaceId) return;
+
+    // Proactive Task Limit Check
+    if (taskLimits.max !== -1 && taskLimits.current >= taskLimits.max) {
+      showUpgradePrompt("tasks");
+      return;
+    }
+
     createMutation.mutate({
       title,
       description,

@@ -63,27 +63,21 @@ export async function GET(req: Request) {
 
         const db = getPrismaClient(effectiveWorkspaceId);
 
-        // Get chat messages
-        const messages = await db.chatMessage.findMany({
-            where: {
-                teamId: teamId || null,
-                workspaceId: teamId ? undefined : (workspaceId as string),
-                projectId: teamId ? null : (projectId || null),
-            },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        imageUrl: true,
-                    },
-                },
-            },
-            orderBy: { createdAt: "asc" },
-            take: 100,
+        const { getPlanLimits } = await import("@/lib/plan-limits");
+        const workspace = await prisma.workspace.findUnique({
+            where: { id: effectiveWorkspaceId as string },
+            select: { plan: true }
         });
+        const limits = getPlanLimits((workspace?.plan as any) || "free");
+        const count = await db.chatMessage.count({ where: { workspaceId: effectiveWorkspaceId as string } });
 
-        return NextResponse.json(messages);
+        return NextResponse.json({
+            messages,
+            limits: {
+                max: limits.maxChatMessages,
+                current: count,
+            }
+        });
     } catch (error) {
         console.error("Chat GET error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

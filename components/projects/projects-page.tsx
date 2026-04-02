@@ -27,6 +27,7 @@ import Image from "next/image";
 import { format, isPast } from "date-fns";
 
 import { useWorkspace } from "@/hooks/use-workspace";
+import { usePopups } from "@/components/popups/popup-manager";
 
 export default function ProjectsPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -42,8 +43,9 @@ export default function ProjectsPage() {
 
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
+  const { showUpgradePrompt } = usePopups();
 
-  const { data: projects, isLoading } = useQuery({
+  const { data: projectsData, isLoading } = useQuery({
     queryKey: ["projects", activeWorkspaceId],
     queryFn: async () => {
         const url = activeWorkspaceId ? `/api/projects?workspaceId=${activeWorkspaceId}` : "/api/projects";
@@ -53,6 +55,9 @@ export default function ProjectsPage() {
     },
     enabled: !!activeWorkspaceId,
   });
+
+  const projects = Array.isArray(projectsData?.projects) ? projectsData.projects : Array.isArray(projectsData) ? projectsData : [];
+  const limits = projectsData?.limits || { max: -1, current: 0, hasAccess: true };
 
   const createMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -88,6 +93,13 @@ export default function ProjectsPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeWorkspaceId) return;
+
+    // Proactive Plan Limit Check
+    if (limits.max !== -1 && limits.current >= limits.max) {
+      showUpgradePrompt("projects");
+      return;
+    }
+
     createMutation.mutate({ name, description, coverImage, workspaceId: activeWorkspaceId });
   };
 

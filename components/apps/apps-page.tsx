@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { usePopups } from "@/components/popups/popup-manager";
 import { cn } from "@/lib/utils";
 import {
     GitHubLogo, BitbucketLogo, SlackLogo, AsanaLogo,
@@ -77,7 +78,9 @@ interface IntegrationRecord {
 
 export default function AppsPage() {
     const { activeWorkspaceId } = useWorkspace();
+    const { showUpgradePrompt } = usePopups();
     const [integrations, setIntegrations] = useState<IntegrationRecord[]>([]);
+    const [limits, setLimits] = useState<{ max: number; current: number; hasAccess: boolean }>({ max: 0, current: 0, hasAccess: false });
     const [isLoading, setIsLoading] = useState(true);
     const [isSyncing, setIsSyncing] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
@@ -95,6 +98,7 @@ export default function AppsPage() {
             const res = await fetch(`/api/integrations?workspaceId=${activeWorkspaceId}`);
             const data = await res.json();
             setIntegrations(Array.isArray(data.integrations) ? data.integrations : []);
+            if (data.limits) setLimits(data.limits);
         } catch { setIntegrations([]); }
         finally { setIsLoading(false); }
     }, [activeWorkspaceId]);
@@ -121,6 +125,13 @@ export default function AppsPage() {
 
     const handleConnect = (provider: any) => {
         if (!activeWorkspaceId) return;
+
+        // Check plan limits before opening connection
+        if (!limits.hasAccess || (limits.max !== -1 && limits.current >= limits.max)) {
+            showUpgradePrompt("integrations");
+            return;
+        }
+
         if (provider.linkOnly || ["trello","woocommerce","slack"].includes(provider.id)) {
             setSelectedProvider(provider);
             setManualInputs({});
@@ -134,6 +145,13 @@ export default function AppsPage() {
 
     const handleManualSubmit = async () => {
         if (!activeWorkspaceId || !selectedProvider) return;
+
+        // Check plan limits before manual submit
+        if (!limits.hasAccess || (limits.max !== -1 && limits.current >= limits.max)) {
+            showUpgradePrompt("integrations");
+            return;
+        }
+
         try {
             const res = await fetch(`/api/integrations/${selectedProvider.id}/connect`, {
                 method: "POST", headers: { "Content-Type": "application/json" },

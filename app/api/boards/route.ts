@@ -88,7 +88,23 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(boards);
+    // Calculate limits
+    const { getPlanLimits } = await import("@/lib/plan-limits");
+    const workspace = await prisma.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { plan: true }
+    });
+    const planLimits = getPlanLimits((workspace?.plan as any) || "free");
+    const boardCount = await db.board.count({ where: { workspaceId } });
+
+    return NextResponse.json({
+        boards,
+        limits: {
+            max: planLimits.maxBoards,
+            current: boardCount,
+            hasAccess: true
+        }
+    });
   } catch (error) {
     console.error("Boards API error:", error);
     return NextResponse.json(

@@ -13,6 +13,7 @@ export interface UsageStats {
     boots: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
     chat_messages: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
     integrations: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
+    automations: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
 }
 
 /**
@@ -49,6 +50,7 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
         const calendarEventCount = await shardPrisma.calendarEvent.count({ where: { workspaceId } });
         const chatMessageCount = await shardPrisma.chatMessage.count({ where: { workspaceId } });
         const integrationCount = await shardPrisma.integration.count({ where: { workspaceId } });
+        const automationCount = await shardPrisma.automation.count({ where: { workspaceId } });
 
         const storageActivities = await shardPrisma.activity.findMany({
             where: { workspaceId, action: "file_upload" },
@@ -91,6 +93,7 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
             boots: createStat(bootsRequestCount, limits.maxBootsRequests),
             chat_messages: createStat(chatMessageCount, limits.maxChatMessages),
             integrations: createStat(integrationCount, limits.maxIntegrations),
+            automations: createStat(automationCount, limits.maxAutomations),
         };
     } catch (error) {
         console.error("getUsageStats Error:", error);

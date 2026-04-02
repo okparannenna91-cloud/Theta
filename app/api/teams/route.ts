@@ -87,7 +87,31 @@ export async function GET(req: Request) {
       }))
     }));
 
-    return NextResponse.json(teamsWithUsers);
+    // Calculate counts
+    const count = await db.team.count({ where: { workspaceId } });
+    const memberCount = await prisma.workspaceMember.count({ where: { workspaceId } });
+    const pendingInvites = await prisma.invite.count({ where: { workspaceId, status: "pending" } });
+
+    const { getPlanLimits } = await import("@/lib/plan-limits");
+    const workspace = await prisma.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { plan: true }
+    });
+
+    const plan = workspace?.plan || "free";
+    const limits = getPlanLimits(plan as any);
+
+    return NextResponse.json({
+        teams: teamsWithUsers,
+        limits: {
+            max: limits.maxTeams,
+            current: count,
+        },
+        memberLimits: {
+            max: limits.maxMembers,
+            current: memberCount + pendingInvites,
+        }
+    });
   } catch (error) {
     console.error("Teams API error:", error);
     return NextResponse.json(

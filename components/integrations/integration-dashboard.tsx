@@ -30,6 +30,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { usePopups } from "@/components/popups/popup-manager";
 import { FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
 import { cn } from "@/lib/utils";
 import { LiquidLoader } from "@/components/ui/liquid-loader";
@@ -122,6 +123,7 @@ const PROVIDERS = [
 
 export default function IntegrationDashboard() {
     const { activeWorkspaceId } = useWorkspace();
+    const { showUpgradePrompt } = usePopups();
     const [integrations, setIntegrations] = useState<IntegrationRecord[]>([]);
     const [limits, setLimits] = useState<{ max: number; current: number; hasAccess: boolean }>({ max: 0, current: 0, hasAccess: false });
     const [isLoading, setIsLoading] = useState(true);
@@ -159,6 +161,12 @@ export default function IntegrationDashboard() {
     const handleConnect = (providerId: string) => {
         if (!activeWorkspaceId) return;
 
+        // Proactive Plan Limit Check
+        if (isLimitReached) {
+            showUpgradePrompt("integrations");
+            return;
+        }
+
         // Figma and Canva are link-based for MVP
         const provider = PROVIDERS.find(p => p.id === providerId);
         if (provider?.linkOnly || providerId === "trello" || providerId === "woocommerce") {
@@ -176,6 +184,12 @@ export default function IntegrationDashboard() {
 
     const handleManualSubmit = async () => {
         if (!activeWorkspaceId || !selectedManualProvider) return;
+
+        // Proactive Plan Limit Check
+        if (isLimitReached) {
+            showUpgradePrompt("integrations");
+            return;
+        }
 
         try {
             const res = await fetch(`/api/integrations/${selectedManualProvider.id}/connect`, {
@@ -263,7 +277,14 @@ export default function IntegrationDashboard() {
                         </div>
                     </div>
                     {isLimitReached && (
-                        <Button size="sm" variant="outline" className="rounded-xl font-bold text-[10px] h-8 uppercase">Upgrade Plan</Button>
+                        <Button 
+                            size="sm" 
+                            variant="outline" 
+                            className="rounded-xl font-bold text-[10px] h-8 uppercase"
+                            onClick={() => showUpgradePrompt("integrations")}
+                        >
+                            Upgrade Plan
+                        </Button>
                     )}
                 </div>
             )}

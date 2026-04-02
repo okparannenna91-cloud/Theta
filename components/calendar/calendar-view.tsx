@@ -36,6 +36,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usePopups } from "@/components/popups/popup-manager";
 import {
     DndContext,
     closestCorners,
@@ -139,18 +140,23 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
     const [recurrence, setRecurrence] = useState("none");
     const [eventColor, setEventColor] = useState("#4f46e5");
 
+    const { showUpgradePrompt } = usePopups();
     const queryClient = useQueryClient();
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
     // Fetch events
-    const { data: events, isLoading } = useQuery({
+    const { data: calendarData, isLoading } = useQuery({
         queryKey: ["calendar-events", workspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/calendar?workspaceId=${workspaceId}`);
             if (!res.ok) throw new Error("Failed to fetch events");
-            return res.json() as Promise<CalendarEvent[]>;
+            return res.json();
         }
     });
+
+    const events = Array.isArray(calendarData?.events) ? calendarData.events : Array.isArray(calendarData) ? calendarData : [];
+    const limits = calendarData?.limits || { max: -1, current: 0 };
+    const isLimitReached = limits.max !== -1 && limits.current >= limits.max;
 
     const upsertMutation = useMutation({
         mutationFn: async (eventData: any) => {
@@ -161,7 +167,14 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(eventData)
             });
-            if (!res.ok) throw new Error("Failed to save event");
+            if (!res.ok) {
+                const error = await res.json();
+                if (res.status === 403 && error.error?.includes("limit")) {
+                    showUpgradePrompt("calendar_events");
+                    return;
+                }
+                throw new Error(error.error || "Failed to save event");
+            }
             return res.json();
         },
         onSuccess: () => {
@@ -184,6 +197,10 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
     };
 
     const handleDayClick = (day: Date) => {
+        if (isLimitReached) {
+            showUpgradePrompt("calendar_events");
+            return;
+        }
         setSelectedDate(day);
         setIsEventDialogOpen(true);
     };
@@ -277,10 +294,21 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                     <Button variant="outline" size="icon" onClick={() => setCurrentDate(addMonths(currentDate, 1))}>
                         <ChevronRight className="h-4 w-4" />
                     </Button>
-                    <Button className="bg-indigo-600 hover:bg-indigo-700 shadow-md ml-2" onClick={() => handleDayClick(new Date())}>
-                        <Plus className="h-4 w-4 mr-2" />
-                        New Event
-                    </Button>
+                    <div className="flex flex-col items-end mr-2">
+                        {limits.max !== -1 && (
+                            <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">
+                                Events: {limits.current} / {limits.max}
+                            </span>
+                        )}
+                        <Button 
+                            className="bg-indigo-600 hover:bg-indigo-700 shadow-md" 
+                            onClick={() => handleDayClick(new Date())}
+                            variant={isLimitReached ? "outline" : "default"}
+                        >
+                            <Plus className="h-4 w-4 mr-2" />
+                            New Event
+                        </Button>
+                    </div>
                 </div>
             </div>
 

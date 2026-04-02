@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { usePopups } from "@/components/popups/popup-manager";
+import { useQuery } from "@tanstack/react-query";
 
 interface FileUploadProps {
     value?: string | any[];
@@ -32,15 +34,38 @@ export function FileUpload({
     maxSize = 25,
     category = "file"
 }: FileUploadProps) {
+    const { showUpgradePrompt } = usePopups();
     const [isUploading, setIsUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Fetch workspace limits if ID is provided
+    const { data: usageData } = useQuery({
+        queryKey: ["workspace-usage", workspaceId],
+        queryFn: async () => {
+            const res = await fetch(`/api/billing/usage?workspaceId=${workspaceId}`);
+            if (!res.ok) return null;
+            return res.json();
+        },
+        enabled: !!workspaceId,
+    });
+
+    const storageUsage = usageData?.storage || { current: 0, max: -1 };
+    const isStorageFull = storageUsage.max !== -1 && storageUsage.current >= storageUsage.max;
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        if (file.size > maxSize * 1024 * 1024) {
-            toast.error(`File is too large. Max size ${maxSize}MB`);
+        // Proactive Plan Checks
+        if (workspaceId && isStorageFull) {
+            showUpgradePrompt("storage");
+            return;
+        }
+
+        const fileSizeMB = file.size / (1024 * 1024);
+        if (fileSizeMB > maxSize) {
+            // Note: In a real app, we'd check if the plan allows larger files here
+            showUpgradePrompt("file_size");
             return;
         }
 
@@ -68,7 +93,11 @@ export function FileUpload({
             
             toast.success("File uploaded successfully");
         } catch (error: any) {
-            toast.error(error.message);
+            if (error.message?.toLowerCase().includes("limit") || error.message?.toLowerCase().includes("storage")) {
+                showUpgradePrompt("storage");
+            } else {
+                toast.error(error.message);
+            }
         } finally {
             setIsUploading(false);
             if (fileInputRef.current) fileInputRef.current.value = "";

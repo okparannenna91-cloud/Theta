@@ -21,6 +21,7 @@ import { Plus, Columns, Star } from "lucide-react";
 import KanbanBoard from "@/components/boards/kanban-board";
 
 import { useWorkspace } from "@/hooks/use-workspace";
+import { usePopups } from "@/components/popups/popup-manager";
 
 async function fetchBoards(workspaceId: string | null) {
   const url = workspaceId ? `/api/boards?workspaceId=${workspaceId}` : "/api/boards";
@@ -47,14 +48,18 @@ export default function BoardsPage() {
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
+  const { showUpgradePrompt } = usePopups();
 
-  const { data: boards, isLoading } = useQuery({
+  const { data: boardsData, isLoading } = useQuery({
     queryKey: ["boards", activeWorkspaceId],
     queryFn: () => fetchBoards(activeWorkspaceId),
     enabled: !!activeWorkspaceId,
   });
 
-  const { data: projects } = useQuery({
+  const boards = Array.isArray(boardsData?.boards) ? boardsData.boards : Array.isArray(boardsData) ? boardsData : [];
+  const boardLimits = boardsData?.limits || { max: -1, current: 0, hasAccess: true };
+
+  const { data: projectsData } = useQuery({
     queryKey: ["projects", activeWorkspaceId],
     queryFn: async () => {
       const url = activeWorkspaceId ? `/api/projects?workspaceId=${activeWorkspaceId}` : "/api/projects";
@@ -64,6 +69,8 @@ export default function BoardsPage() {
     },
     enabled: !!activeWorkspaceId,
   });
+
+  const projects = Array.isArray(projectsData?.projects) ? projectsData.projects : Array.isArray(projectsData) ? projectsData : [];
 
   const createMutation = useMutation({
     mutationFn: (data: { name: string; description: string; projectId: string }) =>
@@ -84,6 +91,13 @@ export default function BoardsPage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectId || !activeWorkspaceId) return;
+
+    // Proactive Board Limit Check
+    if (boardLimits.max !== -1 && boardLimits.current >= boardLimits.max) {
+      showUpgradePrompt("boards");
+      return;
+    }
+
     createMutation.mutate({ name, description, projectId });
   };
 

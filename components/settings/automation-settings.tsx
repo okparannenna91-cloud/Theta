@@ -10,8 +10,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch";
 import { Zap, Plus, Trash2, ArrowRight } from "lucide-react";
 import { toast } from "sonner";
+import { usePopups } from "@/components/popups/popup-manager";
 
 export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
+    const { showUpgradePrompt } = usePopups();
     const [isOpen, setIsOpen] = useState(false);
     const [name, setName] = useState("");
     const [trigger, setTrigger] = useState("TASK_STATUS_UPDATED");
@@ -20,7 +22,7 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
 
     const queryClient = useQueryClient();
 
-    const { data: automations, isLoading } = useQuery({
+    const { data: automationData, isLoading } = useQuery({
         queryKey: ["automations", workspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/automations?workspaceId=${workspaceId}`);
@@ -30,19 +32,41 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
         enabled: !!workspaceId,
     });
 
+    const automations = Array.isArray(automationData?.automations) ? automationData.automations : Array.isArray(automationData) ? automationData : [];
+    const limits = automationData?.limits || { max: -1, current: 0 };
+    const isLimitReached = limits.max !== -1 && limits.current >= limits.max;
+
     const createMutation = useMutation({
         mutationFn: async (data: any) => {
+            if (isLimitReached) {
+                showUpgradePrompt("automations");
+                return;
+            }
+
             const res = await fetch("/api/automations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...data, workspaceId }),
             });
+            
+            if (!res.ok) {
+                const error = await res.json();
+                if (res.status === 403 && error.error?.includes("limit")) {
+                    showUpgradePrompt("automations");
+                    return;
+                }
+                throw new Error(error.error || "Failed to create automation");
+            }
             return res.json();
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["automations", workspaceId] });
             setIsOpen(false);
+            setName("");
             toast.success("Automation rule created");
+        },
+        onError: (error: any) => {
+            toast.error(error.message);
         }
     });
 
@@ -53,10 +77,28 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
                     <h2 className="text-lg font-black tracking-tight">Automations</h2>
                     <p className="text-sm text-muted-foreground">Streamline your workflow with custom rules.</p>
                 </div>
-                <Button onClick={() => setIsOpen(true)} className="rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none bg-indigo-600 hover:bg-indigo-700">
-                    <Zap className="h-4 w-4 mr-2" />
-                    Create Rule
-                </Button>
+                <div className="flex items-center gap-4">
+                    {limits.max !== -1 && (
+                        <div className="text-right hidden sm:block">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Rules Usage</p>
+                            <p className="text-xs font-bold">{limits.current} / {limits.max}</p>
+                        </div>
+                    )}
+                    <Button 
+                        onClick={() => {
+                            if (isLimitReached) {
+                                showUpgradePrompt("automations");
+                            } else {
+                                setIsOpen(true);
+                            }
+                        }} 
+                        className="rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none bg-indigo-600 hover:bg-indigo-700"
+                        variant={isLimitReached ? "outline" : "default"}
+                    >
+                        <Zap className="h-4 w-4 mr-2" />
+                        Create Rule
+                    </Button>
+                </div>
             </div>
 
             <div className="grid gap-4">

@@ -16,6 +16,7 @@ import { TeamDetails } from "./team-details";
 import Image from "next/image";
 
 import { useWorkspace } from "@/hooks/use-workspace";
+import { usePopups } from "@/components/popups/popup-manager";
 
 async function fetchTeams(workspaceId: string | null) {
   const url = workspaceId ? `/api/teams?workspaceId=${workspaceId}` : "/api/teams";
@@ -58,12 +59,19 @@ export default function TeamsPage() {
   const [view, setView] = useState<"list" | "details">("list");
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
+  const { showUpgradePrompt } = usePopups();
 
-  const { data: teams, isLoading } = useQuery({
+  const { data: teamsData, isLoading } = useQuery({
     queryKey: ["teams", activeWorkspaceId],
     queryFn: () => fetchTeams(activeWorkspaceId),
     enabled: !!activeWorkspaceId,
   });
+
+  const teams = Array.isArray(teamsData?.teams) ? teamsData.teams : Array.isArray(teamsData) ? teamsData : [];
+  const teamLimits = teamsData?.limits || { max: -1, current: 0 };
+  const memberLimits = teamsData?.memberLimits || { max: -1, current: 0 };
+  const isTeamLimitReached = teamLimits.max !== -1 && teamLimits.current >= teamLimits.max;
+  const isMemberLimitReached = memberLimits.max !== -1 && memberLimits.current >= memberLimits.max;
 
   const createMutation = useMutation({
     mutationFn: (data: { name: string; description?: string }) =>
@@ -95,12 +103,19 @@ export default function TeamsPage() {
 
   const handleInviteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedTeam?.workspaceId) {
+    if (!activeWorkspaceId) {
       toast.error("Workspace ID missing");
       return;
     }
+
+    // Proactive Member Limit Check
+    if (isMemberLimitReached) {
+      showUpgradePrompt("members");
+      return;
+    }
+
     inviteMutation.mutate({
-      workspaceId: selectedTeam.workspaceId,
+      workspaceId: activeWorkspaceId,
       email: inviteEmail,
       role: inviteRole,
     });
@@ -108,6 +123,14 @@ export default function TeamsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!name || !activeWorkspaceId) return;
+
+    // Proactive Team Limit Check
+    if (isTeamLimitReached) {
+      showUpgradePrompt("teams");
+      return;
+    }
+
     createMutation.mutate({ name, description });
   };
 
@@ -154,10 +177,29 @@ export default function TeamsPage() {
             Manage your collaborative groups
           </p>
         </motion.div>
-        <Button onClick={() => setIsOpen(true)} className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-md">
-          <Plus className="h-4 w-4 mr-2" />
-          Create New Team
-        </Button>
+        
+        <div className="flex flex-col sm:flex-row items-end gap-4 w-full sm:w-auto">
+          <div className="flex flex-col items-end">
+            {teamLimits.max !== -1 && (
+              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">
+                Teams: {teamLimits.current} / {teamLimits.max}
+              </span>
+            )}
+            {memberLimits.max !== -1 && (
+              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">
+                Members: {memberLimits.current} / {memberLimits.max}
+              </span>
+            )}
+            <Button 
+                onClick={() => setIsOpen(true)} 
+                className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-md"
+                variant={isTeamLimitReached ? "outline" : "default"}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              Create New Team
+            </Button>
+          </div>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">

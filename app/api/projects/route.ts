@@ -108,7 +108,23 @@ export async function GET(req: Request) {
         } : null
     }));
 
-    return NextResponse.json(enrichedProjects);
+    // Calculate limits
+    const { getPlanLimits } = await import("@/lib/plan-limits");
+    const workspace = await (await import("@/lib/prisma")).prisma.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { plan: true }
+    });
+    const plan = (workspace?.plan as any) || "free";
+    const planLimits = getPlanLimits(plan);
+
+    return NextResponse.json({
+        projects: enrichedProjects,
+        limits: {
+            max: planLimits.maxProjects,
+            current: enrichedProjects.length,
+            hasAccess: true // Project creation is allowed on all plans, just limited by count
+        }
+    });
   } catch (error) {
     console.error("Projects API error:", error);
     return NextResponse.json(
