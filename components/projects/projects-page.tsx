@@ -56,7 +56,9 @@ export default function ProjectsPage() {
     enabled: !!activeWorkspaceId,
   });
 
-  const projects = Array.isArray(projectsData?.projects) ? projectsData.projects : Array.isArray(projectsData) ? projectsData : [];
+  const projects = useMemo(() => {
+    return Array.isArray(projectsData?.projects) ? projectsData.projects : Array.isArray(projectsData) ? projectsData : [];
+  }, [projectsData]);
   const limits = projectsData?.limits || { max: -1, current: 0, hasAccess: true };
 
   const createMutation = useMutation({

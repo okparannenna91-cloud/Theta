@@ -274,7 +274,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
     const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
 
     const getEventsForDay = (day: Date) => {
-        return events?.filter(event => isSameDay(parseISO(event.start), day)) || [];
+        return (events as CalendarEvent[])?.filter((event: CalendarEvent) => isSameDay(parseISO(event.start), day)) || [];
     };
 
     return (

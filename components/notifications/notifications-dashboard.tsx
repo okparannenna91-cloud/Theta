@@ -31,11 +31,13 @@ export default function NotificationsDashboard() {
     });
 
     // ✅ Nuclear fix: safely extract the array from the API response shape
-    const notifications = Array.isArray(notificationsData?.notifications) 
-        ? notificationsData.notifications 
-        : Array.isArray(notificationsData) 
-        ? notificationsData 
-        : [];
+    const notifications = useMemo(() => {
+        return Array.isArray(notificationsData?.notifications) 
+            ? notificationsData.notifications 
+            : Array.isArray(notificationsData) 
+            ? notificationsData 
+            : [];
+    }, [notificationsData]);
 
     const markReadMutation = useMutation({
         mutationFn: async ({ notificationId, markAllAsRead }: { notificationId?: string, markAllAsRead?: boolean }) => {

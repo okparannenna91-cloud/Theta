@@ -20,7 +20,9 @@ export function TimelineView({ tasks }: TimelineViewProps) {
         return Array.from({ length: 30 }).map((_, i) => addDays(startDate, i));
     }, [startDate]);
 
-    const safeTasks = Array.isArray(tasks) ? tasks : [];
+    const safeTasks = useMemo(() => {
+        return Array.isArray(tasks) ? tasks : [];
+    }, [tasks]);
 
     const tasksWithDates = useMemo(() => {
         return safeTasks.filter((t) => t.dueDate).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
