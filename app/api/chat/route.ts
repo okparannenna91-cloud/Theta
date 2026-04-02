@@ -13,6 +13,7 @@ const chatSchema = z.object({
     projectId: z.string().optional(),
     teamId: z.string().optional(),
     attachment: z.any().optional(),
+    tempId: z.string().optional(),
 });
 
 export async function GET(req: Request) {
@@ -161,7 +162,7 @@ export async function POST(req: Request) {
             ? `team:${data.teamId}:chat`
             : getChatChannel(data.workspaceId, data.projectId);
 
-        await publishToChannel(channelName, "message", message);
+        await publishToChannel(channelName, "message", { ...message, tempId: data.tempId });
 
         return NextResponse.json(message);
     } catch (error) {

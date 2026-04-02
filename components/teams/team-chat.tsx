@@ -36,13 +36,15 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
     const connectAbly = useCallback(async () => {
         try {
             setIsLoading(true);
-            const res = await fetch("/api/ably/token");
-            const tokenRequest = await res.json();
+            
+            // Cleanup existing connection if any
+            if (ablyRef.current) {
+                ablyRef.current.close();
+            }
 
             const ably = new Ably.Realtime({
-                authCallback: async (data, callback) => {
-                    callback(null, tokenRequest);
-                }
+                authUrl: "/api/ably/token",
+                clientId: user?.id
             });
 
             ably.connection.on("connected", () => {
@@ -50,11 +52,21 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                 setIsLoading(false);
             });
 
+            ably.connection.on("failed", () => {
+                setIsConnected(false);
+                setIsLoading(false);
+            });
+
             const channelName = `team:${teamId}:chat`;
             const channel = ably.channels.get(channelName);
 
             channel.subscribe("message", (msg) => {
-                setMessages((prev) => [...prev, msg.data]);
+                setMessages((prev) => {
+                    // Avoid duplicating optimistic messages if server returns them
+                    const exists = prev.some(m => m.id === msg.data.id || (m.tempId === msg.data.tempId && m.tempId));
+                    if (exists) return prev.map(m => (m.tempId === msg.data.tempId ? msg.data : m));
+                    return [...prev, msg.data];
+                });
             });
 
             ablyRef.current = ably;
@@ -63,27 +75,27 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             // Fetch history
             const historyRes = await fetch(`/api/chat?teamId=${teamId}`);
             const data = await historyRes.json();
-            if (Array.isArray(data.messages)) {
+            if (data.messages && Array.isArray(data.messages)) {
                 setMessages(data.messages);
                 if (data.limits) setLimits(data.limits);
-            } else if (Array.isArray(data)) {
-                setMessages(data);
             }
         } catch (error) {
             console.error("Ably connection error:", error);
             setIsLoading(false);
         }
-    }, [teamId]);
+    }, [teamId, user?.id]);
 
     useEffect(() => {
-        connectAbly();
+        if (user?.id && teamId) {
+            connectAbly();
+        }
         return () => {
             if (ablyRef.current) {
                 ablyRef.current.close();
                 ablyRef.current = null;
             }
         };
-    }, [connectAbly]);
+    }, [connectAbly, user?.id, teamId]);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -95,7 +107,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
 
     const sendMessage = async (e: React.FormEvent) => {
         e.preventDefault();
-        if ((!message.trim() && !attachment) || !teamId) return;
+        if ((!message.trim() && !attachment) || !teamId || !workspaceId) return;
 
         if (isLimitReached) {
             showUpgradePrompt("chat");
@@ -104,6 +116,23 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
 
         const content = message;
         const currentAttachment = attachment;
+        const tempId = Date.now().toString();
+
+        // Optimistic update
+        const optimisticMsg = {
+            id: tempId,
+            tempId,
+            content,
+            userId: user?.id,
+            attachment: currentAttachment,
+            createdAt: new Date().toISOString(),
+            user: {
+                name: user?.fullName || user?.firstName || "You",
+                imageUrl: user?.imageUrl
+            }
+        };
+
+        setMessages(prev => [...prev, optimisticMsg]);
         setMessage("");
         setAttachment(null);
 
@@ -116,18 +145,25 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                     workspaceId,
                     teamId,
                     attachment: currentAttachment,
+                    tempId // Pass tempId to identify message back from Ably
                 }),
             });
 
             if (!res.ok) {
                 const error = await res.json();
+                // Rollback on error
+                setMessages(prev => prev.filter(m => m.id !== tempId));
+                
                 if (res.status === 403 && error.error?.includes("limit")) {
                     showUpgradePrompt("chat");
                     return;
                 }
+                import("sonner").then(({ toast }) => toast.error("Failed to send message"));
             }
         } catch (error) {
             console.error("Failed to send message:", error);
+            setMessages(prev => prev.filter(m => m.id !== tempId));
+            import("sonner").then(({ toast }) => toast.error("Failed to send message"));
         }
     };
 
