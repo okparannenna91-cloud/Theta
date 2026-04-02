@@ -12,6 +12,20 @@ const automationSchema = z.object({
     workspaceId: z.string(),
 });
 
+export async function GET(req: Request) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(req.url);
+        const workspaceId = searchParams.get("workspaceId");
+
+        if (!workspaceId) {
+            return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
+        }
+
         const [automations, count] = await Promise.all([
             prisma.automation.findMany({
                 where: { workspaceId },
@@ -45,6 +59,13 @@ const automationSchema = z.object({
     }
 }
 
+export async function POST(req: Request) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
         const body = await req.json();
         const data = automationSchema.parse(body);
 
@@ -61,9 +82,9 @@ const automationSchema = z.object({
             data: {
                 name: data.name,
                 trigger: data.trigger,
-                condition: data.condition,
+                condition: data.condition || null,
                 action: data.action,
-                actionValue: data.actionValue,
+                actionValue: data.actionValue || null,
                 workspaceId: data.workspaceId,
             },
         });

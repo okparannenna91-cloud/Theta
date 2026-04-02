@@ -63,6 +63,26 @@ export async function GET(req: Request) {
 
         const db = getPrismaClient(effectiveWorkspaceId);
 
+        // Get chat messages
+        const messages = await db.chatMessage.findMany({
+            where: {
+                teamId: teamId || null,
+                workspaceId: teamId ? undefined : (workspaceId as string),
+                projectId: teamId ? null : (projectId || null),
+            },
+            include: {
+                user: {
+                    select: {
+                        id: true,
+                        name: true,
+                        imageUrl: true,
+                    },
+                },
+            },
+            orderBy: { createdAt: "asc" },
+            take: 100,
+        });
+
         const { getPlanLimits } = await import("@/lib/plan-limits");
         const workspace = await prisma.workspace.findUnique({
             where: { id: effectiveWorkspaceId as string },
