@@ -367,7 +367,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                     <CardContent>
                         {events && events.length > 0 ? (
                             <div className="space-y-4">
-                                {events.filter(e => new Date(e.start) >= new Date()).slice(0, 5).map(event => (
+                                {(events as CalendarEvent[]).filter((e: CalendarEvent) => new Date(e.start) >= new Date()).slice(0, 5).map((event: CalendarEvent) => (
                                     <div key={event.id} className="flex items-center justify-between p-3 rounded-xl border bg-muted/20 hover:bg-muted/40 transition-colors">
                                         <div className="flex items-center gap-4">
                                             <div className="h-10 w-10 rounded-lg bg-white dark:bg-slate-900 flex flex-col items-center justify-center border shadow-sm">
@@ -401,10 +401,10 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                     </CardHeader>
                     <CardContent>
                         <div className="space-y-3">
-                            {events && events.filter(e => new Date(e.start) >= new Date()).length > 0 ? (
+                            {events && (events as CalendarEvent[]).filter((e: CalendarEvent) => new Date(e.start) >= new Date()).length > 0 ? (
                                 (() => {
-                                    const nextEvent = events.filter(e => new Date(e.start) >= new Date())
-                                        .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
+                                    const nextEvent = (events as CalendarEvent[]).filter((e: CalendarEvent) => new Date(e.start) >= new Date())
+                                        .sort((a: CalendarEvent, b: CalendarEvent) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
                                     return (
                                         <div className="p-3 rounded-lg bg-orange-50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30">
                                             <p className="text-xs font-bold text-orange-700 dark:text-orange-400">NEXT UP</p>
@@ -437,21 +437,21 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                     <form onSubmit={handleSubmit} className="space-y-4 py-4">
                         <div className="space-y-2">
                             <Label>Event Title</Label>
-                            <Input placeholder="Meeting with client..." value={title} onChange={(e) => setTitle(e.target.value)} required />
+                            <Input placeholder="Meeting with client..." value={title} onChange={(e: any) => setTitle(e.target.value)} required />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label>Start Time</Label>
-                                <Input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+                                <Input type="time" value={startTime} onChange={(e: any) => setStartTime(e.target.value)} />
                             </div>
                             <div className="space-y-2">
                                 <Label>End Time</Label>
-                                <Input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
+                                <Input type="time" value={endTime} onChange={(e: any) => setEndTime(e.target.value)} />
                             </div>
                         </div>
                         <div className="space-y-2">
                             <Label>Description (Optional)</Label>
-                            <Textarea placeholder="Add more details..." value={description} onChange={(e) => setDescription(e.target.value)} />
+                            <Textarea placeholder="Add more details..." value={description} onChange={(e: any) => setDescription(e.target.value)} />
                         </div>
                         <div className="space-y-2">
                             <Label>Event Color</Label>
@@ -472,11 +472,11 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                                 <p className="text-sm font-semibold">Team Event</p>
                                 <p className="text-[10px] text-muted-foreground">Share this event with everyone in the team.</p>
                             </div>
-                            <input type="checkbox" checked={isTeamEvent} onChange={(e) => setIsTeamEvent(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" />
+                            <input type="checkbox" checked={isTeamEvent} onChange={(e: any) => setIsTeamEvent(e.target.checked)} className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" />
                         </div>
                         <div className="space-y-2">
                             <Label>Recurrence</Label>
-                            <select value={recurrence} onChange={(e) => setRecurrence(e.target.value)} className="w-full h-10 px-3 py-2 rounded-md border text-sm bg-background">
+                            <select value={recurrence} onChange={(e: any) => setRecurrence(e.target.value)} className="w-full h-10 px-3 py-2 rounded-md border text-sm bg-background">
                                 <option value="none">Does not repeat</option>
                                 <option value="daily">Daily</option>
                                 <option value="weekly">Weekly</option>
