@@ -27,41 +27,37 @@ export async function GET(req: Request) {
         const projectId = searchParams.get("projectId");
         const teamId = searchParams.get("teamId");
 
-        // If teamId is provided, we fetch by team. Otherwise we need workspaceId
-        if (!teamId && !workspaceId) {
-            return NextResponse.json(
-                { error: "workspaceId or teamId is required" },
-                { status: 400 }
-            );
-        }
+        // Determine workspaceId and DB shard
+        let effectiveWorkspaceId = workspaceId;
+        let db;
 
-        // If teamId provided, verify membership
+        // If teamId is provided, we need to find which shard the team is on
         if (teamId) {
-            const membership = await prisma.teamMember.findUnique({
-                where: { teamId_userId: { teamId, userId: user.id } },
-                include: { team: true }
+            const { findAcrossShards } = await import("@/lib/prisma");
+            const result = await findAcrossShards<any>("teamMember", {
+                teamId_userId: { teamId, userId: user.id }
             });
-            if (!membership) {
+
+            if (!result.data) {
                 return NextResponse.json({ error: "Access denied to team chat" }, { status: 403 });
             }
+
+            db = result.db;
+            const team = await db.team.findUnique({
+                where: { id: teamId },
+                select: { workspaceId: true }
+            });
+            effectiveWorkspaceId = team?.workspaceId || null;
         } else if (workspaceId) {
             const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
             if (!hasAccess) {
                 return NextResponse.json({ error: "Access denied to workspace" }, { status: 403 });
             }
+            effectiveWorkspaceId = workspaceId;
+            db = getPrismaClient(effectiveWorkspaceId);
+        } else {
+            return NextResponse.json({ error: "workspaceId or teamId is required" }, { status: 400 });
         }
-
-        // Determine workspaceId for sharding
-        let effectiveWorkspaceId = workspaceId;
-        if (!effectiveWorkspaceId && teamId) {
-            const team = await prisma.team.findUnique({
-                where: { id: teamId },
-                select: { workspaceId: true }
-            });
-            effectiveWorkspaceId = team?.workspaceId || null;
-        }
-
-        const db = getPrismaClient(effectiveWorkspaceId);
 
         // Get chat messages
         const messages = await db.chatMessage.findMany({
@@ -113,13 +109,13 @@ export async function POST(req: Request) {
 
         const body = await req.json();
         const data = chatSchema.parse(body);
-
         // Verify access based on teamId or workspaceId
         if (data.teamId) {
-            const membership = await prisma.teamMember.findUnique({
-                where: { teamId_userId: { teamId: data.teamId, userId: user.id } },
+            const { findAcrossShards } = await import("@/lib/prisma");
+            const result = await findAcrossShards<any>("teamMember", {
+                teamId_userId: { teamId: data.teamId, userId: user.id }
             });
-            if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            if (!result.data) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         } else {
             const hasAccess = await verifyWorkspaceAccess(user.id, data.workspaceId);
             if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
