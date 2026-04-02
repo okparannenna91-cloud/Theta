@@ -3,27 +3,26 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
-import {
-    Popover, PopoverContent, PopoverTrigger,
-} from "@/components/ui/popover";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-    Github, ShoppingCart, Layout, CloudLightning, Hash,
-    Zap, Layers, Briefcase, Trello, ArrowRight, CheckCircle2, Circle,
-} from "lucide-react";
+import { Zap, ArrowRight, CheckCircle2, Circle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
+import {
+    GitHubLogo, BitbucketLogo, SlackLogo, AsanaLogo,
+    TrelloLogo, FigmaLogo, CanvaLogo, WooCommerceLogo
+} from "@/components/apps/app-logos";
 
 const QUICK_APPS = [
-    { id: "github",      name: "GitHub",       icon: Github,       gradient: "from-zinc-900 to-zinc-700" },
-    { id: "slack",       name: "Slack",         icon: Hash,         gradient: "from-purple-800 to-pink-600" },
-    { id: "figma",       name: "Figma",         icon: Layout,       gradient: "from-orange-500 to-pink-500" },
-    { id: "trello",      name: "Trello",        icon: Trello as any, gradient: "from-sky-600 to-sky-400" },
-    { id: "asana",       name: "Asana",         icon: Briefcase,    gradient: "from-rose-500 to-rose-400" },
-    { id: "woocommerce", name: "WooCommerce",   icon: ShoppingCart, gradient: "from-purple-600 to-purple-400" },
-    { id: "bitbucket",   name: "Bitbucket",     icon: CloudLightning, gradient: "from-blue-600 to-blue-400" },
-    { id: "canva",       name: "Canva",         icon: Layers,       gradient: "from-cyan-500 to-teal-400" },
+    { id: "github",      name: "GitHub",       Logo: GitHubLogo,      bg: "bg-zinc-900" },
+    { id: "slack",       name: "Slack",         Logo: SlackLogo,       bg: "bg-white border" },
+    { id: "figma",       name: "Figma",         Logo: FigmaLogo,       bg: "bg-black" },
+    { id: "trello",      name: "Trello",        Logo: TrelloLogo,      bg: "bg-[#0079BF]" },
+    { id: "asana",       name: "Asana",         Logo: AsanaLogo,       bg: "bg-[#ffe3de]" },
+    { id: "woocommerce", name: "WooCommerce",   Logo: WooCommerceLogo, bg: "bg-[#96588A]" },
+    { id: "bitbucket",   name: "Bitbucket",     Logo: BitbucketLogo,   bg: "bg-[#0052CC]" },
+    { id: "canva",       name: "Canva",         Logo: CanvaLogo,       bg: "bg-[#00C4CC]" },
 ];
 
 export function AppsDropdown() {
@@ -79,18 +78,18 @@ export function AppsDropdown() {
 
                 <div className="p-3 space-y-4 max-h-[400px] overflow-y-auto">
 
-                    {/* Connected Apps */}
+                    {/* Connected */}
                     {connectedApps.length > 0 && (
                         <div>
                             <p className="text-[9px] font-black uppercase tracking-widest text-emerald-600 px-1 mb-2">Connected Apps</p>
                             <div className="space-y-1">
                                 {connectedApps.map(app => {
-                                    const Icon = app.icon;
+                                    const Logo = app.Logo;
                                     return (
                                         <Link key={app.id} href="/apps" onClick={() => setIsOpen(false)}>
                                             <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer">
-                                                <div className={cn("h-8 w-8 rounded-xl flex items-center justify-center bg-gradient-to-br shadow-sm flex-shrink-0", app.gradient)}>
-                                                    <Icon className="h-4 w-4 text-white" />
+                                                <div className={cn("h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm", app.bg)}>
+                                                    <Logo size={18} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-xs font-bold truncate">{app.name}</p>
@@ -108,12 +107,11 @@ export function AppsDropdown() {
                         </div>
                     )}
 
-                    {/* Separator */}
                     {connectedApps.length > 0 && suggestedApps.length > 0 && (
                         <div className="border-t border-slate-100 dark:border-slate-800" />
                     )}
 
-                    {/* Suggested Apps */}
+                    {/* Suggested */}
                     {suggestedApps.length > 0 && (
                         <div>
                             <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground px-1 mb-2">
@@ -121,12 +119,12 @@ export function AppsDropdown() {
                             </p>
                             <div className="space-y-1">
                                 {suggestedApps.map(app => {
-                                    const Icon = app.icon;
+                                    const Logo = app.Logo;
                                     return (
                                         <Link key={app.id} href="/apps" onClick={() => setIsOpen(false)}>
                                             <div className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors group cursor-pointer">
-                                                <div className={cn("h-8 w-8 rounded-xl flex items-center justify-center bg-gradient-to-br shadow-sm flex-shrink-0 opacity-70", app.gradient)}>
-                                                    <Icon className="h-4 w-4 text-white" />
+                                                <div className={cn("h-8 w-8 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm opacity-70", app.bg)}>
+                                                    <Logo size={18} />
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <p className="text-xs font-bold truncate">{app.name}</p>
