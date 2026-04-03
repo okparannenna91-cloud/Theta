@@ -1,0 +1,247 @@
+"use client";
+
+import { useState } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { 
+    ChevronRight, 
+    ChevronDown, 
+    FileText, 
+    Plus, 
+    MoreHorizontal,
+    Search,
+    Trash2,
+    Settings,
+    Layers,
+    BookOpen,
+    Hash
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
+import { useParams, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
+
+interface WikiSidebarProps {
+    workspaceId: string;
+}
+
+export function WikiSidebar({ workspaceId }: WikiSidebarProps) {
+    const params = useParams();
+    const router = useRouter();
+    const queryClient = useQueryClient();
+    const [search, setSearch] = useState("");
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+    const { data: documents, isLoading } = useQuery({
+        queryKey: ["wiki-tree", workspaceId],
+        queryFn: async () => {
+            const res = await fetch(`/api/docs?workspaceId=${workspaceId}`);
+            if (!res.ok) throw new Error("Failed");
+            return res.json();
+        },
+        enabled: !!workspaceId,
+    });
+
+    const createMutation = useMutation({
+        mutationFn: async (parentId?: string) => {
+            const res = await fetch("/api/docs", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ 
+                    workspaceId, 
+                    title: "Untitled Page",
+                    parentId: parentId || null
+                }),
+            });
+            return res.json();
+        },
+        onSuccess: (newDoc) => {
+            queryClient.invalidateQueries({ queryKey: ["wiki-tree", workspaceId] });
+            toast.success("Page created");
+            router.push(`/wiki/${newDoc.id}`);
+        },
+    });
+
+    const toggleExpand = (id: string) => {
+        const next = new Set(expandedIds);
+        if (next.has(id)) next.delete(id);
+        else next.add(id);
+        setExpandedIds(next);
+    };
+
+    const buildTree = (docs: any[]) => {
+        const tree: any[] = [];
+        const map: any = {};
+        
+        docs.forEach(doc => {
+            map[doc.id] = { ...doc, children: [] };
+        });
+
+        docs.forEach(doc => {
+            if (doc.parentId && map[doc.parentId]) {
+                map[doc.parentId].children.push(map[doc.id]);
+            } else {
+                tree.push(map[doc.id]);
+            }
+        });
+
+        // Filter search logic
+        if (search) {
+            return docs.filter(d => 
+                (d.title || "").toLowerCase().includes(search.toLowerCase())
+            ).map(d => ({ ...d, children: [] }));
+        }
+
+        return tree;
+    };
+
+    if (isLoading) return (
+        <div className="w-80 border-r dark:border-white/10 p-6 animate-pulse space-y-6">
+            <div className="h-10 w-full bg-slate-100 dark:bg-slate-900 rounded-2xl" />
+            <div className="h-10 w-full bg-slate-100 dark:bg-slate-900 rounded-2xl" />
+            <div className="space-y-4 pt-8">
+                {[1,2,3,4,5].map(i => <div key={i} className="h-8 w-full bg-slate-50 dark:bg-slate-900/50 rounded-xl" />)}
+            </div>
+        </div>
+    );
+
+    const tree = buildTree(documents || []);
+
+    return (
+        <div className="w-80 border-r border-slate-100 dark:border-white/5 flex flex-col h-screen bg-white/60 dark:bg-slate-950/40 backdrop-blur-[64px] lg:translate-x-0 transition-all duration-500 overflow-hidden relative shadow-2xl shadow-indigo-500/5 z-40">
+            <div className="p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                         <div className="h-10 w-10 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20 ring-4 ring-indigo-600/10">
+                              <BookOpen className="h-5 w-5" />
+                         </div>
+                         <div>
+                             <h2 className="text-sm font-black uppercase tracking-tighter text-slate-900 dark:text-slate-100">Knowledge Base</h2>
+                             <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest opacity-80">v2.0 Neural Tree</p>
+                         </div>
+                    </div>
+                    <Button onClick={() => createMutation.mutate()} variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800/50 hover:bg-indigo-600 hover:text-white transition-all shadow-sm border border-slate-200/50 dark:border-white/10 group">
+                        <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" />
+                    </Button>
+                </div>
+
+                <div className="relative group">
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors" />
+                    <Input 
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="Scan Intelligence..."
+                        className="h-11 pl-11 pr-4 bg-white/50 dark:bg-slate-900/50 border-slate-200/50 dark:border-white/10 rounded-2xl text-[10px] uppercase font-black tracking-widest focus-visible:ring-4 focus-visible:ring-indigo-500/10 shadow-sm transition-all"
+                    />
+                </div>
+            </div>
+
+            <nav className="flex-1 overflow-y-auto px-4 pb-8 space-y-0.5 scrollbar-thin">
+                {tree.map((doc: any) => (
+                    <TreeItem 
+                        key={doc.id}
+                        doc={doc}
+                        level={0}
+                        expandedIds={expandedIds}
+                        onToggle={toggleExpand}
+                        activeId={params.id as string}
+                        onCreateChild={(pid: string) => createMutation.mutate(pid)}
+                    />
+                ))}
+
+                {documents?.length === 0 && !isLoading && (
+                     <div className="py-20 text-center space-y-4 px-6 grayscale">
+                          <Layers className="h-10 w-10 text-muted-foreground mx-auto opacity-20" />
+                          <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50 leading-relaxed">No documentation branches detected in this node.</p>
+                          <Button onClick={() => createMutation.mutate()} variant="outline" className="rounded-xl border-2 px-6 font-black uppercase tracking-widest text-[8px] h-9">Initialize Node</Button>
+                     </div>
+                )}
+            </nav>
+
+            <div className="p-6 border-t border-slate-200 dark:border-white/5 bg-slate-50/30 dark:bg-slate-950/20">
+                 <div className="flex items-center gap-3 text-muted-foreground hover:text-foreground transition-colors cursor-pointer group">
+                      <Settings className="h-4 w-4 group-hover:rotate-45 transition-transform duration-500" />
+                      <span className="text-[10px] font-black uppercase tracking-widest underline-offset-4 group-hover:underline">Tree Configuration</span>
+                 </div>
+            </div>
+        </div>
+    );
+}
+
+function TreeItem({ doc, level, expandedIds, onToggle, activeId, onCreateChild }: any) {
+    const isExpanded = expandedIds.has(doc.id);
+    const isActive = activeId === doc.id;
+    const hasChildren = doc.children && doc.children.length > 0;
+
+    return (
+        <div className="space-y-0.5">
+            <div 
+                className={cn(
+                    "group flex items-center gap-2 px-3 py-2 rounded-xl transition-all cursor-pointer border border-transparent",
+                    isActive ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "hover:bg-slate-100 dark:hover:bg-slate-900/60"
+                )}
+                style={{ marginLeft: `${level * 12}px` }}
+            >
+                <button 
+                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(doc.id); }}
+                    className={cn(
+                        "h-5 w-5 flex items-center justify-center rounded-lg hover:bg-white/20 transition-colors",
+                        !hasChildren && "opacity-0 cursor-default"
+                    )}
+                >
+                    {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+                </button>
+
+                <Link href={`/wiki/${doc.id}`} className="flex-1 flex items-center gap-3 overflow-hidden">
+                    <span className="text-sm shrink-0">{doc.emoji || "📄"}</span>
+                    <span className={cn(
+                        "text-[10px] font-black uppercase tracking-tight truncate",
+                        isActive ? "text-white" : "text-slate-600 dark:text-slate-400 group-hover:text-foreground"
+                    )}>
+                        {doc.title || "Untitled Page"}
+                    </span>
+                </Link>
+
+                <div className={cn(
+                    "opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity",
+                    isActive ? "text-white" : "text-muted-foreground"
+                )}>
+                    <button 
+                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCreateChild(doc.id); }}
+                        className="h-6 w-6 rounded-lg flex items-center justify-center hover:bg-white/20 transition-all active:scale-95"
+                    >
+                        <Plus className="h-3.5 w-3.5" />
+                    </button>
+                    <button className="h-6 w-6 rounded-lg flex items-center justify-center hover:bg-white/20 transition-all active:scale-95">
+                        <MoreHorizontal className="h-3.5 w-3.5" />
+                    </button>
+                </div>
+            </div>
+
+            <AnimatePresence initial={false}>
+                {isExpanded && hasChildren && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                    >
+                        {doc.children.map((child: any) => (
+                            <TreeItem 
+                                key={child.id}
+                                doc={child}
+                                level={level + 1}
+                                expandedIds={expandedIds}
+                                onToggle={onToggle}
+                                activeId={activeId}
+                                onCreateChild={onCreateChild}
+                            />
+                        ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </div>
+    );
+}

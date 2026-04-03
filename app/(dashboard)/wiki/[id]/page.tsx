@@ -15,7 +15,9 @@ import {
     Settings,
     FileText,
     Sparkles,
-    Loader2
+    Loader2,
+    Link as LinkIcon,
+    ArrowUpRight
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +26,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
+import { AdvancedEditor, EditorBlock } from "@/components/wiki/editor/advanced-editor";
+
+import { WikiPresence } from "@/components/wiki/wiki-presence";
+
 export default function DocumentPage() {
     const params = useParams();
     const router = useRouter();
@@ -31,7 +37,7 @@ export default function DocumentPage() {
     const id = params.id as string;
 
     const [title, setTitle] = useState("");
-    const [content, setContent] = useState("");
+    const [blocks, setBlocks] = useState<EditorBlock[]>([]);
     const [isSaving, setIsSaving] = useState(false);
 
     const { data: document, isLoading } = useQuery({
@@ -41,7 +47,27 @@ export default function DocumentPage() {
             if (!res.ok) throw new Error("Failed to fetch document");
             const data = await res.json();
             setTitle(data.title);
-            setContent(data.content || "");
+            
+            // Try to parse blocks from content
+            try {
+                if (data.content && (data.content.startsWith("[") || data.content.startsWith("{"))) {
+                    setBlocks(JSON.parse(data.content));
+                } else {
+                    // Fallback for legacy plain text content
+                    setBlocks([{
+                        id: crypto.randomUUID(),
+                        type: "paragraph",
+                        content: data.content || ""
+                    }]);
+                }
+            } catch (e) {
+                setBlocks([{
+                    id: crypto.randomUUID(),
+                    type: "paragraph",
+                    content: data.content || ""
+                }]);
+            }
+            
             return data;
         },
         enabled: !!id,
@@ -66,7 +92,10 @@ export default function DocumentPage() {
     const handleSave = async () => {
         setIsSaving(true);
         try {
-            await updateMutation.mutateAsync({ title, content });
+            await updateMutation.mutateAsync({ 
+                title, 
+                content: JSON.stringify(blocks) 
+            });
         } catch (err) {
             toast.error("Failed to save document");
         } finally {
@@ -74,7 +103,7 @@ export default function DocumentPage() {
         }
     };
 
-    // Auto-save logic (optional, let's keep it manual for now but add a shortcut)
+    // Auto-save logic
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
             if (e.key === "s" && (e.metaKey || e.ctrlKey)) {
@@ -85,7 +114,7 @@ export default function DocumentPage() {
 
         window.addEventListener("keydown", down);
         return () => window.removeEventListener("keydown", down);
-    }, [title, content]);
+    }, [title, blocks]);
 
     if (isLoading) {
         return (
@@ -97,6 +126,8 @@ export default function DocumentPage() {
     }
 
     if (!document) return <div>Document not found</div>;
+
+    const wordCount = blocks.reduce((acc, b) => acc + b.content.split(/\s+/).filter(Boolean).length, 0);
 
     return (
         <div className="min-h-screen bg-[#fafafa] dark:bg-[#020617] flex flex-col">
@@ -114,13 +145,15 @@ export default function DocumentPage() {
                         <Input 
                             value={title}
                             onChange={(e) => setTitle(e.target.value)}
-                            className="border-none bg-transparent text-lg font-black focus-visible:ring-0 w-64 sm:w-96 p-0 shadow-none"
+                            className="border-none bg-transparent text-lg font-black focus-visible:ring-0 w-64 sm:w-96 p-0 shadow-none text-slate-900 dark:text-slate-100"
                             placeholder="Document Title"
                         />
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4">
+                    <WikiPresence documentId={id} />
+                    
                     <div className="hidden sm:flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mr-4">
                         <Clock className="h-3 w-3" />
                         <span>Saved {formatDistanceToNow(new Date(document.updatedAt), { addSuffix: true })}</span>
@@ -172,19 +205,58 @@ export default function DocumentPage() {
                          </div>
                     </div>
 
-                    <textarea
-                        value={content}
-                        onChange={(e) => setContent(e.target.value)}
-                        placeholder="Start typing your strategic documentation..."
-                        className="flex-1 w-full p-10 md:p-16 resize-none bg-transparent outline-none text-slate-700 dark:text-slate-300 leading-relaxed text-lg font-medium placeholder:text-slate-300 dark:placeholder:text-slate-700"
-                    />
+                    {/* Editor Engine */}
+                    <div className="flex-1 p-10 md:p-16 overflow-y-auto custom-scrollbar">
+                        <AdvancedEditor 
+                            blocks={blocks} 
+                            workspaceId={document.workspaceId}
+                            onChange={setBlocks}
+                            onSave={handleSave}
+                            placeholder="Begin your strategic documentation..."
+                        />
+                    </div>
+
+                    {/* Backlinks Section */}
+                    {document.backlinks && document.backlinks.length > 0 && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            className="mt-32 p-16 pt-20 border-t border-slate-100 dark:border-white/5 space-y-10"
+                        >
+                            <div className="flex items-center gap-4">
+                                <LinkIcon className="h-4 w-4 text-indigo-600" />
+                                <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-muted-foreground">Bi-directional Nodes (Backlinks)</h3>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {document.backlinks.map((link: any) => (
+                                    <Link key={link.id} href={`/wiki/${link.id}`}>
+                                        <div className="group p-6 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all duration-500">
+                                            <div className="flex items-center justify-between gap-4">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-12 w-12 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-xl group-hover:scale-110 transition-transform">
+                                                        {link.emoji || "📄"}
+                                                    </div>
+                                                    <div>
+                                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-100">{link.title || "Untitled Node"}</h4>
+                                                        <p className="text-[8px] font-bold uppercase tracking-widest text-muted-foreground opacity-50 mt-1">Mentioned {formatDistanceToNow(new Date(link.updatedAt), { addSuffix: true })}</p>
+                                                    </div>
+                                                </div>
+                                                <ArrowUpRight className="h-4 w-4 text-muted-foreground group-hover:text-indigo-600 group-hover:translate-x-1 group-hover:-translate-y-1 transition-all" />
+                                            </div>
+                                        </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        </motion.div>
+                    )}
                 </div>
 
                 <div className="mt-8 flex items-center justify-between text-muted-foreground">
                      <div className="flex items-center gap-6">
                           <div className="flex items-center gap-2">
                                <FileText className="h-4 w-4" />
-                               <span className="text-xs font-bold">{content.split(/\s+/).filter(Boolean).length} Words</span>
+                               <span className="text-xs font-bold">{wordCount} Words</span>
                           </div>
                           <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest">
                                <Settings className="h-3.5 w-3.5" />

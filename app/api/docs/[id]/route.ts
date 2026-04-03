@@ -17,16 +17,33 @@ export async function GET(
 
         if (document) {
             // Need to re-fetch with include since findAcrossShards might not support it easily
-            const fullDoc = await db.document.findUnique({
+            const [doc, backlinks] = await Promise.all([
+            db.document.findUnique({
                 where: { id: params.id },
                 include: {
+                    user: { select: { name: true, imageUrl: true } },
+                    parent: { select: { id: true, title: true } },
                     children: {
                         where: { archived: false },
                         select: { id: true, title: true, emoji: true }
                     }
                 }
-            });
-            return NextResponse.json(fullDoc);
+            }),
+            db.document.findMany({
+                where: {
+                    workspaceId: (await db.document.findUnique({ where: { id: params.id }, select: { workspaceId: true } }))?.workspaceId,
+                    content: { contains: params.id },
+                    id: { not: params.id },
+                    archived: false
+                },
+                select: { id: true, title: true, emoji: true, updatedAt: true },
+                orderBy: { updatedAt: 'desc' }
+            })
+        ]);
+
+        if (!doc) return new NextResponse("Not Found", { status: 404 });
+
+        return NextResponse.json({ ...doc, backlinks });
         }
 
         if (!document) return NextResponse.json({ error: "Not found" }, { status: 404 });

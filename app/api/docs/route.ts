@@ -15,16 +15,11 @@ export async function GET(req: Request) {
 
         const where: any = {
             workspaceId,
-            parentId: null,
             archived: false,
         };
 
         if (projectId) {
             where.projectId = projectId;
-        } else {
-            // If fetching workspace docs, maybe only fetch those without a projectId
-            // Or fetched all if desired. Let's assume workspace-level docs have projectId: null
-            where.projectId = null;
         }
 
         const { getPrismaClient } = await import("@/lib/prisma");
@@ -33,12 +28,7 @@ export async function GET(req: Request) {
         const documents = await db.document.findMany({
             where,
             orderBy: { updatedAt: "desc" },
-            include: {
-                children: {
-                    where: { archived: false },
-                    select: { id: true, title: true, emoji: true }
-                }
-            }
+            // include children for nesting if needed, but client-side building is better from flat array
         });
 
         return NextResponse.json(documents);
