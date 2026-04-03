@@ -104,7 +104,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             channelRef.current = channel;
 
             // Fetch history
-            const historyRes = await fetch(`/api/chat?teamId=${teamId}`);
+            const historyRes = await fetch(`/api/chat?teamId=${teamId}&workspaceId=${workspaceId}`);
             if (historyRes.ok) {
                 const data = await historyRes.json();
                 if (data.messages && Array.isArray(data.messages)) {
