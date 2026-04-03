@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { motion } from "framer-motion";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -40,6 +41,8 @@ export default function DocsPage() {
         enabled: !!activeWorkspaceId,
     });
 
+    const router = useRouter(); // <-- NEED TO IMPORT AND ADD THIS
+
     const createMutation = useMutation({
         mutationFn: async () => {
             const res = await fetch("/api/docs", {
@@ -53,6 +56,7 @@ export default function DocsPage() {
         onSuccess: (newDoc) => {
             queryClient.invalidateQueries({ queryKey: ["docs", activeWorkspaceId] });
             toast.success("Document created");
+            router.push(`/wiki/${newDoc.id}`);
         },
     });
 
