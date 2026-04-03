@@ -122,7 +122,7 @@ export function WikiSidebar({ workspaceId }: WikiSidebarProps) {
                              <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest opacity-80">v2.0 Neural Tree</p>
                          </div>
                     </div>
-                    <Button onClick={() => createMutation.mutate()} variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800/50 hover:bg-indigo-600 hover:text-white transition-all shadow-sm border border-slate-200/50 dark:border-white/10 group">
+                    <Button onClick={() => createMutation.mutate(undefined)} variant="ghost" size="icon" className="h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-800/50 hover:bg-indigo-600 hover:text-white transition-all shadow-sm border border-slate-200/50 dark:border-white/10 group">
                         <Plus className="h-5 w-5 group-hover:rotate-90 transition-transform" />
                     </Button>
                 </div>
@@ -155,7 +155,7 @@ export function WikiSidebar({ workspaceId }: WikiSidebarProps) {
                      <div className="py-20 text-center space-y-4 px-6 grayscale">
                           <Layers className="h-10 w-10 text-muted-foreground mx-auto opacity-20" />
                           <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground opacity-50 leading-relaxed">No documentation branches detected in this node.</p>
-                          <Button onClick={() => createMutation.mutate()} variant="outline" className="rounded-xl border-2 px-6 font-black uppercase tracking-widest text-[8px] h-9">Initialize Node</Button>
+                          <Button onClick={() => createMutation.mutate(undefined)} variant="outline" className="rounded-xl border-2 px-6 font-black uppercase tracking-widest text-[8px] h-9">Initialize Node</Button>
                      </div>
                 )}
             </nav>

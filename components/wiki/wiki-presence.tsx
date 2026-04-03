@@ -27,7 +27,11 @@ export function WikiPresence({ documentId }: WikiPresenceProps) {
         const channel = ably.channels.get(`doc:${documentId}:presence`);
 
         channel.presence.subscribe("enter", (member) => {
-            setPresenceMembers((prev) => [...prev, member]);
+            setPresenceMembers((prev) => {
+                 const exists = prev.some(m => m.clientId === member.clientId);
+                 if (exists) return prev;
+                 return [...prev, member];
+            });
         });
 
         channel.presence.subscribe("leave", (member) => {
@@ -39,11 +43,9 @@ export function WikiPresence({ documentId }: WikiPresenceProps) {
             imageUrl: user.imageUrl
         });
 
-        channel.presence.get((err, members) => {
-            if (!err && members) {
-                setPresenceMembers(members);
-            }
-        });
+        channel.presence.get().then((members) => {
+            setPresenceMembers(members);
+        }).catch(err => console.error("Presence Retrieval Error", err));
 
         ablyRef.current = ably;
 
@@ -55,7 +57,7 @@ export function WikiPresence({ documentId }: WikiPresenceProps) {
 
     return (
         <TooltipProvider>
-            <div className="flex -space-x-2 overflow-hidden items-center">
+            <div className="flex -space-x-2 overflow-hidden items-center group/presence">
                 <AnimatePresence>
                     {presenceMembers.map((member) => (
                         <motion.div
@@ -67,15 +69,15 @@ export function WikiPresence({ documentId }: WikiPresenceProps) {
                         >
                             <Tooltip>
                                 <TooltipTrigger asChild>
-                                    <Avatar className="h-8 w-8 border-2 border-white dark:border-slate-900 ring-2 ring-indigo-500/10 shadow-sm transition-transform hover:scale-110 cursor-pointer">
+                                    <Avatar className="h-8 w-8 border-2 border-white dark:border-slate-900 ring-2 ring-indigo-500/10 shadow-sm transition-all hover:scale-125 hover:z-50 cursor-pointer">
                                         <AvatarImage src={member.data?.imageUrl} />
                                         <AvatarFallback className="text-[8px] font-black uppercase tracking-tighter bg-indigo-600 text-white">
                                             {member.data?.name?.slice(0, 2).toUpperCase() || "AN"}
                                         </AvatarFallback>
                                     </Avatar>
                                 </TooltipTrigger>
-                                <TooltipContent className="rounded-xl border-slate-200 dark:border-white/10 bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl">
-                                    <p className="text-[10px] font-black uppercase tracking-widest">{member.data?.name || "Viewing"}</p>
+                                <TooltipContent side="bottom" className="z-[200]">
+                                    <p className="font-black tracking-widest">{member.data?.name || "Viewing Now"}</p>
                                 </TooltipContent>
                             </Tooltip>
                             <div className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-900 shadow-sm animate-pulse" />

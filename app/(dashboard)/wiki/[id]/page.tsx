@@ -17,7 +17,8 @@ import {
     Sparkles,
     Loader2,
     Link as LinkIcon,
-    ArrowUpRight
+    ArrowUpRight,
+    Network
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,8 +28,8 @@ import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 
 import { AdvancedEditor, EditorBlock } from "@/components/wiki/editor/advanced-editor";
-
 import { WikiPresence } from "@/components/wiki/wiki-presence";
+import { WikiGraph } from "@/components/wiki/wiki-graph";
 
 export default function DocumentPage() {
     const params = useParams();
@@ -48,12 +49,10 @@ export default function DocumentPage() {
             const data = await res.json();
             setTitle(data.title);
             
-            // Try to parse blocks from content
             try {
                 if (data.content && (data.content.startsWith("[") || data.content.startsWith("{"))) {
                     setBlocks(JSON.parse(data.content));
                 } else {
-                    // Fallback for legacy plain text content
                     setBlocks([{
                         id: crypto.randomUUID(),
                         type: "paragraph",
@@ -103,7 +102,6 @@ export default function DocumentPage() {
         }
     };
 
-    // Auto-save logic
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
             if (e.key === "s" && (e.metaKey || e.ctrlKey)) {
@@ -131,7 +129,6 @@ export default function DocumentPage() {
 
     return (
         <div className="min-h-screen bg-[#fafafa] dark:bg-[#020617] flex flex-col">
-            {/* Toolbar */}
             <header className="h-16 border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-xl flex items-center justify-between px-6 sticky top-0 z-50">
                 <div className="flex items-center gap-4">
                     <Link href="/wiki">
@@ -152,13 +149,20 @@ export default function DocumentPage() {
                 </div>
 
                 <div className="flex items-center gap-4">
+                    <div className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200/50 dark:border-white/5 transition-all hover:border-indigo-500/30 group cursor-default">
+                        <Network className="h-3 w-3 text-indigo-600 group-hover:rotate-45 transition-transform" />
+                        <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">
+                            {document.backlinks?.length || 0} Nodes Connected
+                        </span>
+                    </div>
+
                     <WikiPresence documentId={id} />
                     
                     <div className="hidden sm:flex items-center gap-2 text-[10px] font-bold text-muted-foreground uppercase tracking-widest mr-4">
                         <Clock className="h-3 w-3" />
                         <span>Saved {formatDistanceToNow(new Date(document.updatedAt), { addSuffix: true })}</span>
                     </div>
-                    
+
                     <Button 
                         onClick={handleSave} 
                         disabled={isSaving}
@@ -174,7 +178,6 @@ export default function DocumentPage() {
                 </div>
             </header>
 
-            {/* Editor Area */}
             <main className="flex-1 max-w-5xl mx-auto w-full p-8 md:p-16">
                 <div className="bg-white dark:bg-slate-900 min-h-[70vh] rounded-[2.5rem] shadow-2xl shadow-indigo-500/5 border border-slate-200/50 dark:border-white/5 overflow-hidden flex flex-col">
                     <div className="p-4 border-b bg-slate-50/50 dark:bg-slate-950/20 flex items-center justify-between">
@@ -196,16 +199,15 @@ export default function DocumentPage() {
                               )}
                          </div>
                          <div className="flex items-center gap-2">
-                             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground">
-                                 <Maximize2 className="h-4 w-4" />
-                             </Button>
-                             <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground">
-                                 <Sparkles className="h-4 w-4" />
-                             </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground">
+                                  <Maximize2 className="h-4 w-4" />
+                              </Button>
+                              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground">
+                                  <Sparkles className="h-4 w-4" />
+                              </Button>
                          </div>
                     </div>
 
-                    {/* Editor Engine */}
                     <div className="flex-1 p-10 md:p-16 overflow-y-auto custom-scrollbar">
                         <AdvancedEditor 
                             blocks={blocks} 
@@ -216,12 +218,17 @@ export default function DocumentPage() {
                         />
                     </div>
 
-                    {/* Backlinks Section */}
+                    {document.backlinks && document.backlinks.length > 0 && (
+                        <div className="px-16 pb-16">
+                            <WikiGraph currentDoc={document} backlinks={document.backlinks} />
+                        </div>
+                    )}
+
                     {document.backlinks && document.backlinks.length > 0 && (
                         <motion.div 
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
-                            className="mt-32 p-16 pt-20 border-t border-slate-100 dark:border-white/5 space-y-10"
+                            className="mt-20 p-16 pt-20 border-t border-slate-100 dark:border-white/5 space-y-10"
                         >
                             <div className="flex items-center gap-4">
                                 <LinkIcon className="h-4 w-4 text-indigo-600" />
