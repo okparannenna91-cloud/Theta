@@ -29,9 +29,17 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
     const [limits, setLimits] = useState({ current: 0, max: -1 });
     const [isLoading, setIsLoading] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
+    const [dbUser, setDbUser] = useState<any>(null);
     const ablyRef = useRef<Ably.Realtime | null>(null);
     const channelRef = useRef<Ably.RealtimeChannel | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        fetch("/api/auth/me")
+            .then(res => res.json())
+            .then(data => setDbUser(data))
+            .catch(err => console.error("Failed to fetch DB user profile:", err));
+    }, []);
 
     const connectAbly = useCallback(async () => {
         if (!user?.id || !teamId) return;
@@ -220,7 +228,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                     </div>
                 ) : (
                     messages.map((msg) => {
-                        const isMe = msg.userId === user?.id;
+                        const isMe = msg.userId === dbUser?.id || msg.userId === user?.id; // Fallback to Clerk ID just in case
                         return (
                             <div
                                 key={msg.id}
