@@ -46,7 +46,8 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
 
         try {
             setIsLoading(true);
-            console.log(`[Chat] Connecting to Ably for team: ${teamId}`);
+            setIsConnected(false);
+            console.log(`[Chat] Connecting to Ably for team: ${teamId}, clientId: ${user.id}`);
             
             // Cleanup existing connection if any
             if (ablyRef.current) {
@@ -55,7 +56,24 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             }
 
             const ably = new Ably.Realtime({
-                authUrl: "/api/ably/token",
+                authCallback: async (tokenParams, callback) => {
+                    try {
+                        console.log("[Chat] Fetching Ably token...");
+                        const res = await fetch("/api/ably/token");
+                        if (!res.ok) {
+                            const errText = await res.text();
+                            console.error(`[Chat] Token request failed (${res.status}):`, errText);
+                            callback(new Error(`Token request failed: ${res.status}`), null);
+                            return;
+                        }
+                        const tokenRequest = await res.json();
+                        console.log("[Chat] Ably token received successfully");
+                        callback(null, tokenRequest);
+                    } catch (err: any) {
+                        console.error("[Chat] authCallback error:", err);
+                        callback(err, null);
+                    }
+                },
                 clientId: user.id
             });
 
@@ -63,9 +81,14 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             const channel = ably.channels.get(channelName);
 
             ably.connection.on("connected", () => {
-                console.log("[Chat] Ably Connected");
+                console.log("[Chat] Ably Connected Successfully");
                 setIsConnected(true);
                 setIsLoading(false);
+            });
+
+            ably.connection.on("disconnected", () => {
+                console.warn("[Chat] Ably Disconnected");
+                setIsConnected(false);
             });
 
             ably.connection.on("failed", (err) => {
