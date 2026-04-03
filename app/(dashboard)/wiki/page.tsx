@@ -121,7 +121,7 @@ export default function DocsPage() {
                                 <div className="mt-4">
                                     <CardTitle className="text-lg font-black truncate pr-4">{doc.title}</CardTitle>
                                     <div className="flex items-center gap-2 mt-2">
-                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{doc.children.length} Pages</span>
+                                        <span className="text-[10px] font-bold text-muted-foreground uppercase">{doc.children?.length || 0} Pages</span>
                                         <span className="text-slate-200 dark:text-slate-800 text-[10px]">•</span>
                                         <span className="text-[10px] font-black text-indigo-500 uppercase tracking-tight">Updated {formatDistanceToNow(new Date(doc.updatedAt), { addSuffix: true })}</span>
                                     </div>
