@@ -34,38 +34,55 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
     const scrollRef = useRef<HTMLDivElement>(null);
 
     const connectAbly = useCallback(async () => {
+        if (!user?.id || !teamId) return;
+
         try {
             setIsLoading(true);
+            console.log(`[Chat] Connecting to Ably for team: ${teamId}`);
             
             // Cleanup existing connection if any
             if (ablyRef.current) {
+                console.log("[Chat] Closing existing Ably connection");
                 ablyRef.current.close();
             }
 
             const ably = new Ably.Realtime({
                 authUrl: "/api/ably/token",
-                clientId: user?.id
-            });
-
-            ably.connection.on("connected", () => {
-                setIsConnected(true);
-                setIsLoading(false);
-            });
-
-            ably.connection.on("failed", () => {
-                setIsConnected(false);
-                setIsLoading(false);
+                clientId: user.id
             });
 
             const channelName = `team:${teamId}:chat`;
             const channel = ably.channels.get(channelName);
 
+            ably.connection.on("connected", () => {
+                console.log("[Chat] Ably Connected");
+                setIsConnected(true);
+                setIsLoading(false);
+            });
+
+            ably.connection.on("failed", (err) => {
+                console.error("[Chat] Ably Connection Failed:", err);
+                setIsConnected(false);
+                setIsLoading(false);
+            });
+
             channel.subscribe("message", (msg) => {
+                console.log("[Chat] Received message via Ably:", msg.data);
                 setMessages((prev) => {
-                    // Avoid duplicating optimistic messages if server returns them
-                    const exists = prev.some(m => m.id === msg.data.id || (m.tempId === msg.data.tempId && m.tempId));
-                    if (exists) return prev.map(m => (m.tempId === msg.data.tempId ? msg.data : m));
-                    return [...prev, msg.data];
+                    const incoming = msg.data;
+                    // Check if this message (or its optimistic counterpart) already exists
+                    const exists = prev.some(m => 
+                        m.id === incoming.id || 
+                        (incoming.tempId && m.tempId === incoming.tempId)
+                    );
+                    
+                    if (exists) {
+                        // Replace optimistic message with actual server message
+                        return prev.map(m => 
+                            (incoming.tempId && m.tempId === incoming.tempId) ? incoming : m
+                        );
+                    }
+                    return [...prev, incoming];
                 });
             });
 
@@ -74,13 +91,15 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
 
             // Fetch history
             const historyRes = await fetch(`/api/chat?teamId=${teamId}`);
-            const data = await historyRes.json();
-            if (data.messages && Array.isArray(data.messages)) {
-                setMessages(data.messages);
-                if (data.limits) setLimits(data.limits);
+            if (historyRes.ok) {
+                const data = await historyRes.json();
+                if (data.messages && Array.isArray(data.messages)) {
+                    setMessages(data.messages);
+                    if (data.limits) setLimits(data.limits);
+                }
             }
         } catch (error) {
-            console.error("Ably connection error:", error);
+            console.error("[Chat] Ably setup error:", error);
             setIsLoading(false);
         }
     }, [teamId, user?.id]);
@@ -200,11 +219,11 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                         <p className="text-sm">No messages yet. Start the conversation!</p>
                     </div>
                 ) : (
-                    messages.map((msg, i) => {
+                    messages.map((msg) => {
                         const isMe = msg.userId === user?.id;
                         return (
                             <div
-                                key={i}
+                                key={msg.id}
                                 className={`flex ${isMe ? "justify-end" : "justify-start"}`}
                             >
                                 <div className={`flex gap-2 max-w-[80%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
