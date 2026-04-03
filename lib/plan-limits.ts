@@ -293,6 +293,8 @@ export function getPlanLimitMessage(plan: PlanName, feature: string): string {
             return `Your ${plan} plan includes ${limits.maxStorage}MB of storage. Upgrade for more space.`;
         case "boots":
             return `Your ${plan} plan allows ${limits.maxBootsRequests} Boots AI requests per month. Upgrade for more.`;
+        case "chat":
+            return `Your ${plan} plan allows up to ${limits.maxChatMessages} chat messages. Upgrade to unlock more.`;
         case "integrations":
             return `Integrations are available on Growth plans and above. Upgrade to unlock this feature.`;
         case "analytics":

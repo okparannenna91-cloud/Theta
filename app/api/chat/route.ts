@@ -60,25 +60,28 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId or teamId is required" }, { status: 400 });
         }
 
-        // Get chat messages
-        const messages = await db.chatMessage.findMany({
+        // Get chat messages without include since users are on Shard 1
+        const messagesRaw = await db.chatMessage.findMany({
             where: {
                 teamId: teamId || null,
                 workspaceId: teamId ? undefined : (workspaceId as string),
                 projectId: teamId ? null : (projectId || null),
             },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        imageUrl: true,
-                    },
-                },
-            },
             orderBy: { createdAt: "asc" },
             take: 100,
         });
+
+        // Manually attach user info from primary DB
+        const uniqueUserIds = [...new Set(messagesRaw.map(m => m.userId))];
+        const users = await prisma.user.findMany({
+            where: { id: { in: uniqueUserIds } },
+            select: { id: true, name: true, imageUrl: true }
+        });
+
+        const messages = messagesRaw.map(m => ({
+            ...m,
+            user: users.find(u => u.id === m.userId) || null
+        }));
 
         const { getPlanLimits } = await import("@/lib/plan-limits");
         const workspace = await prisma.workspace.findUnique({
@@ -136,8 +139,8 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
 
-        // Create message
-        const message = await db.chatMessage.create({
+        // Create message without include since users are on Shard 1
+        const messageRaw = await db.chatMessage.create({
             data: {
                 content: data.content,
                 workspaceId: data.workspaceId,
@@ -146,16 +149,17 @@ export async function POST(req: Request) {
                 userId: user.id as string,
                 attachment: (data.attachment as any) || null,
             },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        imageUrl: true,
-                    },
-                },
-            },
         });
+
+        // Use current user info (Shard 1)
+        const message = {
+            ...messageRaw,
+            user: {
+                id: user.id,
+                name: user.name,
+                imageUrl: user.imageUrl,
+            },
+        };
 
         // Publish to Ably
         const channelName = data.teamId
