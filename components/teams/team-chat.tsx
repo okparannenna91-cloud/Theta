@@ -63,7 +63,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                         if (!res.ok) {
                             const errText = await res.text();
                             console.error(`[Chat] Token request failed (${res.status}):`, errText);
-                            callback(new Error(`Token request failed: ${res.status}`), null);
+                            callback(`Token request failed: ${res.status}`, null);
                             return;
                         }
                         const tokenRequest = await res.json();
@@ -71,7 +71,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                         callback(null, tokenRequest);
                     } catch (err: any) {
                         console.error("[Chat] authCallback error:", err);
-                        callback(err, null);
+                        callback(err?.message || "Auth callback failed", null);
                     }
                 },
                 clientId: user.id
