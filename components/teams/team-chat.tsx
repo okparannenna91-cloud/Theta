@@ -56,24 +56,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             }
 
             const ably = new Ably.Realtime({
-                authCallback: async (tokenParams, callback) => {
-                    try {
-                        console.log("[Chat] Fetching Ably token...");
-                        const res = await fetch("/api/ably/token");
-                        if (!res.ok) {
-                            const errText = await res.text();
-                            console.error(`[Chat] Token request failed (${res.status}):`, errText);
-                            callback(`Token request failed: ${res.status}`, null);
-                            return;
-                        }
-                        const tokenRequest = await res.json();
-                        console.log("[Chat] Ably token received successfully");
-                        callback(null, tokenRequest);
-                    } catch (err: any) {
-                        console.error("[Chat] authCallback error:", err);
-                        callback(err?.message || "Auth callback failed", null);
-                    }
-                },
+                authUrl: "/api/ably/token",
                 clientId: user.id
             });
 

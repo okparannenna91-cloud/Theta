@@ -17,7 +17,7 @@ export async function GET() {
 
         // Generate token for client
         const tokenRequest = await ably.auth.createTokenRequest({
-            clientId: user.id,
+            clientId: user.clerkId,
         });
 
         return NextResponse.json(tokenRequest);
