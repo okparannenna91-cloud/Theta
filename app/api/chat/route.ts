@@ -122,21 +122,26 @@ export async function POST(req: Request) {
 
         const body = await req.json();
         const data = chatSchema.parse(body);
+
+        // Always use workspaceId-scoped shard (fast path)
+        const db = getPrismaClient(data.workspaceId);
+
         // Verify access based on teamId or workspaceId
         if (data.teamId) {
-            const { findAcrossShards } = await import("@/lib/prisma");
-            const result = await findAcrossShards<any>("teamMember", {
-                teamId_userId: { teamId: data.teamId, userId: user.id }
+            // Use the known shard directly via workspaceId — no cross-shard search needed
+            const teamMember = await db.teamMember.findUnique({
+                where: { teamId_userId: { teamId: data.teamId, userId: user.id } }
             });
-            if (!result.data) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+            if (!teamMember) {
+                console.error(`[Chat POST] Team access denied. teamId=${data.teamId}, userId=${user.id}, workspaceId=${data.workspaceId}`);
+                return NextResponse.json({ error: "Forbidden: not a team member" }, { status: 403 });
+            }
         } else {
             const hasAccess = await verifyWorkspaceAccess(user.id, data.workspaceId);
             if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const db = getPrismaClient(data.workspaceId);
-
-        // Check plan limits strictly for chat messages
+        // Check plan limits for chat messages
         const chatCount = await db.chatMessage.count({
             where: { workspaceId: data.workspaceId }
         });
@@ -148,7 +153,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
 
-        // Create message without include since users are on Shard 1
+        // Create the message on the correct shard
         const messageRaw = await db.chatMessage.create({
             data: {
                 content: data.content,
@@ -159,6 +164,8 @@ export async function POST(req: Request) {
                 attachment: (data.attachment as any) || null,
             },
         });
+
+        console.log(`[Chat POST] Message saved. id=${messageRaw.id}, teamId=${data.teamId}, workspaceId=${data.workspaceId}`);
 
         // Use current user info (Shard 1)
         const message = {

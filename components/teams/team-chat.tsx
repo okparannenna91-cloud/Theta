@@ -178,24 +178,31 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                     workspaceId,
                     teamId,
                     attachment: currentAttachment,
-                    tempId // Pass tempId to identify message back from Ably
+                    tempId
                 }),
             });
 
             if (!res.ok) {
                 const error = await res.json();
+                console.error("[Chat] Message send failed:", res.status, error);
                 // Rollback on error
-                setMessages(prev => prev.filter(m => m.id !== tempId));
+                setMessages(prev => prev.filter(m => m.tempId !== tempId));
                 
                 if (res.status === 403 && error.error?.includes("limit")) {
                     showUpgradePrompt("chat");
                     return;
                 }
-                import("sonner").then(({ toast }) => toast.error("Failed to send message"));
+                import("sonner").then(({ toast }) => toast.error(`Failed to send: ${error.error || "Unknown error"}`));
+            } else {
+                // Message saved successfully — confirm from server response
+                const savedMsg = await res.json();
+                console.log("[Chat] Message saved to DB:", savedMsg.id);
+                // Replace optimistic msg id with real DB id
+                setMessages(prev => prev.map(m => m.tempId === tempId ? { ...savedMsg, user: m.user } : m));
             }
         } catch (error) {
             console.error("Failed to send message:", error);
-            setMessages(prev => prev.filter(m => m.id !== tempId));
+            setMessages(prev => prev.filter(m => m.tempId !== tempId));
             import("sonner").then(({ toast }) => toast.error("Failed to send message"));
         }
     };
