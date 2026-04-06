@@ -187,6 +187,20 @@ export async function isWorkspaceAdmin(
   userId: string,
   workspaceId: string
 ): Promise<boolean> {
-  const role = await getWorkspaceMemberRole(userId, workspaceId);
-  return role === "owner" || role === "admin";
+  try {
+    const { getPrismaClient } = await import("./prisma");
+    const db = getPrismaClient(workspaceId);
+    const membership = await db.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId,
+        },
+      },
+    });
+    return membership?.role === "owner" || membership?.role === "admin";
+  } catch (error) {
+    console.error("isWorkspaceAdmin error:", error);
+    return false;
+  }
 }

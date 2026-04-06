@@ -161,15 +161,25 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                     role: inviteRole,
                 }),
             });
-            if (!res.ok) throw new Error("Failed to send invite");
-            return res.json();
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.error || "Failed to send invite");
+            return json;
         },
-        onSuccess: () => {
-            toast.success("Invite sent successfully");
+        onSuccess: (data) => {
+            // Invite created — copy link to clipboard and show it
+            if (data.inviteLink) {
+                navigator.clipboard.writeText(data.inviteLink).catch(() => {});
+                toast.success(
+                    `Invite created! Link copied to clipboard.`,
+                    { description: data.inviteLink, duration: 8000 }
+                );
+            } else {
+                toast.success("Invite sent successfully");
+            }
             setInviteEmail("");
             queryClient.invalidateQueries({ queryKey: ["team-invites"] });
         },
-        onError: () => toast.error("Failed to send invite"),
+        onError: (err: any) => toast.error(err.message || "Failed to send invite"),
     });
 
     const revokeInviteMutation = useMutation({
