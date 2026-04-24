@@ -32,7 +32,7 @@ import {
 
 import { MotionWrapper, FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
 import { useI18n } from "@/lib/i18n";
-import { LiquidLoader } from "@/components/ui/liquid-loader";
+
 
 export default function DashboardPage() {
   const { t } = useI18n();
@@ -40,14 +40,71 @@ export default function DashboardPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["dashboard", activeWorkspaceId],
     queryFn: () => fetchDashboardData(activeWorkspaceId),
-    refetchInterval: 5000,
     enabled: !!activeWorkspaceId,
   });
 
   if (isLoading) {
     return (
-      <div className="min-h-[80vh] flex items-center justify-center">
-        <LiquidLoader text="Assembling your Dashboard..." />
+      <div className="p-4 sm:p-10 space-y-10 max-w-7xl mx-auto">
+        {/* Header skeleton */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+          <div className="space-y-3">
+            <Skeleton className="h-12 w-64" />
+            <Skeleton className="h-5 w-48" />
+          </div>
+          <Skeleton className="h-10 w-48 rounded-full" />
+        </div>
+
+        {/* Stats cards skeleton */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="glass-card rounded-xl p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <Skeleton className="h-3 w-24" />
+                <Skeleton className="h-10 w-10 rounded-2xl" />
+              </div>
+              <Skeleton className="h-10 w-20" />
+              <Skeleton className="h-3 w-32" />
+            </div>
+          ))}
+        </div>
+
+        {/* Chart skeleton */}
+        <div className="glass-card rounded-xl p-6 space-y-4">
+          <div className="flex items-center gap-3">
+            <Skeleton className="h-10 w-10 rounded-xl" />
+            <div className="space-y-2">
+              <Skeleton className="h-5 w-56" />
+              <Skeleton className="h-3 w-72" />
+            </div>
+          </div>
+          <Skeleton className="h-[350px] w-full rounded-xl" />
+        </div>
+
+        {/* Two-column skeleton */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {Array.from({ length: 2 }).map((_, i) => (
+            <div key={i} className="glass-card rounded-xl p-6 space-y-5">
+              <div className="flex justify-between items-center">
+                <div className="space-y-2">
+                  <Skeleton className="h-5 w-40" />
+                  <Skeleton className="h-3 w-48" />
+                </div>
+                <Skeleton className="h-9 w-24 rounded-xl" />
+              </div>
+              {Array.from({ length: 3 }).map((_, j) => (
+                <div key={j} className="flex items-center gap-5 p-5 rounded-2xl bg-muted/30">
+                  <Skeleton className="h-12 w-12 rounded-2xl" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-5 w-36" />
+                    <Skeleton className="h-3 w-24" />
+                  </div>
+                  <Skeleton className="h-2 w-32 rounded-full" />
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
