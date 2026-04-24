@@ -27,8 +27,6 @@ import Image from "next/image";
 import { SignInButton, SignUpButton } from "@clerk/nextjs";
 import { useEffect, useState } from "react";
 import { MotionWrapper, FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
-import Hyperspeed from "@/components/Hyperspeed";
-import { hyperspeedPresets } from "@/components/HyperspeedPresets";
 
 // Fixed AnimatedNumber component with premium styling
 function AnimatedNumber({ value, suffix = "" }: { value: number; suffix?: string }) {
@@ -152,9 +150,6 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20">
-        <div className="absolute inset-0 z-0">
-          <Hyperspeed effectOptions={hyperspeedPresets.four} />
-        </div>
         <div className="absolute inset-0 z-0 mesh-gradient opacity-30 pointer-events-none"></div>
         <div className="absolute inset-0 z-0 bg-[radial-gradient(circle_at_50%_120%,rgba(139,92,246,0.15),transparent_50%)] pointer-events-none"></div>
 
