@@ -61,9 +61,18 @@ export default function SettingsPage() {
   });
 
   const currentPlan = workspaceData?.plan || "free";
-  const [emailNotifications, setEmailNotifications] = useState(true);
-  const [pushNotifications, setPushNotifications] = useState(false);
-  const [compactMode, setCompactMode] = useState(false);
+  
+  const [emailNotifications, setEmailNotifications] = useState(preferences?.emailNotifications ?? true);
+  const [pushNotifications, setPushNotifications] = useState(preferences?.pushNotifications ?? false);
+  const [compactMode, setCompactMode] = useState(preferences?.compactMode ?? false);
+
+  useEffect(() => {
+    if (preferences) {
+      setEmailNotifications(preferences.emailNotifications ?? true);
+      setPushNotifications(preferences.pushNotifications ?? false);
+      setCompactMode(preferences.compactMode ?? false);
+    }
+  }, [preferences]);
 
   // Avoid hydration mismatch
   useEffect(() => setMounted(true), []);
@@ -72,6 +81,29 @@ export default function SettingsPage() {
     setTheme(newTheme);
     updatePreference({ theme: newTheme });
     toast.success(`Theme updated to ${newTheme}`);
+  };
+
+  const handlePreferenceChange = (key: string, value: boolean) => {
+    updatePreference({ [key]: value });
+    toast.success(`${key.replace(/([A-Z])/g, ' $1').toLowerCase()} updated`);
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!confirm("Are you absolutely sure? This action is irreversible and all your data will be permanently deleted.")) {
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/user/delete", { method: "DELETE" });
+      if (res.ok) {
+        toast.success("Account deleted successfully");
+        window.location.href = "/";
+      } else {
+        toast.error("Failed to delete account");
+      }
+    } catch (error) {
+      toast.error("An error occurred");
+    }
   };
 
   if (!mounted) return null;
@@ -140,9 +172,12 @@ export default function SettingsPage() {
                     <Label className="text-lg font-black tracking-tight">Compact Mode</Label>
                     <p className="text-sm text-muted-foreground font-medium">Maximize data density across your workspace dashboards.</p>
                   </div>
-                  <Switch
+                   <Switch
                     checked={compactMode}
-                    onCheckedChange={setCompactMode}
+                    onCheckedChange={(val) => {
+                       setCompactMode(val);
+                       handlePreferenceChange("compactMode", val);
+                    }}
                     className="data-[state=checked]:bg-primary"
                   />
                 </div>
@@ -167,9 +202,12 @@ export default function SettingsPage() {
                     <Label className="text-lg font-black tracking-tight">Email Notifications</Label>
                     <p className="text-sm text-muted-foreground font-medium">Receive high-priority updates about project milestones.</p>
                   </div>
-                  <Switch
+                   <Switch
                     checked={emailNotifications}
-                    onCheckedChange={setEmailNotifications}
+                    onCheckedChange={(val) => {
+                        setEmailNotifications(val);
+                        handlePreferenceChange("emailNotifications", val);
+                    }}
                     className="data-[state=checked]:bg-primary"
                   />
                 </div>
@@ -178,9 +216,12 @@ export default function SettingsPage() {
                     <Label className="text-lg font-black tracking-tight">Desktop Push Notifications</Label>
                     <p className="text-sm text-muted-foreground font-medium">Real-time low-latency alerts directly within your OS.</p>
                   </div>
-                  <Switch
+                   <Switch
                     checked={pushNotifications}
-                    onCheckedChange={setPushNotifications}
+                    onCheckedChange={(val) => {
+                        setPushNotifications(val);
+                        handlePreferenceChange("pushNotifications", val);
+                    }}
                     className="data-[state=checked]:bg-primary"
                   />
                 </div>
@@ -208,8 +249,12 @@ export default function SettingsPage() {
                     </Badge>
                     <p className="text-sm text-muted-foreground font-medium">Enhanced biometric or token-based secondary validation.</p>
                   </div>
-                  <Button variant="outline" className="rounded-xl border-primary/20 text-primary font-black uppercase tracking-widest text-xs h-11 px-8 hover:bg-primary hover:text-white transition-all duration-300">
-                    Configure 2FA
+                   <Button 
+                    variant="outline" 
+                    className="rounded-xl border-primary/20 text-primary font-black uppercase tracking-widest text-xs h-11 px-8 hover:bg-primary hover:text-white transition-all duration-300"
+                    onClick={() => window.location.href = "/profile"}
+                  >
+                    Manage Security
                   </Button>
                 </div>
 
@@ -219,7 +264,11 @@ export default function SettingsPage() {
                       <Label className="text-lg font-black tracking-tight text-rose-500">Danger Zone</Label>
                       <p className="text-sm text-muted-foreground font-medium">Irreversible removal of all workspace data and access credentials.</p>
                     </div>
-                    <Button variant="destructive" className="rounded-xl font-black uppercase tracking-widest text-xs h-11 px-8 shadow-lg shadow-rose-500/20">
+                     <Button 
+                      variant="destructive" 
+                      className="rounded-xl font-black uppercase tracking-widest text-xs h-11 px-8 shadow-lg shadow-rose-500/20"
+                      onClick={handleDeleteAccount}
+                    >
                       Delete Account
                     </Button>
                   </div>
@@ -312,11 +361,11 @@ export default function SettingsPage() {
           </section>
         </FadeIn>
 
-        <div className="flex justify-end gap-4 pt-10">
-          <Button variant="ghost" className="font-black uppercase tracking-widest text-xs h-12 px-8 hover:bg-secondary rounded-2xl transition-all">Cancel</Button>
-          <Button className="bg-primary hover:primary/90 text-white font-black uppercase tracking-widest text-xs h-12 px-10 rounded-2xl shadow-[0_10px_30px_-10px_rgba(139,92,246,0.4)] transition-all duration-500 hover:scale-[1.02] active:scale-95">
-            Deploy Changes
-          </Button>
+         <div className="flex justify-end gap-4 pt-10">
+          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest self-center mr-4 pt-1">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2" />
+            System Synchronized
+          </p>
         </div>
       </div>
     </MotionWrapper>

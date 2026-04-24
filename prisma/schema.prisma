@@ -490,6 +490,9 @@ model UserPreference {
   theme             String   @default("dark")
   dismissedPopups   Json?    @db.Json
   onboardingComplete Boolean @default(false)
+  compactMode       Boolean  @default(false)
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(false)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 

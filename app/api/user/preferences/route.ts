@@ -26,7 +26,7 @@ export async function POST(req: Request) {
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const body = await req.json();
-        const { dismissedPopups, onboardingComplete, theme } = body;
+        const { dismissedPopups, onboardingComplete, theme, compactMode, emailNotifications, pushNotifications } = body;
 
         const preferences = await prisma.userPreference.update({
             where: { userId: user.id as string },
@@ -34,6 +34,9 @@ export async function POST(req: Request) {
                 dismissedPopups: dismissedPopups !== undefined ? dismissedPopups : undefined,
                 onboardingComplete: onboardingComplete !== undefined ? onboardingComplete : undefined,
                 theme: theme !== undefined ? theme : undefined,
+                compactMode: compactMode !== undefined ? compactMode : undefined,
+                emailNotifications: emailNotifications !== undefined ? emailNotifications : undefined,
+                pushNotifications: pushNotifications !== undefined ? pushNotifications : undefined,
             },
         });
 
