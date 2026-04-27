@@ -11,9 +11,8 @@ model Workspace {
   id              String   @id @default(auto()) @map("_id") @db.ObjectId
   name            String
   slug            String   @unique
-  plan            String   @default("free") // free, growth, pro, theta_plus, lifetime
+  plan            String   @default("free") // free, growth, pro, theta_plus
   billingInterval String?  // monthly, annual
-  isLifetime      Boolean  @default(false)
   paystackCustomerId   String?
   paystackAuthCode     String?
   subscriptionId       String?
@@ -122,6 +121,7 @@ model WorkspaceMember {
   workspaceId String   @db.ObjectId
   userId      String   @db.ObjectId
   role        String   @default("member") // owner, admin, member
+  status      String   @default("active") // active, inactive, pending
   createdAt   DateTime @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)

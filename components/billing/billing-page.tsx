@@ -292,7 +292,8 @@ export default function BillingPage() {
           const isCurrentPlan = currentPlanKey === plan.planKey;
           const isPopular = plan.planKey === "pro";
 
-          const price = getPlanPrice(plan.id, billingInterval, currency);
+          const currentMemberCount = usage?.members?.current || 0;
+          const price = getPlanPrice(plan.id, billingInterval, currentMemberCount, currency);
 
           const formattedPrice = currency === "USD"
             ? `$${(price / 100).toLocaleString()}`
@@ -369,8 +370,7 @@ export default function BillingPage() {
                         isCurrentPlan ? "Current Active Plan" :
                           (currency === "USD" && !subscription?.isIvnoConfigured) ? "Checkout Coming Soon" :
                             (currency === "NGN" && !subscription?.isPaystackConfigured) ? "Checkout Coming Soon" :
-                              plan.planKey === "lifetime" ? "Get Lifetime" :
-                                "Upgrade Now"}
+                              "Upgrade Now"}
                       {!isCurrentPlan && !((currency === "USD" && !subscription?.isIvnoConfigured) || (currency === "NGN" && !subscription?.isPaystackConfigured)) && <ArrowRight className="ml-2 h-4 w-4" />}
                     </Button>
                   </div>

@@ -23,7 +23,15 @@ export async function processPaystackRecurringCharge(workspaceId: string) {
     const plan = BILLING_PLAN_LOOKUP[workspace.plan];
     if (!plan || plan.mode === "one_time") return;
 
-    const amount = getPlanPrice(workspace.id, workspace.billingInterval as any, "NGN");
+    // Count active members for dynamic billing
+    const activeMemberCount = await prisma.workspaceMember.count({
+        where: { 
+            workspaceId: workspaceId,
+            status: "active"
+        }
+    });
+
+    const amount = getPlanPrice(workspace.plan, workspace.billingInterval as any, activeMemberCount, "NGN");
 
     try {
         const reference = `sub_${workspaceId}_${Date.now()}`;

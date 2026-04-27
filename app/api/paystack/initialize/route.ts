@@ -27,9 +27,18 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
         }
 
-        // Get correct price based on currency and interval (Dynamically if NGN)
+        // Count active members for dynamic billing
+        const { prisma } = await import("@/lib/prisma");
+        const activeMemberCount = await prisma.workspaceMember.count({
+            where: { 
+                workspaceId: workspaceId,
+                status: "active"
+            }
+        });
+
+        // Get correct price based on currency, interval, and member count
         const { getPlanPriceDynamic } = await import("@/lib/billing-plans");
-        const amount = await getPlanPriceDynamic(plan.id, interval, currency);
+        const amount = await getPlanPriceDynamic(plan.id, interval, activeMemberCount, currency);
 
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
 

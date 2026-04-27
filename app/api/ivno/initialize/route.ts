@@ -37,12 +37,17 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
         }
 
-        // Lifetime is always a one-time payment; interval is irrelevant
-        const effectiveInterval: BillingInterval =
-            plan.mode === "one_time" ? "monthly" : interval;
+        // Count active members for dynamic billing
+        const { prisma } = await import("@/lib/prisma");
+        const activeMemberCount = await prisma.workspaceMember.count({
+            where: { 
+                workspaceId: workspaceId,
+                status: "active"
+            }
+        });
 
         // Get correct price in USD (Ivno processes in USD)
-        const amountCents = getPlanPrice(plan.id, effectiveInterval, "USD");
+        const amountCents = getPlanPrice(plan.id, interval, activeMemberCount, "USD");
         if (amountCents === 0 && plan.planKey !== "free") {
             return NextResponse.json({ error: "Invalid price for plan" }, { status: 400 });
         }

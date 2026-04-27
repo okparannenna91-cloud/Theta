@@ -6,16 +6,14 @@ export type BillingPlan = {
   id: string;
   name: string;
   priceLabel: string;
-  priceLabelNGN: string;
-  priceMonthlyUSD: number; // in cents
-  priceAnnualUSD: number;  // in cents
-  priceMonthlyNGN: number; // in kobo
-  priceAnnualNGN: number;  // in kobo
+  basePriceMonthlyUSD: number; // in cents
+  perUserPriceMonthlyUSD: number; // in cents
+  maxUsers: number | null; 
   currency: "USD" | "NGN";
   mode: BillingMode;
   features: string[];
   description: string;
-  planKey: "free" | "growth" | "pro" | "theta_plus" | "lifetime";
+  planKey: "free" | "growth" | "pro" | "theta_plus";
   paystackPlanCodes?: {
     monthly: string;
     annual: string;
@@ -28,19 +26,17 @@ export const BILLING_PLANS: BillingPlan[] = [
     planKey: "free",
     name: "Free",
     priceLabel: "$0",
-    priceLabelNGN: "₦0",
-    priceMonthlyUSD: 0,
-    priceAnnualUSD: 0,
-    priceMonthlyNGN: 0,
-    priceAnnualNGN: 0,
+    basePriceMonthlyUSD: 0,
+    perUserPriceMonthlyUSD: 0,
+    maxUsers: 3,
     currency: "USD",
     mode: "subscription",
     description: "Perfect for getting started",
     features: [
+      "Up to 3 users",
       "3 projects",
       "25 tasks",
       "1 team",
-      "5 team members",
       "100MB storage",
       "10 Boots AI requests/mo",
       "2 Kanban boards",
@@ -51,24 +47,22 @@ export const BILLING_PLANS: BillingPlan[] = [
     id: "growth-monthly",
     planKey: "growth",
     name: "Growth",
-    priceLabel: "$12",
-    priceLabelNGN: "₦15,000",
-    priceMonthlyUSD: 1200,
-    priceAnnualUSD: 11520,
-    priceMonthlyNGN: 1500000, // 15,000.00 NGN
-    priceAnnualNGN: 14400000, // 144,000.00 NGN (20% discount)
+    priceLabel: "$5",
+    basePriceMonthlyUSD: 500,
+    perUserPriceMonthlyUSD: 200,
+    maxUsers: 15,
     currency: "USD",
     mode: "subscription",
     description: "For small growing teams",
     paystackPlanCodes: {
-      monthly: "PLN_growth_monthly",
-      annual: "PLN_growth_annual",
+      monthly: "PLN_growth_dynamic",
+      annual: "PLN_growth_annual_dynamic",
     },
     features: [
+      "Up to 15 users",
       "15 projects",
       "150 tasks",
       "5 teams",
-      "15 team members",
       "5GB storage",
       "100 Boots AI requests/mo",
       "10 Kanban boards",
@@ -80,23 +74,21 @@ export const BILLING_PLANS: BillingPlan[] = [
     id: "pro-monthly",
     planKey: "pro",
     name: "Pro",
-    priceLabel: "$29",
-    priceLabelNGN: "₦35,000",
-    priceMonthlyUSD: 2900,
-    priceAnnualUSD: 27840,
-    priceMonthlyNGN: 3500000,
-    priceAnnualNGN: 33600000,
+    priceLabel: "$10",
+    basePriceMonthlyUSD: 1000,
+    perUserPriceMonthlyUSD: 300,
+    maxUsers: 50,
     currency: "USD",
     mode: "subscription",
     description: "For professional teams",
     paystackPlanCodes: {
-      monthly: "PLN_pro_monthly",
-      annual: "PLN_pro_annual",
+      monthly: "PLN_pro_dynamic",
+      annual: "PLN_pro_annual_dynamic",
     },
     features: [
+      "Up to 50 users",
       "100 projects",
       "Unlimited tasks & teams",
-      "50 team members",
       "50GB storage",
       "500 Boots AI requests/mo",
       "Unlimited Kanban boards",
@@ -110,22 +102,21 @@ export const BILLING_PLANS: BillingPlan[] = [
     id: "theta-plus-monthly",
     planKey: "theta_plus",
     name: "Theta Plus",
-    priceLabel: "$99",
-    priceLabelNGN: "₦120,000",
-    priceMonthlyUSD: 9900,
-    priceAnnualUSD: 95040,
-    priceMonthlyNGN: 12000000,
-    priceAnnualNGN: 115200000,
+    priceLabel: "$20",
+    basePriceMonthlyUSD: 2000,
+    perUserPriceMonthlyUSD: 400,
+    maxUsers: null,
     currency: "USD",
     mode: "subscription",
     description: "For enterprise-grade teams",
     paystackPlanCodes: {
-      monthly: "PLN_plus_monthly",
-      annual: "PLN_plus_annual",
+      monthly: "PLN_plus_dynamic",
+      annual: "PLN_plus_annual_dynamic",
     },
     features: [
+      "Unlimited users",
       "Unlimited projects & tasks",
-      "Unlimited teams & members",
+      "Unlimited teams",
       "500GB storage",
       "2,000 Boots AI requests/mo",
       "Advanced permissions",
@@ -133,32 +124,6 @@ export const BILLING_PLANS: BillingPlan[] = [
       "White label branding",
       "24/7 Priority support",
       "Dedicated manager",
-    ],
-  },
-  {
-    id: "lifetime",
-    planKey: "lifetime",
-    name: "Theta Lifetime",
-    priceLabel: "$999",
-    priceLabelNGN: "₦1,200,000",
-    priceMonthlyUSD: 99900,
-    priceAnnualUSD: 99900,
-    priceMonthlyNGN: 120000000,
-    priceAnnualNGN: 120000000,
-    currency: "USD",
-    mode: "one_time",
-    description: "One-time payment, lifetime access",
-    paystackPlanCodes: {
-      monthly: "LIFETIME_NGN",
-      annual: "LIFETIME_NGN",
-    },
-    features: [
-      "All Theta Plus features",
-      "Lifetime access",
-      "No recurring fees",
-      "Priority early access",
-      "All future updates",
-      "Highest priority support",
     ],
   },
 ];
@@ -171,27 +136,34 @@ export const BILLING_PLAN_LOOKUP = BILLING_PLANS.reduce<
 }, {});
 
 /**
- * Get plan price based on billing interval and currency
- * Synchronous version uses hardcoded fallbacks for NGN
+ * Get plan price based on billing interval, currency and member count
  */
 export function getPlanPrice(
   planId: string,
   interval: BillingInterval,
+  memberCount: number = 0,
   currency: Currency = "USD"
 ): number {
   const plan = BILLING_PLAN_LOOKUP[planId];
   if (!plan) return 0;
 
+  // Formula: Base + (Active Users * Price Per User)
+  const baseMonthly = plan.basePriceMonthlyUSD;
+  const perUserMonthly = plan.perUserPriceMonthlyUSD;
+  
+  let totalMonthlyUSD = baseMonthly + (memberCount * perUserMonthly);
+  
+  // Apply annual discount if applicable (20%)
+  let finalAmountUSD = interval === "annual" 
+    ? Math.floor(totalMonthlyUSD * 12 * 0.8) 
+    : totalMonthlyUSD;
+
   if (currency === "NGN") {
-    if (plan.mode === "one_time") return plan.priceMonthlyNGN;
-    return interval === "annual" ? plan.priceAnnualNGN : plan.priceMonthlyNGN;
+     // For this iteration, we'll use a fixed conversion factor of 1250 if dynamic fails
+     return finalAmountUSD * 1250;
   }
 
-  if (plan.mode === "one_time") {
-    return plan.priceMonthlyUSD;
-  }
-
-  return interval === "annual" ? plan.priceAnnualUSD : plan.priceMonthlyUSD;
+  return finalAmountUSD;
 }
 
 /**
@@ -200,23 +172,24 @@ export function getPlanPrice(
 export async function getPlanPriceDynamic(
   planId: string,
   interval: BillingInterval,
+  memberCount: number = 0,
   currency: Currency = "USD"
 ): Promise<number> {
   const plan = BILLING_PLAN_LOOKUP[planId];
   if (!plan) return 0;
 
   if (currency === "USD") {
-    return getPlanPrice(planId, interval, "USD");
+    return getPlanPrice(planId, interval, memberCount, "USD");
   }
 
   // Handle NGN dynamically
   try {
     const { convertUsdToNgn } = await import("./currency");
-    const usdAmount = getPlanPrice(planId, interval, "USD");
+    const usdAmount = getPlanPrice(planId, interval, memberCount, "USD");
     return await convertUsdToNgn(usdAmount);
   } catch (error) {
-    console.warn("[Billing] Dynamic conversion failed, using hardcoded price");
-    return getPlanPrice(planId, interval, "NGN");
+    console.warn("[Billing] Dynamic conversion failed, using fixed fallback");
+    return getPlanPrice(planId, interval, memberCount, "NGN");
   }
 }
 

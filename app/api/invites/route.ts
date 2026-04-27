@@ -35,12 +35,9 @@ export async function POST(req: Request) {
 
 
         // Check plan limits strictly (including pending invites)
-        const workspace = await prisma.workspace.findUnique({
-            where: { id: data.workspaceId },
-            include: { _count: { select: { members: true } } }
+        const activeMemberCount = await prisma.workspaceMember.count({
+            where: { workspaceId: data.workspaceId, status: "active" }
         });
-
-        if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
         const pendingInviteCount = await prisma.invite.count({
             where: { workspaceId: data.workspaceId, status: "pending" }
@@ -48,7 +45,7 @@ export async function POST(req: Request) {
 
         try {
             const { enforcePlanLimit } = await import("@/lib/plan-limits");
-            await enforcePlanLimit(data.workspaceId, "members", workspace._count.members + pendingInviteCount);
+            await enforcePlanLimit(data.workspaceId, "members", activeMemberCount + pendingInviteCount);
         } catch (error: any) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
