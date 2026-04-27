@@ -121,7 +121,7 @@ model WorkspaceMember {
   workspaceId String   @db.ObjectId
   userId      String   @db.ObjectId
   role        String   @default("member") // owner, admin, member
-  status      String   @default("active") // active, inactive, pending
+  status      String?  @default("active") // active, inactive, pending
   createdAt   DateTime @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
