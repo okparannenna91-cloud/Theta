@@ -24,20 +24,23 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
         const { prisma, getPrismaClient } = await import("./prisma");
         const shardPrisma = getPrismaClient(workspaceId);
 
+        const memberCount = await prisma.workspaceMember.count({
+            where: {
+                workspaceId,
+                OR: [
+                    { status: "active" },
+                    { status: { isSet: false } }
+                ]
+            }
+        });
+
         const workspace = await prisma.workspace.findUnique({
-            where: { id: workspaceId },
-            include: {
-                members: {
-                    where: { status: "active" }
-                }
-            },
+            where: { id: workspaceId }
         });
 
         if (!workspace) {
             throw new Error("Workspace not found");
         }
-
-        const memberCount = workspace.members.length;
 
         const isDeactivated = workspace.billingStatus === "deactivated";
         const plan = workspace.plan as PlanName;
@@ -140,7 +143,13 @@ export async function getMemberCount(workspaceId: string): Promise<number> {
     // Members are on Shard 1 with workspace metadata
     const { prisma } = await import("./prisma");
     return await prisma.workspaceMember.count({
-        where: { workspaceId, status: "active" },
+        where: { 
+            workspaceId,
+            OR: [
+                { status: "active" },
+                { status: { isSet: false } }
+            ]
+        },
     });
 }
 

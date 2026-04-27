@@ -27,7 +27,10 @@ export async function processPaystackRecurringCharge(workspaceId: string) {
     const activeMemberCount = await prisma.workspaceMember.count({
         where: { 
             workspaceId: workspaceId,
-            status: "active"
+            OR: [
+                { status: "active" },
+                { status: { isSet: false } }
+            ]
         }
     });
 
