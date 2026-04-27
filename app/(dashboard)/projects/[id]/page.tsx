@@ -176,7 +176,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                                         <h3 className="text-2xl font-black uppercase mb-2 tracking-tight">Zero Board Territory</h3>
                                         <p className="text-sm text-muted-foreground mb-8 max-w-sm font-medium">Create a Kanban board to visually manage your tasks and transform your project flow.</p>
                                         <Button size="lg" className="rounded-2xl px-8 font-black uppercase tracking-widest" asChild>
-                                            <Link href="/boards">Initiate First Board</Link>
+                                            <Link href={`/projects/${project.id}/boards`}>Initiate First Board</Link>
                                         </Button>
                                     </div>
                                 )}

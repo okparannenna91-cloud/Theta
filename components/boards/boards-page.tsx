@@ -40,11 +40,11 @@ async function createBoard(data: { name: string; projectId: string; workspaceId:
   return res.json();
 }
 
-export default function BoardsPage() {
+export default function BoardsPage({ projectId: initialProjectId }: { projectId?: string } = {}) {
   const [isOpen, setIsOpen] = useState(false);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [projectId, setProjectId] = useState("");
+  const [projectId, setProjectId] = useState(initialProjectId || "");
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
@@ -58,6 +58,11 @@ export default function BoardsPage() {
 
   const boards = Array.isArray(boardsData?.boards) ? boardsData.boards : Array.isArray(boardsData) ? boardsData : [];
   const boardLimits = boardsData?.limits || { max: -1, current: 0, hasAccess: true };
+
+  // Filter boards by initialProjectId if provided
+  const displayedBoards = initialProjectId
+    ? boards.filter((b: any) => b.projectId === initialProjectId)
+    : boards;
 
   const { data: projectsData } = useQuery({
     queryKey: ["projects", activeWorkspaceId],
@@ -80,7 +85,7 @@ export default function BoardsPage() {
       setIsOpen(false);
       setName("");
       setDescription("");
-      setProjectId("");
+      if (!initialProjectId) setProjectId("");
       import("sonner").then(({ toast }) => toast.success("Board created successfully"));
     },
     onError: (error: any) => {
@@ -119,8 +124,8 @@ export default function BoardsPage() {
     );
   }
 
-  const favoriteBoards = boards?.filter((b: any) => b.isFavorite) || [];
-  const otherBoards = boards?.filter((b: any) => !b.isFavorite) || [];
+  const favoriteBoards = displayedBoards?.filter((b: any) => b.isFavorite) || [];
+  const otherBoards = displayedBoards?.filter((b: any) => !b.isFavorite) || [];
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-[1600px] mx-auto">
@@ -210,25 +215,27 @@ export default function BoardsPage() {
                 className="h-11 rounded-xl"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="project" className="text-xs font-bold uppercase tracking-widest">Linked Project</Label>
-              <Select
-                value={projectId}
-                onValueChange={setProjectId}
-                required
-              >
-                <SelectTrigger id="project" className="h-11 rounded-xl">
-                  <SelectValue placeholder="Select a project" />
-                </SelectTrigger>
-                <SelectContent>
-                  {projects?.map((project: any) => (
-                    <SelectItem key={project.id} value={project.id}>
-                      {project.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+            {!initialProjectId && (
+              <div className="space-y-2">
+                <Label htmlFor="project" className="text-xs font-bold uppercase tracking-widest">Linked Project</Label>
+                <Select
+                  value={projectId}
+                  onValueChange={setProjectId}
+                  required
+                >
+                  <SelectTrigger id="project" className="h-11 rounded-xl">
+                    <SelectValue placeholder="Select a project" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {projects?.map((project: any) => (
+                      <SelectItem key={project.id} value={project.id}>
+                        {project.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
             <div className="flex justify-end gap-3 pt-4">
               <Button
                 type="button"
@@ -295,4 +302,3 @@ function BoardCard({ board, index, onClick }: { board: any; index: number; onCli
     </motion.div>
   );
 }
-
