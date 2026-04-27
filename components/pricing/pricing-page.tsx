@@ -53,7 +53,7 @@ export default function PricingPage() {
            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-12">
               <div className="flex-1 space-y-4">
                  <h2 className="text-2xl font-black tracking-tight text-indigo-600">Cost Estimator</h2>
-                 <p className="text-sm font-medium text-muted-foreground italic">Drag to see how much you'll save on smaller teams or scale predictably as you grow.</p>
+                 <p className="text-sm font-medium text-muted-foreground italic">Drag to see how much you&apos;ll save on smaller teams or scale predictably as you grow.</p>
                  <div className="pt-4 space-y-6">
                     <div className="flex items-center justify-between">
                        <Label className="text-lg font-bold">Planned Team Size</Label>
