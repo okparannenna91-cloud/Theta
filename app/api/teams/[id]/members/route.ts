@@ -14,20 +14,31 @@ export async function GET(
 
         const teamId = params.id;
 
-        const members = await prisma.teamMember.findMany({
+        const { findAcrossShards } = await import("@/lib/prisma");
+        const teamResult = await findAcrossShards<any>("team", { id: teamId });
+        
+        if (!teamResult.data) {
+            return NextResponse.json({ error: "Team not found" }, { status: 404 });
+        }
+        
+        const db = teamResult.db;
+
+        const membersRaw = await db.teamMember.findMany({
             where: { teamId },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        email: true,
-                        imageUrl: true,
-                    },
-                },
-            },
             orderBy: { role: "asc" },
         });
+
+        const uniqueUserIds = [...new Set(membersRaw.map((m: any) => m.userId))];
+        const users = await prisma.user.findMany({
+            where: { id: { in: uniqueUserIds } },
+            select: { id: true, name: true, email: true, imageUrl: true }
+        });
+
+        const userMap = new Map(users.map(u => [u.id, u]));
+        const members = membersRaw.map((m: any) => ({
+            ...m,
+            user: userMap.get(m.userId) || null
+        }));
 
         return NextResponse.json(members);
     } catch (error) {
@@ -56,7 +67,14 @@ export async function DELETE(
             return NextResponse.json({ error: "User ID required" }, { status: 400 });
         }
 
-        const team = await prisma.team.findUnique({
+        const { findAcrossShards } = await import("@/lib/prisma");
+        const teamResult = await findAcrossShards<any>("team", { id: params.id });
+        if (!teamResult.data) {
+            return NextResponse.json({ error: "Team not found" }, { status: 404 });
+        }
+        
+        const db = teamResult.db;
+        const team = await db.team.findUnique({
             where: { id: params.id },
             include: { members: true }
         });
@@ -78,7 +96,7 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        await prisma.teamMember.delete({
+        await db.teamMember.delete({
             where: {
                 teamId_userId: {
                     teamId: params.id,
@@ -111,7 +129,14 @@ export async function PATCH(
             return NextResponse.json({ error: "User ID and role required" }, { status: 400 });
         }
 
-        const team = await prisma.team.findUnique({
+        const { findAcrossShards } = await import("@/lib/prisma");
+        const teamResult = await findAcrossShards<any>("team", { id: params.id });
+        if (!teamResult.data) {
+            return NextResponse.json({ error: "Team not found" }, { status: 404 });
+        }
+        
+        const db = teamResult.db;
+        const team = await db.team.findUnique({
             where: { id: params.id },
             include: { members: true }
         });
@@ -129,7 +154,7 @@ export async function PATCH(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        const member = await prisma.teamMember.update({
+        const member = await db.teamMember.update({
             where: {
                 teamId_userId: {
                     teamId: params.id,

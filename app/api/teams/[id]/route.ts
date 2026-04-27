@@ -22,7 +22,15 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const team = await prisma.team.findUnique({
+        const { findAcrossShards } = await import("@/lib/prisma");
+        const teamResult = await findAcrossShards<any>("team", { id: params.id });
+
+        if (!teamResult.data) {
+            return NextResponse.json({ error: "Team not found" }, { status: 404 });
+        }
+
+        const db = teamResult.db;
+        const team = await db.team.findUnique({
             where: { id: params.id },
             include: {
                 _count: {
@@ -54,7 +62,15 @@ export async function PATCH(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const team = await prisma.team.findUnique({
+        const { findAcrossShards } = await import("@/lib/prisma");
+        const teamResult = await findAcrossShards<any>("team", { id: params.id });
+
+        if (!teamResult.data) {
+            return NextResponse.json({ error: "Team not found" }, { status: 404 });
+        }
+
+        const db = teamResult.db;
+        const team = await db.team.findUnique({
             where: { id: params.id },
             include: {
                 members: {
@@ -78,7 +94,7 @@ export async function PATCH(
         const body = await req.json();
         const data = updateTeamSchema.parse(body);
 
-        const updatedTeam = await prisma.team.update({
+        const updatedTeam = await db.team.update({
             where: { id: params.id },
             data,
         });
@@ -112,13 +128,15 @@ export async function DELETE(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const team = await prisma.team.findUnique({
-            where: { id: params.id },
-        });
+        const { findAcrossShards } = await import("@/lib/prisma");
+        const teamResult = await findAcrossShards<any>("team", { id: params.id });
 
-        if (!team) {
+        if (!teamResult.data) {
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
+        
+        const db = teamResult.db;
+        const team = teamResult.data;
 
         // Only workspace owners can delete teams?
         const { getWorkspaceMemberRole } = await import("@/lib/workspace");
@@ -128,7 +146,7 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        await prisma.team.delete({
+        await db.team.delete({
             where: { id: params.id },
         });
 

@@ -36,9 +36,19 @@ export async function GET(req: Request) {
         if (teamId) {
             if (effectiveWorkspaceId) {
                 // If workspaceId is provided, we know the shard. Just verify team access directly on that shard.
-                const teamMember = await db.teamMember.findUnique({
+                let teamMember = await db.teamMember.findUnique({
                     where: { teamId_userId: { teamId, userId: user.id } }
                 });
+
+                if (!teamMember) {
+                    // Fallback to cross-shard search for legacy members that might be on the wrong shard
+                    const { findAcrossShards } = await import("@/lib/prisma");
+                    const result = await findAcrossShards<any>("teamMember", {
+                        teamId_userId: { teamId, userId: user.id }
+                    });
+                    teamMember = result.data;
+                }
+
                 if (!teamMember) {
                     return NextResponse.json({ error: "Access denied to team chat" }, { status: 403 });
                 }
@@ -129,9 +139,19 @@ export async function POST(req: Request) {
         // Verify access based on teamId or workspaceId
         if (data.teamId) {
             // Use the known shard directly via workspaceId — no cross-shard search needed
-            const teamMember = await db.teamMember.findUnique({
+            let teamMember = await db.teamMember.findUnique({
                 where: { teamId_userId: { teamId: data.teamId, userId: user.id } }
             });
+
+            if (!teamMember) {
+                // Fallback to cross-shard search for legacy members that might be on the wrong shard
+                const { findAcrossShards } = await import("@/lib/prisma");
+                const result = await findAcrossShards<any>("teamMember", {
+                    teamId_userId: { teamId: data.teamId, userId: user.id }
+                });
+                teamMember = result.data;
+            }
+
             if (!teamMember) {
                 console.error(`[Chat POST] Team access denied. teamId=${data.teamId}, userId=${user.id}, workspaceId=${data.workspaceId}`);
                 return NextResponse.json({ error: "Forbidden: not a team member" }, { status: 403 });
