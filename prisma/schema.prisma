@@ -217,6 +217,11 @@ model Task {
   isMilestone    Boolean   @default(false)
   color          String?
   
+  parentId       String?   @db.ObjectId
+  parent         Task?     @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children       Task[]    @relation("TaskHierarchy")
+  isSummary      Boolean   @default(false)
+  
   timeLogs       TimeLog[]
   
   dependencyIds String[] @db.ObjectId

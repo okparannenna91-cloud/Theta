@@ -24,6 +24,13 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import TimelineCanvas from "./timeline-canvas";
 import { MotionWrapper, FadeIn } from "@/components/common/motion-wrapper";
+import { exportTimeline } from "@/lib/export/export-service";
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
 
 export type ZoomLevel = "day" | "week" | "month" | "quarter";
 
@@ -104,6 +111,18 @@ export default function TimelinePage() {
                     <div className="h-10 w-[1px] bg-border mx-2 hidden sm:block" />
 
                     <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm" className="rounded-xl h-10 border-white/10 bg-white/5 font-black uppercase tracking-widest text-[10px] px-4">
+                                    <Download className="h-3.5 w-3.5 mr-2" /> Export
+                                </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="rounded-xl border-white/10 shadow-2xl">
+                                <DropdownMenuItem onClick={() => exportTimeline({ format: "csv", tasks })} className="text-[10px] font-black uppercase tracking-widest py-2">Download CSV</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => exportTimeline({ format: "json", tasks })} className="text-[10px] font-black uppercase tracking-widest py-2">Download JSON</DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => exportTimeline({ format: "pdf", tasks })} className="text-[10px] font-black uppercase tracking-widest py-2">Print Roadmap</DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                         <Button variant="outline" size="sm" className="rounded-xl h-10 border-white/10 bg-white/5 font-black uppercase tracking-widest text-[10px] px-4">
                             <Filter className="h-3.5 w-3.5 mr-2" /> Filter
                         </Button>

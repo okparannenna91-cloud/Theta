@@ -4,9 +4,8 @@ import { useMemo } from "react";
 import { differenceInDays, startOfDay } from "date-fns";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { Milestone, MoreVertical, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Milestone, MoreVertical, Sparkles, AlertCircle, CheckCircle2 } from "lucide-react";
 import { 
     DropdownMenu, 
     DropdownMenuContent, 
@@ -21,8 +20,7 @@ interface TaskBarProps {
 }
 
 export default function TaskBar({ task, timelineStart, cellWidth }: TaskBarProps) {
-    // Calculate position and width
-    const { left, width, isMilestone } = useMemo(() => {
+    const { left, width, isMilestone, isSummary } = useMemo(() => {
         const start = task.startDate ? new Date(task.startDate) : (task.dueDate ? new Date(task.dueDate) : new Date());
         const end = task.dueDate ? new Date(task.dueDate) : start;
         
@@ -32,98 +30,92 @@ export default function TaskBar({ task, timelineStart, cellWidth }: TaskBarProps
         return {
             left: daysFromStart * cellWidth,
             width: duration * cellWidth,
-            isMilestone: task.isMilestone
+            isMilestone: task.isMilestone,
+            isSummary: task.isSummary
         };
     }, [task, timelineStart, cellWidth]);
 
-    const statusColors: any = {
-        todo: "bg-slate-500/10 border-slate-500/20 text-slate-500",
-        "in-progress": "bg-blue-500/10 border-blue-500/20 text-blue-500",
-        blocked: "bg-red-500/10 border-red-500/20 text-red-500",
-        done: "bg-emerald-500/10 border-emerald-500/20 text-emerald-500",
-    };
-
-    const priorityGradients: any = {
-        high: "from-rose-500/20 to-orange-500/10 border-rose-500/30",
-        medium: "from-amber-500/20 to-yellow-500/10 border-amber-500/30",
-        low: "from-emerald-500/20 to-teal-500/10 border-emerald-500/30",
+    const priorityStyles: any = {
+        high: "from-rose-500/30 to-orange-500/20 border-rose-500/40 shadow-rose-500/10",
+        medium: "from-amber-500/30 to-yellow-500/20 border-amber-500/40 shadow-amber-500/10",
+        low: "from-emerald-500/30 to-teal-500/20 border-emerald-500/40 shadow-emerald-500/10",
     };
 
     if (isMilestone) {
         return (
             <motion.div
-                initial={{ opacity: 0, scale: 0.5 }}
-                animate={{ opacity: 1, scale: 1 }}
+                initial={{ opacity: 0, scale: 0.5, rotate: 45 }}
+                animate={{ opacity: 1, scale: 1, rotate: 45 }}
                 style={{ left }}
                 className="absolute flex items-center justify-center z-10 cursor-pointer group"
             >
-                <div className="relative">
-                    {/* Diamond shape for Milestone */}
-                    <div className="w-8 h-8 rotate-45 bg-indigo-600 border-4 border-white dark:border-slate-800 shadow-xl group-hover:scale-110 transition-transform flex items-center justify-center">
-                        <Sparkles className="w-3 h-3 text-white -rotate-45" />
-                    </div>
-                    {/* Tooltip hint */}
-                    <div className="absolute top-full left-1/2 -translate-x-1/2 mt-4 opacity-0 group-hover:opacity-100 transition-opacity bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg whitespace-nowrap pointer-events-none shadow-2xl z-20">
-                        Milestone: {task.title}
+                <div className="w-6 h-6 bg-indigo-600 border-2 border-white dark:border-slate-800 shadow-xl group-hover:scale-125 transition-all">
+                    <div className="-rotate-45 flex items-center justify-center h-full">
+                        <Sparkles className="w-2.5 h-2.5 text-white" />
                     </div>
                 </div>
             </motion.div>
         );
     }
 
+    if (isSummary) {
+        return (
+            <div
+                style={{ left, width }}
+                className="absolute h-8 flex flex-col justify-end z-10 pointer-events-none"
+            >
+                {/* Summary Bar Bracket Shape */}
+                <div className="h-2 w-full bg-slate-900 dark:bg-slate-200 rounded-sm relative">
+                    <div className="absolute left-0 bottom-0 w-1 h-3 bg-slate-900 dark:bg-slate-200 rounded-sm" />
+                    <div className="absolute right-0 bottom-0 w-1 h-3 bg-slate-900 dark:bg-slate-200 rounded-sm" />
+                </div>
+                <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/80 mb-1 px-1">
+                    {Math.round(task.progress || 0)}% AGGREGATE
+                </div>
+            </div>
+        );
+    }
+
     return (
         <motion.div
-            initial={{ opacity: 0, x: -20 }}
+            initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
-            layout
             style={{ left, width }}
             className={cn(
-                "absolute h-10 rounded-2xl border flex items-center px-4 cursor-move group transition-all backdrop-blur-md",
-                "bg-gradient-to-r shadow-lg hover:shadow-2xl hover:scale-[1.01] active:scale-100",
-                priorityGradients[task.priority] || "from-indigo-500/20 to-purple-500/10 border-indigo-500/30"
+                "absolute h-10 rounded-2xl border flex items-center px-4 cursor-grab active:cursor-grabbing group backdrop-blur-xl shadow-lg transition-all",
+                "bg-gradient-to-r",
+                priorityStyles[task.priority] || "from-slate-500/20 to-slate-400/10 border-white/10"
             )}
         >
-            {/* Progress Fill Background */}
-            <div 
-                className="absolute inset-0 bg-primary/10 -z-10 rounded-2xl overflow-hidden"
-            >
+            {/* Progress Fill */}
+            <div className="absolute inset-0 bg-black/5 dark:bg-white/5 rounded-2xl overflow-hidden pointer-events-none">
                 <motion.div 
                     initial={{ width: 0 }}
                     animate={{ width: `${task.progress || 0}%` }}
-                    className="h-full bg-primary/20 transition-all duration-1000"
+                    className="h-full bg-white/20 dark:bg-white/10"
                 />
             </div>
 
-            {/* Task Info */}
-            <div className="flex items-center justify-between w-full gap-3 overflow-hidden">
+            <div className="flex items-center justify-between w-full gap-3 overflow-hidden pointer-events-none">
                 <div className="flex items-center gap-2 overflow-hidden">
+                    {task.status === "done" ? (
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
+                    ) : task.status === "blocked" ? (
+                        <AlertCircle className="h-3 w-3 text-rose-500 flex-shrink-0" />
+                    ) : null}
                     <span className="text-[10px] font-black uppercase tracking-widest truncate">
                         {task.title}
                     </span>
-                    {task.progress > 0 && (
-                        <span className="text-[9px] font-black text-primary/60">{task.progress}%</span>
-                    )}
                 </div>
-
-                <div className="flex items-center gap-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-6 w-6 rounded-lg hover:bg-white/20">
-                                <MoreVertical className="h-3.5 w-3.5" />
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="rounded-xl border-white/10 shadow-2xl">
-                            <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest py-2">Edit Details</DropdownMenuItem>
-                            <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest py-2">Add Dependency</DropdownMenuItem>
-                            <DropdownMenuItem className="text-[10px] font-black uppercase tracking-widest py-2 text-rose-500">Delete</DropdownMenuItem>
-                        </DropdownMenuContent>
-                    </DropdownMenu>
-                </div>
+                
+                <span className="text-[9px] font-black opacity-40 flex-shrink-0">
+                    {Math.round(task.progress || 0)}%
+                </span>
             </div>
 
-            {/* Resize Handles */}
-            <div className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/20 rounded-l-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
-            <div className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/20 rounded-r-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+            {/* Drag Handles */}
+            <div className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/30 rounded-l-2xl" />
+            <div className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/30 rounded-r-2xl" />
         </motion.div>
     );
 }

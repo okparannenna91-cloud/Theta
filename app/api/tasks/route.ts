@@ -18,6 +18,8 @@ const taskSchema = z.object({
   startDate: z.string().optional(),
   isMilestone: z.boolean().optional(),
   color: z.string().optional(),
+  parentId: z.string().optional(),
+  isSummary: z.boolean().optional(),
   coverImage: z.string().optional(),
 });
 
@@ -178,6 +180,8 @@ export async function POST(req: Request) {
         startDate: data.startDate ? new Date(data.startDate) : null,
         isMilestone: data.isMilestone || false,
         color: data.color,
+        parentId: data.parentId,
+        isSummary: data.isSummary || false,
         coverImage: data.coverImage,
       },
       include: {

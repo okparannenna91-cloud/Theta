@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
+import { differenceInDays, startOfDay } from "date-fns";
 
 interface DependencyEngineProps {
     tasks: any[];
@@ -9,9 +10,36 @@ interface DependencyEngineProps {
 }
 
 export default function DependencyEngine({ tasks, timelineStart, cellWidth }: DependencyEngineProps) {
-    // This component would ideally calculate the coordinates of each task bar
-    // and draw SVG paths connecting them. 
-    // For the initial implementation, we'll provide the SVG container.
+    const lines = useMemo(() => {
+        const paths: string[] = [];
+        const taskMap = new Map(tasks.map((t, i) => [t.id, { ...t, index: i }]));
+
+        tasks.forEach((task, targetIndex) => {
+            if (!task.dependencyIds) return;
+
+            task.dependencyIds.forEach((sourceId: string) => {
+                const source = taskMap.get(sourceId);
+                if (!source) return;
+
+                const sourceStart = source.startDate ? new Date(source.startDate) : new Date();
+                const sourceEnd = source.dueDate ? new Date(source.dueDate) : sourceStart;
+                const targetStart = task.startDate ? new Date(task.startDate) : new Date();
+
+                const sourceX = (differenceInDays(startOfDay(sourceEnd), startOfDay(timelineStart)) + 1) * cellWidth;
+                const sourceY = source.index * 64 + 32; // h-16 is 64px, +32 for middle
+
+                const targetX = differenceInDays(startOfDay(targetStart), startOfDay(timelineStart)) * cellWidth;
+                const targetY = targetIndex * 64 + 32;
+
+                // Create a stepped path (Manhattan routing)
+                const midX = sourceX + (targetX - sourceX) / 2;
+                const path = `M ${sourceX} ${sourceY} L ${midX} ${sourceY} L ${midX} ${targetY} L ${targetX} ${targetY}`;
+                paths.push(path);
+            });
+        });
+
+        return paths;
+    }, [tasks, timelineStart, cellWidth]);
 
     return (
         <svg 
@@ -21,17 +49,28 @@ export default function DependencyEngine({ tasks, timelineStart, cellWidth }: De
             <defs>
                 <marker
                     id="arrowhead"
-                    markerWidth="10"
-                    markerHeight="7"
-                    refX="9"
-                    refY="3.5"
+                    markerWidth="8"
+                    markerHeight="6"
+                    refX="7"
+                    refY="3"
                     orient="auto"
                 >
-                    <polygon points="0 0, 10 3.5, 0 7" fill="#8b5cf6" opacity="0.5" />
+                    <path d="M 0 0 L 8 3 L 0 6 Z" fill="#8b5cf6" fillOpacity="0.4" />
                 </marker>
             </defs>
             
-            {/* Dependency paths would be rendered here */}
+            {lines.map((d, i) => (
+                <path 
+                    key={i} 
+                    d={d} 
+                    fill="none" 
+                    stroke="#8b5cf6" 
+                    strokeWidth="1.5" 
+                    strokeOpacity="0.3"
+                    markerEnd="url(#arrowhead)"
+                    className="transition-all duration-500"
+                />
+            ))}
         </svg>
     );
 }
