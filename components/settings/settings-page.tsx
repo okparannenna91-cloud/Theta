@@ -258,6 +258,31 @@ export default function SettingsPage() {
                   </Button>
                 </div>
 
+                <div className="pt-8 border-t border-white/5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+                    <div className="space-y-1">
+                      <Label className="text-lg font-black tracking-tight">Legal Protocols</Label>
+                      <p className="text-sm text-muted-foreground font-medium">Review our privacy standards and platform terms.</p>
+                    </div>
+                    <div className="flex gap-4">
+                       <Button 
+                        variant="ghost" 
+                        className="rounded-xl font-black uppercase tracking-widest text-[10px] h-10 px-4 hover:bg-primary/10 hover:text-primary transition-all"
+                        onClick={() => window.open("/privacy", "_blank")}
+                      >
+                        Privacy
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        className="rounded-xl font-black uppercase tracking-widest text-[10px] h-10 px-4 hover:bg-primary/10 hover:text-primary transition-all"
+                        onClick={() => window.open("/terms", "_blank")}
+                      >
+                        Terms
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="p-8 bg-rose-500/5 dark:bg-rose-500/10 rounded-3xl border border-rose-500/20">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div className="space-y-1 text-foreground">

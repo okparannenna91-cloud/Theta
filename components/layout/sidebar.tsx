@@ -222,6 +222,12 @@ export function Sidebar() {
               </span>
             </Link>
           </div>
+
+          <div className="flex items-center justify-center gap-6 px-2 mt-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
+            <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
+            <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
+            <Link href="/docs" className="hover:text-primary transition-colors">Docs</Link>
+          </div>
         </div>
       </div>
     </>
