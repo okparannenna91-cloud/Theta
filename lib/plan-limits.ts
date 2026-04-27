@@ -9,7 +9,29 @@ export interface PlanLimits {
     maxBoards: number;
     maxCalendarEvents: number;
 
-    // ... rest of interface stays same
+    // Storage & Files
+    maxStorage: number;               // in MB
+    maxFileSize: number;              // in MB per file
+
+    // AI & Automation
+    hasBootsAI: boolean;
+    maxBootsRequests: number;         // per month
+    hasCustomAutomation: boolean;
+    maxAutomations: number;
+
+    // Features
+    hasIntegrations: boolean;
+    maxIntegrations: number;
+    hasAdvancedAnalytics: boolean;
+    hasPrioritySupport: boolean;
+    hasCustomFields: boolean;
+    hasWhiteLabel: boolean;
+    hasAPIAccess: boolean;
+    maxAPIRequests: number;           // per month
+
+    // History & Retention
+    activityHistoryDays: number;      // -1 = lifetime
+    maxChatMessages: number;          // -1 = unlimited
 }
 
 export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {

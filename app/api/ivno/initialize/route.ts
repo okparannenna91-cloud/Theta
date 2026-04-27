@@ -62,14 +62,14 @@ export async function POST(req: Request) {
         const orderId = buildIvnoOrderId(
             workspaceId,
             plan.planKey,
-            plan.mode === "one_time" ? "lifetime" : effectiveInterval
+            interval
         );
 
         const paymentData = {
             amount,
             currency: "USD",
             order_id: orderId,
-            description: `Theta PM — ${plan.name} Plan${plan.mode === "subscription" ? ` (${effectiveInterval})` : ""}`,
+            description: `Theta PM — ${plan.name} Plan${plan.mode === "subscription" ? ` (${interval})` : ""}`,
             return_url: returnUrl,
             webhook_url: webhookUrl,
             email: user.email!,

@@ -36,7 +36,7 @@ export async function handleSuccessfulIvnoPayment(
     }
 
     const workspaceId = parts[1];
-    const planKey = parts[2] as "free" | "growth" | "pro" | "theta_plus" | "lifetime";
+    const planKey = parts[2] as "free" | "growth" | "pro" | "theta_plus";
     const interval = parts[3] as "monthly" | "annual";
 
     const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
@@ -51,21 +51,17 @@ export async function handleSuccessfulIvnoPayment(
         return;
     }
 
-    const isLifetime = plan.planKey === "lifetime";
-    const nextBillingDate = isLifetime
-        ? null
-        : calculateNextBillingDate(new Date(), interval || "monthly");
+    const nextBillingDate = calculateNextBillingDate(new Date(), interval || "monthly");
 
     await prisma.workspace.update({
         where: { id: workspaceId },
         data: {
             plan: plan.planKey,
-            billingInterval: isLifetime ? null : interval,
+            billingInterval: interval,
             billingProvider: "ivno",
             billingStatus: "active",
             ivnoOrderId: orderId,
             nextBillingDate,
-            isLifetime,
         },
     });
 
@@ -80,7 +76,7 @@ export async function handleSuccessfulIvnoPayment(
         },
     });
 
-    console.log(`[Ivno] Payment successful — workspace: ${workspaceId}, plan: ${plan.planKey}, interval: ${isLifetime ? "lifetime" : interval}`);
+    console.log(`[Ivno] Payment successful — workspace: ${workspaceId}, plan: ${plan.planKey}, interval: ${interval}`);
 }
 
 /**

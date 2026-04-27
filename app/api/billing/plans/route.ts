@@ -8,8 +8,8 @@ export async function GET() {
             name: plan.planKey,
             displayName: plan.name,
             price: {
-                monthly: plan.priceMonthlyUSD / 100,
-                yearly: Math.floor(plan.priceAnnualUSD / 12 / 100),
+                baseMonthly: plan.basePriceMonthlyUSD / 100,
+                perUserMonthly: plan.perUserPriceMonthlyUSD / 100,
             },
             limits: PLAN_LIMITS[plan.planKey],
             features: plan.features,

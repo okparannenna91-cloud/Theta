@@ -326,7 +326,7 @@ export default function BillingPage() {
                     <span className="text-3xl sm:text-4xl font-black tracking-tighter break-all">
                       {formattedPrice}
                     </span>
-                    {plan.mode === "subscription" && plan.priceMonthlyUSD > 0 && (
+                    {plan.mode === "subscription" && plan.basePriceMonthlyUSD > 0 && (
                       <span className="text-slate-400 text-sm font-semibold ml-1">
                         /{billingInterval === 'annual' ? 'yr' : 'mo'}
                       </span>
