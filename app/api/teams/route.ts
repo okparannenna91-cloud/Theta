@@ -63,8 +63,36 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
+    // Fetch legacy members from primary shard
+    const teamIds = teams.map(t => t.id);
+    const legacyMembers = await prisma.teamMember.findMany({
+      where: { teamId: { in: teamIds } },
+      select: { teamId: true, userId: true, role: true }
+    });
+
+    const teamsWithMergedMembers = teams.map(team => {
+      const shardMembers = team.members;
+      const teamLegacyMembers = legacyMembers.filter(lm => lm.teamId === team.id);
+      
+      const seenUserIds = new Set(shardMembers.map(m => m.userId));
+      const mergedMembers = [...shardMembers];
+      
+      for (const lm of teamLegacyMembers) {
+        if (!seenUserIds.has(lm.userId)) {
+          seenUserIds.add(lm.userId);
+          mergedMembers.push(lm);
+        }
+      }
+      
+      return {
+        ...team,
+        members: mergedMembers,
+        membersCount: mergedMembers.length
+      };
+    });
+
     // Manually resolve user data for the members from Shard 1
-    const allUserIds = [...new Set(teams.flatMap(t => t.members.map(m => m.userId)))];
+    const allUserIds = [...new Set(teamsWithMergedMembers.flatMap(t => t.members.map(m => m.userId)))];
     const users = await prisma.user.findMany({
       where: { id: { in: allUserIds } },
       select: {
@@ -77,9 +105,8 @@ export async function GET(req: Request) {
 
     const userMap = new Map(users.map(u => [u.id, u]));
 
-    const teamsWithUsers = teams.map(team => ({
+    const teamsWithUsers = teamsWithMergedMembers.map(team => ({
       ...team,
-      membersCount: team._count.members,
       userRole: team.members.find(m => m.userId === user.id)?.role || "member",
       members: team.members.map(m => ({
         ...m,

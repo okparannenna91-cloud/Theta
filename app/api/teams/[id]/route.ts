@@ -32,20 +32,28 @@ export async function GET(
         const db = teamResult.db;
         const team = await db.team.findUnique({
             where: { id: params.id },
-            include: {
-                _count: {
-                    select: { members: true },
-                },
-            },
         });
 
         if (!team) {
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
 
+        // Aggregate unique member count from both shards
+        const shardUserIds = (await db.teamMember.findMany({ 
+            where: { teamId: params.id }, 
+            select: { userId: true } 
+        })).map(m => m.userId);
+        
+        const primaryUserIds = (await prisma.teamMember.findMany({ 
+            where: { teamId: params.id }, 
+            select: { userId: true } 
+        })).map(m => m.userId);
+        
+        const membersCount = new Set([...shardUserIds, ...primaryUserIds]).size;
+
         return NextResponse.json({
             ...team,
-            membersCount: team._count.members,
+            membersCount,
         });
     } catch (error) {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });

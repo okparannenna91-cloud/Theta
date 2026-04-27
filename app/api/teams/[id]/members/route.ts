@@ -23,10 +23,28 @@ export async function GET(
         
         const db = teamResult.db;
 
-        const membersRaw = await db.teamMember.findMany({
+        // Fetch from shard
+        const membersRawShard = await db.teamMember.findMany({
             where: { teamId },
             orderBy: { role: "asc" },
         });
+
+        // Fetch from primary shard (legacy)
+        const membersRawPrimary = await prisma.teamMember.findMany({
+            where: { teamId },
+            orderBy: { role: "asc" },
+        });
+
+        // Merge and deduplicate by userId
+        const seenUserIds = new Set();
+        const membersRaw = [];
+
+        for (const m of [...membersRawShard, ...membersRawPrimary]) {
+            if (!seenUserIds.has(m.userId)) {
+                seenUserIds.add(m.userId);
+                membersRaw.push(m);
+            }
+        }
 
         const uniqueUserIds = [...new Set(membersRaw.map((m: any) => m.userId))];
         const users = await prisma.user.findMany({
