@@ -332,6 +332,11 @@ export default function BillingPage() {
                       </span>
                     )}
                   </div>
+                  {plan.mode === "subscription" && plan.basePriceMonthlyUSD > 0 && (
+                    <div className="text-[10px] text-muted-foreground mt-1 font-medium bg-slate-50 px-2 py-1 rounded-md border border-slate-100 self-start">
+                      {currency === "USD" ? `$${plan.basePriceMonthlyUSD / 100}` : `₦${(plan.basePriceMonthlyUSD / 100 * 1250).toLocaleString()}`} base + {currentMemberCount} {currentMemberCount === 1 ? 'user' : 'users'}
+                    </div>
+                  )}
                   <CardDescription className="mt-4 text-xs font-medium leading-relaxed min-h-[40px]">
                     {plan.description}
                   </CardDescription>
