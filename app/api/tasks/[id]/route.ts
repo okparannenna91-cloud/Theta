@@ -15,6 +15,9 @@ const updateSchema = z.object({
   columnId: z.string().optional(),
   order: z.number().optional(),
   dueDate: z.string().optional(),
+  startDate: z.string().optional(),
+  isMilestone: z.boolean().optional(),
+  color: z.string().optional(),
 });
 
 export async function PATCH(
@@ -54,6 +57,9 @@ export async function PATCH(
     const updateData: any = { ...data };
     if (data.dueDate) {
       updateData.dueDate = new Date(data.dueDate);
+    }
+    if (data.startDate) {
+      updateData.startDate = new Date(data.startDate);
     }
 
     const updated = await db.task.update({

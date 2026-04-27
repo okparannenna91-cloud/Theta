@@ -213,6 +213,10 @@ model Task {
   estimatedHours Int?
   progress       Int       @default(0)
   
+  startDate      DateTime?
+  isMilestone    Boolean   @default(false)
+  color          String?
+  
   timeLogs       TimeLog[]
   
   dependencyIds String[] @db.ObjectId

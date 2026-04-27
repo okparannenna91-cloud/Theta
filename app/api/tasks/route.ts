@@ -15,6 +15,9 @@ const taskSchema = z.object({
   boardId: z.string().optional(),
   columnId: z.string().optional(),
   dueDate: z.string().optional(),
+  startDate: z.string().optional(),
+  isMilestone: z.boolean().optional(),
+  color: z.string().optional(),
   coverImage: z.string().optional(),
 });
 
@@ -172,6 +175,9 @@ export async function POST(req: Request) {
         boardId: data.boardId,
         columnId: data.columnId,
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
+        startDate: data.startDate ? new Date(data.startDate) : null,
+        isMilestone: data.isMilestone || false,
+        color: data.color,
         coverImage: data.coverImage,
       },
       include: {
