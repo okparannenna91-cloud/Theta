@@ -222,6 +222,17 @@ export async function POST(req: Request) {
       }
     );
 
+    // Notify workspace members
+    const { notifyWorkspaceMembers } = await import("@/lib/notifications");
+    await notifyWorkspaceMembers(
+      data.workspaceId,
+      user.id,
+      "task_assigned", // Using task_assigned as a generic "new task" type for now
+      "New Task Created",
+      `${user.name || "A member"} created a new task: ${task.title} in ${task.project.name}`,
+      { taskId: task.id, projectId: task.projectId }
+    );
+
     // Slack Notification
     const { notifyWorkspace } = await import("@/lib/integrations/slack");
     await notifyWorkspace(

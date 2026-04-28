@@ -204,3 +204,29 @@ export async function isWorkspaceAdmin(
     return false;
   }
 }
+
+/**
+ * Get all members of a workspace
+ */
+export async function getWorkspaceMembers(workspaceId: string) {
+  try {
+    const { getPrismaClient } = await import("./prisma");
+    const db = getPrismaClient(workspaceId);
+    return await db.workspaceMember.findMany({
+      where: { workspaceId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            imageUrl: true,
+          },
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get workspace members error:", error);
+    return [];
+  }
+}

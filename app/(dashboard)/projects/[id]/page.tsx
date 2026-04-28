@@ -32,6 +32,7 @@ import KanbanBoard from "@/components/boards/kanban-board";
 import { TimelineView } from "@/components/projects/timeline-view";
 import { GanttChart } from "@/components/projects/gantt-chart";
 import { CalendarView } from "@/components/projects/calendar-view";
+import { InviteMemberDialog } from "@/components/projects/invite-member-dialog";
 
 async function fetchProject(id: string) {
     const res = await fetch(`/api/projects/${id}`);
@@ -42,6 +43,7 @@ async function fetchProject(id: string) {
 export default function ProjectPage({ params }: { params: { id: string } }) {
     const { activeWorkspaceId } = useWorkspace();
     const [view, setView] = useState("overview");
+    const [isInviteOpen, setIsInviteOpen] = useState(false);
 
     const { data: project, isLoading } = useQuery({
         queryKey: ["project", params.id],
@@ -220,7 +222,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                                          <h3 className="text-xl font-black uppercase tracking-tight">Project Evolution Team</h3>
                                          <p className="text-xs font-black uppercase tracking-widest text-indigo-500 mt-1">Founders, Builders & Operators</p>
                                      </div>
-                                     <Button className="rounded-2xl font-black uppercase tracking-widest px-6">
+                                     <Button 
+                                         onClick={() => setIsInviteOpen(true)}
+                                         className="rounded-2xl font-black uppercase tracking-widest px-6"
+                                     >
                                          <UsersIcon className="h-4 w-4 mr-2" />
                                          Invite Member
                                      </Button>
@@ -281,6 +286,13 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     </motion.div>
                 </AnimatePresence>
             </div>
+
+            <InviteMemberDialog
+                isOpen={isInviteOpen}
+                onOpenChange={setIsInviteOpen}
+                workspaceId={project.workspaceId}
+                teamId={project.teamId}
+            />
         </div>
     );
 }

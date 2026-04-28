@@ -15,6 +15,7 @@ import {
     BookOpen,
     Hash
 } from "lucide-react";
+import { WikiTree } from "./wiki-tree";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -64,38 +65,9 @@ export function WikiSidebar({ workspaceId }: WikiSidebarProps) {
         },
     });
 
-    const toggleExpand = (id: string) => {
-        const next = new Set(expandedIds);
-        if (next.has(id)) next.delete(id);
-        else next.add(id);
-        setExpandedIds(next);
-    };
-
-    const buildTree = (docs: any[]) => {
-        const tree: any[] = [];
-        const map: any = {};
-        
-        docs.forEach(doc => {
-            map[doc.id] = { ...doc, children: [] };
-        });
-
-        docs.forEach(doc => {
-            if (doc.parentId && map[doc.parentId]) {
-                map[doc.parentId].children.push(map[doc.id]);
-            } else {
-                tree.push(map[doc.id]);
-            }
-        });
-
-        // Filter search logic
-        if (search) {
-            return docs.filter(d => 
-                (d.title || "").toLowerCase().includes(search.toLowerCase())
-            ).map(d => ({ ...d, children: [] }));
-        }
-
-        return tree;
-    };
+    const filteredDocuments = search 
+        ? (documents || []).filter((d: any) => (d.title || "").toLowerCase().includes(search.toLowerCase()))
+        : (documents || []);
 
     if (isLoading) return (
         <div className="w-80 border-r dark:border-white/10 p-6 animate-pulse space-y-6">
@@ -139,17 +111,11 @@ export function WikiSidebar({ workspaceId }: WikiSidebarProps) {
             </div>
 
             <nav className="flex-1 overflow-y-auto px-4 pb-8 space-y-0.5 scrollbar-thin">
-                {tree.map((doc: any) => (
-                    <TreeItem 
-                        key={doc.id}
-                        doc={doc}
-                        level={0}
-                        expandedIds={expandedIds}
-                        onToggle={toggleExpand}
-                        activeId={params.id as string}
-                        onCreateChild={(pid: string) => createMutation.mutate(pid)}
-                    />
-                ))}
+                <WikiTree 
+                    documents={filteredDocuments}
+                    activeId={params.id as string}
+                    onCreatePage={(pid) => createMutation.mutate(pid)}
+                />
 
                 {documents?.length === 0 && !isLoading && (
                      <div className="py-20 text-center space-y-4 px-6 grayscale">
@@ -170,78 +136,5 @@ export function WikiSidebar({ workspaceId }: WikiSidebarProps) {
     );
 }
 
-function TreeItem({ doc, level, expandedIds, onToggle, activeId, onCreateChild }: any) {
-    const isExpanded = expandedIds.has(doc.id);
-    const isActive = activeId === doc.id;
-    const hasChildren = doc.children && doc.children.length > 0;
-
-    return (
-        <div className="space-y-0.5">
-            <div 
-                className={cn(
-                    "group flex items-center gap-2 px-3 py-2 rounded-xl transition-all cursor-pointer border border-transparent",
-                    isActive ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "hover:bg-slate-100 dark:hover:bg-slate-900/60"
-                )}
-                style={{ marginLeft: `${level * 12}px` }}
-            >
-                <button 
-                    onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(doc.id); }}
-                    className={cn(
-                        "h-5 w-5 flex items-center justify-center rounded-lg hover:bg-white/20 transition-colors",
-                        !hasChildren && "opacity-0 cursor-default"
-                    )}
-                >
-                    {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-                </button>
-
-                <Link href={`/wiki/${doc.id}`} className="flex-1 flex items-center gap-3 overflow-hidden">
-                    <span className="text-sm shrink-0">{doc.emoji || "📄"}</span>
-                    <span className={cn(
-                        "text-[10px] font-black uppercase tracking-tight truncate",
-                        isActive ? "text-white" : "text-slate-600 dark:text-slate-400 group-hover:text-foreground"
-                    )}>
-                        {doc.title || "Untitled Page"}
-                    </span>
-                </Link>
-
-                <div className={cn(
-                    "opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-opacity",
-                    isActive ? "text-white" : "text-muted-foreground"
-                )}>
-                    <button 
-                        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onCreateChild(doc.id); }}
-                        className="h-6 w-6 rounded-lg flex items-center justify-center hover:bg-white/20 transition-all active:scale-95"
-                    >
-                        <Plus className="h-3.5 w-3.5" />
-                    </button>
-                    <button className="h-6 w-6 rounded-lg flex items-center justify-center hover:bg-white/20 transition-all active:scale-95">
-                        <MoreHorizontal className="h-3.5 w-3.5" />
-                    </button>
-                </div>
-            </div>
-
-            <AnimatePresence initial={false}>
-                {isExpanded && hasChildren && (
-                    <motion.div
-                        initial={{ height: 0, opacity: 0 }}
-                        animate={{ height: "auto", opacity: 1 }}
-                        exit={{ height: 0, opacity: 0 }}
-                        className="overflow-hidden"
-                    >
-                        {doc.children.map((child: any) => (
-                            <TreeItem 
-                                key={child.id}
-                                doc={child}
-                                level={level + 1}
-                                expandedIds={expandedIds}
-                                onToggle={onToggle}
-                                activeId={activeId}
-                                onCreateChild={onCreateChild}
-                            />
-                        ))}
-                    </motion.div>
-                )}
-            </AnimatePresence>
-        </div>
     );
 }

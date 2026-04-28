@@ -148,3 +148,30 @@ export async function getUnreadCount(userId: string, workspaceId: string): Promi
         },
     });
 }
+
+/**
+ * Notify all members of a workspace except the actor
+ */
+export async function notifyWorkspaceMembers(
+    workspaceId: string,
+    actorId: string,
+    type: NotificationType,
+    title: string,
+    message: string,
+    metadata?: NotificationMetadata
+) {
+    try {
+        const { getWorkspaceMembers } = await import("./workspace");
+        const members = await getWorkspaceMembers(workspaceId);
+        
+        const otherMembers = members.filter(m => m.userId !== actorId);
+        
+        await Promise.all(
+            otherMembers.map(m => 
+                createNotification(m.userId, workspaceId, type, title, message, metadata)
+            )
+        );
+    } catch (error) {
+        console.error("Failed to notify workspace members:", error);
+    }
+}

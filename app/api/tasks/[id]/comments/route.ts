@@ -101,6 +101,17 @@ export async function POST(
         const { publishToChannel, getTaskChannel } = await import("@/lib/ably");
         await publishToChannel(getTaskChannel(task.workspaceId, params.id), "comment:created", comment);
 
+        // Notify workspace members
+        const { notifyWorkspaceMembers } = await import("@/lib/notifications");
+        await notifyWorkspaceMembers(
+            task.workspaceId,
+            user.id,
+            "task_updated",
+            "New Comment",
+            `${user.name || "A member"} commented on task: ${task.title}`,
+            { taskId: params.id, commentId: comment.id }
+        );
+
         return NextResponse.json(comment);
     } catch (error) {
         if (error instanceof z.ZodError) {

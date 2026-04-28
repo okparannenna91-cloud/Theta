@@ -97,6 +97,39 @@ export async function PATCH(
       await updateParentTask(updated.parentId, task.workspaceId, db);
     }
 
+    // Log Activity
+    const { createActivity } = await import("@/lib/activity");
+    await createActivity(
+      user.id,
+      task.workspaceId,
+      "updated",
+      "task",
+      task.id,
+      {
+        taskTitle: updated.title,
+        projectId: updated.projectId,
+        changes: Object.keys(data).reduce((acc: any, key) => {
+          if (data[key] !== (task as any)[key]) {
+            acc[key] = { old: (task as any)[key], new: data[key] };
+          }
+          return acc;
+        }, {}),
+      }
+    );
+
+    // Notify members if status changed
+    if (data.status && data.status !== task.status) {
+      const { notifyWorkspaceMembers } = await import("@/lib/notifications");
+      await notifyWorkspaceMembers(
+        task.workspaceId,
+        user.id,
+        "task_updated",
+        "Task Status Updated",
+        `${user.name || "A member"} updated status of "${updated.title}" to ${updated.status}`,
+        { taskId: updated.id, projectId: updated.projectId }
+      );
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -153,6 +186,20 @@ export async function DELETE(
       const boardChannel = getBoardChannel(task.workspaceId, task.boardId);
       await publishToChannel(boardChannel, "task:deleted", { id: params.id });
     }
+
+    // Log Activity
+    const { createActivity } = await import("@/lib/activity");
+    await createActivity(
+      user.id,
+      task.workspaceId,
+      "deleted",
+      "task",
+      task.id,
+      {
+        taskTitle: task.title,
+        projectId: task.projectId,
+      }
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {

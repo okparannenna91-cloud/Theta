@@ -22,6 +22,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 import TimelineCanvas from "./timeline-canvas";
 import { MotionWrapper, FadeIn } from "@/components/common/motion-wrapper";
 import { exportTimeline } from "@/lib/export/export-service";
@@ -31,6 +34,7 @@ import {
     DropdownMenuItem, 
     DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
+import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 
 export type ZoomLevel = "day" | "week" | "month" | "quarter";
 
@@ -39,8 +43,11 @@ export default function TimelinePage() {
     const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("week");
     const [searchQuery, setSearchQuery] = useState("");
     const [viewMode, setViewMode] = useState<"project" | "team" | "personal">("project");
+    const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+    const [filterPriority, setFilterPriority] = useState("all");
+    const [filterStatus, setFilterStatus] = useState("all");
 
-    const { data: tasks, isLoading } = useQuery({
+    const { data: tasksData, isLoading } = useQuery({
         queryKey: ["timeline-tasks", activeWorkspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/tasks?workspaceId=${activeWorkspaceId}`);
@@ -49,6 +56,14 @@ export default function TimelinePage() {
             return data.tasks;
         },
         enabled: !!activeWorkspaceId
+    });
+
+    const tasks = tasksData || [];
+
+    const filteredTasks = tasks.filter((t: any) => {
+        const matchesPriority = filterPriority === "all" || t.priority === filterPriority;
+        const matchesStatus = filterStatus === "all" || t.status === filterStatus;
+        return matchesPriority && matchesStatus;
     });
 
     const zoomOptions: { label: string, value: ZoomLevel }[] = [
@@ -123,10 +138,55 @@ export default function TimelinePage() {
                                 <DropdownMenuItem onClick={() => exportTimeline({ format: "pdf", tasks })} className="text-[10px] font-black uppercase tracking-widest py-2">Print Roadmap</DropdownMenuItem>
                             </DropdownMenuContent>
                         </DropdownMenu>
-                        <Button variant="outline" size="sm" className="rounded-xl h-10 border-white/10 bg-white/5 font-black uppercase tracking-widest text-[10px] px-4">
-                            <Filter className="h-3.5 w-3.5 mr-2" /> Filter
-                        </Button>
-                        <Button className="rounded-xl h-10 shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] px-6">
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <Button variant="outline" size="sm" className="rounded-xl h-10 border-white/10 bg-white/5 font-black uppercase tracking-widest text-[10px] px-4">
+                                    <Filter className="h-3.5 w-3.5 mr-2" /> 
+                                    {(filterPriority !== "all" || filterStatus !== "all") ? "Filtered" : "Filter"}
+                                </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-56 p-4 rounded-2xl border-slate-200 dark:border-slate-800 shadow-xl bg-white dark:bg-slate-900" align="end">
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Status</Label>
+                                        <Select value={filterStatus} onValueChange={setFilterStatus}>
+                                            <SelectTrigger className="h-8 text-xs">
+                                                <SelectValue placeholder="All Statuses" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Statuses</SelectItem>
+                                                <SelectItem value="todo">To Do</SelectItem>
+                                                <SelectItem value="in-progress">In Progress</SelectItem>
+                                                <SelectItem value="completed">Completed</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Priority</Label>
+                                        <Select value={filterPriority} onValueChange={setFilterPriority}>
+                                            <SelectTrigger className="h-8 text-xs">
+                                                <SelectValue placeholder="All Priorities" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="all">All Priorities</SelectItem>
+                                                <SelectItem value="high">High</SelectItem>
+                                                <SelectItem value="medium">Medium</SelectItem>
+                                                <SelectItem value="low">Low</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+                                    <Button 
+                                        variant="ghost" 
+                                        size="sm" 
+                                        className="w-full text-xs font-bold mt-2 h-8 text-slate-500" 
+                                        onClick={() => { setFilterPriority("all"); setFilterStatus("all"); }}
+                                    >
+                                        Clear Filters
+                                    </Button>
+                                </div>
+                            </PopoverContent>
+                        </Popover>
+                        <Button className="rounded-xl h-10 shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] px-6" onClick={() => setIsCreateTaskOpen(true)}>
                             <Plus className="h-3.5 w-3.5 mr-2" /> New Task
                         </Button>
                     </div>
@@ -168,7 +228,7 @@ export default function TimelinePage() {
             {/* Main Content Area */}
             <div className="flex-1 overflow-hidden">
                 <TimelineCanvas 
-                    tasks={tasks} 
+                    tasks={filteredTasks} 
                     zoomLevel={zoomLevel} 
                     searchQuery={searchQuery} 
                 />
@@ -181,6 +241,11 @@ export default function TimelinePage() {
                     Timeline AI
                 </Button>
             </div>
+
+            <CreateTaskDialog 
+                isOpen={isCreateTaskOpen} 
+                onOpenChange={setIsCreateTaskOpen} 
+            />
         </MotionWrapper>
     );
 }
