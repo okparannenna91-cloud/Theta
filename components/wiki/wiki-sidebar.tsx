@@ -79,8 +79,6 @@ export function WikiSidebar({ workspaceId }: WikiSidebarProps) {
         </div>
     );
 
-    const tree = buildTree(documents || []);
-
     return (
         <div className="w-80 border-r border-slate-100 dark:border-white/5 flex flex-col h-screen bg-white/60 dark:bg-slate-950/40 backdrop-blur-[64px] lg:translate-x-0 transition-all duration-500 overflow-hidden relative shadow-2xl shadow-indigo-500/5 z-40">
             <div className="p-6 space-y-6">
@@ -133,8 +131,5 @@ export function WikiSidebar({ workspaceId }: WikiSidebarProps) {
                  </div>
             </div>
         </div>
-    );
-}
-
     );
 }
