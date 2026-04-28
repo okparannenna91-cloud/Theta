@@ -71,7 +71,7 @@ export function ProjectDocs({ projectId, workspaceId }: ProjectDocsProps) {
                         />
                     </div>
                 </div>
-                <Button onClick={() => createMutation.mutate()} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-10 px-6 shadow-lg shadow-indigo-500/20">
+                <Button onClick={() => createMutation.mutate(undefined)} className="rounded-2xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-10 px-6 shadow-lg shadow-indigo-500/20">
                     <Plus className="h-4 w-4 mr-2" />
                     New Doc
                 </Button>

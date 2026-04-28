@@ -109,8 +109,8 @@ export async function PATCH(
         taskTitle: updated.title,
         projectId: updated.projectId,
         changes: Object.keys(data).reduce((acc: any, key) => {
-          if (data[key] !== (task as any)[key]) {
-            acc[key] = { old: (task as any)[key], new: data[key] };
+          if ((data as any)[key] !== (task as any)[key]) {
+            acc[key] = { old: (task as any)[key], new: (data as any)[key] };
           }
           return acc;
         }, {}),
