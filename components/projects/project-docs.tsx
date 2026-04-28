@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { WikiTree } from "@/components/wiki/wiki-tree";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface ProjectDocsProps {
     projectId: string;
