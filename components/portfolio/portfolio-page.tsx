@@ -169,10 +169,10 @@ export function PortfolioPage() {
                                             <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                                         </linearGradient>
                                     </defs>
-                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 'black', textTransform: 'uppercase'}} />
+                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700}} />
                                     <YAxis hide />
                                     <Tooltip 
-                                      contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 'black', textTransform: 'uppercase'}} 
+                                      contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 700}} 
                                     />
                                     <Area 
                                       type="monotone" 
