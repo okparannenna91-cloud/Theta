@@ -98,47 +98,7 @@ export async function PATCH(
     }
 
     return NextResponse.json(updated);
-}
-
-async function updateParentTask(parentId: string, workspaceId: string, db: any) {
-  const children = await db.task.findMany({
-    where: { parentId },
-    select: { progress: true, startDate: true, dueDate: true }
-  });
-
-  if (children.length === 0) return;
-
-  const avgProgress = Math.round(
-    children.reduce((acc: number, child: any) => acc + (child.progress || 0), 0) / children.length
-  );
-
-  let minStart = children[0].startDate;
-  let maxEnd = children[0].dueDate;
-
-  for (const child of children) {
-    if (child.startDate && (!minStart || child.startDate < minStart)) minStart = child.startDate;
-    if (child.dueDate && (!maxEnd || child.dueDate > maxEnd)) maxEnd = child.dueDate;
-  }
-
-  const updatedParent = await db.task.update({
-    where: { id: parentId },
-    data: {
-      progress: avgProgress,
-      startDate: minStart,
-      dueDate: maxEnd,
-      isSummary: true
-    }
-  });
-
-  // Notify parent update
-  const workspaceChannel = getWorkspaceChannel(workspaceId);
-  await publishToChannel(workspaceChannel, "task:updated", updatedParent);
-
-  // Recurse up the tree
-  if (updatedParent.parentId) {
-    await updateParentTask(updatedParent.parentId, workspaceId, db);
-  }
-}
+  } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
@@ -203,4 +163,45 @@ export async function DELETE(
     );
   }
 }
+
+async function updateParentTask(parentId: string, workspaceId: string, db: any) {
+  const children = await db.task.findMany({
+    where: { parentId },
+    select: { progress: true, startDate: true, dueDate: true }
+  });
+
+  if (children.length === 0) return;
+
+  const avgProgress = Math.round(
+    children.reduce((acc: number, child: any) => acc + (child.progress || 0), 0) / children.length
+  );
+
+  let minStart = children[0].startDate;
+  let maxEnd = children[0].dueDate;
+
+  for (const child of children) {
+    if (child.startDate && (!minStart || child.startDate < minStart)) minStart = child.startDate;
+    if (child.dueDate && (!maxEnd || child.dueDate > maxEnd)) maxEnd = child.dueDate;
+  }
+
+  const updatedParent = await db.task.update({
+    where: { id: parentId },
+    data: {
+      progress: avgProgress,
+      startDate: minStart,
+      dueDate: maxEnd,
+      isSummary: true
+    }
+  });
+
+  // Notify parent update
+  const workspaceChannel = getWorkspaceChannel(workspaceId);
+  await publishToChannel(workspaceChannel, "task:updated", updatedParent);
+
+  // Recurse up the tree
+  if (updatedParent.parentId) {
+    await updateParentTask(updatedParent.parentId, workspaceId, db);
+  }
+}
+
 
