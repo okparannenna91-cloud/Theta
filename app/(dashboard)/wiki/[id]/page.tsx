@@ -23,8 +23,10 @@ import {
     Timer,
     ListTree,
     Pin,
-    PinOff
+    PinOff,
+    MessageSquare
 } from "lucide-react";
+import { CommentSheet } from "@/components/wiki/comment-sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -51,6 +53,8 @@ export default function DocumentPage() {
     const [title, setTitle] = useState("");
     const [blocks, setBlocks] = useState<EditorBlock[]>([]);
     const [isSaving, setIsSaving] = useState(false);
+    const [isCommentsOpen, setIsCommentsOpen] = useState(false);
+
 
     const { data: document, isLoading } = useQuery({
         queryKey: ["document", id],
@@ -190,6 +194,46 @@ export default function DocumentPage() {
         toast.success("Document exported to Markdown");
     };
 
+    const exportToHTML = () => {
+        const content = blocks.map(b => {
+            if (b.type.startsWith("h")) {
+                const level = b.type[1];
+                return `<h${level}>${b.content}</h${level}>`;
+            }
+            if (b.type === "paragraph") return `<p>${b.content}</p>`;
+            if (b.type === "code") return `<pre><code>${b.content}</code></pre>`;
+            return "";
+        }).join("\n");
+
+        const html = `
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <title>${title}</title>
+                <style>
+                    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
+                    h1 { font-size: 2.5em; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+                    pre { background: #f4f4f4; padding: 15px; border-radius: 8px; overflow-x: auto; }
+                    code { font-family: monospace; }
+                </style>
+            </head>
+            <body>${content}</body>
+            </html>
+        `;
+        
+        const blob = new Blob([html], { type: "text/html" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${title || "document"}.html`;
+        a.click();
+        toast.success("HTML Exported");
+    };
+
+    const exportToPDF = () => {
+        window.print();
+    };
+
     const toc = blocks.filter(b => ["h1", "h2", "h3"].includes(b.type));
 
     return (
@@ -253,6 +297,26 @@ export default function DocumentPage() {
                     </Button>
 
                     <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setIsCommentsOpen(true)}
+                        className="rounded-xl relative"
+                    >
+                        <MessageSquare className="h-4 w-4" />
+                        <div className="absolute top-1 right-1 h-2 w-2 bg-indigo-600 rounded-full animate-pulse" />
+                    </Button>
+
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        onClick={() => setIsCommentsOpen(true)}
+                        className="rounded-xl relative"
+                    >
+                        <MessageSquare className="h-4 w-4" />
+                        <div className="absolute top-1 right-1 h-2 w-2 bg-indigo-600 rounded-full animate-pulse" />
+                    </Button>
+
+                    <Button 
                         onClick={handleSave} 
                         disabled={isSaving}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-10 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-500/20"
@@ -271,6 +335,14 @@ export default function DocumentPage() {
                             <DropdownMenuItem onClick={exportToMarkdown} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
                                 <Download className="h-4 w-4 mr-2" />
                                 Export Markdown
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={exportToHTML} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
+                                <Download className="h-4 w-4 mr-2" />
+                                Export HTML
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={exportToPDF} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
+                                <File className="h-4 w-4 mr-2" />
+                                Export PDF (Print)
                             </DropdownMenuItem>
                             <DropdownMenuItem className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest text-red-500 cursor-pointer">
                                 <Trash2 className="h-4 w-4 mr-2" />
@@ -411,6 +483,27 @@ export default function DocumentPage() {
                     </div>
                 )}
             </main>
+            <CommentSheet 
+                documentId={id} 
+                isOpen={isCommentsOpen} 
+                onClose={() => setIsCommentsOpen(false)} 
+            />
+            <style jsx global>{`
+                @media print {
+                    .no-print,
+                    header,
+                    nav,
+                    aside,
+                    button,
+                    .DropdownMenuContent {
+                        display: none !important;
+                    }
+                    main {
+                        margin: 0 !important;
+                        padding: 0 !important;
+                    }
+                }
+            `}</style>
         </div>
     );
 }

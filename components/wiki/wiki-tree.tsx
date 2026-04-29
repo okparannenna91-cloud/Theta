@@ -10,6 +10,22 @@ import {
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+    DndContext,
+    closestCenter,
+    KeyboardSensor,
+    PointerSensor,
+    useSensor,
+    useSensors,
+} from "@dnd-kit/core";
+import {
+    arrayMove,
+    SortableContext,
+    sortableKeyboardCoordinates,
+    verticalListSortingStrategy,
+    useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 interface WikiTreeProps {
     documents: any[];
@@ -48,38 +64,80 @@ export function WikiTree({ documents, activeId, onCreatePage, basePath = "/wiki"
     };
 
     const tree = buildTree(documents);
+    const sensors = useSensors(
+        useSensor(PointerSensor),
+        useSensor(KeyboardSensor, {
+            coordinateGetter: sortableKeyboardCoordinates,
+        })
+    );
+
+    const handleDragEnd = (event: any) => {
+        const { active, over } = event;
+        if (active.id !== over.id) {
+            // Implementation of persistent reordering would go here
+            // For now, we'll just handle the visual swap if needed
+        }
+    };
 
     return (
-        <div className="space-y-0.5">
-            {tree.map((doc) => (
-                <TreeItem 
-                    key={doc.id}
-                    doc={doc}
-                    level={0}
-                    expandedIds={expandedIds}
-                    onToggle={toggleExpand}
-                    activeId={activeId}
-                    onCreateChild={onCreatePage}
-                    basePath={basePath}
-                />
-            ))}
-        </div>
+        <DndContext 
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+        >
+            <SortableContext 
+                items={documents.map(d => d.id)}
+                strategy={verticalListSortingStrategy}
+            >
+                <div className="space-y-0.5">
+                    {tree.map((doc) => (
+                        <TreeItem 
+                            key={doc.id}
+                            doc={doc}
+                            level={0}
+                            expandedIds={expandedIds}
+                            onToggle={toggleExpand}
+                            activeId={activeId}
+                            onCreateChild={onCreatePage}
+                            basePath={basePath}
+                        />
+                    ))}
+                </div>
+            </SortableContext>
+        </DndContext>
     );
 }
 
 function TreeItem({ doc, level, expandedIds, onToggle, activeId, onCreateChild, basePath }: any) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: doc.id });
+
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        marginLeft: `${level * 12}px`,
+        opacity: isDragging ? 0.5 : 1,
+    };
+
     const isExpanded = expandedIds.has(doc.id);
     const isActive = activeId === doc.id;
     const hasChildren = doc.children && doc.children.length > 0;
 
     return (
-        <div className="space-y-0.5">
+        <div ref={setNodeRef} style={style} className="space-y-0.5">
             <div 
+                {...attributes}
+                {...listeners}
                 className={cn(
-                    "group flex items-center gap-2 px-3 py-2 rounded-xl transition-all cursor-pointer border border-transparent",
+                    "group flex items-center gap-2 px-3 py-2 rounded-xl transition-all cursor-grab active:cursor-grabbing border border-transparent",
                     isActive ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "hover:bg-slate-100 dark:hover:bg-slate-900/60"
                 )}
-                style={{ marginLeft: `${level * 12}px` }}
             >
                 <button 
                     onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(doc.id); }}

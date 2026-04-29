@@ -19,7 +19,11 @@ import {
     MoreHorizontal,
     MoreVertical,
     Sparkles,
+    FolderKanban,
     ArrowUpRight,
+    ChevronRight,
+    ListTree,
+    Database,
     Video,
     File,
     Play
@@ -45,7 +49,7 @@ mermaid.initialize({
     securityLevel: "loose",
 });
 
-export type BlockType = "paragraph" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "bullet" | "number" | "todo" | "code" | "quote" | "callout" | "divider" | "image" | "video" | "file" | "columns" | "table" | "mermaid";
+export type BlockType = "paragraph" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "bullet" | "number" | "todo" | "code" | "quote" | "callout" | "divider" | "image" | "video" | "file" | "columns" | "table" | "mermaid" | "toggle" | "task-view" | "database";
 
 const highlightCode = (code: string, lang: string) => {
     if (!code) return "";
@@ -574,15 +578,184 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
     }
 
     if (block.type === "columns") {
+        const leftContent = block.metadata?.leftContent || "";
+        const rightContent = block.metadata?.rightContent || "";
+        
+        const updateLeft = (val: string) => {
+            updateBlock(block.id, { metadata: { ...block.metadata, leftContent: val } });
+        };
+        const updateRight = (val: string) => {
+            updateBlock(block.id, { metadata: { ...block.metadata, rightContent: val } });
+        };
+
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 my-10">
-                <div className="p-8 rounded-[2.5rem] bg-white/50 dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 backdrop-blur-3xl shadow-xl">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 mb-4 opacity-50">L-Node 01</p>
-                    {contentArea}
+                <div className="p-8 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-xl transition-all hover:shadow-2xl hover:border-indigo-500/30">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 mb-6 opacity-50 flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-indigo-600" />
+                        L-Node 01
+                    </p>
+                    <textarea
+                        value={leftContent}
+                        disabled={readOnly}
+                        onChange={(e) => updateLeft(e.target.value)}
+                        placeholder="Primary stream..."
+                        className="w-full bg-transparent outline-none resize-none overflow-hidden text-sm font-medium leading-relaxed min-h-[100px]"
+                        onInput={(e: any) => {
+                            e.target.style.height = "auto";
+                            e.target.style.height = e.target.scrollHeight + "px";
+                        }}
+                    />
                 </div>
-                <div className="p-8 rounded-[2.5rem] bg-white/50 dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 backdrop-blur-3xl shadow-xl border-dashed">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-4 opacity-50">R-Node 02</p>
-                    <p className="text-sm italic opacity-30 uppercase font-black tracking-widest">Secondary stream detected...</p>
+                <div className="p-8 rounded-[2.5rem] bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 shadow-xl transition-all hover:shadow-2xl hover:border-emerald-500/30">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-6 opacity-50 flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-emerald-600" />
+                        R-Node 02
+                    </p>
+                    <textarea
+                        value={rightContent}
+                        disabled={readOnly}
+                        onChange={(e) => updateRight(e.target.value)}
+                        placeholder="Secondary stream..."
+                        className="w-full bg-transparent outline-none resize-none overflow-hidden text-sm font-medium leading-relaxed min-h-[100px]"
+                        onInput={(e: any) => {
+                            e.target.style.height = "auto";
+                            e.target.style.height = e.target.scrollHeight + "px";
+                        }}
+                    />
+                </div>
+            </div>
+        );
+    }
+
+    if (block.type === "toggle") {
+        const isCollapsed = block.metadata?.collapsed ?? false;
+        return (
+            <div className="my-2 group/toggle">
+                <div className="flex items-start gap-2">
+                    <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className={cn("h-6 w-6 rounded-md transition-transform", !isCollapsed && "rotate-90")}
+                        onClick={() => updateBlock(block.id, { metadata: { ...block.metadata, collapsed: !isCollapsed } })}
+                    >
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                    <div className="flex-1">
+                        {contentArea}
+                    </div>
+                </div>
+                {!isCollapsed && (
+                    <div className="ml-8 mt-2 p-6 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-white/5 italic text-sm text-muted-foreground">
+                        Drag blocks here to nest... (Recursive nesting in Phase 4)
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    if (block.type === "task-view") {
+        const { data: tasks, isLoading: tasksLoading } = useQuery({
+            queryKey: ["project-tasks", projectId],
+            queryFn: async () => {
+                if (!projectId) return [];
+                const res = await fetch(`/api/tasks?projectId=${projectId}`);
+                if (!res.ok) throw new Error("Failed to fetch tasks");
+                return res.json();
+            },
+            enabled: !!projectId && block.type === "task-view"
+        });
+
+        return (
+            <div className="my-10 p-10 rounded-[3rem] bg-indigo-600/5 dark:bg-indigo-500/10 border-2 border-indigo-500/20 shadow-2xl">
+                <div className="flex items-center justify-between mb-8">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-500/20">
+                            <ListTree className="h-6 w-6" />
+                        </div>
+                        <div>
+                            <h4 className="text-sm font-black uppercase tracking-tighter">Embedded Project Pulse</h4>
+                            <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest opacity-60">Live Task Stream</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="space-y-3">
+                    {tasksLoading ? (
+                        <div className="h-20 flex items-center justify-center">
+                            <Loader2 className="h-6 w-6 animate-spin text-indigo-600" />
+                        </div>
+                    ) : tasks?.length === 0 ? (
+                        <div className="p-8 text-center text-[10px] font-black uppercase tracking-widest opacity-30">No tasks in this node</div>
+                    ) : (
+                        tasks?.slice(0, 5).map((task: any) => (
+                            <div key={task.id} className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-100 dark:border-white/5 flex items-center justify-between group/task cursor-pointer hover:border-indigo-500/50 transition-all">
+                                 <div className="flex items-center gap-4">
+                                      <div className={cn("h-2 w-2 rounded-full", task.status === "todo" ? "bg-slate-400" : "bg-indigo-500")} />
+                                      <span className="text-xs font-bold uppercase tracking-tight">{task.title}</span>
+                                 </div>
+                                 <span className="text-[8px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 opacity-50">{task.status}</span>
+                            </div>
+                        ))
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    if (block.type === "database") {
+        const { data: members, isLoading: membersLoading } = useQuery({
+            queryKey: ["project-members", projectId],
+            queryFn: async () => {
+                if (!projectId) return [];
+                const res = await fetch(`/api/projects/${projectId}/members`);
+                if (!res.ok) return [];
+                return res.json();
+            },
+            enabled: !!projectId && block.type === "database"
+        });
+
+        return (
+            <div className="my-10 overflow-hidden rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl bg-white dark:bg-slate-950/20 backdrop-blur-3xl">
+                <div className="p-8 border-b border-slate-100 dark:border-white/5 flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
+                    <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 rounded-xl bg-emerald-600 flex items-center justify-center text-white shadow-lg">
+                            <Database className="h-5 w-5" />
+                        </div>
+                        <span className="text-xs font-black uppercase tracking-widest">Team Intelligence Registry</span>
+                    </div>
+                </div>
+                <div className="p-0 overflow-x-auto">
+                     <table className="w-full text-left">
+                          <thead>
+                               <tr className="border-b border-slate-100 dark:border-white/5">
+                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Identity</th>
+                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Role</th>
+                                    <th className="p-6 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Status</th>
+                               </tr>
+                          </thead>
+                          <tbody>
+                               {membersLoading ? (
+                                    <tr><td colSpan={3} className="p-20 text-center"><Loader2 className="h-6 w-6 animate-spin mx-auto text-emerald-600" /></td></tr>
+                               ) : members?.length === 0 ? (
+                                    <tr><td colSpan={3} className="p-20 text-center text-[10px] font-black uppercase tracking-widest opacity-30">No members detected</td></tr>
+                               ) : (
+                                    members?.map((member: any) => (
+                                        <tr key={member.id} className="border-b border-slate-100 dark:border-white/5 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-900/50 transition-colors">
+                                             <td className="p-6 flex items-center gap-3">
+                                                  <Avatar className="h-8 w-8 rounded-lg">
+                                                       <AvatarImage src={member.user.image} />
+                                                       <AvatarFallback>{member.user.name?.[0]}</AvatarFallback>
+                                                  </Avatar>
+                                                  <span className="text-xs font-bold">{member.user.name}</span>
+                                             </td>
+                                             <td className="p-6"><span className="px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-500 text-[8px] font-black uppercase">{member.role}</span></td>
+                                             <td className="p-6 text-xs font-black uppercase tracking-widest opacity-50">Authorized</td>
+                                        </tr>
+                                    ))
+                               )}
+                          </tbody>
+                     </table>
                 </div>
             </div>
         );
