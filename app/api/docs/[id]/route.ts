@@ -67,7 +67,7 @@ export async function PATCH(
         const { findAcrossShards } = await import("@/lib/prisma");
         const { db } = await findAcrossShards<any>("document", { id: params.id });
         
-        const document = await db.document.update({
+        const document = await (db.document as any).update({
             where: { id: params.id },
             data: {
               title: data.title,

@@ -14,8 +14,6 @@ import {
     Quote, 
     CheckSquare,
     Image as ImageIcon,
-    Columns,
-    MessageSquare,
     MoreHorizontal,
     MoreVertical,
     Sparkles,
@@ -26,8 +24,13 @@ import {
     Database,
     Video,
     File,
-    Play
+    Play,
+    Loader2,
+    Copy
 } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { 
     DropdownMenu, 
@@ -223,7 +226,8 @@ export function AdvancedEditor({ blocks, workspaceId, projectId, onChange, onSav
                         value={block}
                         id={`block-${block.id}`}
                         className="group/block relative flex items-start gap-1"
-                                           {/* Drag Handle & Plus Menu */}
+                    >
+                        {/* Drag Handle & Plus Menu */}
                         {!readOnly && (
                             <div className="absolute -left-12 top-2 flex items-center opacity-0 group-hover/block:opacity-100 transition-opacity z-50">
                                 <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md cursor-grab active:cursor-grabbing">
@@ -302,6 +306,8 @@ export function AdvancedEditor({ blocks, workspaceId, projectId, onChange, onSav
                                 placeholder={blocks.indexOf(block) === 0 && !readOnly ? placeholder : ""}
                                 router={router}
                                 readOnly={readOnly}
+                                updateBlock={updateBlock}
+                                projectId={projectId}
                             />
                         </div>
 
@@ -329,7 +335,7 @@ export function AdvancedEditor({ blocks, workspaceId, projectId, onChange, onSav
     );
 }
 
-function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKeyDown, placeholder, router }: any) {
+function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKeyDown, placeholder, router, readOnly, updateBlock, projectId }: any) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     useEffect(() => {
@@ -385,7 +391,28 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
         video: "my-10",
         file: "my-6",
         columns: "grid grid-cols-2 gap-8 my-10",
+        table: "my-10 overflow-hidden rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl bg-white dark:bg-slate-950/20 backdrop-blur-3xl",
+        mermaid: "my-10",
+        toggle: "my-2 group/toggle",
+        "task-view": "my-10 p-10 rounded-[3rem] bg-indigo-600/5 dark:bg-indigo-500/10 border-2 border-indigo-500/20 shadow-2xl",
+        database: "my-10 overflow-hidden rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl bg-white dark:bg-slate-950/20 backdrop-blur-3xl"
     };
+
+    const contentArea = (
+        <textarea
+            ref={textareaRef}
+            value={block.content}
+            onChange={handleChange}
+            onKeyDown={onKeyDown}
+            onFocus={onFocus}
+            placeholder={placeholder}
+            disabled={readOnly}
+            className={cn(
+                "w-full bg-transparent outline-none resize-none overflow-hidden",
+                styles[block.type as BlockType]
+            )}
+        />
+    );
 
     if (block.type === "divider") {
         return <div className={styles.divider} />;

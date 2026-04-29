@@ -24,9 +24,11 @@ import {
     ListTree,
     Pin,
     PinOff,
-    MessageSquare
+    MessageSquare,
+    File as FileIcon
 } from "lucide-react";
 import { CommentSheet } from "@/components/wiki/comment-sheet";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
@@ -341,7 +343,7 @@ export default function DocumentPage() {
                                 Export HTML
                             </DropdownMenuItem>
                             <DropdownMenuItem onClick={exportToPDF} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
-                                <File className="h-4 w-4 mr-2" />
+                                <FileIcon className="h-4 w-4 mr-2" />
                                 Export PDF (Print)
                             </DropdownMenuItem>
                             <DropdownMenuItem className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest text-red-500 cursor-pointer">

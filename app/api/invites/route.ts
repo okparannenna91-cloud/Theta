@@ -35,7 +35,7 @@ export async function POST(req: Request) {
 
 
         // Check plan limits strictly (including pending invites)
-        const activeMemberCount = await prisma.workspaceMember.count({
+        const activeMemberCount = await (prisma.workspaceMember as any).count({
             where: { 
                 workspaceId: data.workspaceId,
                 OR: [

@@ -10,7 +10,7 @@ export async function GET(
         const { userId } = auth();
         if (!userId) return new NextResponse("Unauthorized", { status: 401 });
 
-        const comments = await prisma.comment.findMany({
+        const comments = await (prisma.comment as any).findMany({
             where: { documentId: params.id },
             include: { user: true },
             orderBy: { createdAt: "desc" }
@@ -36,7 +36,7 @@ export async function POST(
 
         const { content } = await req.json();
 
-        const comment = await prisma.comment.create({
+        const comment = await (prisma.comment as any).create({
             data: {
                 content,
                 documentId: params.id,

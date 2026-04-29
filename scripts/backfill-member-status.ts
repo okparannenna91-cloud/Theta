@@ -8,7 +8,7 @@ async function main() {
   
   // MongoDB doesn't automatically backfill default values for existing documents on schema change
   // We need to explicitly set status to "active" for any member that doesn't have a status or has a null status
-  const result = await prisma.workspaceMember.updateMany({
+  const result = await (prisma.workspaceMember as any).updateMany({
     where: {
       OR: [
         { status: { isSet: false } },
