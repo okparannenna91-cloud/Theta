@@ -6,26 +6,29 @@ export async function GET(
     req: Request,
     { params }: { params: { id: string } }
 ) {
-    console.log(`[API] Fetching document: ${params.id}`);
+    console.log(`[API] Processing request for Document ID: ${params.id}`);
     try {
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
         const { findAcrossShards } = await import("@/lib/prisma");
+        
+        // Use findAcrossShards to discover which database contains this document
         const { data: document, db } = await findAcrossShards<any>("document", {
             id: params.id
         });
 
         if (!document) {
-            console.warn(`[API] Document not found across any shards: ${params.id}`);
+            console.error(`[API] Discovery failed. Document ${params.id} not found on any shard.`);
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
-        console.log(`[API] Document found on shard, fetching relations: ${params.id} (Workspace: ${document.workspaceId})`);
+        console.log(`[API] Document ${params.id} discovered on shard. Fetching full graph...`);
 
         // Fetch children and backlinks using the discovered db shard
+        // Using findFirst instead of findUnique for maximum compatibility with MongoDB _id mappings
         const [docWithRelations, backlinks] = await Promise.all([
-            db.document.findUnique({
+            db.document.findFirst({
                 where: { id: params.id },
                 include: {
                     user: { select: { name: true, imageUrl: true } },
@@ -49,14 +52,19 @@ export async function GET(
         ]);
 
         if (!docWithRelations) {
-            console.error(`[API] Document vanished from shard after discovery: ${params.id}`);
+            console.error(`[API] Fatal: Document ${params.id} was visible in search but disappeared during graph fetch.`);
             return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
+        console.log(`[API] Document ${params.id} loaded successfully with ${docWithRelations.children.length} children and ${backlinks.length} backlinks.`);
         return NextResponse.json({ ...docWithRelations, backlinks });
     } catch (error: any) {
-        console.error(`[API] Error fetching document ${params.id}:`, error);
-        return NextResponse.json({ error: "Internal Error", details: error.message }, { status: 500 });
+        console.error(`[API] Critical error fetching document ${params.id}:`, error);
+        return NextResponse.json({ 
+            error: "Internal Error", 
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined 
+        }, { status: 500 });
     }
 }
 

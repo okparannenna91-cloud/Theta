@@ -111,7 +111,7 @@ export async function findAcrossShards<T>(
     try {
       console.log(`[Shard Search] Searching for ${modelName} with ${JSON.stringify(where)} on shard ${index + 1}...`);
       // @ts-ignore - Dynamic access to prisma models
-      const record = await shard[modelName].findUnique({ where });
+      const record = await shard[modelName].findFirst({ where });
       if (record) {
         console.log(`[Shard Search] Record found on shard ${index + 1}!`);
         return { data: record as T, db: shard as PrismaClient };
