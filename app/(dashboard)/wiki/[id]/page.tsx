@@ -356,7 +356,7 @@ export default function DocumentPage() {
                     </Button>
 
                     <Button 
-                        onClick={handleSave} 
+                        onClick={() => handleSave(false)} 
                         disabled={isSaving}
                         className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-6 h-10 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-500/20"
                     >
