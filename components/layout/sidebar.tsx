@@ -61,7 +61,7 @@ export function Sidebar() {
     { name: t("analytics"), href: "/analytics", icon: TrendingUp },
     { name: "Apps", href: "/apps", icon: Puzzle },
     { name: "Timeline", href: "/timeline", icon: GanttChartSquare },
-    { name: t("wiki"), href: "/wiki", icon: Book },
+    { name: "Intelligence", href: "/intelligence", icon: Book },
     { name: t("activity"), href: "/activity", icon: Activity },
     { name: t("billing"), href: "/billing", icon: CreditCard },
     { name: t("settings"), href: "/settings", icon: Settings },

@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, FileText, LayoutGrid, List } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { WikiTree } from "@/components/wiki/wiki-tree";
+import { IntelligenceTree } from "@/components/intelligence/sidebar/intelligence-tree";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -21,9 +21,9 @@ export function ProjectDocs({ projectId, workspaceId }: ProjectDocsProps) {
     const [search, setSearch] = useState("");
 
     const { data: documents, isLoading } = useQuery({
-        queryKey: ["project-docs", projectId],
+        queryKey: ["intelligence-docs", projectId],
         queryFn: async () => {
-            const res = await fetch(`/api/docs?workspaceId=${workspaceId}&projectId=${projectId}`);
+            const res = await fetch(`/api/intelligence?workspaceId=${workspaceId}&projectId=${projectId}`);
             if (!res.ok) throw new Error("Failed to fetch documents");
             return res.json();
         },
@@ -31,23 +31,23 @@ export function ProjectDocs({ projectId, workspaceId }: ProjectDocsProps) {
 
     const createMutation = useMutation({
         mutationFn: async (parentId?: string) => {
-            const res = await fetch("/api/docs", {
+            const res = await fetch("/api/intelligence", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     workspaceId, 
                     projectId,
                     parentId: parentId || null,
-                    title: "New Project Document" 
+                    title: "New Strategic Document" 
                 }),
             });
             if (!res.ok) throw new Error("Failed to create document");
             return res.json();
         },
         onSuccess: (newDoc) => {
-            queryClient.invalidateQueries({ queryKey: ["project-docs", projectId] });
-            toast.success("Project document created");
-            router.push(`/wiki/${newDoc.id}`);
+            queryClient.invalidateQueries({ queryKey: ["intelligence-docs", projectId] });
+            toast.success("Intelligence node initialized");
+            router.push(`/intelligence/${newDoc.id}`);
         },
     });
 
@@ -82,11 +82,10 @@ export function ProjectDocs({ projectId, workspaceId }: ProjectDocsProps) {
                 <div className="w-80 shrink-0 border-r border-slate-100 dark:border-slate-800 pr-8">
                     <div className="flex items-center gap-2 mb-4 px-2">
                         <FileText className="h-4 w-4 text-indigo-500" />
-                        <span className="text-[10px] font-black uppercase tracking-widest">Document Hierarchy</span>
+                        <span className="text-[10px] font-black uppercase tracking-widest">Intelligence Hierarchy</span>
                     </div>
-                    <WikiTree 
+                    <IntelligenceTree 
                         documents={filteredDocs}
-                        workspaceId={workspaceId}
                         onCreatePage={(pid) => createMutation.mutate(pid)}
                     />
                 </div>
@@ -95,7 +94,7 @@ export function ProjectDocs({ projectId, workspaceId }: ProjectDocsProps) {
                 <div className="flex-1 overflow-y-auto pr-2 pb-20">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {(documents || []).filter((d: any) => !d.parentId).map((doc: any) => (
-                             <Link key={doc.id} href={`/wiki/${doc.id}`}>
+                             <Link key={doc.id} href={`/intelligence/${doc.id}`}>
                                  <div className="group p-6 rounded-[2.5rem] bg-slate-50/50 dark:bg-slate-900/50 border border-transparent hover:border-indigo-500/30 hover:bg-white dark:hover:bg-slate-900 hover:shadow-2xl hover:shadow-indigo-500/5 transition-all duration-500">
                                      <div className="flex items-center gap-4">
                                          <div className="h-12 w-12 rounded-2xl bg-white dark:bg-slate-950 flex items-center justify-center text-2xl shadow-sm group-hover:scale-110 transition-transform">

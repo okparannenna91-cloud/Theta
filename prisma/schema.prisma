@@ -86,6 +86,14 @@ model Document {
   userId      String   @db.ObjectId
   projectId   String?  @db.ObjectId // For project-specific docs
   parentId    String?  @db.ObjectId // For nested pages
+  
+  status      String   @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
+  visibility  String   @default("INTERNAL")  // PRIVATE, INTERNAL, PUBLIC
+  tags        String[]
+  isTemplate  Boolean  @default(false)
+  views       Int      @default(0)
+  lastEditedById String? @db.ObjectId
+
   isPublic    Boolean  @default(false)
   isPinned    Boolean  @default(false)
   archived    Boolean  @default(false)
