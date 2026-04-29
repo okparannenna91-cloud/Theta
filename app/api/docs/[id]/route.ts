@@ -76,6 +76,7 @@ export async function PATCH(
               coverImage: data.coverImage,
               archived: data.archived,
               isPublic: data.isPublic,
+              isPinned: data.isPinned,
               parentId: data.parentId
             }
         });

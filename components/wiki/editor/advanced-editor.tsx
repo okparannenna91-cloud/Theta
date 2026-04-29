@@ -34,10 +34,11 @@ import {
 import { motion, Reorder, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { SlashMenu } from "./slash-menu";
 import { PageLinkMenu } from "./page-link-menu";
 
-export type BlockType = "paragraph" | "h1" | "h2" | "h3" | "bullet" | "number" | "todo" | "code" | "quote" | "callout" | "divider" | "image" | "video" | "file" | "columns";
+export type BlockType = "paragraph" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "bullet" | "number" | "todo" | "code" | "quote" | "callout" | "divider" | "image" | "video" | "file" | "columns";
 
 export interface EditorBlock {
     id: string;
@@ -49,12 +50,14 @@ export interface EditorBlock {
 interface EditorProps {
     blocks: EditorBlock[];
     workspaceId: string;
+    projectId?: string;
     onChange: (blocks: EditorBlock[]) => void;
     onSave?: () => void;
     placeholder?: string;
+    readOnly?: boolean;
 }
 
-export function AdvancedEditor({ blocks, workspaceId, onChange, onSave, placeholder }: EditorProps) {
+export function AdvancedEditor({ blocks, workspaceId, projectId, onChange, onSave, placeholder, readOnly = false }: EditorProps) {
     const [focusedBlockId, setFocusedBlockId] = useState<string | null>(null);
     const [slashMenu, setSlashMenu] = useState<{ id: string, position: { x: number, y: number } } | null>(null);
     const [linkMenu, setLinkMenu] = useState<{ id: string, position: { x: number, y: number } } | null>(null);
@@ -136,6 +139,44 @@ export function AdvancedEditor({ blocks, workspaceId, onChange, onSave, placehol
         setLinkMenu(null);
     };
 
+    const handleConvertToTask = async (block: EditorBlock) => {
+        if (!projectId || !workspaceId) return;
+        
+        const loadingToast = toast.loading("Creating task...");
+        
+        try {
+            const res = await fetch("/api/tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: block.content || "New task from doc",
+                    description: `Converted from document block: ${block.content}`,
+                    workspaceId,
+                    projectId,
+                    status: "todo",
+                    priority: "medium"
+                })
+            });
+
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || "Failed to create task");
+            }
+
+            const task = await res.json();
+            toast.success("Task created successfully", { id: loadingToast });
+            
+            // Convert block to a todo and link it to the task
+            updateBlock(block.id, { 
+                type: "todo", 
+                content: block.content,
+                metadata: { ...block.metadata, taskId: task.id, checked: false } 
+            });
+        } catch (error: any) {
+            toast.error(error.message, { id: loadingToast });
+        }
+    };
+
     return (
         <div ref={editorRef} className="space-y-1 w-full max-w-full relative group/editor pb-32">
             <Reorder.Group axis="y" values={blocks} onReorder={onChange} className="space-y-1">
@@ -143,44 +184,61 @@ export function AdvancedEditor({ blocks, workspaceId, onChange, onSave, placehol
                     <Reorder.Item 
                         key={block.id} 
                         value={block}
+                        id={`block-${block.id}`}
                         className="group/block relative flex items-start gap-1"
-                    >
-                        {/* Drag Handle & Plus Menu */}
-                        <div className="absolute -left-12 top-2 flex items-center opacity-0 group-hover/block:opacity-100 transition-opacity z-50">
-                            <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md cursor-grab active:cursor-grabbing">
-                                <GripVertical className="h-4 w-4" />
-                            </Button>
-                            
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md">
-                                        <Plus className="h-4 w-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="start" className="rounded-2xl shadow-xl p-2 border border-slate-200 dark:border-white/10 dark:bg-slate-900/90 backdrop-blur-xl">
-                                    <DropdownMenuItem onClick={() => addBlock(block.id, "paragraph")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
-                                        Insert Paragraph
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => addBlock(block.id, "image")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
-                                        Insert Image
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => addBlock(block.id, "code")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
-                                        Insert Code Block
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => removeBlock(block.id)} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest text-red-500 cursor-pointer">
-                                        Delete Block
-                                    </DropdownMenuItem>
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
+                                           {/* Drag Handle & Plus Menu */}
+                        {!readOnly && (
+                            <div className="absolute -left-12 top-2 flex items-center opacity-0 group-hover/block:opacity-100 transition-opacity z-50">
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md cursor-grab active:cursor-grabbing">
+                                    <GripVertical className="h-4 w-4" />
+                                </Button>
+                                
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md">
+                                            <Plus className="h-4 w-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="start" className="rounded-2xl shadow-xl p-2 border border-slate-200 dark:border-white/10 dark:bg-slate-900/90 backdrop-blur-xl">
+                                        <DropdownMenuItem onClick={() => addBlock(block.id, "paragraph")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
+                                            Insert Paragraph
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => addBlock(block.id, "image")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
+                                            Insert Image
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => addBlock(block.id, "code")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
+                                            Insert Code Block
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem 
+                                            onClick={() => {
+                                                if (!projectId) {
+                                                    toast.error("Attach document to a project to create tasks");
+                                                    return;
+                                                }
+                                                // Handle conversion
+                                                handleConvertToTask(block);
+                                            }} 
+                                            className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer"
+                                        >
+                                            <CheckSquare className="h-4 w-4 mr-2" />
+                                            Convert to Task
+                                        </DropdownMenuItem>
+                                        <DropdownMenuItem onClick={() => removeBlock(block.id)} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest text-red-500 cursor-pointer">
+                                            Delete Block
+                                        </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </div>
+                        )}
 
                         {/* Content Area */}
                         <div className="flex-1 min-h-[32px] w-full">
                             <BlockRenderer 
                                 block={block} 
-                                isFocused={focusedBlockId === block.id}
-                                onFocus={() => setFocusedBlockId(block.id)}
+                                isFocused={focusedBlockId === block.id && !readOnly}
+                                onFocus={() => !readOnly && setFocusedBlockId(block.id)}
                                 onChange={(content: string) => {
+                                    if (readOnly) return;
                                     updateBlock(block.id, { content });
                                     
                                     if (content.endsWith("/")) {
@@ -202,10 +260,11 @@ export function AdvancedEditor({ blocks, workspaceId, onChange, onSave, placehol
                                         setLinkMenu(null);
                                     }
                                 }}
-                                onTypeChange={(type: string, metadata: any) => updateBlock(block.id, { type: type as BlockType, metadata })}
-                                onKeyDown={(e: any) => handleKeyDown(e, block.id, block)}
-                                placeholder={blocks.indexOf(block) === 0 ? placeholder : ""}
+                                onTypeChange={(type: string, metadata: any) => !readOnly && updateBlock(block.id, { type: type as BlockType, metadata })}
+                                onKeyDown={(e: any) => !readOnly && handleKeyDown(e, block.id, block)}
+                                placeholder={blocks.indexOf(block) === 0 && !readOnly ? placeholder : ""}
                                 router={router}
+                                readOnly={readOnly}
                             />
                         </div>
 
@@ -250,6 +309,9 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
         if (val === "# ") onTypeChange("h1");
         else if (val === "## ") onTypeChange("h2");
         else if (val === "### ") onTypeChange("h3");
+        else if (val === "#### ") onTypeChange("h4");
+        else if (val === "##### ") onTypeChange("h5");
+        else if (val === "###### ") onTypeChange("h6");
         else if (val === "- ") onTypeChange("bullet");
         else if (val === "1. ") onTypeChange("number");
         else if (val === "[] ") onTypeChange("todo");
@@ -272,6 +334,9 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
         h1: "text-5xl font-black tracking-tight mt-12 mb-6 text-slate-900 dark:text-slate-100",
         h2: "text-4xl font-black tracking-tight mt-10 mb-4 text-slate-800 dark:text-slate-200",
         h3: "text-2xl font-black mt-8 mb-3 text-slate-700 dark:text-slate-300",
+        h4: "text-xl font-bold mt-6 mb-2 text-slate-700 dark:text-slate-300",
+        h5: "text-lg font-bold mt-4 mb-2 text-slate-700 dark:text-slate-300 uppercase tracking-wide",
+        h6: "text-base font-bold mt-4 mb-2 text-slate-500 dark:text-slate-400 uppercase tracking-widest",
         bullet: "list-disc ml-8 text-lg font-medium leading-relaxed opacity-80",
         number: "list-decimal ml-8 text-lg font-medium leading-relaxed opacity-80",
         todo: "text-lg font-bold opacity-90",
@@ -309,13 +374,15 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
                         </div>
                         <div className="text-center">
                             <p className="text-xs font-black uppercase tracking-widest text-slate-500">Secure Visual Payload</p>
-                            <Input 
-                                placeholder="Enter image URL..." 
-                                className="mt-4 h-10 rounded-xl bg-white dark:bg-slate-900 border-none shadow-sm text-xs font-bold w-64"
-                                onKeyDown={(e: any) => {
-                                    if (e.key === "Enter") onChange(e.target.value);
-                                }}
-                            />
+                            {!readOnly && (
+                                <Input 
+                                    placeholder="Enter image URL..." 
+                                    className="mt-4 h-10 rounded-xl bg-white dark:bg-slate-900 border-none shadow-sm text-xs font-bold w-64"
+                                    onKeyDown={(e: any) => {
+                                        if (e.key === "Enter") onChange(e.target.value);
+                                    }}
+                                />
+                            )}
                         </div>
                     </div>
                 )}
@@ -341,13 +408,15 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
                         </div>
                         <div className="text-center">
                             <p className="text-xs font-black uppercase tracking-widest text-slate-500">Video Integration Module</p>
-                            <Input 
-                                placeholder="Enter video URL (YouTube/Vimeo)..." 
-                                className="mt-4 h-10 rounded-xl bg-white dark:bg-slate-900 border-none shadow-sm text-xs font-bold w-64"
-                                onKeyDown={(e: any) => {
-                                    if (e.key === "Enter") onChange(e.target.value);
-                                }}
-                            />
+                            {!readOnly && (
+                                <Input 
+                                    placeholder="Enter video URL (YouTube/Vimeo)..." 
+                                    className="mt-4 h-10 rounded-xl bg-white dark:bg-slate-900 border-none shadow-sm text-xs font-bold w-64"
+                                    onKeyDown={(e: any) => {
+                                        if (e.key === "Enter") onChange(e.target.value);
+                                    }}
+                                />
+                            )}
                         </div>
                     </div>
                 )}
@@ -440,7 +509,7 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
 
     const contentArea = (
         <div className="relative w-full">
-            {isFocused ? (
+            {(isFocused && !readOnly) ? (
                 <textarea
                     ref={textareaRef}
                     value={block.content}
@@ -457,14 +526,15 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
                 />
             ) : (
                 <div 
-                    onClick={onFocus}
+                    onClick={!readOnly ? onFocus : undefined}
                     className={cn(
-                        "w-full min-h-[1.5em] whitespace-pre-wrap transition-all cursor-text",
+                        "w-full min-h-[1.5em] whitespace-pre-wrap transition-all",
+                        !readOnly ? "cursor-text" : "cursor-default",
                         styles[block.type as BlockType] || styles.paragraph,
-                        !block.content && "opacity-20"
+                        (!block.content && !readOnly) && "opacity-20"
                     )}
                 >
-                    {block.content ? renderContent(block.content) : placeholder || "..."}
+                    {(block.content || readOnly) ? renderContent(block.content) : placeholder || "..."}
                 </div>
             )}
         </div>
@@ -475,10 +545,11 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
         return (
             <div className="flex items-start gap-4 group/todo">
                 <div 
-                    onClick={() => onTypeChange("todo", { checked: !isChecked })}
+                    onClick={() => !readOnly && onTypeChange("todo", { checked: !isChecked })}
                     className={cn(
-                        "mt-1.5 h-5 w-5 rounded-lg border-2 flex items-center justify-center cursor-pointer transition-all",
-                        isChecked ? "bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-500/20" : "border-slate-300 dark:border-slate-700 hover:border-indigo-500"
+                        "mt-1.5 h-5 w-5 rounded-lg border-2 flex items-center justify-center transition-all",
+                        !readOnly ? "cursor-pointer hover:border-indigo-500" : "cursor-default",
+                        isChecked ? "bg-indigo-600 border-indigo-600 shadow-lg shadow-indigo-500/20" : "border-slate-300 dark:border-slate-700"
                     )}
                 >
                     {isChecked && <div className="h-2 w-2 bg-white rounded-full animate-in zoom-in" />}

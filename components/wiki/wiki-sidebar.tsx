@@ -13,7 +13,8 @@ import {
     Settings,
     Layers,
     BookOpen,
-    Hash
+    Hash,
+    Pin
 } from "lucide-react";
 import { WikiTree } from "./wiki-tree";
 import { cn } from "@/lib/utils";
@@ -44,6 +45,8 @@ export function WikiSidebar({ workspaceId }: WikiSidebarProps) {
         },
         enabled: !!workspaceId,
     });
+    
+    const pinnedDocs = (documents || []).filter((d: any) => d.isPinned);
 
     const createMutation = useMutation({
         mutationFn: async (parentId?: string) => {
@@ -108,12 +111,45 @@ export function WikiSidebar({ workspaceId }: WikiSidebarProps) {
                 </div>
             </div>
 
-            <nav className="flex-1 overflow-y-auto px-4 pb-8 space-y-0.5 scrollbar-thin">
-                <WikiTree 
-                    documents={filteredDocuments}
-                    activeId={params.id as string}
-                    onCreatePage={(pid) => createMutation.mutate(pid)}
-                />
+            <nav className="flex-1 overflow-y-auto px-4 pb-8 space-y-6 scrollbar-thin">
+                {pinnedDocs.length > 0 && (
+                    <div className="space-y-2">
+                        <div className="flex items-center gap-2 px-2 text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50">
+                            <Pin className="h-2.5 w-2.5" />
+                            <span>Pinned Intelligence</span>
+                        </div>
+                        <div className="space-y-0.5">
+                            {pinnedDocs.map((doc: any) => (
+                                <Link key={doc.id} href={`/wiki/${doc.id}`}>
+                                    <div className={cn(
+                                        "flex items-center gap-2 px-3 py-2 rounded-xl transition-all cursor-pointer border border-transparent",
+                                        params.id === doc.id ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "hover:bg-slate-100 dark:hover:bg-slate-900/60"
+                                    )}>
+                                        <span className="text-sm shrink-0">{doc.emoji || "📄"}</span>
+                                        <span className={cn(
+                                            "text-[10px] font-black uppercase tracking-tight truncate",
+                                            params.id === doc.id ? "text-white" : "text-slate-600 dark:text-slate-400"
+                                        )}>
+                                            {doc.title || "Untitled Page"}
+                                        </span>
+                                    </div>
+                                </Link>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div className="space-y-2">
+                    <div className="flex items-center gap-2 px-2 text-[8px] font-black uppercase tracking-[0.2em] text-muted-foreground opacity-50">
+                        <Layers className="h-2.5 w-2.5" />
+                        <span>Intelligence Tree</span>
+                    </div>
+                    <WikiTree 
+                        documents={filteredDocuments}
+                        activeId={params.id as string}
+                        onCreatePage={(pid) => createMutation.mutate(pid)}
+                    />
+                </div>
 
                 {documents?.length === 0 && !isLoading && (
                      <div className="py-20 text-center space-y-4 px-6 grayscale">
