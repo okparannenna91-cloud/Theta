@@ -110,7 +110,8 @@ export default function IntelligenceNodePage() {
             return data;
         },
         enabled: !!id,
-        retry: false
+        retry: 3,
+        retryDelay: 1000
     });
 
     const updateMutation = useMutation({

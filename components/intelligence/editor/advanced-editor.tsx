@@ -493,19 +493,14 @@ function BlockRenderer({ block, onUpdate, onKeyDown, onFocus, workspaceId }: {
                                  </div>
                              </div>
                              <Button variant="outline" className="rounded-xl border-emerald-500/20 text-emerald-600 font-black uppercase tracking-widest text-[8px] h-8">
-                                 Config View
+                                 Configure Query
                              </Button>
                          </div>
-                         <div className="space-y-2 opacity-50">
-                              {[1, 2, 3].map(i => (
-                                  <div key={i} className="flex items-center gap-4 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-emerald-500/10">
-                                      <div className="h-4 w-4 rounded-md border-2 border-slate-300" />
-                                      <div className="h-3 w-40 bg-slate-100 dark:bg-slate-800 rounded-full" />
-                                      <div className="ml-auto h-5 w-16 bg-slate-100 dark:bg-slate-800 rounded-full" />
-                                  </div>
-                              ))}
+                         <div className="p-8 border-2 border-dashed border-emerald-500/20 rounded-2xl text-center flex flex-col items-center justify-center">
+                              <Database className="h-6 w-6 text-emerald-500/40 mb-2" />
+                              <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600/60">No tasks linked</span>
+                              <p className="text-[8px] font-bold text-emerald-600/40 uppercase mt-1">Configure this block to pull real-time tasks.</p>
                          </div>
-                         <p className="text-center text-[7px] font-black uppercase tracking-[0.3em] text-emerald-500/60 pt-2">Live Neural Sync Active</p>
                      </div>
                  );
             case "ai":

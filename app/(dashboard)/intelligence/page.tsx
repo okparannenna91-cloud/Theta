@@ -71,6 +71,9 @@ export default function IntelligencePage() {
 
     const pinnedDocs = (documents || []).filter((d: any) => d.isPinned);
     const recentDocs = (documents || []).slice(0, 6);
+    
+    // Extract unique tags/categories
+    const categories = Array.from(new Set((documents || []).flatMap((d: any) => d.tags || []))).filter(Boolean);
 
     return (
         <div className="flex-1 overflow-y-auto bg-background/50 backdrop-blur-3xl scrollbar-none">
@@ -214,17 +217,27 @@ export default function IntelligencePage() {
                                 <LayoutGrid className="h-4 w-4 text-indigo-500" />
                                 <h2 className="text-[10px] font-black uppercase tracking-[0.3em]">Knowledge Categories</h2>
                             </div>
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                {["Onboarding", "Technical", "Operations", "Legal", "Marketing", "Research", "Strategy", "HR"].map((cat) => (
-                                    <div key={cat} className="group p-6 rounded-3xl bg-slate-50 dark:bg-slate-900/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 cursor-pointer transition-all">
-                                        <div className="h-10 w-10 rounded-2xl bg-white dark:bg-slate-900 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
-                                            <FileText className="h-4 w-4 text-slate-400 group-hover:text-indigo-500" />
-                                        </div>
-                                        <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-100">{cat}</h4>
-                                        <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">12 Nodes</p>
-                                    </div>
-                                ))}
-                            </div>
+                            {categories.length > 0 ? (
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    {categories.map((cat: any) => {
+                                        const count = (documents || []).filter((d: any) => (d.tags || []).includes(cat)).length;
+                                        return (
+                                            <div key={cat} className="group p-6 rounded-3xl bg-slate-50 dark:bg-slate-900/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-700 cursor-pointer transition-all">
+                                                <div className="h-10 w-10 rounded-2xl bg-white dark:bg-slate-900 flex items-center justify-center mb-3 shadow-sm group-hover:scale-110 transition-transform">
+                                                    <FileText className="h-4 w-4 text-slate-400 group-hover:text-indigo-500" />
+                                                </div>
+                                                <h4 className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-slate-100">{cat}</h4>
+                                                <p className="text-[8px] font-bold text-muted-foreground uppercase mt-1">{count} Nodes</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            ) : (
+                                <div className="p-8 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-center">
+                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">No categories found</span>
+                                    <p className="text-[8px] font-bold text-slate-400/70 uppercase mt-1">Add tags to your intelligence nodes to categorize them.</p>
+                                </div>
+                            )}
                         </section>
                     </div>
 
@@ -234,16 +247,12 @@ export default function IntelligencePage() {
                              <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600">Workspace Health</h3>
                              <div className="space-y-4">
                                  <div className="flex items-center justify-between">
-                                     <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Intelligence Nodes</span>
+                                     <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Total Intelligence Nodes</span>
                                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">{documents?.length || 0}</span>
                                  </div>
                                  <div className="flex items-center justify-between">
-                                     <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Verified Articles</span>
-                                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">85%</span>
-                                 </div>
-                                 <div className="flex items-center justify-between">
-                                     <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Neural Uptime</span>
-                                     <span className="text-[10px] font-black uppercase tracking-widest text-emerald-500">99.9%</span>
+                                     <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Pinned Nodes</span>
+                                     <span className="text-[10px] font-black uppercase tracking-widest text-slate-900 dark:text-white">{pinnedDocs.length}</span>
                                  </div>
                              </div>
                              <div className="pt-4 border-t border-indigo-500/10">
