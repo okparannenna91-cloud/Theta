@@ -19,7 +19,10 @@ import {
     MoreHorizontal,
     MoreVertical,
     Sparkles,
-    ArrowUpRight
+    ArrowUpRight,
+    Video,
+    File,
+    Play
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -34,7 +37,7 @@ import { useRouter } from "next/navigation";
 import { SlashMenu } from "./slash-menu";
 import { PageLinkMenu } from "./page-link-menu";
 
-export type BlockType = "paragraph" | "h1" | "h2" | "h3" | "bullet" | "number" | "todo" | "code" | "quote" | "callout" | "divider";
+export type BlockType = "paragraph" | "h1" | "h2" | "h3" | "bullet" | "number" | "todo" | "code" | "quote" | "callout" | "divider" | "image" | "video" | "file" | "columns";
 
 export interface EditorBlock {
     id: string;
@@ -115,12 +118,20 @@ export function AdvancedEditor({ blocks, workspaceId, onChange, onSave, placehol
         setSlashMenu(null);
     };
 
-    const handleLinkSelect = (id: string, doc: any) => {
+    const handleLinkSelect = (id: string, item: any) => {
         const block = blocks.find(b => b.id === id);
         if (!block) return;
         const newContent = block.content.endsWith("@") ? block.content.slice(0, -1) : block.content;
-        // Internal Link format: [[id|title|emoji]]
-        const linkStr = `[[${doc.id}|${doc.title}|${doc.emoji || "📄"}]]`;
+        
+        let linkStr = "";
+        if (item.mentionType === "project") {
+            linkStr = `[[project:${item.id}|${item.name}]]`;
+        } else if (item.mentionType === "task") {
+            linkStr = `[[task:${item.id}|${item.title}]]`;
+        } else {
+            linkStr = `[[${item.id}|${item.title}|${item.emoji || "📄"}]]`;
+        }
+
         updateBlock(id, { content: newContent + linkStr + " " });
         setLinkMenu(null);
     };
@@ -149,6 +160,9 @@ export function AdvancedEditor({ blocks, workspaceId, onChange, onSave, placehol
                                 <DropdownMenuContent align="start" className="rounded-2xl shadow-xl p-2 border border-slate-200 dark:border-white/10 dark:bg-slate-900/90 backdrop-blur-xl">
                                     <DropdownMenuItem onClick={() => addBlock(block.id, "paragraph")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
                                         Insert Paragraph
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => addBlock(block.id, "image")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
+                                        Insert Image
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => addBlock(block.id, "code")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
                                         Insert Code Block
@@ -265,32 +279,160 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
         quote: "border-l-[6px] border-indigo-500 pl-8 italic text-2xl font-black text-slate-500 dark:text-slate-400 my-10 bg-slate-50 dark:bg-slate-900/40 py-6 rounded-r-3xl",
         callout: "bg-indigo-600/5 dark:bg-indigo-500/10 p-8 rounded-[2.5rem] border-2 border-indigo-500/20 text-lg font-bold my-10 text-indigo-600 dark:text-indigo-400 shadow-2xl shadow-indigo-500/5 flex items-center gap-4",
         divider: "h-[2px] bg-slate-100 dark:bg-slate-800/50 my-16 w-full prose-none shadow-none rounded-full",
+        image: "my-10",
+        video: "my-10",
+        file: "my-6",
+        columns: "grid grid-cols-2 gap-8 my-10",
     };
 
     if (block.type === "divider") {
         return <div className={styles.divider} />;
     }
 
+    if (block.type === "image") {
+        return (
+            <div className={cn("relative group/image", styles.image)}>
+                {block.content ? (
+                    <div className="relative rounded-[2.5rem] overflow-hidden shadow-2xl">
+                        <img src={block.content} alt="Block content" className="w-full h-auto" />
+                        <div className="absolute inset-0 bg-black/0 group-hover/image:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover/image:opacity-100">
+                            <Button onClick={() => onChange("")} variant="destructive" className="rounded-xl font-black uppercase text-[10px] tracking-widest">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Remove Image
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="h-64 rounded-[2.5rem] border-4 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-900/50 transition-all hover:border-indigo-500/50">
+                        <div className="h-16 w-16 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center">
+                            <ImageIcon className="h-8 w-8 text-indigo-600" />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Secure Visual Payload</p>
+                            <Input 
+                                placeholder="Enter image URL..." 
+                                className="mt-4 h-10 rounded-xl bg-white dark:bg-slate-900 border-none shadow-sm text-xs font-bold w-64"
+                                onKeyDown={(e: any) => {
+                                    if (e.key === "Enter") onChange(e.target.value);
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    if (block.type === "video") {
+        return (
+            <div className={cn("relative group/video", styles.video)}>
+                {block.content ? (
+                    <div className="relative aspect-video rounded-[2.5rem] overflow-hidden shadow-2xl bg-black">
+                        <iframe 
+                            src={block.content.includes("youtube.com") ? block.content.replace("watch?v=", "embed/") : block.content} 
+                            className="absolute inset-0 w-full h-full border-none"
+                            allowFullScreen
+                        />
+                    </div>
+                ) : (
+                    <div className="h-64 rounded-[2.5rem] border-4 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-900/50 transition-all hover:border-indigo-500/50">
+                        <div className="h-16 w-16 rounded-2xl bg-rose-50 dark:bg-rose-900/20 flex items-center justify-center">
+                            <Play className="h-8 w-8 text-rose-600" />
+                        </div>
+                        <div className="text-center">
+                            <p className="text-xs font-black uppercase tracking-widest text-slate-500">Video Integration Module</p>
+                            <Input 
+                                placeholder="Enter video URL (YouTube/Vimeo)..." 
+                                className="mt-4 h-10 rounded-xl bg-white dark:bg-slate-900 border-none shadow-sm text-xs font-bold w-64"
+                                onKeyDown={(e: any) => {
+                                    if (e.key === "Enter") onChange(e.target.value);
+                                }}
+                            />
+                        </div>
+                    </div>
+                )}
+            </div>
+        );
+    }
+
+    if (block.type === "file") {
+        return (
+            <div className={cn("group/file", styles.file)}>
+                <div className="p-6 rounded-[2rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 flex items-center justify-between hover:border-indigo-500/50 hover:shadow-2xl transition-all">
+                    <div className="flex items-center gap-4">
+                        <div className="h-12 w-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                            <File className="h-6 w-6 text-slate-500" />
+                        </div>
+                        <div>
+                            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Attached Resource</p>
+                            <p className="text-xs font-bold truncate max-w-[200px]">{block.content || "unnamed_resource.bin"}</p>
+                        </div>
+                    </div>
+                    <Button variant="outline" className="rounded-xl border-none bg-slate-100 dark:bg-slate-800 font-black uppercase text-[9px] tracking-widest px-6 h-9">
+                        Download
+                    </Button>
+                </div>
+            </div>
+        );
+    }
+
     const renderContent = (text: string) => {
-        // Internal Link regex: [[id|title|emoji]]
+        // Internal Link regex: [[id|title|emoji]] or [[project:id|title]] or [[task:id|title]]
         const parts = text.split(/(\[\[.*?\]\])/g);
         return parts.map((part, i) => {
             if (part.startsWith("[[") && part.endsWith("]]")) {
-                const [id, title, emoji] = part.slice(2, -2).split("|");
-                return (
-                    <button
-                        key={i}
-                        onClick={(e) => {
-                            e.stopPropagation();
-                            router.push(`/wiki/${id}`);
-                        }}
-                        className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-600/10 text-indigo-600 border border-indigo-600/20 hover:bg-indigo-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-tight mx-0.5 align-middle"
-                    >
-                        <span className="text-xs">{emoji}</span>
-                        {title}
-                        <ArrowUpRight className="h-2.5 w-2.5" />
-                    </button>
-                );
+                const inner = part.slice(2, -2);
+                if (inner.startsWith("project:")) {
+                    const [idPart, title] = inner.split("|");
+                    const id = idPart.replace("project:", "");
+                    return (
+                        <button
+                            key={i}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/projects/${id}`);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-600/10 text-emerald-600 border border-emerald-600/20 hover:bg-emerald-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-tight mx-0.5 align-middle"
+                        >
+                            <FolderKanban className="h-2.5 w-2.5" />
+                            {title}
+                            <ArrowUpRight className="h-2.5 w-2.5" />
+                        </button>
+                    );
+                } else if (inner.startsWith("task:")) {
+                    const [idPart, title] = inner.split("|");
+                    const id = idPart.replace("task:", "");
+                    return (
+                        <button
+                            key={i}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/tasks/${id}`);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-600/10 text-amber-600 border border-amber-600/20 hover:bg-amber-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-tight mx-0.5 align-middle"
+                        >
+                            <CheckSquare className="h-2.5 w-2.5" />
+                            {title}
+                            <ArrowUpRight className="h-2.5 w-2.5" />
+                        </button>
+                    );
+                } else {
+                    const [id, title, emoji] = inner.split("|");
+                    return (
+                        <button
+                            key={i}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/wiki/${id}`);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-600/10 text-indigo-600 border border-indigo-600/20 hover:bg-indigo-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-tight mx-0.5 align-middle"
+                        >
+                            <span className="text-xs">{emoji}</span>
+                            {title}
+                            <ArrowUpRight className="h-2.5 w-2.5" />
+                        </button>
+                    );
+                }
             }
             return part;
         });

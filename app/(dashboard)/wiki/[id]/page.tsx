@@ -103,6 +103,16 @@ export default function DocumentPage() {
     };
 
     useEffect(() => {
+        const timer = setTimeout(() => {
+            if (title !== document?.title || JSON.stringify(blocks) !== document?.content) {
+                handleSave();
+            }
+        }, 3000); // 3 second debounce
+
+        return () => clearTimeout(timer);
+    }, [title, blocks]);
+
+    useEffect(() => {
         const down = (e: KeyboardEvent) => {
             if (e.key === "s" && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault();
@@ -137,14 +147,29 @@ export default function DocumentPage() {
                         </Button>
                     </Link>
                     <div className="h-8 w-[1px] bg-slate-200 dark:bg-slate-800 mx-2" />
-                    <div className="flex items-center gap-2">
-                        <span className="text-2xl">{document.emoji || "📄"}</span>
-                        <Input 
-                            value={title}
-                            onChange={(e) => setTitle(e.target.value)}
-                            className="border-none bg-transparent text-lg font-black focus-visible:ring-0 w-64 sm:w-96 p-0 shadow-none text-slate-900 dark:text-slate-100"
-                            placeholder="Document Title"
-                        />
+                    <div className="flex flex-col">
+                        <div className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-1">
+                            <Link href="/wiki" className="hover:text-indigo-600 transition-colors">Wiki</Link>
+                            {document.parent && (
+                                <>
+                                    <span className="opacity-30">/</span>
+                                    <Link href={`/wiki/${document.parent.id}`} className="hover:text-indigo-600 transition-colors truncate max-w-[100px]">
+                                        {document.parent.title}
+                                    </Link>
+                                </>
+                            )}
+                            <span className="opacity-30">/</span>
+                            <span className="text-indigo-600 truncate max-w-[150px]">{title || "New Intel"}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <span className="text-2xl">{document.emoji || "📄"}</span>
+                            <Input 
+                                value={title}
+                                onChange={(e) => setTitle(e.target.value)}
+                                className="border-none bg-transparent text-lg font-black focus-visible:ring-0 w-64 sm:w-96 p-0 shadow-none text-slate-900 dark:text-slate-100"
+                                placeholder="Document Title"
+                            />
+                        </div>
                     </div>
                 </div>
 

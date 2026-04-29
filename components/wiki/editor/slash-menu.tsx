@@ -11,7 +11,10 @@ import {
     Type, 
     CheckSquare,
     Image as ImageIcon,
-    Minus
+    Minus,
+    Video,
+    File,
+    Columns
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +32,10 @@ const COMMANDS = [
     { id: "bullet", label: "Bullet List", icon: List, shortcut: "-" },
     { id: "number", label: "Numbered List", icon: List, shortcut: "1." },
     { id: "todo", label: "To-do List", icon: CheckSquare, shortcut: "[]" },
+    { id: "image", label: "Image", icon: ImageIcon, shortcut: "" },
+    { id: "video", label: "Video", icon: Video, shortcut: "" },
+    { id: "file", label: "File", icon: File, shortcut: "" },
+    { id: "columns", label: "2 Columns", icon: Columns, shortcut: "" },
     { id: "code", label: "Code Block", icon: Code, shortcut: "```" },
     { id: "quote", label: "Quote", icon: Quote, shortcut: ">" },
     { id: "divider", label: "Divider", icon: Minus, shortcut: "---" },
