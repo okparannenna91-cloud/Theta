@@ -61,7 +61,6 @@ export function Sidebar() {
     { name: t("analytics"), href: "/analytics", icon: TrendingUp },
     { name: "Apps", href: "/apps", icon: Puzzle },
     { name: "Timeline", href: "/timeline", icon: GanttChartSquare },
-    { name: "Intelligence", href: "/intelligence", icon: Book },
     { name: t("activity"), href: "/activity", icon: Activity },
     { name: t("billing"), href: "/billing", icon: CreditCard },
     { name: t("settings"), href: "/settings", icon: Settings },
@@ -228,7 +227,6 @@ export function Sidebar() {
           <div className="flex items-center justify-center gap-6 px-2 mt-2 text-[9px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">
             <Link href="/privacy" className="hover:text-primary transition-colors">Privacy</Link>
             <Link href="/terms" className="hover:text-primary transition-colors">Terms</Link>
-            <Link href="/docs" className="hover:text-primary transition-colors">Docs</Link>
           </div>
         </div>
       </div>

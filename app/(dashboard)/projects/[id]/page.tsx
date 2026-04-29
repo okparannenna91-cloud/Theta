@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { ProjectOverview } from "@/components/projects/project-overview";
 import { ProjectActivity } from "@/components/projects/project-activity";
-import { ProjectDocs } from "@/components/projects/project-docs";
 import { ProjectSettings } from "@/components/projects/project-settings";
 import { 
     ArrowLeft, 
@@ -18,7 +17,6 @@ import {
     Info,
     Activity as ActivityIcon,
     Settings,
-    FileText as DocsIcon,
     Users as UsersIcon,
     MessageSquare
 } from "lucide-react";
@@ -74,7 +72,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         { id: "calendar", label: "Calendar", icon: CalendarDays },
         { id: "timeline", label: "Timeline", icon: Calendar },
         { id: "gantt", label: "Gantt", icon: GanttIcon },
-        { id: "docs", label: "Docs", icon: DocsIcon },
         { id: "activity", label: "Activity", icon: ActivityIcon },
         { id: "members", label: "Team", icon: UsersIcon },
         { id: "analytics", label: "Insights", icon: TrendingUp },
@@ -274,10 +271,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                                     ))}
                                 </div>
                             </div>
-                        )}
-                        
-                        {view === "docs" && (
-                            <ProjectDocs projectId={project.id} workspaceId={project.workspaceId} />
                         )}
                         
                         {view === "settings" && (
