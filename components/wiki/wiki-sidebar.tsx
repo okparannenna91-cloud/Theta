@@ -182,6 +182,7 @@ export function WikiSidebar({ workspaceId }: WikiSidebarProps) {
                     <WikiTree 
                         documents={filteredDocuments}
                         activeId={params.id as string}
+                        workspaceId={workspaceId}
                         onCreatePage={(pid) => createMutation.mutate(pid)}
                     />
                 </div>

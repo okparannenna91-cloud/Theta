@@ -179,8 +179,21 @@ export default function DocumentPage() {
             else if (b.type === "number") md += `1. ${b.content}\n`;
             else if (b.type === "todo") md += `- [${b.metadata?.checked ? "x" : " "}] ${b.content}\n`;
             else if (b.type === "quote") md += `> ${b.content}\n\n`;
-            else if (b.type === "code") md += `\`\`\`\n${b.content}\n\`\`\`\n\n`;
+            else if (b.type === "code") md += `\`\`\`${b.metadata?.language || ""}\n${b.content}\n\`\`\`\n\n`;
+            else if (b.type === "image") md += `![Image](${b.content})\n\n`;
             else if (b.type === "divider") md += `---\n\n`;
+            else if (b.type === "callout") md += `> **Note**\n> ${b.content}\n\n`;
+            else if (b.type === "table") {
+                const data = b.metadata?.data || [];
+                if (data.length > 0) {
+                    md += `| ${data[0].join(" | ")} |\n`;
+                    md += `| ${data[0].map(() => "---").join(" | ")} |\n`;
+                    data.slice(1).forEach((row: string[]) => {
+                        md += `| ${row.join(" | ")} |\n`;
+                    });
+                    md += "\n";
+                }
+            }
             else md += `${b.content}\n\n`;
         });
         
@@ -200,26 +213,47 @@ export default function DocumentPage() {
         const content = blocks.map(b => {
             if (b.type.startsWith("h")) {
                 const level = b.type[1];
-                return `<h${level}>${b.content}</h${level}>`;
+                return `<h${level} style="font-weight: 800; margin-top: 2em;">${b.content}</h${level}>`;
             }
-            if (b.type === "paragraph") return `<p>${b.content}</p>`;
-            if (b.type === "code") return `<pre><code>${b.content}</code></pre>`;
+            if (b.type === "paragraph") return `<p style="margin-bottom: 1em; color: #333;">${b.content}</p>`;
+            if (b.type === "code") return `<pre style="background: #1e1e1e; color: #d4d4d4; padding: 20px; border-radius: 12px; font-family: monospace; overflow-x: auto;"><code>${b.content}</code></pre>`;
+            if (b.type === "image") return `<img src="${b.content}" style="width: 100%; border-radius: 24px; margin: 2em 0;" />`;
+            if (b.type === "quote") return `<blockquote style="border-left: 4px solid #6366f1; padding-left: 20px; font-style: italic; color: #666; margin: 2em 0;">${b.content}</blockquote>`;
+            if (b.type === "callout") return `<div style="background: #f5f3ff; border: 1px solid #ddd6fe; padding: 20px; border-radius: 16px; margin: 2em 0; color: #4338ca;">${b.content}</div>`;
+            if (b.type === "todo") return `<div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.5em;"><input type="checkbox" ${b.metadata?.checked ? 'checked' : ''} disabled /> <span>${b.content}</span></div>`;
+            if (b.type === "table") {
+                const data = b.metadata?.data || [];
+                if (data.length === 0) return "";
+                const rows = data.map((row: string[], i: number) => {
+                    const cells = row.map(cell => `<${i === 0 ? 'th' : 'td'} style="border: 1px solid #eee; padding: 12px;">${cell}</${i === 0 ? 'th' : 'td'}>`).join("");
+                    return `<tr>${cells}</tr>`;
+                }).join("");
+                return `<table style="width: 100%; border-collapse: collapse; margin: 2em 0;">${rows}</table>`;
+            }
             return "";
         }).join("\n");
 
         const html = `
             <!DOCTYPE html>
-            <html>
+            <html lang="en">
             <head>
+                <meta charset="UTF-8">
                 <title>${title}</title>
                 <style>
-                    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 20px; line-height: 1.6; }
-                    h1 { font-size: 2.5em; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-                    pre { background: #f4f4f4; padding: 15px; border-radius: 8px; overflow-x: auto; }
-                    code { font-family: monospace; }
+                    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 900px; margin: 60px auto; padding: 40px; line-height: 1.8; color: #1a1a1a; background: #fafafa; }
+                    h1, h2, h3 { color: #000; letter-spacing: -0.02em; }
+                    img { max-width: 100%; height: auto; }
+                    @media print { body { background: white; margin: 0; padding: 20px; } }
                 </style>
             </head>
-            <body>${content}</body>
+            <body>
+                <header style="margin-bottom: 4em;">
+                    <div style="font-size: 3em; margin-bottom: 0.2em;">${document.emoji || "📄"}</div>
+                    <h1 style="font-size: 3.5em; margin: 0;">${title}</h1>
+                    <p style="color: #666; font-size: 0.9em; text-transform: uppercase; letter-spacing: 0.1em; margin-top: 1em;">Theta Document • Exported ${new Date().toLocaleDateString()}</p>
+                </header>
+                ${content}
+            </body>
             </html>
         `;
         
@@ -227,9 +261,9 @@ export default function DocumentPage() {
         const url = URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `${title || "document"}.html`;
+        a.download = `${(title || "document").toLowerCase().replace(/\s+/g, '-')}.html`;
         a.click();
-        toast.success("HTML Exported");
+        toast.success("Professional HTML Exported");
     };
 
     const exportToPDF = () => {
@@ -296,16 +330,6 @@ export default function DocumentPage() {
                         className={cn("rounded-xl transition-all", document.isPinned ? "text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20" : "text-muted-foreground")}
                     >
                         {document.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-                    </Button>
-
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        onClick={() => setIsCommentsOpen(true)}
-                        className="rounded-xl relative"
-                    >
-                        <MessageSquare className="h-4 w-4" />
-                        <div className="absolute top-1 right-1 h-2 w-2 bg-indigo-600 rounded-full animate-pulse" />
                     </Button>
 
                     <Button 

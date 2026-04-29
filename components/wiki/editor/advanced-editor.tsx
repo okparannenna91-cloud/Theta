@@ -20,6 +20,7 @@ import {
     FolderKanban,
     ArrowUpRight,
     ChevronRight,
+    ChevronDown,
     ListTree,
     Database,
     Video,
@@ -85,6 +86,7 @@ export interface EditorBlock {
     type: BlockType;
     content: string;
     metadata?: any;
+    children?: EditorBlock[];
 }
 
 interface EditorProps {
@@ -109,11 +111,38 @@ export function AdvancedEditor({ blocks, workspaceId, projectId, onChange, onSav
         onChange(newBlocks);
     };
 
+    const handleKeyDown = (e: React.KeyboardEvent, id: string, block: EditorBlock) => {
+        if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            if (slashMenu || linkMenu) return; 
+            addBlock(id, "paragraph", "");
+            // Inherit indentation
+            const index = blocks.findIndex(b => b.id === id);
+            if (index !== -1) {
+                const nextBlockId = blocks[index + 1]?.id; // This might be wrong because onChange is async
+                // We'll handle inheritance in addBlock actually
+            }
+        } else if (e.key === "Backspace" && !block.content && blocks.length > 1) {
+            e.preventDefault();
+            removeBlock(id);
+        } else if (e.key === "Tab") {
+            e.preventDefault();
+            const indent = block.metadata?.indent || 0;
+            if (e.shiftKey) {
+                if (indent > 0) updateBlock(id, { metadata: { ...block.metadata, indent: indent - 1 } });
+            } else {
+                if (indent < 8) updateBlock(id, { metadata: { ...block.metadata, indent: indent + 1 } });
+            }
+        }
+    };
+
     const addBlock = (afterId?: string, type: BlockType = "paragraph", content: string = "") => {
+        const afterBlock = blocks.find(b => b.id === afterId);
         const newBlock: EditorBlock = {
             id: crypto.randomUUID(),
             type,
             content,
+            metadata: afterBlock ? { ...afterBlock.metadata } : {}
         };
         
         let newBlocks: EditorBlock[];
@@ -139,17 +168,6 @@ export function AdvancedEditor({ blocks, workspaceId, projectId, onChange, onSav
             setFocusedBlockId(blocks[index - 1].id);
         } else if (newBlocks.length > 0) {
             setFocusedBlockId(newBlocks[0].id);
-        }
-    };
-
-    const handleKeyDown = (e: React.KeyboardEvent, id: string, block: EditorBlock) => {
-        if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            if (slashMenu || linkMenu) return; 
-            addBlock(id);
-        } else if (e.key === "Backspace" && !block.content && blocks.length > 1) {
-            e.preventDefault();
-            removeBlock(id);
         }
     };
 
@@ -220,116 +238,141 @@ export function AdvancedEditor({ blocks, workspaceId, projectId, onChange, onSav
     return (
         <div ref={editorRef} className="space-y-1 w-full max-w-full relative group/editor pb-32">
             <Reorder.Group axis="y" values={blocks} onReorder={onChange} className="space-y-1">
-                {blocks.map((block) => (
-                    <Reorder.Item 
-                        key={block.id} 
-                        value={block}
-                        id={`block-${block.id}`}
-                        className="group/block relative flex items-start gap-1"
-                    >
-                        {/* Drag Handle & Plus Menu */}
-                        {!readOnly && (
-                            <div className="absolute -left-12 top-2 flex items-center opacity-0 group-hover/block:opacity-100 transition-opacity z-50">
-                                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md cursor-grab active:cursor-grabbing">
-                                    <GripVertical className="h-4 w-4" />
-                                </Button>
-                                
-                                <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md">
-                                            <Plus className="h-4 w-4" />
-                                        </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="start" className="rounded-2xl shadow-xl p-2 border border-slate-200 dark:border-white/10 dark:bg-slate-900/90 backdrop-blur-xl">
-                                        <DropdownMenuItem onClick={() => addBlock(block.id, "paragraph")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
-                                            Insert Paragraph
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => addBlock(block.id, "image")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
-                                            Insert Image
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => addBlock(block.id, "code")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
-                                            Insert Code Block
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem 
-                                            onClick={() => {
-                                                if (!projectId) {
-                                                    toast.error("Attach document to a project to create tasks");
-                                                    return;
-                                                }
-                                                // Handle conversion
-                                                handleConvertToTask(block);
-                                            }} 
-                                            className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer"
-                                        >
-                                            <CheckSquare className="h-4 w-4 mr-2" />
-                                            Convert to Task
-                                        </DropdownMenuItem>
-                                        <DropdownMenuItem onClick={() => removeBlock(block.id)} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest text-red-500 cursor-pointer">
-                                            Delete Block
-                                        </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                </DropdownMenu>
-                            </div>
-                        )}
+                {(() => {
+                    let hiddenBelowIndent: number | null = null;
+                    
+                    return blocks.map((block) => {
+                        const indent = block.metadata?.indent || 0;
+                        const isCollapsed = block.metadata?.collapsed ?? false;
+                        
+                        // Visibility logic for toggles
+                        if (hiddenBelowIndent !== null) {
+                            if (indent > hiddenBelowIndent) {
+                                return null; // Hide this block
+                            } else {
+                                hiddenBelowIndent = null; // We've reached a sibling or parent
+                            }
+                        }
+                        
+                        if (block.type === "toggle" && isCollapsed) {
+                            hiddenBelowIndent = indent;
+                        }
 
-                        {/* Content Area */}
-                        <div className="flex-1 min-h-[32px] w-full">
-                            <BlockRenderer 
-                                block={block} 
-                                isFocused={focusedBlockId === block.id && !readOnly}
-                                onFocus={() => !readOnly && setFocusedBlockId(block.id)}
-                                onChange={(content: string) => {
-                                    if (readOnly) return;
-                                    updateBlock(block.id, { content });
-                                    
-                                    if (content.endsWith("/")) {
-                                        const selection = window.getSelection();
-                                        if (selection && selection.rangeCount > 0) {
-                                            const range = selection.getRangeAt(0);
-                                            const rect = range.getBoundingClientRect();
-                                            setSlashMenu({ id: block.id, position: { x: rect.left, y: rect.top } });
-                                        }
-                                    } else if (content.endsWith("@")) {
-                                        const selection = window.getSelection();
-                                        if (selection && selection.rangeCount > 0) {
-                                            const range = selection.getRangeAt(0);
-                                            const rect = range.getBoundingClientRect();
-                                            setLinkMenu({ id: block.id, position: { x: rect.left, y: rect.top } });
-                                        }
-                                    } else {
-                                        setSlashMenu(null);
-                                        setLinkMenu(null);
-                                    }
+                        return (
+                            <Reorder.Item 
+                                key={block.id} 
+                                value={block}
+                                id={`block-${block.id}`}
+                                className="group/block relative flex items-start gap-1"
+                                style={{ 
+                                    paddingLeft: `${indent * 32}px`,
+                                    transition: "padding-left 0.2s ease-in-out"
                                 }}
-                                onTypeChange={(type: string, metadata: any) => !readOnly && updateBlock(block.id, { type: type as BlockType, metadata })}
-                                onKeyDown={(e: any) => !readOnly && handleKeyDown(e, block.id, block)}
-                                placeholder={blocks.indexOf(block) === 0 && !readOnly ? placeholder : ""}
-                                router={router}
-                                readOnly={readOnly}
-                                updateBlock={updateBlock}
-                                projectId={projectId}
-                            />
-                        </div>
+                            >
+                                {/* Drag Handle & Plus Menu */}
+                                {!readOnly && (
+                                    <div className="absolute -left-12 top-2 flex items-center opacity-0 group-hover/block:opacity-100 transition-opacity z-50">
+                                        <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md cursor-grab active:cursor-grabbing">
+                                            <GripVertical className="h-4 w-4" />
+                                        </Button>
+                                        
+                                        <DropdownMenu>
+                                            <DropdownMenuTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="h-6 w-6 text-muted-foreground hover:bg-slate-200 dark:hover:bg-slate-800 rounded-md">
+                                                    <Plus className="h-4 w-4" />
+                                                </Button>
+                                            </DropdownMenuTrigger>
+                                            <DropdownMenuContent align="start" className="rounded-2xl shadow-xl p-2 border border-slate-200 dark:border-white/10 dark:bg-slate-900/90 backdrop-blur-xl">
+                                                <DropdownMenuItem onClick={() => addBlock(block.id, "paragraph")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
+                                                    Insert Paragraph
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => addBlock(block.id, "image")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
+                                                    Insert Image
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => addBlock(block.id, "code")} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer">
+                                                    Insert Code Block
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem 
+                                                    onClick={() => {
+                                                        if (!projectId) {
+                                                            toast.error("Attach document to a project to create tasks");
+                                                            return;
+                                                        }
+                                                        handleConvertToTask(block);
+                                                    }} 
+                                                    className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest cursor-pointer"
+                                                >
+                                                    <CheckSquare className="h-4 w-4 mr-2" />
+                                                    Convert to Task
+                                                </DropdownMenuItem>
+                                                <DropdownMenuItem onClick={() => removeBlock(block.id)} className="rounded-xl px-4 py-2 font-black uppercase text-[10px] tracking-widest text-red-500 cursor-pointer">
+                                                    Delete Block
+                                                </DropdownMenuItem>
+                                            </DropdownMenuContent>
+                                        </DropdownMenu>
+                                    </div>
+                                )}
 
-                        {/* Menus */}
-                        {slashMenu?.id === block.id && (
-                            <SlashMenu 
-                                position={slashMenu.position}
-                                onSelect={(type) => handleSlashCommand(block.id, type)}
-                                onClose={() => setSlashMenu(null)}
-                            />
-                        )}
+                                {/* Content Area */}
+                                <div className="flex-1 min-h-[32px] w-full">
+                                    <BlockRenderer 
+                                        block={block} 
+                                        isFocused={focusedBlockId === block.id && !readOnly}
+                                        onFocus={() => !readOnly && setFocusedBlockId(block.id)}
+                                        onChange={(content: string) => {
+                                            if (readOnly) return;
+                                            updateBlock(block.id, { content });
+                                            
+                                            if (content.endsWith("/")) {
+                                                const selection = window.getSelection();
+                                                if (selection && selection.rangeCount > 0) {
+                                                    const range = selection.getRangeAt(0);
+                                                    const rect = range.getBoundingClientRect();
+                                                    setSlashMenu({ id: block.id, position: { x: rect.left, y: rect.top } });
+                                                }
+                                            } else if (content.endsWith("@")) {
+                                                const selection = window.getSelection();
+                                                if (selection && selection.rangeCount > 0) {
+                                                    const range = selection.getRangeAt(0);
+                                                    const rect = range.getBoundingClientRect();
+                                                    setLinkMenu({ id: block.id, position: { x: rect.left, y: rect.top } });
+                                                }
+                                            } else {
+                                                setSlashMenu(null);
+                                                setLinkMenu(null);
+                                            }
+                                        }}
+                                        onTypeChange={(type: string, metadata: any) => !readOnly && updateBlock(block.id, { type: type as BlockType, metadata })}
+                                        onKeyDown={(e: any) => !readOnly && handleKeyDown(e, block.id, block)}
+                                        placeholder={blocks.indexOf(block) === 0 && !readOnly ? placeholder : ""}
+                                        router={router}
+                                        readOnly={readOnly}
+                                        updateBlock={updateBlock}
+                                        projectId={projectId}
+                                    />
 
-                        {linkMenu?.id === block.id && (
-                            <PageLinkMenu 
-                                workspaceId={workspaceId}
-                                position={linkMenu.position}
-                                onSelect={(doc) => handleLinkSelect(block.id, doc)}
-                                onClose={() => setLinkMenu(null)}
-                            />
-                        )}
-                    </Reorder.Item>
-                ))}
+                                    {/* Menus */}
+                                    {slashMenu?.id === block.id && (
+                                        <SlashMenu 
+                                            position={slashMenu.position}
+                                            onSelect={(type) => handleSlashCommand(block.id, type)}
+                                            onClose={() => setSlashMenu(null)}
+                                        />
+                                    )}
+
+                                    {linkMenu?.id === block.id && (
+                                        <PageLinkMenu 
+                                            workspaceId={workspaceId}
+                                            position={linkMenu.position}
+                                            onSelect={(doc) => handleLinkSelect(block.id, doc)}
+                                            onClose={() => setLinkMenu(null)}
+                                        />
+                                    )}
+                                </div>
+                            </Reorder.Item>
+                        );
+                    });
+                })()}
             </Reorder.Group>
         </div>
     );
@@ -362,6 +405,7 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
         else if (val === "``` ") onTypeChange("code");
         else if (val === "--- ") onTypeChange("divider");
         else if (val === "!! ") onTypeChange("callout");
+        else if (val === ">> ") onTypeChange("toggle");
     };
 
     // Auto-resize textarea
@@ -398,20 +442,100 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
         database: "my-10 overflow-hidden rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl bg-white dark:bg-slate-950/20 backdrop-blur-3xl"
     };
 
+
+    const renderContent = (content: string) => {
+        if (!content) return null;
+        const parts = content.split(/(\[\[.*?\]\])/g);
+        return parts.map((part, i) => {
+            if (part.startsWith("[[") && part.endsWith("]]")) {
+                const inner = part.slice(2, -2);
+                if (inner.startsWith("project:")) {
+                    const [idPart, title] = inner.split("|");
+                    const id = idPart.replace("project:", "");
+                    return (
+                        <button
+                            key={i}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/projects/${id}`);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-600/10 text-emerald-600 border border-emerald-600/20 hover:bg-emerald-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-tight mx-0.5 align-middle"
+                        >
+                            <FolderKanban className="h-2.5 w-2.5" />
+                            {title}
+                            <ArrowUpRight className="h-2.5 w-2.5" />
+                        </button>
+                    );
+                } else if (inner.startsWith("task:")) {
+                    const [idPart, title] = inner.split("|");
+                    const id = idPart.replace("task:", "");
+                    return (
+                        <button
+                            key={i}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/tasks/${id}`);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-600/10 text-amber-600 border border-amber-600/20 hover:bg-amber-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-tight mx-0.5 align-middle"
+                        >
+                            <CheckSquare className="h-2.5 w-2.5" />
+                            {title}
+                            <ArrowUpRight className="h-2.5 w-2.5" />
+                        </button>
+                    );
+                } else {
+                    const [id, title, emoji] = inner.split("|");
+                    return (
+                        <button
+                            key={i}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                router.push(`/wiki/${id}`);
+                            }}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-600/10 text-indigo-600 border border-indigo-600/20 hover:bg-indigo-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-tight mx-0.5 align-middle"
+                        >
+                            <span className="text-xs">{emoji}</span>
+                            {title}
+                            <ArrowUpRight className="h-2.5 w-2.5" />
+                        </button>
+                    );
+                }
+            }
+            return part;
+        });
+    };
+
     const contentArea = (
-        <textarea
-            ref={textareaRef}
-            value={block.content}
-            onChange={handleChange}
-            onKeyDown={onKeyDown}
-            onFocus={onFocus}
-            placeholder={placeholder}
-            disabled={readOnly}
-            className={cn(
-                "w-full bg-transparent outline-none resize-none overflow-hidden",
-                styles[block.type as BlockType]
+        <div className="relative w-full">
+            {(isFocused && !readOnly) ? (
+                <textarea
+                    ref={textareaRef}
+                    value={block.content}
+                    onChange={handleChange}
+                    onFocus={onFocus}
+                    onKeyDown={onKeyDown}
+                    placeholder={placeholder || (isFocused ? "Draft internal intelligence..." : "")}
+                    rows={1}
+                    className={cn(
+                        "w-full bg-transparent outline-none resize-none overflow-hidden transition-all duration-300 placeholder:text-slate-200 dark:placeholder:text-slate-800",
+                        styles[block.type as BlockType] || styles.paragraph,
+                        "text-slate-900 dark:text-slate-50"
+                    )}
+                />
+            ) : (
+                <div 
+                    onClick={!readOnly ? onFocus : undefined}
+                    className={cn(
+                        "w-full min-h-[1.5em] whitespace-pre-wrap transition-all",
+                        !readOnly ? "cursor-text" : "cursor-default",
+                        styles[block.type as BlockType] || styles.paragraph,
+                        (!block.content && !readOnly) && "opacity-20"
+                    )}
+                >
+                    {(block.content || readOnly) ? renderContent(block.content) : placeholder || "..."}
+                </div>
             )}
-        />
+        </div>
     );
 
     if (block.type === "divider") {
@@ -655,31 +779,7 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
         );
     }
 
-    if (block.type === "toggle") {
-        const isCollapsed = block.metadata?.collapsed ?? false;
-        return (
-            <div className="my-2 group/toggle">
-                <div className="flex items-start gap-2">
-                    <Button 
-                        variant="ghost" 
-                        size="icon" 
-                        className={cn("h-6 w-6 rounded-md transition-transform", !isCollapsed && "rotate-90")}
-                        onClick={() => updateBlock(block.id, { metadata: { ...block.metadata, collapsed: !isCollapsed } })}
-                    >
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                    <div className="flex-1">
-                        {contentArea}
-                    </div>
-                </div>
-                {!isCollapsed && (
-                    <div className="ml-8 mt-2 p-6 rounded-3xl bg-slate-50/50 dark:bg-slate-900/30 border border-dashed border-slate-200 dark:border-white/5 italic text-sm text-muted-foreground">
-                        Drag blocks here to nest... (Recursive nesting in Phase 4)
-                    </div>
-                )}
-            </div>
-        );
-    }
+
 
     if (block.type === "task-view") {
         const { data: tasks, isLoading: tasksLoading } = useQuery({
@@ -852,101 +952,6 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
         );
     }
 
-    const renderContent = (text: string) => {
-        // Internal Link regex: [[id|title|emoji]] or [[project:id|title]] or [[task:id|title]]
-        const parts = text.split(/(\[\[.*?\]\])/g);
-        return parts.map((part, i) => {
-            if (part.startsWith("[[") && part.endsWith("]]")) {
-                const inner = part.slice(2, -2);
-                if (inner.startsWith("project:")) {
-                    const [idPart, title] = inner.split("|");
-                    const id = idPart.replace("project:", "");
-                    return (
-                        <button
-                            key={i}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/projects/${id}`);
-                            }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-emerald-600/10 text-emerald-600 border border-emerald-600/20 hover:bg-emerald-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-tight mx-0.5 align-middle"
-                        >
-                            <FolderKanban className="h-2.5 w-2.5" />
-                            {title}
-                            <ArrowUpRight className="h-2.5 w-2.5" />
-                        </button>
-                    );
-                } else if (inner.startsWith("task:")) {
-                    const [idPart, title] = inner.split("|");
-                    const id = idPart.replace("task:", "");
-                    return (
-                        <button
-                            key={i}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/tasks/${id}`);
-                            }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-amber-600/10 text-amber-600 border border-amber-600/20 hover:bg-amber-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-tight mx-0.5 align-middle"
-                        >
-                            <CheckSquare className="h-2.5 w-2.5" />
-                            {title}
-                            <ArrowUpRight className="h-2.5 w-2.5" />
-                        </button>
-                    );
-                } else {
-                    const [id, title, emoji] = inner.split("|");
-                    return (
-                        <button
-                            key={i}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                router.push(`/wiki/${id}`);
-                            }}
-                            className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-lg bg-indigo-600/10 text-indigo-600 border border-indigo-600/20 hover:bg-indigo-600 hover:text-white transition-all font-black uppercase text-[10px] tracking-tight mx-0.5 align-middle"
-                        >
-                            <span className="text-xs">{emoji}</span>
-                            {title}
-                            <ArrowUpRight className="h-2.5 w-2.5" />
-                        </button>
-                    );
-                }
-            }
-            return part;
-        });
-    };
-
-    const contentArea = (
-        <div className="relative w-full">
-            {(isFocused && !readOnly) ? (
-                <textarea
-                    ref={textareaRef}
-                    value={block.content}
-                    onChange={handleChange}
-                    onFocus={onFocus}
-                    onKeyDown={onKeyDown}
-                    placeholder={placeholder || (isFocused ? "Draft internal intelligence..." : "")}
-                    rows={1}
-                    className={cn(
-                        "w-full bg-transparent outline-none resize-none overflow-hidden transition-all duration-300 placeholder:text-slate-200 dark:placeholder:text-slate-800",
-                        styles[block.type as BlockType] || styles.paragraph,
-                        "text-slate-900 dark:text-slate-50"
-                    )}
-                />
-            ) : (
-                <div 
-                    onClick={!readOnly ? onFocus : undefined}
-                    className={cn(
-                        "w-full min-h-[1.5em] whitespace-pre-wrap transition-all",
-                        !readOnly ? "cursor-text" : "cursor-default",
-                        styles[block.type as BlockType] || styles.paragraph,
-                        (!block.content && !readOnly) && "opacity-20"
-                    )}
-                >
-                    {(block.content || readOnly) ? renderContent(block.content) : placeholder || "..."}
-                </div>
-            )}
-        </div>
-    );
-
     if (block.type === "todo") {
         const isChecked = block.metadata?.checked || false;
         return (
@@ -963,6 +968,25 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
                 </div>
                 <div className={cn("flex-1", isChecked && "line-through opacity-40 grayscale")}>
                     {contentArea}
+                </div>
+            </div>
+        );
+    }
+
+    if (block.type === "toggle") {
+        const isCollapsed = block.metadata?.collapsed || false;
+        return (
+            <div className="flex flex-col">
+                <div className="flex items-center gap-2 group/toggle">
+                    <button 
+                        onClick={() => updateBlock(block.id, { metadata: { ...block.metadata, collapsed: !isCollapsed } })}
+                        className="h-8 w-8 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-white/5 hover:bg-indigo-600 hover:text-white transition-all shadow-sm group-hover/toggle:scale-110"
+                    >
+                        {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                    </button>
+                    <div className="flex-1 font-black uppercase text-xs tracking-widest text-slate-900 dark:text-slate-100">
+                        {contentArea}
+                    </div>
                 </div>
             </div>
         );

@@ -26,15 +26,19 @@ import {
     useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 interface WikiTreeProps {
     documents: any[];
     activeId?: string;
+    workspaceId: string;
     onCreatePage: (parentId?: string) => void;
     basePath?: string;
 }
 
-export function WikiTree({ documents, activeId, onCreatePage, basePath = "/wiki" }: WikiTreeProps) {
+export function WikiTree({ documents, activeId, workspaceId, onCreatePage, basePath = "/wiki" }: WikiTreeProps) {
+    const queryClient = useQueryClient();
     const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
     const toggleExpand = (id: string) => {
@@ -71,11 +75,26 @@ export function WikiTree({ documents, activeId, onCreatePage, basePath = "/wiki"
         })
     );
 
-    const handleDragEnd = (event: any) => {
+    const handleDragEnd = async (event: any) => {
         const { active, over } = event;
+        if (!over) return;
+
         if (active.id !== over.id) {
-            // Implementation of persistent reordering would go here
-            // For now, we'll just handle the visual swap if needed
+            try {
+                // Persistent reordering/nesting logic
+                const res = await fetch(`/api/docs/${active.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ parentId: over.id === "root" ? null : over.id }),
+                });
+
+                if (!res.ok) throw new Error("Failed to move node");
+                
+                queryClient.invalidateQueries({ queryKey: ["wiki-tree", workspaceId] });
+                toast.success("Intelligence tree restructured");
+            } catch (error) {
+                toast.error("Failed to reconfigure tree");
+            }
         }
     };
 

@@ -49,6 +49,9 @@ const COMMANDS = [
     { id: "divider", label: "Divider", icon: Minus, shortcut: "---" },
     { id: "table", label: "Table", icon: Table, shortcut: "" },
     { id: "mermaid", label: "Diagram", icon: GitBranch, shortcut: "" },
+    { id: "toggle", label: "Toggle List", icon: List, shortcut: ">>" },
+    { id: "database", label: "Database View", icon: Columns, shortcut: "" },
+    { id: "task-view", label: "Task List View", icon: CheckSquare, shortcut: "" },
 ];
 
 export function SlashMenu({ position, onSelect, onClose }: SlashMenuProps) {

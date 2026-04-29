@@ -86,6 +86,7 @@ export function ProjectDocs({ projectId, workspaceId }: ProjectDocsProps) {
                     </div>
                     <WikiTree 
                         documents={filteredDocs}
+                        workspaceId={workspaceId}
                         onCreatePage={(pid) => createMutation.mutate(pid)}
                     />
                 </div>
