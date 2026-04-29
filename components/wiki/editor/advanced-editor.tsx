@@ -37,8 +37,41 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { SlashMenu } from "./slash-menu";
 import { PageLinkMenu } from "./page-link-menu";
+import mermaid from "mermaid";
 
-export type BlockType = "paragraph" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "bullet" | "number" | "todo" | "code" | "quote" | "callout" | "divider" | "image" | "video" | "file" | "columns";
+mermaid.initialize({
+    startOnLoad: true,
+    theme: "neutral",
+    securityLevel: "loose",
+});
+
+export type BlockType = "paragraph" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "bullet" | "number" | "todo" | "code" | "quote" | "callout" | "divider" | "image" | "video" | "file" | "columns" | "table" | "mermaid";
+
+const highlightCode = (code: string, lang: string) => {
+    if (!code) return "";
+    let highlighted = code
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    // Basic regex-based highlighting
+    const patterns = {
+        keyword: /\b(const|let|var|function|return|if|else|for|while|import|export|from|class|extends|new|this|await|async|try|catch|finally|switch|case|default|break|continue|type|interface|enum|public|private|protected|static|readonly|void|any|string|number|boolean|null|undefined)\b/g,
+        string: /(['"`])(.*?)\1/g,
+        comment: /(\/\/.*|\/\*[\s\S]*?\*\/)/g,
+        number: /\b(\d+)\b/g,
+        bracket: /([{}()[\]])/g,
+    };
+
+    highlighted = highlighted
+        .replace(patterns.comment, '<span class="text-slate-500 italic">$1</span>')
+        .replace(patterns.keyword, '<span class="text-indigo-500 font-black">$1</span>')
+        .replace(patterns.string, '<span class="text-emerald-500 font-bold">$1$2$1</span>')
+        .replace(patterns.number, '<span class="text-amber-500">$1</span>')
+        .replace(patterns.bracket, '<span class="text-slate-400">$1</span>');
+
+    return highlighted;
+};
 
 export interface EditorBlock {
     id: string;
@@ -389,7 +422,6 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
             </div>
         );
     }
-
     if (block.type === "video") {
         return (
             <div className={cn("relative group/video", styles.video)}>
@@ -400,6 +432,14 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
                             className="absolute inset-0 w-full h-full border-none"
                             allowFullScreen
                         />
+                        {!readOnly && (
+                             <div className="absolute inset-0 bg-black/0 group-hover/video:bg-black/20 transition-all flex items-center justify-center opacity-0 group-hover/video:opacity-100">
+                                <Button onClick={() => onChange("")} variant="destructive" className="rounded-xl font-black uppercase text-[10px] tracking-widest">
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    Remove Video
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 ) : (
                     <div className="h-64 rounded-[2.5rem] border-4 border-dashed border-slate-200 dark:border-slate-800 flex flex-col items-center justify-center gap-4 bg-slate-50 dark:bg-slate-900/50 transition-all hover:border-indigo-500/50">
@@ -423,7 +463,6 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
             </div>
         );
     }
-
     if (block.type === "file") {
         return (
             <div className={cn("group/file", styles.file)}>
@@ -441,6 +480,174 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
                         Download
                     </Button>
                 </div>
+            </div>
+        );
+    }
+
+    if (block.type === "code") {
+        const language = block.metadata?.language || "javascript";
+        return (
+            <div className={cn("relative group/code", styles.code)}>
+                {!readOnly && (
+                    <div className="absolute right-4 top-4 flex items-center gap-2 opacity-0 group-hover/code:opacity-100 transition-opacity z-50">
+                        <select 
+                            value={language}
+                            onChange={(e) => onTypeChange("code", { ...block.metadata, language: e.target.value })}
+                            className="bg-white/50 dark:bg-slate-900/50 rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest border-none outline-none backdrop-blur-sm"
+                        >
+                            <option value="javascript">JavaScript</option>
+                            <option value="typescript">TypeScript</option>
+                            <option value="html">HTML</option>
+                            <option value="css">CSS</option>
+                            <option value="json">JSON</option>
+                        </select>
+                        <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-8 w-8 rounded-lg bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm"
+                            onClick={() => {
+                                navigator.clipboard.writeText(block.content);
+                                toast.success("Copied to clipboard");
+                            }}
+                        >
+                            <Copy className="h-4 w-4" />
+                        </Button>
+                    </div>
+                )}
+                {isFocused && !readOnly ? (
+                    <textarea
+                        ref={textareaRef}
+                        value={block.content}
+                        onChange={handleChange}
+                        onFocus={onFocus}
+                        onKeyDown={onKeyDown}
+                        placeholder="Write source code..."
+                        rows={1}
+                        className="w-full bg-transparent outline-none resize-none overflow-hidden font-mono text-sm leading-relaxed"
+                    />
+                ) : (
+                    <pre className="w-full min-h-[1.5em] whitespace-pre-wrap font-mono text-sm leading-relaxed" onClick={!readOnly ? onFocus : undefined}>
+                        {block.content ? (
+                            <code dangerouslySetInnerHTML={{ 
+                                __html: highlightCode(block.content, language) 
+                            }} />
+                        ) : (
+                            <span className="opacity-30 italic">No code logic detected...</span>
+                        )}
+                    </pre>
+                )}
+            </div>
+        );
+    }
+    if (block.type === "mermaid") {
+        return (
+            <div className="my-10 space-y-6">
+                {!readOnly ? (
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between px-6 py-3 bg-slate-100 dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-white/5">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">Neural Flow Definition</span>
+                            <div className="flex items-center gap-4">
+                                <Button 
+                                    variant="ghost" 
+                                    size="sm" 
+                                    className="text-[10px] font-black uppercase tracking-widest"
+                                    onClick={() => updateBlock(block.id, { content: "graph TD\n  A[Start] --> B(Process)\n  B --> C{Decision}\n  C -->|Yes| D[End]\n  C -->|No| B" })}
+                                >
+                                    Load Template
+                                </Button>
+                            </div>
+                        </div>
+                        <textarea
+                            value={block.content}
+                            onChange={(e) => onChange(e.target.value)}
+                            onFocus={onFocus}
+                            className="w-full h-48 p-8 bg-slate-50 dark:bg-slate-950/50 rounded-3xl border-2 border-slate-100 dark:border-white/5 font-mono text-xs focus:ring-4 focus:ring-indigo-500/10 transition-all outline-none resize-none"
+                            placeholder="graph TD..."
+                        />
+                    </div>
+                ) : null}
+                <div className="p-10 rounded-[3rem] bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/5 shadow-2xl flex items-center justify-center overflow-hidden">
+                    <MermaidRenderer content={block.content || "graph TD\n  Empty[Empty Diagram]"} />
+                </div>
+            </div>
+        );
+    }
+
+    if (block.type === "columns") {
+        return (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 my-10">
+                <div className="p-8 rounded-[2.5rem] bg-white/50 dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 backdrop-blur-3xl shadow-xl">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-indigo-600 mb-4 opacity-50">L-Node 01</p>
+                    {contentArea}
+                </div>
+                <div className="p-8 rounded-[2.5rem] bg-white/50 dark:bg-slate-900/50 border border-slate-100 dark:border-white/5 backdrop-blur-3xl shadow-xl border-dashed">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-600 mb-4 opacity-50">R-Node 02</p>
+                    <p className="text-sm italic opacity-30 uppercase font-black tracking-widest">Secondary stream detected...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (block.type === "table") {
+        const data = block.metadata?.data || [["", ""], ["", ""]];
+        const updateCell = (r: number, c: number, val: string) => {
+            const newData = [...data];
+            newData[r] = [...newData[r]];
+            newData[r][c] = val;
+            updateBlock(block.id, { metadata: { ...block.metadata, data: newData } });
+        };
+        const addRow = () => {
+            const newData = [...data, new Array(data[0].length).fill("")];
+            updateBlock(block.id, { metadata: { ...block.metadata, data: newData } });
+        };
+        const addCol = () => {
+            const newData = data.map((row: string[]) => [...row, ""]);
+            updateBlock(block.id, { metadata: { ...block.metadata, data: newData } });
+        };
+
+        return (
+            <div className="my-10 overflow-x-auto selection:bg-indigo-500/10">
+                <table className="w-full border-collapse rounded-[2rem] overflow-hidden border-2 border-slate-100 dark:border-white/5 bg-white/50 dark:bg-slate-950/20 backdrop-blur-3xl shadow-2xl">
+                    <thead>
+                        <tr className="bg-slate-50 dark:bg-slate-900/50 border-b-2 border-slate-100 dark:border-white/5">
+                            {data[0].map((_: any, i: number) => (
+                                <th key={i} className="p-6 text-left text-[10px] font-black uppercase tracking-widest text-slate-400">Column {i + 1}</th>
+                            ))}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {data.map((row: string[], ri: number) => (
+                            <tr key={ri} className="border-b border-slate-100 dark:border-white/5 last:border-0 hover:bg-slate-50/50 dark:hover:bg-slate-900/30 transition-colors">
+                                {row.map((cell: string, ci: number) => (
+                                    <td key={ci} className="p-0 border-r border-slate-100 dark:border-white/5 last:border-0">
+                                        <textarea
+                                            value={cell}
+                                            disabled={readOnly}
+                                            onChange={(e) => updateCell(ri, ci, e.target.value)}
+                                            className="w-full h-full p-6 bg-transparent border-none focus:ring-2 focus:ring-indigo-500/20 outline-none text-sm font-medium leading-relaxed resize-none overflow-hidden min-h-[80px]"
+                                            onInput={(e: any) => {
+                                                e.target.style.height = "auto";
+                                                e.target.style.height = e.target.scrollHeight + "px";
+                                            }}
+                                        />
+                                    </td>
+                                ))}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                {!readOnly && (
+                    <div className="flex items-center gap-3 mt-6">
+                        <Button onClick={addRow} variant="outline" className="rounded-xl border-2 font-black uppercase text-[9px] tracking-widest h-9 px-6 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-indigo-600 hover:text-white hover:border-indigo-600">
+                            <Plus className="h-3 w-3 mr-2" />
+                            Add Row
+                        </Button>
+                        <Button onClick={addCol} variant="outline" className="rounded-xl border-2 font-black uppercase text-[9px] tracking-widest h-9 px-6 bg-white dark:bg-slate-900 shadow-sm transition-all hover:bg-indigo-600 hover:text-white hover:border-indigo-600">
+                            <Plus className="h-3 w-3 mr-2" />
+                            Add Column
+                        </Button>
+                    </div>
+                )}
             </div>
         );
     }
@@ -575,4 +782,24 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
     }
 
     return contentArea;
+}
+
+function MermaidRenderer({ content }: { content: string }) {
+    const containerRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (containerRef.current && content) {
+            containerRef.current.innerHTML = "";
+            const id = `mermaid-${Math.random().toString(36).substr(2, 9)}`;
+            try {
+                mermaid.render(id, content).then(({ svg }) => {
+                    if (containerRef.current) containerRef.current.innerHTML = svg;
+                });
+            } catch (error) {
+                console.error("Mermaid render error:", error);
+            }
+        }
+    }, [content]);
+
+    return <div ref={containerRef} className="w-full h-full flex justify-center" />;
 }

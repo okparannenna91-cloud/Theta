@@ -17,7 +17,9 @@ import {
     Minus,
     Video,
     File,
-    Columns
+    Columns,
+    Table,
+    GitBranch
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -45,6 +47,8 @@ const COMMANDS = [
     { id: "code", label: "Code Block", icon: Code, shortcut: "```" },
     { id: "quote", label: "Quote", icon: Quote, shortcut: ">" },
     { id: "divider", label: "Divider", icon: Minus, shortcut: "---" },
+    { id: "table", label: "Table", icon: Table, shortcut: "" },
+    { id: "mermaid", label: "Diagram", icon: GitBranch, shortcut: "" },
 ];
 
 export function SlashMenu({ position, onSelect, onClose }: SlashMenuProps) {

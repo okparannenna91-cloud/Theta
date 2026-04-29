@@ -99,6 +99,17 @@ export default function DocumentPage() {
         },
     });
 
+    useEffect(() => {
+        if (document) {
+            const recent = JSON.parse(localStorage.getItem("recent-wiki-pages") || "[]");
+            const newRecent = [
+                { id: document.id, title: document.title, emoji: document.emoji },
+                ...recent.filter((r: any) => r.id !== document.id)
+            ].slice(0, 5);
+            localStorage.setItem("recent-wiki-pages", JSON.stringify(newRecent));
+        }
+    }, [document]);
+
     const handleSave = async () => {
         setIsSaving(true);
         try {
