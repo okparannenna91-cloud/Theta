@@ -101,7 +101,6 @@ export default function DocumentPage() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["document", id] });
-            toast.success("Changes saved");
         },
     });
 
@@ -116,29 +115,43 @@ export default function DocumentPage() {
         }
     }, [document]);
 
-    const handleSave = useCallback(async () => {
+    const lastSavedContent = useRef<string>("");
+
+    const handleSave = useCallback(async (isSilent = false) => {
+        const currentContent = JSON.stringify(blocks);
+        if (title === document?.title && currentContent === lastSavedContent.current) return;
+
         setIsSaving(true);
         try {
             await updateMutation.mutateAsync({ 
                 title, 
-                content: JSON.stringify(blocks) 
+                content: currentContent 
             });
+            lastSavedContent.current = currentContent;
+            if (!isSilent) toast.success("Intelligence synchronized");
         } catch (err) {
             toast.error("Failed to save document");
         } finally {
             setIsSaving(false);
         }
-    }, [title, blocks, updateMutation]);
+    }, [title, blocks, document?.title, updateMutation]);
+
+    useEffect(() => {
+        if (document?.content) {
+            lastSavedContent.current = document.content;
+        }
+    }, [document?.content]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            if (title !== document?.title || JSON.stringify(blocks) !== document?.content) {
-                handleSave();
+            const currentContent = JSON.stringify(blocks);
+            if (title !== document?.title || currentContent !== lastSavedContent.current) {
+                handleSave(true);
             }
-        }, 3000); // 3 second debounce
+        }, 5000); // 5 second silent debounce
 
         return () => clearTimeout(timer);
-    }, [title, blocks, document?.title, document?.content, handleSave]);
+    }, [title, blocks, handleSave]);
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {

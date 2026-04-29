@@ -103,13 +103,21 @@ export async function findAcrossShards<T>(
 ): Promise<{ data: T | null; db: PrismaClient }> {
   const shards = [prismaShard1, prismaShard2, prismaShard3, prismaShard4];
 
-  for (const shard of shards) {
-    if (!shard) continue;
+  for (const [index, shard] of shards.entries()) {
+    if (!shard) {
+      console.log(`[Shard Search] Shard ${index + 1} is not initialized, skipping.`);
+      continue;
+    }
     try {
+      console.log(`[Shard Search] Searching for ${modelName} with ${JSON.stringify(where)} on shard ${index + 1}...`);
       // @ts-ignore - Dynamic access to prisma models
       const record = await shard[modelName].findUnique({ where });
-      if (record) return { data: record as T, db: shard as PrismaClient };
-    } catch (e) {
+      if (record) {
+        console.log(`[Shard Search] Record found on shard ${index + 1}!`);
+        return { data: record as T, db: shard as PrismaClient };
+      }
+    } catch (e: any) {
+      console.error(`[Shard Search] Error searching shard ${index + 1}:`, e.message);
       continue;
     }
   }

@@ -6,6 +6,7 @@ export async function GET(
     req: Request,
     { params }: { params: { id: string } }
 ) {
+    console.log(`[API] Fetching document: ${params.id}`);
     try {
         const user = await getCurrentUser();
         if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,9 +16,15 @@ export async function GET(
             id: params.id
         });
 
-        if (document) {
-            // Need to re-fetch with include since findAcrossShards might not support it easily
-            const [doc, backlinks] = await Promise.all([
+        if (!document) {
+            console.warn(`[API] Document not found across any shards: ${params.id}`);
+            return NextResponse.json({ error: "Not found" }, { status: 404 });
+        }
+
+        console.log(`[API] Document found on shard, fetching relations: ${params.id} (Workspace: ${document.workspaceId})`);
+
+        // Fetch children and backlinks using the discovered db shard
+        const [docWithRelations, backlinks] = await Promise.all([
             db.document.findUnique({
                 where: { id: params.id },
                 include: {
@@ -31,7 +38,7 @@ export async function GET(
             }),
             db.document.findMany({
                 where: {
-                    workspaceId: (await db.document.findUnique({ where: { id: params.id }, select: { workspaceId: true } }))?.workspaceId,
+                    workspaceId: document.workspaceId,
                     content: { contains: params.id },
                     id: { not: params.id },
                     archived: false
@@ -41,16 +48,15 @@ export async function GET(
             })
         ]);
 
-        if (!doc) return new NextResponse("Not Found", { status: 404 });
-
-        return NextResponse.json({ ...doc, backlinks });
+        if (!docWithRelations) {
+            console.error(`[API] Document vanished from shard after discovery: ${params.id}`);
+            return NextResponse.json({ error: "Not found" }, { status: 404 });
         }
 
-        if (!document) return NextResponse.json({ error: "Not found" }, { status: 404 });
-
-        return NextResponse.json(document);
-    } catch (error) {
-        return NextResponse.json({ error: "Internal Error" }, { status: 500 });
+        return NextResponse.json({ ...docWithRelations, backlinks });
+    } catch (error: any) {
+        console.error(`[API] Error fetching document ${params.id}:`, error);
+        return NextResponse.json({ error: "Internal Error", details: error.message }, { status: 500 });
     }
 }
 
@@ -67,18 +73,19 @@ export async function PATCH(
         const { findAcrossShards } = await import("@/lib/prisma");
         const { db } = await findAcrossShards<any>("document", { id: params.id });
         
+        const updateData: any = {};
+        if (data.title !== undefined) updateData.title = data.title;
+        if (data.content !== undefined) updateData.content = data.content;
+        if (data.emoji !== undefined) updateData.emoji = data.emoji;
+        if (data.coverImage !== undefined) updateData.coverImage = data.coverImage;
+        if (data.archived !== undefined) updateData.archived = data.archived;
+        if (data.isPublic !== undefined) updateData.isPublic = data.isPublic;
+        if (data.isPinned !== undefined) updateData.isPinned = data.isPinned;
+        if (data.parentId !== undefined) updateData.parentId = data.parentId;
+
         const document = await (db.document as any).update({
             where: { id: params.id },
-            data: {
-              title: data.title,
-              content: data.content,
-              emoji: data.emoji,
-              coverImage: data.coverImage,
-              archived: data.archived,
-              isPublic: data.isPublic,
-              isPinned: data.isPinned,
-              parentId: data.parentId
-            }
+            data: updateData
         });
 
         return NextResponse.json(document);
