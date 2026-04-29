@@ -116,7 +116,7 @@ export default function DocumentPage() {
         }
     }, [document]);
 
-    const handleSave = async () => {
+    const handleSave = useCallback(async () => {
         setIsSaving(true);
         try {
             await updateMutation.mutateAsync({ 
@@ -128,7 +128,7 @@ export default function DocumentPage() {
         } finally {
             setIsSaving(false);
         }
-    };
+    }, [title, blocks, updateMutation]);
 
     useEffect(() => {
         const timer = setTimeout(() => {
@@ -138,7 +138,7 @@ export default function DocumentPage() {
         }, 3000); // 3 second debounce
 
         return () => clearTimeout(timer);
-    }, [title, blocks]);
+    }, [title, blocks, document?.title, document?.content, handleSave]);
 
     useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -150,7 +150,7 @@ export default function DocumentPage() {
 
         window.addEventListener("keydown", down);
         return () => window.removeEventListener("keydown", down);
-    }, [title, blocks]);
+    }, [handleSave]);
 
     if (isLoading) {
         return (

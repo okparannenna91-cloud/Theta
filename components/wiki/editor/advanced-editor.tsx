@@ -381,6 +381,28 @@ export function AdvancedEditor({ blocks, workspaceId, projectId, onChange, onSav
 function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKeyDown, placeholder, router, readOnly, updateBlock, projectId }: any) {
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+    const { data: tasks, isLoading: tasksLoading } = useQuery({
+        queryKey: ["project-tasks", projectId],
+        queryFn: async () => {
+            if (!projectId) return [];
+            const res = await fetch(`/api/tasks?projectId=${projectId}`);
+            if (!res.ok) throw new Error("Failed to fetch tasks");
+            return res.json();
+        },
+        enabled: !!projectId && block.type === "task-view"
+    });
+
+    const { data: members, isLoading: membersLoading } = useQuery({
+        queryKey: ["project-members", projectId],
+        queryFn: async () => {
+            if (!projectId) return [];
+            const res = await fetch(`/api/projects/${projectId}/members`);
+            if (!res.ok) return [];
+            return res.json();
+        },
+        enabled: !!projectId && block.type === "database"
+    });
+
     useEffect(() => {
         if (isFocused && textareaRef.current) {
             textareaRef.current.focus();
@@ -782,16 +804,6 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
 
 
     if (block.type === "task-view") {
-        const { data: tasks, isLoading: tasksLoading } = useQuery({
-            queryKey: ["project-tasks", projectId],
-            queryFn: async () => {
-                if (!projectId) return [];
-                const res = await fetch(`/api/tasks?projectId=${projectId}`);
-                if (!res.ok) throw new Error("Failed to fetch tasks");
-                return res.json();
-            },
-            enabled: !!projectId && block.type === "task-view"
-        });
 
         return (
             <div className="my-10 p-10 rounded-[3rem] bg-indigo-600/5 dark:bg-indigo-500/10 border-2 border-indigo-500/20 shadow-2xl">
@@ -831,16 +843,6 @@ function BlockRenderer({ block, isFocused, onFocus, onChange, onTypeChange, onKe
     }
 
     if (block.type === "database") {
-        const { data: members, isLoading: membersLoading } = useQuery({
-            queryKey: ["project-members", projectId],
-            queryFn: async () => {
-                if (!projectId) return [];
-                const res = await fetch(`/api/projects/${projectId}/members`);
-                if (!res.ok) return [];
-                return res.json();
-            },
-            enabled: !!projectId && block.type === "database"
-        });
 
         return (
             <div className="my-10 overflow-hidden rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl bg-white dark:bg-slate-950/20 backdrop-blur-3xl">
