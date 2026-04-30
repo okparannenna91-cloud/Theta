@@ -61,19 +61,28 @@ export async function GET(req: Request) {
 
     const db = getPrismaClient(workspaceId);
 
-    const activities = await db.activity.findMany({
+    const rawActivities = await db.activity.findMany({
       where: whereClause,
-      include: {
-        user: {
-          select: {
-            name: true,
-            imageUrl: true,
-          }
-        }
-      },
       orderBy: { createdAt: "desc" },
       take: 20,
     });
+
+    const userIdsToFetch = new Set<string>();
+    rawActivities.forEach((a: any) => {
+      if (a.userId) userIdsToFetch.add(a.userId);
+    });
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: Array.from(userIdsToFetch) } },
+      select: { name: true, imageUrl: true, id: true }
+    });
+
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    const activities = rawActivities.map((a: any) => ({
+      ...a,
+      user: userMap.get(a.userId) || null
+    }));
 
     return NextResponse.json(activities);
   } catch (error) {

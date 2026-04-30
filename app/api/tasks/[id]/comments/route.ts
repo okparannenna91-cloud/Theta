@@ -24,19 +24,27 @@ export async function GET(
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
         }
 
-        const comments = await (db as any).comment.findMany({
+        const rawComments = await (db as any).comment.findMany({
             where: { taskId: params.id },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        imageUrl: true,
-                    },
-                },
-            },
             orderBy: { createdAt: "desc" },
         });
+
+        const userIdsToFetch = new Set<string>();
+        rawComments.forEach((c: any) => {
+            if (c.userId) userIdsToFetch.add(c.userId);
+        });
+
+        const users = await prisma.user.findMany({
+            where: { id: { in: Array.from(userIdsToFetch) } },
+            select: { id: true, name: true, imageUrl: true }
+        });
+        
+        const userMap = new Map(users.map(u => [u.id, u]));
+
+        const comments = rawComments.map((c: any) => ({
+            ...c,
+            user: userMap.get(c.userId) || null
+        }));
 
         return NextResponse.json(comments);
     } catch (error) {
@@ -81,22 +89,23 @@ export async function POST(
         const body = await req.json();
         const data = commentSchema.parse(body);
 
-        const comment = await (db as any).comment.create({
+        const rawComment = await (db as any).comment.create({
             data: {
                 content: data.content,
                 taskId: params.id,
                 userId: user.id,
             },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        name: true,
-                        imageUrl: true,
-                    },
-                },
-            },
         });
+
+        const commentUser = await prisma.user.findUnique({
+            where: { id: user.id },
+            select: { id: true, name: true, imageUrl: true }
+        });
+
+        const comment = {
+            ...rawComment,
+            user: commentUser
+        };
 
         const { publishToChannel, getTaskChannel } = await import("@/lib/ably");
         await publishToChannel(getTaskChannel(task.workspaceId, params.id), "comment:created", comment);

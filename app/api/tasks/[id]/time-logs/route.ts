@@ -60,18 +60,28 @@ export async function GET(
         }
 
         const { db } = await findAcrossShards<Task>("task", { id: params.id });
-        const timeLogs = await db.timeLog.findMany({
+        const rawTimeLogs = await db.timeLog.findMany({
             where: { taskId: params.id },
-            include: {
-                user: {
-                    select: {
-                        name: true,
-                        imageUrl: true,
-                    },
-                },
-            },
             orderBy: { createdAt: "desc" },
         });
+
+        const userIdsToFetch = new Set<string>();
+        rawTimeLogs.forEach((t: any) => {
+            if (t.userId) userIdsToFetch.add(t.userId);
+        });
+
+        const { prisma } = await import("@/lib/prisma");
+        const users = await prisma.user.findMany({
+            where: { id: { in: Array.from(userIdsToFetch) } },
+            select: { id: true, name: true, imageUrl: true }
+        });
+        
+        const userMap = new Map(users.map(u => [u.id, u]));
+
+        const timeLogs = rawTimeLogs.map((t: any) => ({
+            ...t,
+            user: userMap.get(t.userId) || null
+        }));
 
         return NextResponse.json(timeLogs);
     } catch (error) {

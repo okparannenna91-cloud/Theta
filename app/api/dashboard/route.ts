@@ -138,19 +138,32 @@ export async function GET(req: Request) {
       }
     });
 
-    const recentActivities = await db.activity.findMany({
+    const rawActivities = await db.activity.findMany({
       where: { workspaceId },
       take: 10,
       orderBy: { createdAt: "desc" },
-      include: {
-        user: {
-          select: {
-            name: true,
-            imageUrl: true
-          }
-        }
-      }
     });
+
+    const userIdsToFetch = new Set<string>();
+    rawActivities.forEach((a: any) => {
+      if (a.userId) userIdsToFetch.add(a.userId);
+    });
+
+    const users = await prisma.user.findMany({
+      where: { id: { in: Array.from(userIdsToFetch) } },
+      select: {
+        id: true,
+        name: true,
+        imageUrl: true,
+      },
+    });
+    
+    const userMap = new Map(users.map(u => [u.id, u]));
+
+    const recentActivities = rawActivities.map((a: any) => ({
+      ...a,
+      user: userMap.get(a.userId) || null,
+    }));
 
     const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
     const activityTrends = Array.from({ length: 7 }).map((_, i) => {
