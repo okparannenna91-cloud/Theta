@@ -193,16 +193,16 @@ export default function DashboardPage() {
               <div className="p-2 bg-primary/10 rounded-xl">
                 <TrendingUp className="h-6 w-6 text-primary" />
               </div>
-              Project Performance Trends
+              Workspace Activity Trends
             </CardTitle>
-            <CardDescription className="text-sm font-medium">Daily task completion rate across all workspaces</CardDescription>
+            <CardDescription className="text-sm font-medium">Daily activity volume across your workspace over the last 7 days</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[350px] w-full mt-4">
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={Array.isArray(data?.activityTrends) ? data.activityTrends : []}>
                   <defs>
-                    <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient id="colorActivities" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.2} />
                       <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                     </linearGradient>
@@ -233,11 +233,11 @@ export default function DashboardPage() {
                   />
                   <Area
                     type="monotone"
-                    dataKey="tasks"
+                    dataKey="activities"
                     stroke="hsl(var(--primary))"
                     strokeWidth={5}
                     fillOpacity={1}
-                    fill="url(#colorTasks)"
+                    fill="url(#colorActivities)"
                     animationDuration={2000}
                   />
                 </AreaChart>

@@ -84,8 +84,8 @@ export async function GET(req: Request) {
       },
     });
 
-    const teamsCount = await db.teamMember.count({
-      where: { userId: user.id },
+    const teamsCount = await prisma.workspaceMember.count({
+      where: { workspaceId },
     });
 
     const allTasks = await db.task.findMany({
@@ -133,7 +133,7 @@ export async function GET(req: Request) {
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
     const activities = await db.activity.findMany({
       where: {
-        userId: user.id,
+        workspaceId,
         createdAt: { gte: sevenDaysAgo }
       }
     });
@@ -171,7 +171,7 @@ export async function GET(req: Request) {
       d.setDate(d.getDate() - (6 - i));
       const dayName = days[d.getDay()];
       const count = activities.filter(a => new Date(a.createdAt).toDateString() === d.toDateString()).length;
-      return { name: dayName, tasks: count };
+      return { name: dayName, activities: count };
     });
 
     // Project structure for treemap
