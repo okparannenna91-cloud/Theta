@@ -6,9 +6,7 @@ export async function getCurrentUser() {
   const { userId } = await auth();
   if (!userId) return null;
 
-  const clerkUser = await currentUser();
-  if (!clerkUser) return null;
-
+  // Try to find user in local database first to avoid slow Clerk currentUser() call
   let user = await prisma.user.findUnique({
     where: { clerkId: userId },
   });
@@ -16,6 +14,10 @@ export async function getCurrentUser() {
   let isNewUser = false;
 
   if (!user) {
+    // User not found in local DB, fetch full profile from Clerk
+    const clerkUser = await currentUser();
+    if (!clerkUser) return null;
+
     try {
       user = await prisma.user.create({
         data: {
@@ -30,7 +32,6 @@ export async function getCurrentUser() {
       isNewUser = true;
     } catch (error: any) {
       if (error.code === "P2002") {
-        // Handle race condition: User created by parallel request
         user = await prisma.user.findUnique({
           where: { clerkId: userId },
         });
@@ -38,33 +39,35 @@ export async function getCurrentUser() {
       if (!user) throw error;
     }
   } else {
-    // Update user info if changed
-    user = await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        email: clerkUser.emailAddresses[0]?.emailAddress || user.email,
-        name: clerkUser.firstName
-          ? `${clerkUser.firstName} ${clerkUser.lastName || ""}`.trim()
-          : user.name,
-        imageUrl: clerkUser.imageUrl || user.imageUrl,
-      },
-    });
+    // Optional: Only update profile if last update was more than 24h ago or similar
+    // For now, let's keep it simple and skip the update on every request to boost performance
   }
 
   // Create default workspace for new users
-  if (isNewUser) {
-    try {
-      const workspaceName = user.name
-        ? `${user.name}'s Workspace`
-        : "My Workspace";
-      await createWorkspace(user.id, workspaceName, "free");
+  if (isNewUser && user) {
+    const userIdForWorkspace = user.id;
+    const userEmail = user.email;
+    const userName = user.name;
 
-      // Send welcome email
-      const { sendWelcomeEmail } = await import("@/lib/email");
-      await sendWelcomeEmail(user.email, user.name || "there");
-    } catch (error) {
-      console.error("Failed to create default workspace:", error);
-    }
+    // Run this in the background to avoid blocking the initial response
+    (async () => {
+      try {
+        const workspaceName = userName
+          ? `${userName}'s Workspace`
+          : "My Workspace";
+        
+        const { createWorkspace } = await import("@/lib/workspace");
+        await createWorkspace(userIdForWorkspace, workspaceName, "free");
+
+        // Send welcome email
+        if (userEmail) {
+          const { sendWelcomeEmail } = await import("@/lib/email");
+          await sendWelcomeEmail(userEmail, userName || "there");
+        }
+      } catch (error) {
+        console.error("Background initial setup failed:", error);
+      }
+    })();
   }
 
   return user;

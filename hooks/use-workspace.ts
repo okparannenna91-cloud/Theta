@@ -10,7 +10,12 @@ async function fetchWorkspaces() {
 }
 
 export function useWorkspace() {
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("activeWorkspaceId");
+    }
+    return null;
+  });
 
   const { data: workspaces, isLoading, error } = useQuery({
     queryKey: ["workspaces"],
@@ -23,13 +28,14 @@ export function useWorkspace() {
       const isValidSavedId = workspaces.find((w: any) => w.id === savedId);
       
       if (savedId && isValidSavedId) {
-        setActiveWorkspaceId(savedId);
+        if (activeWorkspaceId !== savedId) setActiveWorkspaceId(savedId);
       } else {
-        setActiveWorkspaceId(workspaces[0].id);
-        localStorage.setItem("activeWorkspaceId", workspaces[0].id);
+        const firstWorkspaceId = workspaces[0].id;
+        setActiveWorkspaceId(firstWorkspaceId);
+        localStorage.setItem("activeWorkspaceId", firstWorkspaceId);
       }
     }
-  }, [workspaces]);
+  }, [workspaces, activeWorkspaceId]);
 
   const switchWorkspace = (id: string) => {
     setActiveWorkspaceId(id);
@@ -41,8 +47,8 @@ export function useWorkspace() {
   return {
     workspaces,
     activeWorkspace,
-    activeWorkspaceId: activeWorkspace?.id || null,
-    isLoading,
+    activeWorkspaceId: activeWorkspaceId || activeWorkspace?.id || null,
+    isLoading: isLoading && !workspaces, // Only true on first load with no data
     error,
     switchWorkspace,
   };
