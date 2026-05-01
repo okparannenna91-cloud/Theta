@@ -77,7 +77,7 @@ export default function ActivityPage() {
         isLoading
     } = useInfiniteQuery({
         queryKey: ["activity-feed", activeWorkspaceId, searchQuery, selectedProject, selectedUser, selectedType],
-        queryFn: async ({ pageParam = 0 }) => {
+        queryFn: async ({ pageParam }) => {
             let url = `/api/activity?workspaceId=${activeWorkspaceId}&skip=${pageParam}&take=20`;
             if (searchQuery) url += `&search=${encodeURIComponent(searchQuery)}`;
             if (selectedProject) url += `&projectId=${selectedProject}`;
@@ -88,6 +88,7 @@ export default function ActivityPage() {
             if (!res.ok) throw new Error("Failed to fetch");
             return res.json();
         },
+        initialPageParam: 0,
         getNextPageParam: (lastPage, allPages) => {
             const currentCount = allPages.length * 20;
             return lastPage.hasMore ? currentCount : undefined;

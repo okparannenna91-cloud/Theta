@@ -65,11 +65,12 @@ export default function NotificationsDashboard() {
         refetch
     } = useInfiniteQuery({
         queryKey: ["notifications", activeWorkspaceId, activeTab],
-        queryFn: async ({ pageParam = 0 }) => {
+        queryFn: async ({ pageParam }) => {
             const res = await fetch(`/api/notifications?workspaceId=${activeWorkspaceId}&filter=${activeTab}&skip=${pageParam}&take=20`);
             if (!res.ok) throw new Error("Failed to fetch");
             return res.json();
         },
+        initialPageParam: 0,
         getNextPageParam: (lastPage, allPages) => {
             const currentCount = allPages.length * 20;
             return lastPage.hasMore ? currentCount : undefined;
