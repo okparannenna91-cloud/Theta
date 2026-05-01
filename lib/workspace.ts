@@ -138,6 +138,7 @@ export async function getUserWorkspaces(userId: string) {
             _count: {
               select: {
                 members: true,
+                projects: true,
               },
             },
           },
@@ -228,5 +229,44 @@ export async function getWorkspaceMembers(workspaceId: string) {
   } catch (error) {
     console.error("Get workspace members error:", error);
     return [];
+  }
+}
+/**
+ * Delete a workspace
+ */
+export async function deleteWorkspace(workspaceId: string, userId: string) {
+  try {
+    // Verify user is the owner
+    const membership = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId,
+        },
+      },
+    });
+
+    if (!membership || membership.role !== "owner") {
+      throw new Error("Only the owner can delete the workspace");
+    }
+
+    // Check if it's the user's only workspace
+    const otherWorkspaces = await prisma.workspaceMember.findMany({
+      where: {
+        userId,
+        workspaceId: { not: workspaceId },
+      },
+    });
+
+    if (otherWorkspaces.length === 0) {
+      throw new Error("You must have at least one workspace. Create another one before deleting this one.");
+    }
+
+    return await prisma.workspace.delete({
+      where: { id: workspaceId },
+    });
+  } catch (error) {
+    console.error("Delete workspace error:", error);
+    throw error;
   }
 }

@@ -40,6 +40,7 @@ export function useWorkspace() {
   const switchWorkspace = (id: string) => {
     setActiveWorkspaceId(id);
     localStorage.setItem("activeWorkspaceId", id);
+    window.location.reload();
   };
 
   const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId) || workspaces?.[0] || null;

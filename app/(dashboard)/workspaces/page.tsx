@@ -9,13 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { Plus, Layout, ArrowRight, CheckCircle2, Building2 } from "lucide-react";
+import { Plus, Layout, ArrowRight, CheckCircle2, Building2, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
 export default function WorkspacesPage() {
     const [isOpen, setIsOpen] = useState(false);
     const [name, setName] = useState("");
+    const [deleteId, setDeleteId] = useState<string | null>(null);
     const queryClient = useQueryClient();
     const router = useRouter();
     const { workspaces, activeWorkspaceId, switchWorkspace, isLoading } = useWorkspace();
@@ -43,10 +44,37 @@ export default function WorkspacesPage() {
         },
     });
 
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await fetch(`/api/workspaces/${id}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) {
+                const error = await res.json();
+                throw new Error(error.error || "Failed to delete workspace");
+            }
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+            setDeleteId(null);
+            toast.success("Workspace deleted successfully");
+            // If the deleted workspace was the active one, we might need to switch
+            router.refresh();
+        },
+        onError: (error: any) => {
+            toast.error(error.message);
+        },
+    });
+
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!name.trim()) return;
         createMutation.mutate(name);
+    };
+
+    const handleDelete = (id: string) => {
+        deleteMutation.mutate(id);
     };
 
     if (isLoading) {
@@ -111,6 +139,33 @@ export default function WorkspacesPage() {
                         </form>
                     </DialogContent>
                 </Dialog>
+
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-destructive">
+                                <AlertTriangle className="h-5 w-5" />
+                                Delete Workspace
+                            </DialogTitle>
+                            <CardDescription className="pt-2">
+                                Are you sure you want to delete this workspace? This action is permanent and will delete all projects, tasks, and data associated with it.
+                            </CardDescription>
+                        </DialogHeader>
+                        <div className="flex justify-end gap-3 pt-4">
+                            <Button type="button" variant="ghost" onClick={() => setDeleteId(null)}>
+                                Cancel
+                            </Button>
+                            <Button
+                                variant="destructive"
+                                disabled={deleteMutation.isPending}
+                                onClick={() => deleteId && handleDelete(deleteId)}
+                            >
+                                {deleteMutation.isPending ? "Deleting..." : "Delete Permanently"}
+                            </Button>
+                        </div>
+                    </DialogContent>
+                </Dialog>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -126,45 +181,63 @@ export default function WorkspacesPage() {
                                 ? "ring-2 ring-indigo-500 border-indigo-500 shadow-md"
                                 : "hover:border-indigo-300 border-slate-200 dark:border-slate-800"
                                 }`}
-                            onClick={() => {
-                                switchWorkspace(ws.id);
-                                router.push("/dashboard");
-                            }}
                         >
-                            {activeWorkspaceId === ws.id && (
-                                <div className="absolute top-0 right-0 p-3">
+                            <div className="absolute top-0 right-0 p-3 flex items-center gap-2 z-10">
+                                {activeWorkspaceId === ws.id && (
                                     <CheckCircle2 className="h-5 w-5 text-indigo-500" />
-                                </div>
-                            )}
-                            <CardHeader className="pb-4">
-                                <div className="flex items-center gap-4">
-                                    <div className={`h-12 w-12 rounded-2xl flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-110 ${activeWorkspaceId === ws.id
-                                        ? "bg-gradient-to-br from-indigo-500 to-indigo-700"
-                                        : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-                                        }`}>
-                                        <Building2 className="h-6 w-6" />
+                                )}
+                                {ws.role === "owner" && (
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setDeleteId(ws.id);
+                                        }}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                )}
+                            </div>
+                            
+                            <div 
+                                className="h-full"
+                                onClick={() => {
+                                    switchWorkspace(ws.id);
+                                    router.push("/dashboard");
+                                }}
+                            >
+                                <CardHeader className="pb-4">
+                                    <div className="flex items-center gap-4">
+                                        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-110 ${activeWorkspaceId === ws.id
+                                            ? "bg-gradient-to-br from-indigo-500 to-indigo-700"
+                                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
+                                            }`}>
+                                            <Building2 className="h-6 w-6" />
+                                        </div>
+                                        <div>
+                                            <CardTitle className="text-xl font-bold">{ws.name}</CardTitle>
+                                            <CardDescription className="flex items-center gap-1.5 mt-0.5">
+                                                <span className="capitalize">{ws.plan || "Free"}</span> Plan
+                                                <span className="h-1 w-1 rounded-full bg-slate-300"></span>
+                                                {ws.role || "Member"}
+                                            </CardDescription>
+                                        </div>
                                     </div>
-                                    <div>
-                                        <CardTitle className="text-xl font-bold">{ws.name}</CardTitle>
-                                        <CardDescription className="flex items-center gap-1.5 mt-0.5">
-                                            <span className="capitalize">{ws.plan || "Free"}</span> Plan
-                                            <span className="h-1 w-1 rounded-full bg-slate-300"></span>
-                                            {ws.role || "Member"}
-                                        </CardDescription>
+                                </CardHeader>
+                                <CardContent className="pt-0 border-t border-slate-50 dark:border-slate-800/50 mt-4 py-4 bg-slate-50/50 dark:bg-slate-900/50">
+                                    <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                        <div className="flex gap-4">
+                                            <span>{ws._count?.projects || 0} Projects</span>
+                                            <span>{ws._count?.members || 0} Members</span>
+                                        </div>
+                                        <div className="flex items-center gap-1 font-semibold text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            Enter <ArrowRight className="h-3 w-3" />
+                                        </div>
                                     </div>
-                                </div>
-                            </CardHeader>
-                            <CardContent className="pt-0 border-t border-slate-50 dark:border-slate-800/50 mt-4 py-4 bg-slate-50/50 dark:bg-slate-900/50">
-                                <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                    <div className="flex gap-4">
-                                        <span>{ws._count?.projects || 0} Projects</span>
-                                        <span>{ws._count?.members || 0} Members</span>
-                                    </div>
-                                    <div className="flex items-center gap-1 font-semibold text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        Enter <ArrowRight className="h-3 w-3" />
-                                    </div>
-                                </div>
-                            </CardContent>
+                                </CardContent>
+                            </div>
                         </Card>
                     </motion.div>
                 ))}
