@@ -25,6 +25,7 @@ import {
   Book,
   Puzzle,
   GanttChartSquare,
+  BarChart3,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { ModeToggle } from "./mode-toggle";
@@ -60,6 +61,7 @@ export function Sidebar() {
     { name: t("notifications"), href: "/notifications", icon: Bell },
     { name: t("analytics"), href: "/analytics", icon: TrendingUp },
     { name: "Apps", href: "/apps", icon: Puzzle },
+    { name: "Gantt Chart", href: "/gantt", icon: BarChart3 },
     { name: "Timeline", href: "/timeline", icon: GanttChartSquare },
     { name: t("activity"), href: "/activity", icon: Activity },
     { name: t("billing"), href: "/billing", icon: CreditCard },

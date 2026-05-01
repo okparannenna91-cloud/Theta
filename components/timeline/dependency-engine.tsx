@@ -11,30 +11,54 @@ interface DependencyEngineProps {
 
 export default function DependencyEngine({ tasks, timelineStart, cellWidth }: DependencyEngineProps) {
     const lines = useMemo(() => {
-        const paths: string[] = [];
+        const paths: { path: string, type: string }[] = [];
         const taskMap = new Map(tasks.map((t, i) => [t.id, { ...t, index: i }]));
 
         tasks.forEach((task, targetIndex) => {
-            if (!task.dependencyIds) return;
+            if (!task.predecessors) return;
 
-            task.dependencyIds.forEach((sourceId: string) => {
-                const source = taskMap.get(sourceId);
+            task.predecessors.forEach((dep: any) => {
+                const source = taskMap.get(dep.predecessorId);
                 if (!source) return;
 
                 const sourceStart = source.startDate ? new Date(source.startDate) : new Date();
                 const sourceEnd = source.dueDate ? new Date(source.dueDate) : sourceStart;
                 const targetStart = task.startDate ? new Date(task.startDate) : new Date();
+                const targetEnd = task.dueDate ? new Date(task.dueDate) : targetStart;
 
-                const sourceX = (differenceInDays(startOfDay(sourceEnd), startOfDay(timelineStart)) + 1) * cellWidth;
-                const sourceY = source.index * 64 + 32; // h-16 is 64px, +32 for middle
+                let sourceX: number;
+                let targetX: number;
 
-                const targetX = differenceInDays(startOfDay(targetStart), startOfDay(timelineStart)) * cellWidth;
+                // Determine X coordinates based on dependency type
+                switch (dep.type) {
+                    case "SS": // Start-to-Start
+                        sourceX = differenceInDays(startOfDay(sourceStart), startOfDay(timelineStart)) * cellWidth;
+                        targetX = differenceInDays(startOfDay(targetStart), startOfDay(timelineStart)) * cellWidth;
+                        break;
+                    case "FF": // Finish-to-Finish
+                        sourceX = (differenceInDays(startOfDay(sourceEnd), startOfDay(timelineStart)) + 1) * cellWidth;
+                        targetX = (differenceInDays(startOfDay(targetEnd), startOfDay(timelineStart)) + 1) * cellWidth;
+                        break;
+                    case "SF": // Start-to-Finish
+                        sourceX = differenceInDays(startOfDay(sourceStart), startOfDay(timelineStart)) * cellWidth;
+                        targetX = (differenceInDays(startOfDay(targetEnd), startOfDay(timelineStart)) + 1) * cellWidth;
+                        break;
+                    case "FS": // Finish-to-Start (Default)
+                    default:
+                        sourceX = (differenceInDays(startOfDay(sourceEnd), startOfDay(timelineStart)) + 1) * cellWidth;
+                        targetX = differenceInDays(startOfDay(targetStart), startOfDay(timelineStart)) * cellWidth;
+                }
+
+                const sourceY = source.index * 64 + 32;
                 const targetY = targetIndex * 64 + 32;
 
                 // Create a stepped path (Manhattan routing)
-                const midX = sourceX + (targetX - sourceX) / 2;
-                const path = `M ${sourceX} ${sourceY} L ${midX} ${sourceY} L ${midX} ${targetY} L ${targetX} ${targetY}`;
-                paths.push(path);
+                const margin = 12;
+                const path = sourceX < targetX
+                    ? `M ${sourceX} ${sourceY} L ${sourceX + margin} ${sourceY} L ${sourceX + margin} ${targetY} L ${targetX} ${targetY}`
+                    : `M ${sourceX} ${sourceY} L ${sourceX + margin} ${sourceY} L ${sourceX + margin} ${targetY + 32} L ${targetX - margin} ${targetY + 32} L ${targetX - margin} ${targetY} L ${targetX} ${targetY}`;
+                
+                paths.push({ path, type: dep.type });
             });
         });
 
@@ -59,16 +83,16 @@ export default function DependencyEngine({ tasks, timelineStart, cellWidth }: De
                 </marker>
             </defs>
             
-            {lines.map((d, i) => (
+            {lines.map((line, i) => (
                 <path 
                     key={i} 
-                    d={d} 
+                    d={line.path} 
                     fill="none" 
-                    stroke="#8b5cf6" 
+                    stroke={line.type === "FS" ? "#8b5cf6" : "#3b82f6"} 
                     strokeWidth="1.5" 
-                    strokeOpacity="0.3"
+                    strokeOpacity="0.4"
                     markerEnd="url(#arrowhead)"
-                    className="transition-all duration-500"
+                    className="transition-all duration-500 hover:stroke-opacity-100 hover:stroke-2 cursor-pointer"
                 />
             ))}
         </svg>

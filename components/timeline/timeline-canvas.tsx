@@ -187,7 +187,23 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
                                         }}
                                         className="h-16 flex items-center relative group"
                                     >
-                                        <TaskBar task={task} timelineStart={startDate} cellWidth={cellWidth} />
+                                        <TaskBar 
+                                            task={task} 
+                                            timelineStart={startDate} 
+                                            cellWidth={cellWidth}
+                                            onUpdate={async (updates) => {
+                                                try {
+                                                    const res = await fetch(`/api/tasks/${task.id}`, {
+                                                        method: "PATCH",
+                                                        headers: { "Content-Type": "application/json" },
+                                                        body: JSON.stringify(updates)
+                                                    });
+                                                    if (!res.ok) throw new Error("Update failed");
+                                                } catch (error) {
+                                                    console.error(error);
+                                                }
+                                            }}
+                                        />
                                         <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 -z-10 transition-colors pointer-events-none" />
                                     </div>
                                 ))}

@@ -21,6 +21,9 @@ const updateSchema = z.object({
   parentId: z.string().optional(),
   isSummary: z.boolean().optional(),
   progress: z.number().min(0).max(100).optional(),
+  schedulingMode: z.string().optional(),
+  baselineStartDate: z.string().optional(),
+  baselineDueDate: z.string().optional(),
 });
 
 export async function PATCH(
@@ -63,6 +66,12 @@ export async function PATCH(
     }
     if (data.startDate) {
       updateData.startDate = new Date(data.startDate);
+    }
+    if (data.baselineStartDate) {
+      updateData.baselineStartDate = new Date(data.baselineStartDate);
+    }
+    if (data.baselineDueDate) {
+      updateData.baselineDueDate = new Date(data.baselineDueDate);
     }
 
     const updated = await db.task.update({

@@ -21,6 +21,9 @@ const taskSchema = z.object({
   parentId: z.string().optional(),
   isSummary: z.boolean().optional(),
   coverImage: z.string().optional(),
+  schedulingMode: z.string().default("auto"),
+  baselineStartDate: z.string().optional(),
+  baselineDueDate: z.string().optional(),
 });
 
 export async function GET(req: Request) {
@@ -78,6 +81,8 @@ export async function GET(req: Request) {
             name: true,
           },
         },
+        predecessors: true,
+        successors: true,
       },
       orderBy: { createdAt: "desc" },
     });
@@ -183,6 +188,9 @@ export async function POST(req: Request) {
         parentId: data.parentId,
         isSummary: data.isSummary || false,
         coverImage: data.coverImage,
+        schedulingMode: data.schedulingMode,
+        baselineStartDate: data.baselineStartDate ? new Date(data.baselineStartDate) : null,
+        baselineDueDate: data.baselineDueDate ? new Date(data.baselineDueDate) : null,
       },
       include: {
         project: {

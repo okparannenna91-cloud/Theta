@@ -1,102 +1,110 @@
-import { addDays, differenceInDays, startOfDay } from "date-fns";
+import { addMinutes, differenceInMinutes, startOfDay, isWeekend } from "date-fns";
 
-export interface GanttTask {
+export type DependencyType = "FS" | "SS" | "FF" | "SF";
+
+export interface TaskData {
     id: string;
     startDate: Date | null;
     dueDate: Date | null;
-    dependencyIds: string[];
-    isMilestone: boolean;
+    durationMinutes: number;
+    schedulingMode: "auto" | "manual";
+    predecessors: {
+        predecessorId: string;
+        type: DependencyType;
+        lagMinutes: number;
+    }[];
 }
 
 /**
- * Calculates the schedule for a set of tasks based on dependencies.
- * This is a simplified CPM implementation.
+ * Recalculates task dates based on dependencies and constraints.
+ * This is a simplified version of a CPM (Critical Path Method) engine.
  */
-export function calculateSchedule(tasks: GanttTask[]) {
-    const taskMap = new Map<string, GanttTask>(tasks.map(t => [t.id, t]));
-    const results = new Map<string, { start: Date, end: Date, isCritical: boolean }>();
-
-    // 1. Forward Pass (Early Start / Early Finish)
-    const visited = new Set<string>();
+export function calculateSchedules(tasks: TaskData[], skipWeekends: boolean = true) {
+    const taskMap = new Map(tasks.map(t => [t.id, { ...t }]));
+    const processed = new Set<string>();
     const processing = new Set<string>();
 
-    function processTask(id: string) {
-        if (processing.has(id)) throw new Error("Circular dependency detected");
-        if (visited.has(id)) return;
+    function processTask(taskId: string) {
+        if (processed.has(taskId)) return;
+        if (processing.has(taskId)) {
+            console.warn(`Circular dependency detected at task ${taskId}`);
+            return;
+        }
 
-        processing.add(id);
-        const task = taskMap.get(id);
+        processing.add(taskId);
+        const task = taskMap.get(taskId);
         if (!task) return;
 
-        let earlyStart = task.startDate ? new Date(task.startDate) : new Date();
-        
-        // Predependencies determine the earliest start
-        for (const depId of task.dependencyIds) {
-            processTask(depId);
-            const depResult = results.get(depId);
-            if (depResult && depResult.end > earlyStart) {
-                earlyStart = new Date(depResult.end);
+        // Process predecessors first
+        task.predecessors.forEach(dep => processTask(dep.predecessorId));
+
+        if (task.schedulingMode === "auto" && task.predecessors.length > 0) {
+            let earliestStart: Date | null = null;
+
+            task.predecessors.forEach(dep => {
+                const pred = taskMap.get(dep.predecessorId);
+                if (!pred || !pred.startDate || !pred.dueDate) return;
+
+                let calculatedStart: Date;
+
+                switch (dep.type) {
+                    case "FS": // Finish-to-Start: Task starts after predecessor finishes
+                        calculatedStart = addMinutes(pred.dueDate, dep.lagMinutes);
+                        break;
+                    case "SS": // Start-to-Start: Task starts after predecessor starts
+                        calculatedStart = addMinutes(pred.startDate, dep.lagMinutes);
+                        break;
+                    case "FF": // Finish-to-Finish: Task finishes after predecessor finishes
+                        // Start = PredFinish + Lag - Duration
+                        calculatedStart = addMinutes(pred.dueDate, dep.lagMinutes - task.durationMinutes);
+                        break;
+                    case "SF": // Start-to-Finish: Task finishes after predecessor starts
+                        calculatedStart = addMinutes(pred.startDate, dep.lagMinutes - task.durationMinutes);
+                        break;
+                    default:
+                        calculatedStart = addMinutes(pred.dueDate, dep.lagMinutes);
+                }
+
+                if (!earliestStart || calculatedStart > earliestStart) {
+                    earliestStart = calculatedStart;
+                }
+            });
+
+            if (earliestStart) {
+                // Adjust for weekends if enabled
+                if (skipWeekends) {
+                    earliestStart = adjustForWeekends(earliestStart);
+                }
+                
+                task.startDate = earliestStart;
+                task.dueDate = addMinutes(earliestStart, task.durationMinutes);
             }
         }
 
-        const duration = task.startDate && task.dueDate 
-            ? Math.max(1, differenceInDays(startOfDay(task.dueDate), startOfDay(task.startDate)) + 1)
-            : 1;
-
-        const earlyFinish = addDays(earlyStart, duration);
-
-        results.set(id, { 
-            start: earlyStart, 
-            end: earlyFinish, 
-            isCritical: false // Determined in backward pass
-        });
-
-        processing.delete(id);
-        visited.add(id);
+        processing.delete(taskId);
+        processed.add(taskId);
     }
 
-    for (const task of tasks) {
-        processTask(task.id);
-    }
+    tasks.forEach(t => processTask(t.id));
 
-    return results;
+    return Array.from(taskMap.values());
+}
+
+function adjustForWeekends(date: Date): Date {
+    let result = new Date(date);
+    while (isWeekend(result)) {
+        result = addMinutes(result, 1440); // Add a day
+        result = startOfDay(result);
+        result.setHours(9, 0, 0, 0); // Start at 9 AM
+    }
+    return result;
 }
 
 /**
- * Shifts a task and all its dependent successors by a delta in days.
+ * Detects the critical path in a set of tasks.
  */
-export function shiftTaskChain(
-    taskId: string, 
-    deltaDays: number, 
-    tasks: GanttTask[], 
-    dependencies: { predecessorId: string, successorId: string }[]
-) {
-    const updates: { id: string, startDate: Date, dueDate: Date }[] = [];
-    const queue = [{ id: taskId, delta: deltaDays }];
-    const seen = new Set<string>();
-
-    while (queue.length > 0) {
-        const { id, delta } = queue.shift()!;
-        if (seen.has(id)) continue;
-        seen.add(id);
-
-        const task = tasks.find(t => t.id === id);
-        if (!task || !task.startDate || !task.dueDate) continue;
-
-        const newStart = addDays(task.startDate, delta);
-        const newEnd = addDays(task.dueDate, delta);
-
-        updates.push({ id, startDate: newStart, dueDate: newEnd });
-
-        // Find all successors
-        const successors = dependencies
-            .filter(d => d.predecessorId === id)
-            .map(d => d.successorId);
-
-        for (const successorId of successors) {
-            queue.push({ id: successorId, delta });
-        }
-    }
-
-    return updates;
+export function detectCriticalPath(tasks: TaskData[]) {
+    // This requires a forward and backward pass (Early Start/Finish, Late Start/Finish)
+    // For now, we'll return an empty set or a simplified heuristic
+    return new Set<string>();
 }

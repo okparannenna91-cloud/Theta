@@ -251,15 +251,30 @@ model Task {
   
   timeLogs       TimeLog[]
   
-  dependencyIds String[] @db.ObjectId
-  dependencies  Task[]   @relation("TaskDependencies", fields: [dependencyIds], references: [id])
+  predecessors  TaskDependency[] @relation("TaskPredecessors")
+  successors    TaskDependency[] @relation("TaskSuccessors")
   
-  dependentIds  String[] @db.ObjectId
-  dependents    Task[]   @relation("TaskDependencies", fields: [dependentIds], references: [id])
+  schedulingMode String   @default("auto") // auto, manual
+  baselineStartDate DateTime?
+  baselineDueDate   DateTime?
   
   attachments   Json?    @db.Json
 
   @@map("tasks")
+}
+
+model TaskDependency {
+  id             String @id @default(auto()) @map("_id") @db.ObjectId
+  taskId         String @db.ObjectId
+  predecessorId  String @db.ObjectId
+  type           String @default("FS") // FS, SS, FF, SF
+  lag            Int    @default(0)    // Lag in seconds/hours? Let's use minutes or hours.
+  
+  task           Task   @relation("TaskPredecessors", fields: [taskId], references: [id], onDelete: Cascade)
+  predecessor    Task   @relation("TaskSuccessors", fields: [predecessorId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, predecessorId])
+  @@map("task_dependencies")
 }
 
 model Subtask {
