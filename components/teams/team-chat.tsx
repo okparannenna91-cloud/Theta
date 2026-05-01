@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
     Send, 
     Loader2, 
-    User, 
     Hash, 
     MessageSquare, 
     Paperclip, 
@@ -17,11 +16,6 @@ import {
     Reply,
     Pin,
     Trash2,
-    Check,
-    CheckCheck,
-    Clock,
-    PinnedField,
-    ArrowDown,
     PinOff
 } from "lucide-react";
 import Image from "next/image";
