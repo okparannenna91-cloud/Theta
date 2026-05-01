@@ -295,7 +295,7 @@ export async function PATCH(req: Request) {
         // Publish update to Ably
         const channelName = updated.teamId
             ? `team:${updated.teamId}:chat`
-            : getChatChannel(updated.workspaceId, updated.projectId);
+            : getChatChannel(updated.workspaceId, updated.projectId ?? undefined);
         
         await publishToChannel(channelName, "message:updated", updated);
 
@@ -336,7 +336,7 @@ export async function DELETE(req: Request) {
         // Publish delete to Ably
         const channelName = deleted.teamId
             ? `team:${deleted.teamId}:chat`
-            : getChatChannel(deleted.workspaceId, deleted.projectId);
+            : getChatChannel(deleted.workspaceId, deleted.projectId ?? undefined);
         
         await publishToChannel(channelName, "message:deleted", { id: messageId });
 
