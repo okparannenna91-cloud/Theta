@@ -31,6 +31,8 @@ import { TimelineView } from "@/components/projects/timeline-view";
 import { GanttChart } from "@/components/projects/gantt-chart";
 import { CalendarView } from "@/components/projects/calendar-view";
 import { InviteMemberDialog } from "@/components/projects/invite-member-dialog";
+import { ProjectTeamsTab } from "@/components/projects/project-teams-tab";
+import { User } from "lucide-react";
 
 async function fetchProject(id: string) {
     const res = await fetch(`/api/projects/${id}`);
@@ -69,11 +71,12 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         { id: "overview", label: "Overview", icon: Info },
         { id: "tasks", label: "Tasks", icon: LayoutList },
         { id: "boards", label: "Boards", icon: Columns },
+        { id: "teams", label: "Teams", icon: UsersIcon },
+        { id: "members", label: "Members", icon: User },
         { id: "calendar", label: "Calendar", icon: CalendarDays },
         { id: "timeline", label: "Timeline", icon: Calendar },
         { id: "gantt", label: "Gantt", icon: GanttIcon },
         { id: "activity", label: "Activity", icon: ActivityIcon },
-        { id: "members", label: "Team", icon: UsersIcon },
         { id: "analytics", label: "Insights", icon: TrendingUp },
         { id: "settings", label: "Settings", icon: Settings },
     ];
@@ -211,12 +214,16 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                         {view === "activity" && (
                             <ProjectActivity projectId={project.id} workspaceId={project.workspaceId} />
                         )}
+
+                        {view === "teams" && (
+                            <ProjectTeamsTab projectId={project.id} workspaceId={project.workspaceId} />
+                        )}
                         
                         {view === "members" && (
                              <div className="h-full space-y-8">
                                 <div className="flex items-center justify-between">
                                      <div>
-                                         <h3 className="text-xl font-black uppercase tracking-tight">Project Evolution Team</h3>
+                                         <h3 className="text-xl font-black uppercase tracking-tight">Project Evolution Members</h3>
                                          <p className="text-xs font-black uppercase tracking-widest text-indigo-500 mt-1">Founders, Builders & Operators</p>
                                      </div>
                                      <Button 

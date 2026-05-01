@@ -185,10 +185,26 @@ model Project {
   tasks        Task[]
   boards       Board[]
   teamMembers  TeamMember[]
+  projectTeams ProjectTeam[]
   chatMessages ChatMessage[]
   documents    Document[]
 
   @@map("projects")
+}
+
+model ProjectTeam {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId   String   @db.ObjectId
+  teamId      String   @db.ObjectId
+  role        String   @default("viewer") // full_access, editor, viewer, custom
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, teamId])
+  @@map("project_teams")
 }
 
 model Task {
@@ -367,6 +383,7 @@ model Team {
   workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   members   TeamMember[]
   projects  Project[]
+  projectTeams ProjectTeam[]
   chatMessages ChatMessage[]
   calendarEvents CalendarEvent[]
   invites   Invite[]

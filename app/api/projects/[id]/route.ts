@@ -64,6 +64,15 @@ export async function GET(
             members: true
           }
         },
+        projectTeams: {
+          include: {
+            team: {
+              include: {
+                members: true
+              }
+            }
+          }
+        },
         _count: { select: { tasks: true } }
       }
     });
@@ -77,6 +86,9 @@ export async function GET(
     if (fullProject.userId) allUserIds.add(fullProject.userId);
     fullProject.tasks?.forEach((t: any) => { if (t.userId) allUserIds.add(t.userId); });
     fullProject.team?.members?.forEach((m: any) => { if (m.userId) allUserIds.add(m.userId); });
+    fullProject.projectTeams?.forEach((pt: any) => {
+        pt.team.members?.forEach((m: any) => { if (m.userId) allUserIds.add(m.userId); });
+    });
 
     // Fetch user profiles from the primary shard
     const users = await prisma.user.findMany({
@@ -105,7 +117,17 @@ export async function GET(
                 ...m,
                 user: userMap.get(m.userId) || null
             })) || []
-        } : null
+        } : null,
+        projectTeams: fullProject.projectTeams?.map((pt: any) => ({
+            ...pt,
+            team: {
+                ...pt.team,
+                members: pt.team.members?.map((m: any) => ({
+                    ...m,
+                    user: userMap.get(m.userId) || null
+                })) || []
+            }
+        })) || []
     };
 
     return NextResponse.json(processedProject);  } catch (error) {

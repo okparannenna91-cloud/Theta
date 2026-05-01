@@ -87,27 +87,76 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
                     </CardContent>
                 </Card>
 
-                {/* Team Section */}
-                {project.team && (
-                    <div className="space-y-4">
-                         <h3 className="text-lg font-black uppercase tracking-tight flex items-center gap-2">
-                            <Layers className="h-5 w-5 text-indigo-500" />
-                            Project Team: {project.team.name}
+                {/* Teams Section */}
+                {(project.projectTeams?.length > 0 || project.team) && (
+                    <div className="space-y-6">
+                         <h3 className="text-xl font-black uppercase tracking-tight flex items-center gap-3">
+                            <div className="h-10 w-10 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                                <Layers className="h-5 w-5" />
+                            </div>
+                            Assigned Operational Units
                          </h3>
-                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                             {project.team.members?.map((member: any) => (
-                                 <div key={member.id} className="group relative flex items-center gap-3 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 shadow-sm hover:border-indigo-500/50 transition-all cursor-pointer">
-                                      <Avatar className="h-10 w-10 ring-2 ring-white dark:ring-slate-950 transition-transform group-hover:scale-110">
-                                          <AvatarImage src={member.user?.imageUrl} />
-                                          <AvatarFallback>{member.user?.name?.[0]}</AvatarFallback>
-                                      </Avatar>
-                                      <div className="flex-1 min-w-0">
-                                          <p className="text-sm font-bold truncate">{member.user?.name}</p>
-                                          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">{member.role}</p>
-                                      </div>
-                                      <ArrowUpRight className="h-4 w-4 text-slate-300 opacity-0 group-hover:opacity-100 transition-all" />
-                                 </div>
+                         
+                         <div className="grid grid-cols-1 gap-6">
+                             {/* Handle new multi-team structure */}
+                             {project.projectTeams?.map((pt: any) => (
+                                 <Card key={pt.id} className="rounded-3xl border-slate-200/50 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/50 overflow-hidden">
+                                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
+                                         <div className="flex items-center gap-3">
+                                             <p className="text-lg font-black uppercase tracking-tight">{pt.team.name}</p>
+                                             <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 border-none">
+                                                 {pt.role?.replace("_", " ") || "Viewer"}
+                                             </Badge>
+                                         </div>
+                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{pt.team.members?.length || 0} Members</p>
+                                     </div>
+                                     <div className="p-6">
+                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                             {pt.team.members?.slice(0, 6).map((member: any) => (
+                                                 <div key={member.id} className="group flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200/30 dark:border-slate-800/30 shadow-sm hover:border-indigo-500/50 transition-all">
+                                                      <Avatar className="h-8 w-8 ring-2 ring-white dark:ring-slate-950">
+                                                          <AvatarImage src={member.user?.imageUrl} />
+                                                          <AvatarFallback>{member.user?.name?.[0]}</AvatarFallback>
+                                                      </Avatar>
+                                                      <div className="flex-1 min-w-0">
+                                                          <p className="text-xs font-bold truncate">{member.user?.name}</p>
+                                                          <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">{member.role}</p>
+                                                      </div>
+                                                 </div>
+                                             ))}
+                                             {(pt.team.members?.length || 0) > 6 && (
+                                                 <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700">
+                                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">+{pt.team.members.length - 6} More</p>
+                                                 </div>
+                                             )}
+                                         </div>
+                                     </div>
+                                 </Card>
                              ))}
+
+                             {/* Fallback for legacy single team structure */}
+                             {(!project.projectTeams || project.projectTeams.length === 0) && project.team && (
+                                 <Card className="rounded-3xl border-slate-200/50 dark:border-slate-800/50 overflow-hidden">
+                                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
+                                         <p className="text-lg font-black uppercase tracking-tight">{project.team.name}</p>
+                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{project.team.members?.length || 0} Members</p>
+                                     </div>
+                                     <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                         {project.team.members?.map((member: any) => (
+                                             <div key={member.id} className="group flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200/30 dark:border-slate-800/30 shadow-sm hover:border-indigo-500/50 transition-all">
+                                                  <Avatar className="h-8 w-8 ring-2 ring-white dark:ring-slate-950">
+                                                      <AvatarImage src={member.user?.imageUrl} />
+                                                      <AvatarFallback>{member.user?.name?.[0]}</AvatarFallback>
+                                                  </Avatar>
+                                                  <div className="flex-1 min-w-0">
+                                                      <p className="text-xs font-bold truncate">{member.user?.name}</p>
+                                                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">{member.role}</p>
+                                                  </div>
+                                             </div>
+                                         ))}
+                                     </div>
+                                 </Card>
+                             )}
                          </div>
                     </div>
                 )}
