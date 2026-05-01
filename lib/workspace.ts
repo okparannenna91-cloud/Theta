@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { prisma, getPrismaClient } from "./prisma";
 import { User } from "@prisma/client";
 
 /**
@@ -138,7 +138,6 @@ export async function getUserWorkspaces(userId: string) {
             _count: {
               select: {
                 members: true,
-                projects: true,
               },
             },
           },
@@ -147,10 +146,35 @@ export async function getUserWorkspaces(userId: string) {
       orderBy: { createdAt: "asc" },
     });
 
-    return memberships.map((m) => ({
-      ...m.workspace,
-      role: m.role,
-    }));
+    // Fetch project counts from correct shards
+    const workspacesWithCounts = await Promise.all(
+      memberships.map(async (m) => {
+        const workspaceId = m.workspaceId;
+        const db = getPrismaClient(workspaceId);
+        
+        const projectsCount = await db.project.count({
+          where: { workspaceId },
+        });
+
+        console.log(`[Workspace Count] Workspace ${workspaceId} (${m.workspace.name}): ${projectsCount} projects`);
+
+        return {
+          id: m.workspace.id,
+          name: m.workspace.name,
+          slug: m.workspace.slug,
+          plan: m.workspace.plan,
+          role: m.role,
+          createdAt: m.workspace.createdAt,
+          updatedAt: m.workspace.updatedAt,
+          _count: {
+            members: m.workspace._count?.members || 0,
+            projects: projectsCount,
+          },
+        };
+      })
+    );
+
+    return workspacesWithCounts;
   } catch (error) {
     console.error("Get user workspaces error:", error);
     return [];
