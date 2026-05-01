@@ -95,7 +95,8 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
         queryFn: async () => {
             const res = await fetch(`/api/activity?workspaceId=${team.workspaceId}&entityId=${team.id}&entityType=team`);
             if (!res.ok) throw new Error("Failed to fetch activity");
-            return res.json();
+            const data = await res.json();
+            return data.activities || [];
         }
     });
 

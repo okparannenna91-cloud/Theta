@@ -23,7 +23,8 @@ export function TaskActivity({ taskId, workspaceId }: { taskId: string; workspac
         queryFn: async () => {
             const res = await fetch(`/api/activity?workspaceId=${workspaceId}&entityId=${taskId}&entityType=task`);
             if (!res.ok) throw new Error("Failed");
-            return res.json();
+            const data = await res.json();
+            return data.activities || [];
         },
     });
 
