@@ -142,7 +142,10 @@ export function Sidebar() {
               <SelectContent className="rounded-2xl border-white/10 shadow-2xl">
                 {workspaces?.map((w: any) => (
                   <SelectItem key={w.id} value={w.id} className="font-black uppercase tracking-widest text-[10px] py-3">
-                    {w.name}
+                    <div className="flex items-center justify-between w-full gap-4">
+                      <span>{w.name}</span>
+                      <span className="text-primary/60 text-[8px]">({w._count?.projects || 0} Projects)</span>
+                    </div>
                   </SelectItem>
                 ))}
               </SelectContent>
