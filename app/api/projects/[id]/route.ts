@@ -9,7 +9,6 @@ const updateSchema = z.object({
   description: z.string().optional(),
   color: z.string().optional(),
 });
-
 export async function GET(
   req: Request,
   { params }: { params: { id: string } }

@@ -357,8 +357,8 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
 
                             <div className="grid grid-cols-1 gap-4">
                                 {members?.filter((m: any) =>
-                                    m.user?.name?.toLowerCase().includes(memberSearch.toLowerCase()) ||
-                                    m.user?.email?.toLowerCase().includes(memberSearch.toLowerCase())
+                                    (m.user?.name || "").toLowerCase().includes(memberSearch.toLowerCase()) ||
+                                    (m.user?.email || "").toLowerCase().includes(memberSearch.toLowerCase())
                                 ).map((member: any) => (
                                     <div key={member.id} className="group flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-xl border hover:shadow-md transition-all">
                                         <div className="flex items-center gap-4">

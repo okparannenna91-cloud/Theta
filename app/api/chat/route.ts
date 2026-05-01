@@ -200,11 +200,11 @@ export async function POST(req: Request) {
             data: {
                 content: data.content,
                 workspaceId: data.workspaceId,
-                projectId: data.projectId || null,
-                teamId: data.teamId || null,
+                projectId: data.projectId ?? undefined,
+                teamId: data.teamId ?? undefined,
                 userId: user.id as string,
-                attachment: (data.attachment as any) || null,
-                replyToId: data.replyToId || null,
+                attachment: (data.attachment as any) ?? undefined,
+                replyToId: data.replyToId ?? undefined,
             },
             include: {
                 replyTo: {
