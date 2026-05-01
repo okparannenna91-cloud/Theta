@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { differenceInDays, startOfDay } from "date-fns";
 import { motion } from "framer-motion";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Milestone, MoreVertical, Sparkles, AlertCircle, CheckCircle2 } from "lucide-react";
@@ -61,6 +62,53 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
         });
     };
 
+    const handleResizeStart = (e: React.MouseEvent, direction: "left" | "right") => {
+        e.preventDefault();
+        e.stopPropagation();
+        const startX = e.clientX;
+        const initialLeft = left;
+        const initialWidth = width;
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+            const deltaX = moveEvent.clientX - startX;
+            const daysDelta = Math.round(deltaX / cellWidth);
+
+            if (direction === "left") {
+                const newLeft = initialLeft + daysDelta * cellWidth;
+                const newWidth = initialWidth - daysDelta * cellWidth;
+                if (newWidth >= cellWidth) {
+                    // Update visual state if needed, but for now we'll wait for mouseUp
+                }
+            } else {
+                const newWidth = initialWidth + daysDelta * cellWidth;
+                if (newWidth >= cellWidth) {
+                    // Update visual state
+                }
+            }
+        };
+
+        const onMouseUp = (upEvent: MouseEvent) => {
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", onMouseUp);
+            
+            const deltaX = upEvent.clientX - startX;
+            const daysDelta = Math.round(deltaX / cellWidth);
+
+            if (daysDelta === 0) return;
+
+            if (direction === "left") {
+                const newStart = addMinutes(new Date(task.startDate || task.dueDate), daysDelta * 1440);
+                onUpdate?.({ startDate: newStart.toISOString() });
+            } else {
+                const newEnd = addMinutes(new Date(task.dueDate || task.startDate), daysDelta * 1440);
+                onUpdate?.({ dueDate: newEnd.toISOString() });
+            }
+        };
+
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+    };
+
     const priorityStyles: any = {
         high: "from-rose-500/30 to-orange-500/20 border-rose-500/40 shadow-rose-500/10",
         medium: "from-amber-500/30 to-yellow-500/20 border-amber-500/40 shadow-amber-500/10",
@@ -93,7 +141,6 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
                 style={{ left, width }}
                 className="absolute h-8 flex flex-col justify-end z-10 pointer-events-none"
             >
-                {/* Summary Bar Bracket Shape */}
                 <div className="h-2 w-full bg-slate-900 dark:bg-slate-200 rounded-sm relative">
                     <div className="absolute left-0 bottom-0 w-1 h-3 bg-slate-900 dark:bg-slate-200 rounded-sm" />
                     <div className="absolute right-0 bottom-0 w-1 h-3 bg-slate-900 dark:bg-slate-200 rounded-sm" />
@@ -107,7 +154,6 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
 
     return (
         <div className="relative h-10 w-full pointer-events-none">
-            {/* Baseline Ghost Bar */}
             {baselineWidth > 0 && (
                 <div 
                     style={{ left: baselineLeft, width: baselineWidth }}
@@ -128,7 +174,6 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
                     priorityStyles[task.priority] || "from-slate-500/20 to-slate-400/10 border-white/10"
                 )}
             >
-                {/* Progress Fill */}
                 <div className="absolute inset-0 bg-black/5 dark:bg-white/5 rounded-2xl overflow-hidden pointer-events-none">
                     <motion.div 
                         initial={{ width: 0 }}
@@ -147,6 +192,9 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
                         <span className="text-[10px] font-black uppercase tracking-widest truncate">
                             {task.title}
                         </span>
+                        {task.isCritical && (
+                            <Badge variant="outline" className="bg-rose-500/20 text-rose-500 border-rose-500/40 text-[7px] py-0 h-4 font-black">CRITICAL</Badge>
+                        )}
                     </div>
                     
                     <span className="text-[9px] font-black opacity-40 flex-shrink-0">
@@ -154,9 +202,15 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
                     </span>
                 </div>
 
-                {/* Drag Handles for resizing */}
-                <div className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/30 rounded-l-2xl z-20" />
-                <div className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/30 rounded-r-2xl z-20" />
+                {/* Resizing Handles */}
+                <div 
+                    onMouseDown={(e) => handleResizeStart(e, "left")}
+                    className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30 rounded-l-2xl z-20 pointer-events-auto" 
+                />
+                <div 
+                    onMouseDown={(e) => handleResizeStart(e, "right")}
+                    className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30 rounded-r-2xl z-20 pointer-events-auto" 
+                />
             </motion.div>
         </div>
     );

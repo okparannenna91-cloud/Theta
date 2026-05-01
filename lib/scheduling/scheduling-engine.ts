@@ -101,10 +101,81 @@ function adjustForWeekends(date: Date): Date {
 }
 
 /**
- * Detects the critical path in a set of tasks.
+ * Detects the critical path in a set of tasks using Forward and Backward passes.
  */
-export function detectCriticalPath(tasks: TaskData[]) {
-    // This requires a forward and backward pass (Early Start/Finish, Late Start/Finish)
-    // For now, we'll return an empty set or a simplified heuristic
-    return new Set<string>();
+export function detectCriticalPath(tasks: TaskData[]): Set<string> {
+    if (tasks.length === 0) return new Set();
+
+    const taskMap = new Map(tasks.map(t => [t.id, { 
+        ...t, 
+        earlyStart: 0, 
+        earlyFinish: 0, 
+        lateStart: 0, 
+        lateFinish: 0 
+    }]));
+
+    // 1. Forward Pass: Calculate Early Start (ES) and Early Finish (EF)
+    const processed = new Set<string>();
+    function forwardPass(taskId: string) {
+        if (processed.has(taskId)) return;
+        const task = taskMap.get(taskId);
+        if (!task) return;
+
+        let maxEF = 0;
+        task.predecessors.forEach(dep => {
+            forwardPass(dep.predecessorId);
+            const pred = taskMap.get(dep.predecessorId);
+            if (pred) {
+                maxEF = Math.max(maxEF, pred.earlyFinish + dep.lagMinutes);
+            }
+        });
+
+        task.earlyStart = maxEF;
+        task.earlyFinish = maxEF + task.durationMinutes;
+        processed.add(taskId);
+    }
+    tasks.forEach(t => forwardPass(t.id));
+
+    // 2. Find total project duration
+    const projectDuration = Math.max(...Array.from(taskMap.values()).map(t => t.earlyFinish));
+
+    // 3. Backward Pass: Calculate Late Start (LS) and Late Finish (LF)
+    const backwardProcessed = new Set<string>();
+    function backwardPass(taskId: string) {
+        if (backwardProcessed.has(taskId)) return;
+        const task = taskMap.get(taskId);
+        if (!task) return;
+
+        // Find successors (tasks that have this task as a predecessor)
+        const successors = tasks.filter(t => t.predecessors.some(p => p.predecessorId === taskId));
+
+        if (successors.length === 0) {
+            task.lateFinish = projectDuration;
+        } else {
+            let minLS = projectDuration;
+            successors.forEach(succTask => {
+                backwardPass(succTask.id);
+                const succ = taskMap.get(succTask.id);
+                const dep = succTask.predecessors.find(p => p.predecessorId === taskId);
+                if (succ && dep) {
+                    minLS = Math.min(minLS, succ.lateStart - dep.lagMinutes);
+                }
+            });
+            task.lateFinish = minLS;
+        }
+
+        task.lateStart = task.lateFinish - task.durationMinutes;
+        backwardProcessed.add(taskId);
+    }
+    tasks.forEach(t => backwardPass(t.id));
+
+    // 4. Identify critical tasks (Slack = 0)
+    const criticalPath = new Set<string>();
+    taskMap.forEach((t, id) => {
+        if (Math.abs(t.lateStart - t.earlyStart) < 1) { // 1 minute tolerance
+            criticalPath.add(id);
+        }
+    });
+
+    return criticalPath;
 }

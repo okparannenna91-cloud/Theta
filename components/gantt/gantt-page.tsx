@@ -69,11 +69,11 @@ export default function GanttPage() {
                     </div>
 
                     <div className="flex bg-secondary/50 p-1 rounded-2xl border border-white/5 shadow-inner ml-4">
-                        {["day", "week", "month", "quarter"].map((lvl) => (
+                        {["hour", "day", "week", "month", "quarter", "year"].map((lvl) => (
                             <button
                                 key={lvl}
                                 onClick={() => setZoomLevel(lvl as any)}
-                                className={`px-4 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
+                                className={`px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${
                                     zoomLevel === lvl 
                                     ? "bg-white dark:bg-slate-800 text-primary shadow-lg" 
                                     : "text-muted-foreground hover:text-foreground"

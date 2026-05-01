@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo } from "react";
-import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, eachMonthOfInterval, startOfQuarter, endOfQuarter, isToday } from "date-fns";
+import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, eachMonthOfInterval, startOfQuarter, endOfQuarter, isToday, differenceInDays, differenceInMinutes } from "date-fns";
+import { detectCriticalPath } from "@/lib/scheduling/scheduling-engine";
 import { ZoomLevel } from "./timeline-page";
 import { cn } from "@/lib/utils";
 import TaskBar from "./task-bar";
@@ -79,7 +80,33 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
     const days = eachDayOfInterval({ start: startDate, end: endDate });
     const months = eachMonthOfInterval({ start: startDate, end: endDate });
 
-    const cellWidth = zoomLevel === "day" ? 120 : zoomLevel === "week" ? 60 : zoomLevel === "month" ? 20 : 8;
+    const cellWidth = useMemo(() => {
+        const widths: any = {
+            hour: 120,
+            day: 120,
+            week: 160,
+            month: 200,
+            quarter: 250,
+            year: 300
+        };
+        return widths[zoomLevel] || 160;
+    }, [zoomLevel]);
+
+    const criticalPath = useMemo(() => {
+        const schedulingTasks = allFlattenedTasks.map(t => ({
+            id: t.id,
+            startDate: t.startDate ? new Date(t.startDate) : null,
+            dueDate: t.dueDate ? new Date(t.dueDate) : null,
+            durationMinutes: t.startDate && t.dueDate ? differenceInMinutes(new Date(t.dueDate), new Date(t.startDate)) : 0,
+            schedulingMode: t.schedulingMode || "auto",
+            predecessors: t.predecessors?.map((p: any) => ({
+                predecessorId: p.predecessorId,
+                type: p.type,
+                lagMinutes: p.lag || 0
+            })) || []
+        }));
+        return detectCriticalPath(schedulingTasks);
+    }, [allFlattenedTasks]);
 
     useEffect(() => {
         if (scrollContainerRef.current) {
@@ -188,7 +215,10 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
                                         className="h-16 flex items-center relative group"
                                     >
                                         <TaskBar 
-                                            task={task} 
+                                            task={{
+                                                ...task,
+                                                isCritical: criticalPath.has(task.id)
+                                            }} 
                                             timelineStart={startDate} 
                                             cellWidth={cellWidth}
                                             onUpdate={async (updates) => {
