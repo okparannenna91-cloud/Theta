@@ -174,14 +174,14 @@ export default function ActivityPage() {
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className={`rounded-xl px-4 font-black uppercase tracking-widest text-[9px] ${selectedProject ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'text-slate-500'}`}>
                                 <FolderKanban className="h-3 w-3 mr-2" />
-                                {selectedProject ? projectsData?.find((p: any) => p.id === selectedProject)?.name : "All Projects"}
+                                {selectedProject ? projectsData?.projects?.find((p: any) => p.id === selectedProject)?.name : "All Projects"}
                                 <ChevronDown className="ml-2 h-3 w-3" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="w-56 rounded-2xl">
                             <DropdownMenuItem onClick={() => setSelectedProject(null)}>All Projects</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {projectsData?.map((p: any) => (
+                            {projectsData?.projects?.map((p: any) => (
                                 <DropdownMenuItem key={p.id} onClick={() => setSelectedProject(p.id)}>{p.name}</DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>
@@ -191,15 +191,15 @@ export default function ActivityPage() {
                         <DropdownMenuTrigger asChild>
                             <Button variant="ghost" size="sm" className={`rounded-xl px-4 font-black uppercase tracking-widest text-[9px] ${selectedUser ? 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20' : 'text-slate-500'}`}>
                                 <UserIcon className="h-3 w-3 mr-2" />
-                                {selectedUser ? membersData?.members?.find((m: any) => m.user.id === selectedUser)?.user.name : "All Users"}
+                                {selectedUser ? membersData?.find((m: any) => m.id === selectedUser)?.name : "All Users"}
                                 <ChevronDown className="ml-2 h-3 w-3" />
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="w-56 rounded-2xl">
                             <DropdownMenuItem onClick={() => setSelectedUser(null)}>All Users</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {membersData?.members?.map((m: any) => (
-                                <DropdownMenuItem key={m.user.id} onClick={() => setSelectedUser(m.user.id)}>{m.user.name}</DropdownMenuItem>
+                            {membersData?.map((m: any) => (
+                                <DropdownMenuItem key={m.id} onClick={() => setSelectedUser(m.id)}>{m.name}</DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>
                     </DropdownMenu>
