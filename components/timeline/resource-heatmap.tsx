@@ -40,7 +40,7 @@ export default function ResourceHeatmap({ tasks, startDate, daysCount, cellWidth
         });
         
         return counts;
-    }, [tasks, days]);
+    }, [tasks, days, daysCount]);
 
     return (
         <div className="h-20 border-t bg-background/90 backdrop-blur-xl flex z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">

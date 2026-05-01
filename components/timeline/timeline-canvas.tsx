@@ -121,7 +121,7 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
         handleResize();
         window.addEventListener("resize", handleResize);
         return () => window.removeEventListener("resize", handleResize);
-    }, []);
+    }, [cellWidth, days]);
 
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
         setScrollTop(e.currentTarget.scrollTop);

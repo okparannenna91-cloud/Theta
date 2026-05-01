@@ -36,7 +36,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 
-export type ZoomLevel = "day" | "week" | "month" | "quarter";
+export type ZoomLevel = "hour" | "day" | "week" | "month" | "quarter" | "year";
 
 export default function TimelinePage() {
     const { activeWorkspaceId } = useWorkspace();

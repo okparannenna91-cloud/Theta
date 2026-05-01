@@ -116,7 +116,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             console.error("[Chat] Ably setup error:", error);
             setIsLoading(false);
         }
-    }, [teamId, user?.id]);
+    }, [teamId, user?.id, workspaceId]);
 
     useEffect(() => {
         if (user?.id && teamId) {
