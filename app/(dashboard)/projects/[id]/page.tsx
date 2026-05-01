@@ -3,6 +3,8 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { AnimatePresence, motion } from "framer-motion";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProjectOverview } from "@/components/projects/project-overview";
 import { ProjectActivity } from "@/components/projects/project-activity";
 import { ProjectSettings } from "@/components/projects/project-settings";
@@ -208,7 +210,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                         )}
                         
                         {view === "gantt" && (
-                            <GanttChart tasks={tasks} />
+                            <GanttChart tasks={tasks} projectId={project.id} workspaceId={project.workspaceId} />
                         )}
 
                         {view === "activity" && (
@@ -297,5 +299,3 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     );
 }
 
-import { AnimatePresence, motion } from "framer-motion";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";

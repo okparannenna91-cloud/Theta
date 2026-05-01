@@ -120,13 +120,13 @@ export async function GET(
         } : null,
         projectTeams: fullProject.projectTeams?.map((pt: any) => ({
             ...pt,
-            team: {
+            team: pt.team ? {
                 ...pt.team,
                 members: pt.team.members?.map((m: any) => ({
                     ...m,
                     user: userMap.get(m.userId) || null
                 })) || []
-            }
+            } : null
         })) || []
     };
 

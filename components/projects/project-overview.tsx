@@ -126,7 +126,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
                                              ))}
                                              {(pt.team.members?.length || 0) > 6 && (
                                                  <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700">
-                                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">+{pt.team.members.length - 6} More</p>
+                                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">+{(pt.team.members?.length || 0) - 6} More</p>
                                                  </div>
                                              )}
                                          </div>
@@ -135,7 +135,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
                              ))}
 
                              {/* Fallback for legacy single team structure */}
-                             {(!project.projectTeams || project.projectTeams.length === 0) && project.team && (
+                             {(!project.projectTeams || (Array.isArray(project.projectTeams) && project.projectTeams.length === 0)) && project.team && (
                                  <Card className="rounded-3xl border-slate-200/50 dark:border-slate-800/50 overflow-hidden">
                                      <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
                                          <p className="text-lg font-black uppercase tracking-tight">{project.team.name}</p>

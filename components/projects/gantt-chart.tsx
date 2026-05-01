@@ -1,103 +1,174 @@
 "use client";
 
-import { useMemo } from "react";
-import { format, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, differenceInDays } from "date-fns";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { cn } from "@/lib/utils";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+    BarChart3, 
+    Download,
+    Maximize2,
+    Minimize2,
+    Settings2,
+    Sparkles,
+    Search,
+    ChevronLeft,
+    ChevronRight,
+    Clock
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import TimelineCanvas from "../timeline/timeline-canvas";
+import PresenceAvatars from "../gantt/presence-avatars";
+import AIScheduleAssistant from "../gantt/ai-assistant";
+import { toPng } from "html-to-image";
+import { ZoomLevel } from "../timeline/timeline-page";
 
 interface GanttChartProps {
     tasks: any[];
+    projectId?: string;
+    workspaceId?: string;
 }
 
-export function GanttChart({ tasks }: GanttChartProps) {
-    const { startDate, endDate, days } = useMemo(() => {
-        const today = new Date();
-        const start = startOfMonth(today);
-        const end = endOfMonth(today);
-        return {
-            startDate: start,
-            endDate: end,
-            days: eachDayOfInterval({ start, end })
-        };
-    }, []);
+export function GanttChart({ tasks, projectId, workspaceId }: GanttChartProps) {
+    const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("week");
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isFullScreen, setIsFullScreen] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
+
+    const handleExport = async () => {
+        const element = document.getElementById("project-gantt-capture");
+        if (!element) return;
+        
+        setIsExporting(true);
+        try {
+            const dataUrl = await toPng(element, { 
+                quality: 0.95,
+                backgroundColor: "#ffffff",
+                style: { borderRadius: '0' }
+            });
+            const link = document.createElement('a');
+            link.download = `project-gantt-${projectId || "export"}-${new Date().getTime()}.png`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('Export failed', err);
+        } finally {
+            setIsExporting(false);
+        }
+    };
+
+    const filteredTasks = (Array.isArray(tasks) ? tasks : []).filter((t: any) => 
+        t.title.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     return (
-        <div className="w-full h-full flex flex-col bg-slate-50 dark:bg-slate-950 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 overflow-hidden shadow-sm">
-            <div className="p-4 border-b border-white dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md sticky top-0 z-20">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Gantt Chart</h3>
-            </div>
-
-            <ScrollArea className="flex-1 w-full">
-                <div className="inline-flex flex-col min-w-full">
-                    {/* Gantt Header */}
-                    <div className="flex border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
-                        <div className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 py-3 text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em]">Task Hierarchy</div>
-                        <div className="flex">
-                            {days.map((day) => (
-                                <div key={day.toISOString()} className={cn(
-                                    "w-10 border-r border-slate-100 dark:border-slate-800 py-3 flex flex-col items-center",
-                                    (day.getDay() === 0 || day.getDay() === 6) && "bg-slate-50 dark:bg-slate-800/20"
-                                )}>
-                                    <span className="text-[9px] text-slate-400 font-bold">{format(day, "eeeee")}</span>
-                                    <span className="text-[10px] font-black">{format(day, "d")}</span>
-                                </div>
-                            ))}
-                        </div>
+        <div className={`flex flex-col overflow-hidden bg-white dark:bg-slate-950 rounded-[2.5rem] border border-slate-200/50 dark:border-slate-800/50 shadow-2xl transition-all duration-500 ${isFullScreen ? "fixed inset-0 z-[100] rounded-none" : "h-[700px]"}`}>
+            {/* Enterprise Header */}
+            <header className="flex items-center justify-between px-8 py-6 border-b bg-white/80 dark:bg-slate-900/80 backdrop-blur-3xl z-30">
+                <div className="flex items-center gap-6">
+                    <div className="flex flex-col">
+                        <h1 className="text-2xl font-black uppercase tracking-tight flex items-center gap-3">
+                            <BarChart3 className="h-6 w-6 text-indigo-600" />
+                            Project Timeline
+                        </h1>
+                        <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">Dependency & Resource Orchestration</p>
                     </div>
 
-                    {/* Gantt Body */}
-                    <div className="flex-1">
-                        {(Array.isArray(tasks) ? tasks : []).filter(t => t.dueDate).map((task) => {
-                            const taskStart = new Date(task.createdAt);
-                            const taskEnd = new Date(task.dueDate);
-                            const startOffset = Math.max(0, differenceInDays(taskStart, startDate));
-                            const duration = Math.max(1, differenceInDays(taskEnd, taskStart));
-
-                            return (
-                                <div key={task.id} className="flex border-b border-slate-100 dark:border-slate-800/50 group h-12 hover:bg-white dark:hover:bg-slate-900 transition-colors">
-                                    <div className="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 px-4 py-3 flex items-center bg-white dark:bg-slate-900 sticky left-0 z-10">
-                                        <div className="flex flex-col min-w-0">
-                                            <span className="text-xs font-bold truncate">{task.title}</span>
-                                            {task.dependencies?.length > 0 && (
-                                                <span className="text-[8px] text-indigo-500 font-bold uppercase">Has Dependencies</span>
-                                            )}
-                                        </div>
-                                    </div>
-                                    <div className="flex relative">
-                                        {days.map((day) => (
-                                            <div key={day.toISOString()} className={cn(
-                                                "w-10 h-full border-r border-slate-50 dark:border-slate-800/10",
-                                                (day.getDay() === 0 || day.getDay() === 6) && "bg-slate-50/50 dark:bg-slate-800/5"
-                                            )} />
-                                        ))}
-
-                                        <div
-                                            className={cn(
-                                                "absolute top-2.5 h-7 rounded-sm shadow-md border-l-4 transition-transform hover:scale-[1.02] cursor-pointer",
-                                                task.priority === "high" ? "bg-red-500/10 border-red-500 text-red-600" :
-                                                    task.priority === "medium" ? "bg-amber-500/10 border-amber-500 text-amber-600" : "bg-emerald-500/10 border-emerald-500 text-emerald-600"
-                                            )}
-                                            style={{
-                                                left: `${startOffset * 40}px`,
-                                                width: `${duration * 40}px`
-                                            }}
-                                        >
-                                            <div className="w-full h-full relative px-2 flex items-center">
-                                                <span className="text-[9px] font-black truncate">{task.title}</span>
-                                                {/* Progress Overlay */}
-                                                <div
-                                                    className="absolute top-0 left-0 h-full bg-current opacity-20 pointer-events-none"
-                                                    style={{ width: `${task.progress || 0}%` }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-inner ml-4">
+                        {(["day", "week", "month", "quarter"] as ZoomLevel[]).map((lvl) => (
+                            <button
+                                key={lvl}
+                                onClick={() => setZoomLevel(lvl)}
+                                className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all ${
+                                    zoomLevel === lvl 
+                                    ? "bg-white dark:bg-slate-900 text-indigo-600 shadow-md" 
+                                    : "text-slate-500 hover:text-slate-900 dark:hover:text-slate-100"
+                                }`}
+                            >
+                                {lvl}
+                            </button>
+                        ))}
                     </div>
                 </div>
-            </ScrollArea>
+
+                <div className="flex items-center gap-6">
+                    {workspaceId && <PresenceAvatars workspaceId={workspaceId} />}
+                    
+                    <div className="flex items-center gap-3 border-l border-slate-100 dark:border-slate-800 pl-6">
+                        <div className="relative group w-48">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400" />
+                            <Input 
+                                placeholder="FILTER..." 
+                                className="h-9 pl-9 rounded-xl text-[9px] font-black uppercase tracking-widest border-none bg-slate-100 dark:bg-slate-800 focus-visible:ring-indigo-500/30"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        
+                        <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="rounded-xl h-9 w-9 border-slate-200 dark:border-slate-700"
+                            onClick={() => setIsFullScreen(!isFullScreen)}
+                        >
+                            {isFullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                        </Button>
+                        
+                        <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            disabled={isExporting}
+                            className="rounded-xl h-9 text-[9px] font-black uppercase tracking-widest border border-slate-200 dark:border-slate-700"
+                            onClick={handleExport}
+                        >
+                            <Download className="h-3.5 w-3.5 mr-2" /> Export
+                        </Button>
+                    </div>
+                </div>
+            </header>
+
+            {/* View Context Bar */}
+            <div className="flex items-center justify-between px-8 py-3 bg-slate-50/50 dark:bg-slate-900/50 border-b z-20">
+                <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-1.5">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                            <ChevronLeft className="h-3.5 w-3.5" />
+                        </Button>
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-600 dark:text-slate-400 min-w-[120px] text-center">October 2026</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                            <ChevronRight className="h-3.5 w-3.5" />
+                        </Button>
+                    </div>
+                    
+                    <div className="flex items-center gap-4">
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-rose-500 animate-pulse" />
+                            <span className="text-[8px] font-black uppercase tracking-widest text-rose-500">Critical Path</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                            <span className="text-[8px] font-black uppercase tracking-widest text-emerald-500">Balanced</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                    <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+                        <Clock className="h-3 w-3" />
+                        Autosave Active
+                    </div>
+                </div>
+            </div>
+
+            <div className="flex-1 relative overflow-hidden" id="project-gantt-capture">
+                <TimelineCanvas 
+                    tasks={filteredTasks} 
+                    zoomLevel={zoomLevel} 
+                    searchQuery={""} // Search is handled by parent filtering here
+                />
+            </div>
+
+            <AIScheduleAssistant tasks={filteredTasks} />
         </div>
     );
 }

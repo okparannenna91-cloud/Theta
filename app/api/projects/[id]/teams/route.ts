@@ -48,7 +48,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     // Resolve user data for team members
     const allUserIds = new Set<string>();
     projectTeams.forEach(pt => {
-        pt.team.members.forEach(m => allUserIds.add(m.userId));
+        pt.team?.members?.forEach(m => allUserIds.add(m.userId));
     });
 
     const users = await globalPrisma.user.findMany({
@@ -58,15 +58,18 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
 
     const userMap = new Map(users.map(u => [u.id, u]));
 
-    const enrichedTeams = projectTeams.map(pt => ({
-        ...pt.team,
-        projectRole: pt.role,
-        dateAdded: pt.createdAt,
-        members: pt.team.members.map(m => ({
-            ...m,
-            user: userMap.get(m.userId) || null
-        }))
-    }));
+    const enrichedTeams = projectTeams.map(pt => {
+        if (!pt.team) return null;
+        return {
+            ...pt.team,
+            projectRole: pt.role,
+            dateAdded: pt.createdAt,
+            members: pt.team.members?.map(m => ({
+                ...m,
+                user: userMap.get(m.userId) || null
+            })) || []
+        };
+    }).filter(Boolean);
 
     return NextResponse.json(enrichedTeams);
   } catch (error) {

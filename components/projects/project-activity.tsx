@@ -72,7 +72,7 @@ export function ProjectActivity({ projectId, workspaceId }: ProjectActivityProps
             </div>
 
             <div className="relative border-l-2 border-slate-100 dark:border-slate-800 ml-5 space-y-10 py-4">
-                {activities?.map((activity: any) => (
+                {activities?.activities?.map((activity: any) => (
                     <div key={activity.id} className="relative pl-10">
                         {/* Timeline Dot with Icon */}
                         <div className="absolute -left-[17px] top-0 h-8 w-8 rounded-xl bg-white dark:bg-slate-950 border-2 border-slate-100 dark:border-slate-800 flex items-center justify-center shadow-sm">
@@ -119,7 +119,7 @@ export function ProjectActivity({ projectId, workspaceId }: ProjectActivityProps
                     </div>
                 ))}
 
-                {(!activities || activities.length === 0) && (
+                {(!activities?.activities || activities.activities.length === 0) && (
                     <div className="pl-10 py-10 text-center text-slate-400 italic font-black uppercase tracking-widest text-[10px]">
                         The silence of progress... No activities yet.
                     </div>
