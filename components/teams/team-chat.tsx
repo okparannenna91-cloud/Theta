@@ -3,7 +3,27 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as Ably from "ably";
 import { motion, AnimatePresence } from "framer-motion";
-import { Send, Loader2, User, Hash, MessageSquare, Paperclip, X, FileText, ImageIcon } from "lucide-react";
+import { 
+    Send, 
+    Loader2, 
+    User, 
+    Hash, 
+    MessageSquare, 
+    Paperclip, 
+    X, 
+    FileText, 
+    ImageIcon,
+    MoreVertical,
+    Reply,
+    Pin,
+    Trash2,
+    Check,
+    CheckCheck,
+    Clock,
+    PinnedField,
+    ArrowDown,
+    PinOff
+} from "lucide-react";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,6 +33,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { usePopups } from "@/components/popups/popup-manager";
 import { Badge } from "@/components/ui/badge";
 import { Lock, Sparkles } from "lucide-react";
+import { 
+    DropdownMenu, 
+    DropdownMenuContent, 
+    DropdownMenuItem, 
+    DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { toast } from "sonner";
+import { format } from "date-fns";
 
 interface TeamChatProps {
     teamId: string;
@@ -26,13 +54,17 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
     const [attachment, setAttachment] = useState<any>(null);
     const [isUploadOpen, setIsUploadOpen] = useState(false);
     const [messages, setMessages] = useState<any[]>([]);
+    const [lastReadAt, setLastReadAt] = useState<string | null>(null);
     const [limits, setLimits] = useState({ current: 0, max: -1 });
     const [isLoading, setIsLoading] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     const [dbUser, setDbUser] = useState<any>(null);
+    const [replyTo, setReplyTo] = useState<any>(null);
+    
     const ablyRef = useRef<Ably.Realtime | null>(null);
     const channelRef = useRef<Ably.RealtimeChannel | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const lastReadRef = useRef<string | null>(null);
 
     useEffect(() => {
         fetch("/api/auth/me")
@@ -41,17 +73,30 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             .catch(err => console.error("Failed to fetch DB user profile:", err));
     }, []);
 
+    const markAsRead = useCallback(async () => {
+        if (!teamId || !workspaceId) return;
+        try {
+            await fetch("/api/chat/read", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ teamId, workspaceId })
+            });
+            const now = new Date().toISOString();
+            setLastReadAt(now);
+            lastReadRef.current = now;
+        } catch (err) {
+            console.error("Failed to mark chat as read", err);
+        }
+    }, [teamId, workspaceId]);
+
     const connectAbly = useCallback(async () => {
         if (!user?.id || !teamId) return;
 
         try {
             setIsLoading(true);
             setIsConnected(false);
-            console.log(`[Chat] Connecting to Ably for team: ${teamId}, clientId: ${user.id}`);
             
-            // Cleanup existing connection if any
             if (ablyRef.current) {
-                console.log("[Chat] Closing existing Ably connection");
                 ablyRef.current.close();
             }
 
@@ -64,40 +109,33 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             const channel = ably.channels.get(channelName);
 
             ably.connection.on("connected", () => {
-                console.log("[Chat] Ably Connected Successfully");
                 setIsConnected(true);
                 setIsLoading(false);
             });
 
-            ably.connection.on("disconnected", () => {
-                console.warn("[Chat] Ably Disconnected");
-                setIsConnected(false);
-            });
-
-            ably.connection.on("failed", (err) => {
-                console.error("[Chat] Ably Connection Failed:", err);
-                setIsConnected(false);
-                setIsLoading(false);
-            });
-
             channel.subscribe("message", (msg) => {
-                console.log("[Chat] Received message via Ably:", msg.data);
                 setMessages((prev) => {
                     const incoming = msg.data;
-                    // Check if this message (or its optimistic counterpart) already exists
                     const exists = prev.some(m => 
                         m.id === incoming.id || 
                         (incoming.tempId && m.tempId === incoming.tempId)
                     );
                     
                     if (exists) {
-                        // Replace optimistic message with actual server message
                         return prev.map(m => 
                             (incoming.tempId && m.tempId === incoming.tempId) ? incoming : m
                         );
                     }
                     return [...prev, incoming];
                 });
+            });
+
+            channel.subscribe("message:updated", (msg) => {
+                setMessages((prev) => prev.map(m => m.id === msg.data.id ? { ...m, ...msg.data } : m));
+            });
+
+            channel.subscribe("message:deleted", (msg) => {
+                setMessages((prev) => prev.map(m => m.id === msg.data.id ? { ...m, deletedAt: new Date().toISOString() } : m));
             });
 
             ablyRef.current = ably;
@@ -110,13 +148,18 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                 if (data.messages && Array.isArray(data.messages)) {
                     setMessages(data.messages);
                     if (data.limits) setLimits(data.limits);
+                    if (data.lastReadAt) {
+                        setLastReadAt(data.lastReadAt);
+                        lastReadRef.current = data.lastReadAt;
+                    }
                 }
+                markAsRead();
             }
         } catch (error) {
             console.error("[Chat] Ably setup error:", error);
             setIsLoading(false);
         }
-    }, [teamId, user?.id, workspaceId]);
+    }, [teamId, user?.id, workspaceId, markAsRead]);
 
     useEffect(() => {
         if (user?.id && teamId) {
@@ -149,15 +192,16 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
 
         const content = message;
         const currentAttachment = attachment;
+        const currentReplyTo = replyTo;
         const tempId = Date.now().toString();
 
-        // Optimistic update
         const optimisticMsg = {
             id: tempId,
             tempId,
             content,
             userId: user?.id,
             attachment: currentAttachment,
+            replyTo: currentReplyTo,
             createdAt: new Date().toISOString(),
             user: {
                 name: user?.fullName || user?.firstName || "You",
@@ -168,6 +212,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
         setMessages(prev => [...prev, optimisticMsg]);
         setMessage("");
         setAttachment(null);
+        setReplyTo(null);
 
         try {
             const res = await fetch("/api/chat", {
@@ -178,37 +223,60 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                     workspaceId,
                     teamId,
                     attachment: currentAttachment,
-                    tempId
+                    tempId,
+                    replyToId: currentReplyTo?.id
                 }),
             });
 
             if (!res.ok) {
                 const error = await res.json();
-                console.error("[Chat] Message send failed:", res.status, error);
-                // Rollback on error
                 setMessages(prev => prev.filter(m => m.tempId !== tempId));
-                
                 if (res.status === 403 && error.error?.includes("limit")) {
                     showUpgradePrompt("chat");
-                    return;
+                } else {
+                    toast.error(`Failed to send: ${error.error || "Unknown error"}`);
                 }
-                import("sonner").then(({ toast }) => toast.error(`Failed to send: ${error.error || "Unknown error"}`));
             } else {
-                // Message saved successfully — confirm from server response
                 const savedMsg = await res.json();
-                console.log("[Chat] Message saved to DB:", savedMsg.id);
-                // Replace optimistic msg id with real DB id
                 setMessages(prev => prev.map(m => m.tempId === tempId ? { ...savedMsg, user: m.user } : m));
+                markAsRead();
             }
         } catch (error) {
-            console.error("Failed to send message:", error);
             setMessages(prev => prev.filter(m => m.tempId !== tempId));
-            import("sonner").then(({ toast }) => toast.error("Failed to send message"));
+            toast.error("Failed to send message");
         }
     };
 
+    const togglePin = async (msg: any) => {
+        try {
+            const res = await fetch(`/api/chat?id=${msg.id}&workspaceId=${workspaceId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ isPinned: !msg.isPinned })
+            });
+            if (!res.ok) throw new Error("Failed to pin message");
+            toast.success(msg.isPinned ? "Message unpinned" : "Message pinned");
+        } catch (err) {
+            toast.error("Failed to update pin status");
+        }
+    };
+
+    const deleteMessage = async (msgId: string) => {
+        try {
+            const res = await fetch(`/api/chat?id=${msgId}&workspaceId=${workspaceId}`, {
+                method: "DELETE"
+            });
+            if (!res.ok) throw new Error("Failed to delete message");
+            toast.success("Message deleted");
+        } catch (err) {
+            toast.error("Failed to delete message");
+        }
+    };
+
+    const pinnedMessages = messages.filter(m => m.isPinned && !m.deletedAt);
+
     return (
-        <div className="flex flex-col h-full bg-white dark:bg-slate-950">
+        <div className="flex flex-col h-full bg-white dark:bg-slate-950 relative">
             {/* Chat Header */}
             <div className="p-4 border-b flex items-center justify-between bg-slate-50/50 dark:bg-slate-900/50">
                 <div className="flex items-center gap-2">
@@ -225,7 +293,41 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                         </div>
                     </div>
                 </div>
+
+                {pinnedMessages.length > 0 && (
+                    <div className="flex items-center gap-2">
+                         <Badge variant="outline" className="bg-amber-50 dark:bg-amber-900/20 text-amber-600 border-amber-200 dark:border-amber-800 text-[9px] font-black uppercase">
+                            <Pin className="h-3 w-3 mr-1" /> {pinnedMessages.length} Pinned
+                         </Badge>
+                    </div>
+                )}
             </div>
+
+            {/* Pinned Messages Bar */}
+            <AnimatePresence>
+                {pinnedMessages.length > 0 && (
+                    <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="bg-amber-50/50 dark:bg-amber-900/10 border-b border-amber-100 dark:border-amber-800/30 overflow-hidden"
+                    >
+                        {pinnedMessages.slice(0, 1).map(msg => (
+                            <div key={msg.id} className="p-2 px-4 flex items-center justify-between gap-4">
+                                <div className="flex items-center gap-2 min-w-0">
+                                    <Pin className="h-3 w-3 text-amber-600 shrink-0" />
+                                    <span className="text-[10px] font-medium text-amber-800 dark:text-amber-400 truncate">
+                                        Pinned: {msg.content}
+                                    </span>
+                                </div>
+                                <Button variant="ghost" size="icon" className="h-6 w-6 text-amber-600" onClick={() => togglePin(msg)}>
+                                    <PinOff className="h-3 w-3" />
+                                </Button>
+                            </div>
+                        ))}
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
@@ -240,55 +342,108 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                         <p className="text-sm">No messages yet. Start the conversation!</p>
                     </div>
                 ) : (
-                    messages.map((msg) => {
-                        const isMe = msg.userId === dbUser?.id || msg.userId === user?.id; // Fallback to Clerk ID just in case
+                    messages.map((msg, idx) => {
+                        const isMe = msg.userId === dbUser?.id || msg.userId === user?.id;
+                        const isNew = lastReadAt && msg.createdAt > lastReadAt && !isMe;
+                        const prevMsg = messages[idx - 1];
+                        const showUnreadDivider = isNew && (!prevMsg || prevMsg.createdAt <= lastReadAt!);
+                        
                         return (
-                            <div
-                                key={msg.id}
-                                className={`flex ${isMe ? "justify-end" : "justify-start"}`}
-                            >
-                                <div className={`flex gap-2 max-w-[80%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
-                                    <div className={`h-8 w-8 rounded-full shrink-0 flex items-center justify-center text-[10px] font-bold ${isMe ? "bg-purple-600 text-white" : "bg-slate-200 dark:bg-slate-800"}`}>
-                                        {msg.user?.name?.slice(0, 2).toUpperCase() || "U"}
+                            <div key={msg.id}>
+                                {showUnreadDivider && (
+                                    <div className="flex items-center gap-2 my-6">
+                                        <div className="h-[1px] flex-1 bg-rose-200 dark:bg-rose-900/30" />
+                                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-rose-500">New Messages</span>
+                                        <div className="h-[1px] flex-1 bg-rose-200 dark:bg-rose-900/30" />
                                     </div>
-                                    <div>
-                                        {!isMe && (
-                                            <p className="text-[10px] font-bold mb-1 ml-1 text-muted-foreground">
-                                                {msg.user?.name || "User"}
-                                            </p>
-                                        )}
-                                        <div
-                                            className={`rounded-2xl px-4 py-2 text-sm shadow-sm ${isMe
-                                                ? "bg-purple-600 text-white rounded-tr-none"
-                                                : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tl-none"
-                                                }`}
-                                        >
-                                            {msg.attachment && (
-                                                <div className="mb-2">
-                                                    {msg.attachment.category === "image" ? (
-                                                        <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" className="block relative h-48 w-full overflow-hidden rounded-lg">
-                                                            <Image
-                                                                src={msg.attachment.url}
-                                                                alt="Attachment"
-                                                                fill
-                                                                className="object-cover"
-                                                                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                                                            />
-                                                        </a>
+                                )}
+
+                                <div className={`flex group ${isMe ? "justify-end" : "justify-start"}`}>
+                                    <div className={`flex gap-3 max-w-[80%] ${isMe ? "flex-row-reverse" : "flex-row"}`}>
+                                        <div className={`h-8 w-8 rounded-xl shrink-0 flex items-center justify-center text-[10px] font-black ${isMe ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/20" : "bg-slate-200 dark:bg-slate-800"}`}>
+                                            {msg.user?.name?.slice(0, 2).toUpperCase() || "U"}
+                                        </div>
+                                        <div className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                                            <div className="flex items-center gap-2 mb-1 px-1">
+                                                {!isMe && <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">{msg.user?.name || "User"}</span>}
+                                                <span className="text-[8px] font-medium text-slate-400 uppercase tracking-tighter">
+                                                    {format(new Date(msg.createdAt), "HH:mm")}
+                                                </span>
+                                                {msg.isPinned && <Pin className="h-2.5 w-2.5 text-amber-500" />}
+                                            </div>
+
+                                            <div className="relative">
+                                                <div className={`rounded-2xl px-4 py-2.5 text-sm shadow-sm transition-all ${
+                                                    msg.deletedAt 
+                                                    ? "bg-slate-100 dark:bg-slate-900 text-slate-400 italic border border-slate-200 dark:border-slate-800" 
+                                                    : isMe 
+                                                        ? "bg-indigo-600 text-white rounded-tr-none" 
+                                                        : "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-slate-100 rounded-tl-none border border-slate-200/50 dark:border-slate-700/50"
+                                                }`}>
+                                                    {msg.deletedAt ? (
+                                                        <div className="flex items-center gap-2">
+                                                            <Trash2 className="h-3.5 w-3.5" />
+                                                            This message was deleted
+                                                        </div>
                                                     ) : (
-                                                        <a
-                                                            href={msg.attachment.url}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="flex items-center gap-2 p-2 bg-black/10 rounded-lg hover:bg-black/20 transition-colors"
-                                                        >
-                                                            <FileText className="h-4 w-4" />
-                                                            <span className="truncate max-w-[150px]">{msg.attachment.originalName}</span>
-                                                        </a>
+                                                        <>
+                                                            {msg.replyTo && (
+                                                                <div className={`mb-2 p-2 rounded-lg text-[10px] border-l-2 ${isMe ? "bg-black/10 border-white/30 text-white/70" : "bg-slate-200/50 dark:bg-slate-700/50 border-indigo-500 text-slate-500"}`}>
+                                                                    <div className="font-black uppercase tracking-tighter mb-0.5 flex items-center gap-1">
+                                                                        <Reply className="h-2.5 w-2.5" />
+                                                                        Replying to {msg.replyTo.userId === user?.id ? "you" : "someone"}
+                                                                    </div>
+                                                                    <span className="line-clamp-1">{msg.replyTo.content}</span>
+                                                                </div>
+                                                            )}
+                                                            {msg.attachment && (
+                                                                <div className="mb-2">
+                                                                    {msg.attachment.category === "image" ? (
+                                                                        <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" className="block relative h-48 w-64 overflow-hidden rounded-xl border border-white/10">
+                                                                            <Image src={msg.attachment.url} alt="Attachment" fill className="object-cover" />
+                                                                        </a>
+                                                                    ) : (
+                                                                        <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-black/10 rounded-xl hover:bg-black/20 transition-colors">
+                                                                            <FileText className="h-5 w-5" />
+                                                                            <div className="flex flex-col">
+                                                                                <span className="text-xs font-bold truncate max-w-[120px]">{msg.attachment.originalName}</span>
+                                                                                <span className="text-[8px] font-black uppercase opacity-60">Document</span>
+                                                                            </div>
+                                                                        </a>
+                                                                    )}
+                                                                </div>
+                                                            )}
+                                                            <div className="leading-relaxed whitespace-pre-wrap">{msg.content}</div>
+                                                        </>
                                                     )}
                                                 </div>
-                                            )}
-                                            {msg.content}
+
+                                                {/* Message Menu Trigger */}
+                                                {!msg.deletedAt && (
+                                                    <div className={`absolute top-0 ${isMe ? "-left-10" : "-right-10"} opacity-0 group-hover:opacity-100 transition-opacity`}>
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full">
+                                                                    <MoreVertical className="h-4 w-4 text-slate-400" />
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align={isMe ? "end" : "start"} className="rounded-xl border-slate-200 dark:border-slate-800 shadow-xl">
+                                                                <DropdownMenuItem onClick={() => setReplyTo(msg)} className="text-[10px] font-black uppercase tracking-widest gap-2">
+                                                                    <Reply className="h-3.5 w-3.5" /> Reply
+                                                                </DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => togglePin(msg)} className="text-[10px] font-black uppercase tracking-widest gap-2">
+                                                                    <Pin className="h-3.5 w-3.5" /> {msg.isPinned ? "Unpin" : "Pin"}
+                                                                </DropdownMenuItem>
+                                                                {isMe && (
+                                                                    <DropdownMenuItem onClick={() => deleteMessage(msg.id)} className="text-[10px] font-black uppercase tracking-widest gap-2 text-rose-500">
+                                                                        <Trash2 className="h-3.5 w-3.5" /> Delete
+                                                                    </DropdownMenuItem>
+                                                                )}
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
@@ -299,74 +454,108 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             </div>
 
             {/* Input Area */}
-            <div className="p-4 border-t bg-slate-50/50 dark:bg-slate-900/50">
-                {attachment && (
-                    <div className="mb-2 flex items-center justify-between p-2 bg-purple-50 dark:bg-purple-900/20 rounded-lg border border-purple-100 dark:border-purple-800">
-                        <div className="flex items-center gap-2 text-xs font-medium text-purple-700 dark:text-purple-300">
-                            {attachment.category === "image" ? <ImageIcon className="h-3 w-3" /> : <FileText className="h-3 w-3" />}
-                            <span className="truncate">{attachment.originalName}</span>
+            <div className="p-6 border-t bg-slate-50/50 dark:bg-slate-900/50">
+                {/* Reply Context */}
+                {replyTo && (
+                    <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: "auto", opacity: 1 }}
+                        className="mb-3 flex items-center justify-between p-3 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800/50"
+                    >
+                        <div className="flex items-center gap-3 overflow-hidden">
+                            <Reply className="h-4 w-4 text-indigo-500 shrink-0" />
+                            <div className="flex flex-col min-w-0">
+                                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Replying to {replyTo.user?.name}</span>
+                                <span className="text-xs text-slate-600 dark:text-slate-400 truncate">{replyTo.content}</span>
+                            </div>
                         </div>
-                        <Button variant="ghost" size="icon" className="h-4 w-4 rounded-full" onClick={() => setAttachment(null)}>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setReplyTo(null)}>
                             <X className="h-3 w-3" />
                         </Button>
-                    </div>
+                    </motion.div>
                 )}
-                <form onSubmit={sendMessage} className="flex gap-2">
-                    <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-                        <DialogTrigger asChild>
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                className="text-slate-500 hover:text-purple-600 shrink-0"
-                                disabled={!isConnected}
-                            >
-                                <Paperclip className="h-5 w-5" />
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Upload Attachment</DialogTitle>
-                            </DialogHeader>
-                            <FileUpload
-                                onChange={(url) => {
-                                    setAttachment({
-                                        url,
-                                        originalName: "Attachment",
-                                        category: url.match(/\.(jpeg|jpg|gif|png)$/) ? "image" : "document"
-                                    });
-                                    setIsUploadOpen(false);
-                                }}
-                                onRemove={() => setAttachment(null)}
-                            />
-                        </DialogContent>
-                    </Dialog>
-                    <Input
-                        placeholder={isLimitReached ? "Chat limit reached. Upgrade to continue." : attachment ? "Add a comment..." : "Type a message to your team..."}
-                        value={message}
-                        onChange={(e) => setMessage(e.target.value)}
-                        className="bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 focus-visible:ring-purple-500"
-                        disabled={!isConnected || isLimitReached}
-                    />
-                    <Button
-                        type="submit"
-                        size="icon"
-                        disabled={!isConnected || isLimitReached || (!message.trim() && !attachment)}
-                        className="bg-purple-600 hover:bg-purple-700 shrink-0"
+
+                {/* Attachment Context */}
+                {attachment && (
+                    <motion.div 
+                        initial={{ scale: 0.9, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="mb-3 flex items-center justify-between p-3 bg-purple-50 dark:bg-purple-900/20 rounded-2xl border border-purple-100 dark:border-purple-800/50"
                     >
-                        {isLimitReached ? <Lock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-                    </Button>
+                        <div className="flex items-center gap-3">
+                            {attachment.category === "image" ? <ImageIcon className="h-5 w-5 text-purple-500" /> : <FileText className="h-5 w-5 text-purple-500" />}
+                            <div className="flex flex-col">
+                                <span className="text-xs font-bold text-purple-700 dark:text-purple-300 truncate max-w-[200px]">{attachment.originalName}</span>
+                                <span className="text-[8px] font-black uppercase text-purple-400">Ready to send</span>
+                            </div>
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full" onClick={() => setAttachment(null)}>
+                            <X className="h-3 w-3" />
+                        </Button>
+                    </motion.div>
+                )}
+
+                <form onSubmit={sendMessage} className="flex gap-3">
+                    <div className="flex-1 flex gap-2 p-1 bg-white dark:bg-slate-950 rounded-[1.5rem] border border-slate-200 dark:border-slate-800 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-inner">
+                        <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+                            <DialogTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    className="text-slate-400 hover:text-indigo-600 shrink-0 h-10 w-10 rounded-full"
+                                    disabled={!isConnected}
+                                >
+                                    <Paperclip className="h-5 w-5" />
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent className="rounded-[2rem] border-slate-200 dark:border-slate-800 max-w-sm">
+                                <DialogHeader>
+                                    <DialogTitle className="text-xl font-black uppercase tracking-tight">Attach Assets</DialogTitle>
+                                </DialogHeader>
+                                <FileUpload
+                                    workspaceId={workspaceId}
+                                    onUploadComplete={(data) => {
+                                        setAttachment({
+                                            url: data.url || data.secure_url,
+                                            originalName: data.originalName || "Attachment",
+                                            category: (data.url || data.secure_url).match(/\.(jpeg|jpg|gif|png|webp)$/i) ? "image" : "document"
+                                        });
+                                        setIsUploadOpen(false);
+                                    }}
+                                />
+                            </DialogContent>
+                        </Dialog>
+                        <Input
+                            placeholder={isLimitReached ? "LIMIT REACHED" : "MESSAGE #TEAM..."}
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            className="border-none bg-transparent shadow-none focus-visible:ring-0 text-sm font-medium placeholder:text-[10px] placeholder:font-black placeholder:uppercase placeholder:tracking-[0.2em]"
+                            disabled={!isConnected || isLimitReached}
+                        />
+                        <Button
+                            type="submit"
+                            size="icon"
+                            disabled={!isConnected || isLimitReached || (!message.trim() && !attachment)}
+                            className="bg-indigo-600 hover:bg-indigo-700 shrink-0 h-10 w-10 rounded-full shadow-lg shadow-indigo-500/30"
+                        >
+                            {isLimitReached ? <Lock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                        </Button>
+                    </div>
                 </form>
+                
                 {isLimitReached && (
-                    <div className="mt-3 flex items-center justify-between p-2 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-800 animate-in fade-in slide-in-from-bottom-2">
-                         <div className="flex items-center gap-2">
-                             <Sparkles className="h-3 w-3 text-indigo-600" />
-                             <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Upgrade to unlock more messages</span>
+                    <div className="mt-4 flex items-center justify-between p-3 rounded-2xl bg-gradient-to-r from-indigo-500/10 to-purple-500/10 border border-indigo-500/20 backdrop-blur-sm">
+                         <div className="flex items-center gap-3">
+                             <div className="p-2 bg-indigo-500 rounded-lg shadow-lg shadow-indigo-500/20">
+                                <Sparkles className="h-4 w-4 text-white" />
+                             </div>
+                             <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600">Enterprise Chat Unlocked with Theta+</span>
                          </div>
                          <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="h-6 text-[9px] font-black uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 rounded-lg px-3"
+                            className="h-8 text-[10px] font-black uppercase tracking-widest bg-indigo-600 text-white hover:bg-indigo-700 rounded-xl px-4"
                             onClick={() => showUpgradePrompt("chat")}
                          >
                              Upgrade

@@ -14,6 +14,7 @@ const chatSchema = z.object({
     teamId: z.string().optional(),
     attachment: z.any().optional(),
     tempId: z.string().optional(),
+    replyToId: z.string().optional(),
 });
 
 export async function GET(req: Request) {
@@ -85,6 +86,16 @@ export async function GET(req: Request) {
                 teamId: teamId || null,
                 workspaceId: effectiveWorkspaceId as string,
                 projectId: teamId ? null : (projectId || null),
+                deletedAt: null, // Only fetch non-deleted messages or handle them in frontend
+            },
+            include: {
+                replyTo: {
+                    select: {
+                        id: true,
+                        content: true,
+                        userId: true,
+                    }
+                }
             },
             orderBy: { createdAt: "asc" },
             take: 100,
@@ -110,8 +121,19 @@ export async function GET(req: Request) {
         const limits = getPlanLimits((workspace?.plan as any) || "free");
         const count = await db.chatMessage.count({ where: { workspaceId: effectiveWorkspaceId as string } });
 
+        // Get unread info
+        let lastReadAt = null;
+        if (teamId) {
+            const membership = await db.teamMember.findUnique({
+                where: { teamId_userId: { teamId, userId: user.id } },
+                select: { lastReadAt: true }
+            });
+            lastReadAt = membership?.lastReadAt;
+        }
+
         return NextResponse.json({
             messages,
+            lastReadAt,
             limits: {
                 max: limits.maxChatMessages,
                 current: count,
@@ -182,7 +204,17 @@ export async function POST(req: Request) {
                 teamId: data.teamId || null,
                 userId: user.id as string,
                 attachment: (data.attachment as any) || null,
+                replyToId: data.replyToId || null,
             },
+            include: {
+                replyTo: {
+                    select: {
+                        id: true,
+                        content: true,
+                        userId: true,
+                    }
+                }
+            }
         });
 
         console.log(`[Chat POST] Message saved. id=${messageRaw.id}, teamId=${data.teamId}, workspaceId=${data.workspaceId}`);
@@ -214,5 +246,103 @@ export async function POST(req: Request) {
             { error: "Internal server error" },
             { status: 500 }
         );
+    }
+}
+
+export async function PATCH(req: Request) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        const { searchParams } = new URL(req.url);
+        const messageId = searchParams.get("id");
+        const workspaceId = searchParams.get("workspaceId");
+
+        if (!messageId || !workspaceId) {
+            return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+        }
+
+        const db = getPrismaClient(workspaceId);
+        const body = await req.json();
+
+        // Check if user is owner of message (for editing) or has workspace access (for pinning)
+        const message = await db.chatMessage.findUnique({
+            where: { id: messageId }
+        });
+
+        if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+
+        const updateData: any = {};
+        if (body.content !== undefined && message.userId === user.id) {
+            updateData.content = body.content;
+            updateData.isEdited = true;
+        }
+        if (body.isPinned !== undefined) {
+            const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+            if (hasAccess) updateData.isPinned = body.isPinned;
+        }
+
+        const updated = await db.chatMessage.update({
+            where: { id: messageId },
+            data: updateData,
+            include: {
+                replyTo: {
+                    select: { id: true, content: true, userId: true }
+                }
+            }
+        });
+
+        // Publish update to Ably
+        const channelName = updated.teamId
+            ? `team:${updated.teamId}:chat`
+            : getChatChannel(updated.workspaceId, updated.projectId);
+        
+        await publishToChannel(channelName, "message:updated", updated);
+
+        return NextResponse.json(updated);
+    } catch (error) {
+        console.error("Chat PATCH error:", error);
+        return NextResponse.json({ error: "Internal error" }, { status: 500 });
+    }
+}
+
+export async function DELETE(req: Request) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        const { searchParams } = new URL(req.url);
+        const messageId = searchParams.get("id");
+        const workspaceId = searchParams.get("workspaceId");
+
+        if (!messageId || !workspaceId) {
+            return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+        }
+
+        const db = getPrismaClient(workspaceId);
+        const message = await db.chatMessage.findUnique({
+            where: { id: messageId }
+        });
+
+        if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+        if (message.userId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+        // Soft delete
+        const deleted = await db.chatMessage.update({
+            where: { id: messageId },
+            data: { deletedAt: new Date() }
+        });
+
+        // Publish delete to Ably
+        const channelName = deleted.teamId
+            ? `team:${deleted.teamId}:chat`
+            : getChatChannel(deleted.workspaceId, deleted.projectId);
+        
+        await publishToChannel(channelName, "message:deleted", { id: messageId });
+
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error("Chat DELETE error:", error);
+        return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 }

@@ -413,6 +413,7 @@ model TeamMember {
   userId    String   @db.ObjectId
   projectId String?  @db.ObjectId
   role      String   @default("member")
+  lastReadAt DateTime @default(now())
   createdAt DateTime @default(now())
 
   team    Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
@@ -498,6 +499,15 @@ model ChatMessage {
   teamId      String?  @db.ObjectId
   userId      String   @db.ObjectId
   attachment  Json?    @db.Json
+  
+  isPinned    Boolean  @default(false)
+  isEdited    Boolean  @default(false)
+  deletedAt   DateTime?
+  
+  replyToId   String?  @db.ObjectId
+  replyTo     ChatMessage? @relation("ChatReplies", fields: [replyToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies     ChatMessage[] @relation("ChatReplies")
+
   createdAt   DateTime @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
