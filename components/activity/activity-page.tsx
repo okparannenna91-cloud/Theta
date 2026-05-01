@@ -101,7 +101,7 @@ export default function ActivityPage() {
         }
     }, [inView, hasNextPage, fetchNextPage]);
 
-    const activities = data?.pages.flatMap(page => page.activities) || [];
+    const activities = useMemo(() => data?.pages.flatMap(page => page.activities) || [], [data?.pages]);
 
     // Group activities by date
     const groupedActivities = useMemo(() => {
