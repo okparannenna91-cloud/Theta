@@ -69,17 +69,23 @@ export default function ResourceHeatmap({ tasks, startDate, daysCount, cellWidth
                                         <div 
                                             style={{ width: cellWidth }}
                                             className={cn(
-                                                "h-full border-r border-white/5 transition-colors flex flex-col justify-end p-1",
+                                                "h-full border-r border-white/5 transition-all duration-300 flex flex-col justify-end p-1 relative",
                                                 count === 0 ? "bg-transparent" : 
-                                                isOverloaded ? "bg-rose-500/20" : "bg-emerald-500/10"
+                                                isOverloaded ? "bg-rose-500/10" : "bg-emerald-500/5"
                                             )}
                                         >
+                                            {isOverloaded && (
+                                                <div className="absolute top-2 left-1/2 -translate-x-1/2 animate-bounce">
+                                                    <AlertTriangle className="h-3 w-3 text-rose-500" />
+                                                </div>
+                                            )}
+                                            
                                             <div 
                                                 className={cn(
                                                     "w-full rounded-sm transition-all duration-700",
-                                                    isOverloaded ? "bg-rose-500" : "bg-emerald-500"
+                                                    isOverloaded ? "bg-rose-500 shadow-[0_0_15px_rgba(244,63,94,0.3)]" : "bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.1)]"
                                                 )}
-                                                style={{ height: `${intensity * 100}%`, opacity: 0.3 + (intensity * 0.7) }}
+                                                style={{ height: `${intensity * 100}%`, opacity: 0.4 + (intensity * 0.6) }}
                                             />
                                         </div>
                                     </TooltipTrigger>

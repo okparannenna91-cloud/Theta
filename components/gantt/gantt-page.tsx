@@ -25,12 +25,16 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import TimelineCanvas from "../timeline/timeline-canvas";
 import { MotionWrapper } from "@/components/common/motion-wrapper";
+import PresenceAvatars from "./presence-avatars";
+import AIScheduleAssistant from "./ai-assistant";
+import { toPng } from "html-to-image";
 
 export default function GanttPage() {
     const { activeWorkspaceId } = useWorkspace();
-    const [zoomLevel, setZoomLevel] = useState<"day" | "week" | "month" | "quarter">("week");
+    const [zoomLevel, setZoomLevel] = useState<"hour" | "day" | "week" | "month" | "quarter" | "year">("week");
     const [searchQuery, setSearchQuery] = useState("");
     const [isFullScreen, setIsFullScreen] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
 
     const { data: tasksData, isLoading } = useQuery({
         queryKey: ["timeline-tasks", activeWorkspaceId],
@@ -42,6 +46,28 @@ export default function GanttPage() {
         },
         enabled: !!activeWorkspaceId
     });
+
+    const handleExport = async () => {
+        const element = document.getElementById("gantt-capture-area");
+        if (!element) return;
+        
+        setIsExporting(true);
+        try {
+            const dataUrl = await toPng(element, { 
+                quality: 0.95,
+                backgroundColor: "#020617",
+                style: { borderRadius: '0' }
+            });
+            const link = document.createElement('a');
+            link.download = `theta-gantt-${new Date().getTime()}.png`;
+            link.href = dataUrl;
+            link.click();
+        } catch (err) {
+            console.error('Export failed', err);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     const tasks = tasksData || [];
 
@@ -85,29 +111,33 @@ export default function GanttPage() {
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3">
-                    <div className="relative group w-64">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground transition-colors group-focus-within:text-primary" />
-                        <Input 
-                            placeholder="FILTER TIMELINE..." 
-                            className="h-10 pl-10 rounded-2xl text-[10px] font-black uppercase tracking-widest border-white/5 bg-secondary/30 focus-visible:ring-primary/30"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
+                <div className="flex items-center gap-6">
+                    {activeWorkspaceId && <PresenceAvatars workspaceId={activeWorkspaceId} />}
+                    
+                    <div className="flex items-center gap-3 border-l border-white/10 pl-6">
+                        <div className="relative group w-64">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground transition-colors group-focus-within:text-primary" />
+                            <Input 
+                                placeholder="FILTER TIMELINE..." 
+                                className="h-10 pl-10 rounded-2xl text-[10px] font-black uppercase tracking-widest border-white/5 bg-secondary/30 focus-visible:ring-primary/30"
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        
+                        <Button 
+                            variant="outline" 
+                            size="icon" 
+                            className="rounded-2xl h-10 w-10 border-white/10 bg-white/5"
+                            onClick={() => setIsFullScreen(!isFullScreen)}
+                        >
+                            {isFullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+                        </Button>
+                        
+                        <Button className="rounded-2xl h-10 shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] px-6">
+                            <Plus className="h-3.5 w-3.5 mr-2" /> Add Phase
+                        </Button>
                     </div>
-                    
-                    <Button 
-                        variant="outline" 
-                        size="icon" 
-                        className="rounded-2xl h-10 w-10 border-white/10 bg-white/5"
-                        onClick={() => setIsFullScreen(!isFullScreen)}
-                    >
-                        {isFullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                    </Button>
-                    
-                    <Button className="rounded-2xl h-10 shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] px-6">
-                        <Plus className="h-3.5 w-3.5 mr-2" /> Add Phase
-                    </Button>
                 </div>
             </header>
 
@@ -145,14 +175,15 @@ export default function GanttPage() {
                 </div>
             </div>
 
-            {/* The Main Gantt Canvas */}
-            <div className="flex-1 relative overflow-hidden">
+            <div className="flex-1 relative overflow-hidden" id="gantt-capture-area">
                 <TimelineCanvas 
                     tasks={tasks} 
                     zoomLevel={zoomLevel} 
                     searchQuery={searchQuery} 
                 />
             </div>
+
+            <AIScheduleAssistant tasks={tasks} />
 
             {/* Action Bar Footer */}
             <footer className="h-14 bg-background/80 backdrop-blur-xl border-t flex items-center justify-between px-8 z-30">
@@ -163,8 +194,14 @@ export default function GanttPage() {
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
-                    <Button variant="ghost" size="sm" className="rounded-xl h-8 text-[9px] font-black uppercase tracking-widest">
-                        <Download className="h-3 w-3 mr-2" /> Export PDF
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        disabled={isExporting}
+                        className="rounded-xl h-8 text-[9px] font-black uppercase tracking-widest"
+                        onClick={handleExport}
+                    >
+                        <Download className="h-3 w-3 mr-2" /> {isExporting ? "Exporting..." : "Export PNG"}
                     </Button>
                 </div>
             </footer>
