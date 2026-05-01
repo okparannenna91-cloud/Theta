@@ -6,8 +6,8 @@ export async function createActivity(
   action: string,
   entityType: string,
   entityId: string,
-  projectId?: string,
-  metadata?: any
+  metadata?: any,
+  projectId?: string
 ) {
   try {
     const db = getPrismaClient(workspaceId);
