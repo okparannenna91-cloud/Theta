@@ -188,6 +188,7 @@ model Project {
   projectTeams ProjectTeam[]
   chatMessages ChatMessage[]
   documents    Document[]
+  activities   Activity[]
 
   @@map("projects")
 }
@@ -413,10 +414,14 @@ model Notification {
   message     String
   type        String
   read        Boolean  @default(false)
+  archived    Boolean  @default(false)
+  pinned      Boolean  @default(false)
+  priority    String   @default("medium") // low, medium, high
   metadata    Json?    @db.Json
   workspaceId String   @db.ObjectId
   userId      String   @db.ObjectId
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -431,11 +436,13 @@ model Activity {
   entityId    String
   workspaceId String   @db.ObjectId
   userId      String   @db.ObjectId
+  projectId   String?  @db.ObjectId
   metadata    Json?    @db.Json
   createdAt   DateTime @default(now())
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@map("activities")
 }

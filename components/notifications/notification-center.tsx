@@ -58,10 +58,10 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
 
     const markAllReadMutation = useMutation({
         mutationFn: async () => {
-            await fetch("/api/notifications", {
+            await fetch(`/api/notifications?workspaceId=${workspaceId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ workspaceId }),
+                body: JSON.stringify({ markAllAsRead: true }),
             });
         },
         onSuccess: () => {
@@ -176,8 +176,8 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
                 </ScrollArea>
 
                 <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/20 text-center">
-                    <Button variant="ghost" size="sm" className="w-full text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-indigo-600">
-                        View all activity
+                    <Button asChild variant="ghost" size="sm" className="w-full text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-indigo-600">
+                        <Link href="/notifications">View all notifications</Link>
                     </Button>
                 </div>
             </PopoverContent>

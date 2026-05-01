@@ -6,6 +6,7 @@ export async function createActivity(
   action: string,
   entityType: string,
   entityId: string,
+  projectId?: string,
   metadata?: any
 ) {
   try {
@@ -17,6 +18,7 @@ export async function createActivity(
         action,
         entityType,
         entityId,
+        projectId,
         metadata: metadata || {},
       },
     });

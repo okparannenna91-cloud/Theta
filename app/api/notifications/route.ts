@@ -9,23 +9,65 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const workspaceId = searchParams.get("workspaceId");
+        const filter = searchParams.get("filter") || "all";
+        const skip = parseInt(searchParams.get("skip") || "0");
+        const take = parseInt(searchParams.get("take") || "20");
 
         if (!workspaceId) return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
 
         const db = getPrismaClient(workspaceId);
         
-        const notifications = await db.notification.findMany({
-            where: {
-                workspaceId,
-                userId: user.id
-            },
-            orderBy: { createdAt: "desc" },
-            take: 100 // Limit to 100 latest
+        const where: any = {
+            workspaceId,
+            userId: user.id
+        };
+
+        // Filter logic
+        switch (filter) {
+            case "unread":
+                where.read = false;
+                where.archived = false;
+                break;
+            case "mentions":
+                where.type = "mention";
+                where.archived = false;
+                break;
+            case "assigned":
+                where.type = "task_assigned";
+                where.archived = false;
+                break;
+            case "reminders":
+                where.type = "reminder";
+                where.archived = false;
+                break;
+            case "archived":
+                where.archived = true;
+                break;
+            default:
+                where.archived = false;
+                break;
+        }
+
+        const [notifications, total, unreadCount] = await Promise.all([
+            db.notification.findMany({
+                where,
+                orderBy: [
+                    { pinned: "desc" },
+                    { createdAt: "desc" }
+                ],
+                skip,
+                take
+            }),
+            db.notification.count({ where }),
+            db.notification.count({ where: { workspaceId, userId: user.id, read: false, archived: false } })
+        ]);
+
+        return NextResponse.json({ 
+            notifications, 
+            total,
+            unreadCount,
+            hasMore: skip + take < total
         });
-
-        const unreadCount = notifications.filter((n: any) => !n.read).length;
-
-        return NextResponse.json({ notifications, unreadCount });
     } catch (error) {
         console.error("Fetch notifications error:", error);
         return NextResponse.json({ error: "Internal error" }, { status: 500 });
@@ -43,22 +85,27 @@ export async function PATCH(req: Request) {
         if (!workspaceId) return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
 
         const body = await req.json();
-        const { notificationId, markAllAsRead } = body;
+        const { notificationId, markAllAsRead, archived, pinned, read } = body;
 
         const db = getPrismaClient(workspaceId);
 
         if (markAllAsRead) {
             await db.notification.updateMany({
-                where: { workspaceId, userId: user.id, read: false },
+                where: { workspaceId, userId: user.id, read: false, archived: false },
                 data: { read: true }
             });
             return NextResponse.json({ success: true });
         }
 
         if (notificationId) {
+            const data: any = {};
+            if (read !== undefined) data.read = read;
+            if (archived !== undefined) data.archived = archived;
+            if (pinned !== undefined) data.pinned = pinned;
+
             const updated = await db.notification.update({
                 where: { id: notificationId },
-                data: { read: true }
+                data
             });
             return NextResponse.json(updated);
         }
