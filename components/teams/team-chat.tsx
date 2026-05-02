@@ -92,6 +92,45 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
         }
     }, [teamId, workspaceId]);
 
+    // ─── Standalone history fetch (always runs on mount, independent of Ably) ───
+    const fetchMessages = useCallback(async (cursorParam?: string | null) => {
+        try {
+            if (!cursorParam) setIsLoading(true);
+            const url = `/api/chat?workspaceId=${workspaceId}&teamId=${teamId}${
+                cursorParam ? `&cursor=${cursorParam}` : ""
+            }`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error("Failed to load messages");
+            const data = await res.json();
+            if (data.messages && Array.isArray(data.messages)) {
+                if (cursorParam) {
+                    // Prepending older messages
+                    const scrollNode = scrollRef.current;
+                    const oldScrollHeight = scrollNode ? scrollNode.scrollHeight : 0;
+                    isPrependingRef.current = true;
+                    setMessages(prev => [...data.messages, ...prev]);
+                    requestAnimationFrame(() => {
+                        if (scrollNode) scrollNode.scrollTop = scrollNode.scrollHeight - oldScrollHeight;
+                    });
+                } else {
+                    setMessages(data.messages);
+                }
+                setCursor(data.nextCursor);
+                setHasMore(!!data.nextCursor);
+                if (data.limits) setLimits(data.limits);
+                if (data.lastReadAt && !cursorParam) {
+                    setLastReadAt(data.lastReadAt);
+                    lastReadRef.current = data.lastReadAt;
+                }
+                if (!cursorParam) markAsRead();
+            }
+        } catch (err) {
+            console.error("[Chat] Failed to fetch messages:", err);
+        } finally {
+            if (!cursorParam) setIsLoading(false);
+        }
+    }, [teamId, workspaceId, markAsRead]);
+
     const connectAbly = useCallback(async () => {
         if (!user?.id || !teamId) return;
 
@@ -193,27 +232,23 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             ablyRef.current = ably;
             channelRef.current = channel;
 
-            // Fetch history
-            const historyRes = await fetch(`/api/chat?workspaceId=${workspaceId}&teamId=${teamId}`);
-            if (historyRes.ok) {
-                const data = await historyRes.json();
-                if (data.messages && Array.isArray(data.messages)) {
-                    setMessages(data.messages);
-                    setCursor(data.nextCursor);
-                    setHasMore(!!data.nextCursor);
-                    if (data.limits) setLimits(data.limits);
-                    if (data.lastReadAt) {
-                        setLastReadAt(data.lastReadAt);
-                        lastReadRef.current = data.lastReadAt;
-                    }
-                }
-                markAsRead();
-            }
+            // Ably connected — if messages haven't loaded yet, trigger a fetch
+            ably.connection.once("connected", () => {
+                if (messages.length === 0) fetchMessages();
+            });
+
         } catch (error) {
             console.error("[Chat] Ably setup error:", error);
             setIsLoading(false);
         }
-    }, [teamId, user?.id, user?.fullName, user?.firstName, user?.imageUrl, workspaceId, markAsRead]);
+    }, [teamId, user?.id, user?.fullName, user?.firstName, user?.imageUrl, workspaceId, markAsRead, fetchMessages]);
+
+    // Fetch messages independently on mount/teamId change
+    useEffect(() => {
+        if (teamId && workspaceId) {
+            fetchMessages();
+        }
+    }, [teamId, workspaceId, fetchMessages]);
 
     useEffect(() => {
         if (user?.id && teamId) {
@@ -238,27 +273,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
         if (!hasMore || isFetchingMore || !cursor) return;
         setIsFetchingMore(true);
         try {
-            const res = await fetch(`/api/chat?workspaceId=${workspaceId}&teamId=${teamId}&cursor=${cursor}`);
-            if (res.ok) {
-                const data = await res.json();
-                if (data.messages && data.messages.length > 0) {
-                    const scrollNode = scrollRef.current;
-                    const oldScrollHeight = scrollNode ? scrollNode.scrollHeight : 0;
-                    
-                    isPrependingRef.current = true;
-                    setMessages(prev => [...data.messages, ...prev]);
-                    setCursor(data.nextCursor);
-                    setHasMore(!!data.nextCursor);
-                    
-                    requestAnimationFrame(() => {
-                        if (scrollNode) {
-                            scrollNode.scrollTop = scrollNode.scrollHeight - oldScrollHeight;
-                        }
-                    });
-                }
-            }
-        } catch (error) {
-            console.error("Failed to fetch older messages", error);
+            await fetchMessages(cursor);
         } finally {
             setIsFetchingMore(false);
         }
