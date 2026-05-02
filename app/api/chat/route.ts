@@ -33,6 +33,7 @@ export async function GET(req: Request) {
         const workspaceId = searchParams.get("workspaceId");
         const projectId = searchParams.get("projectId");
         const teamId = searchParams.get("teamId");
+        const cursor = searchParams.get("cursor");
 
         // Determine workspaceId and DB shard
         let effectiveWorkspaceId = workspaceId;
@@ -85,7 +86,8 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId or teamId is required" }, { status: 400 });
         }
 
-        // Get chat messages without include since users are on Shard 1
+        // Get chat messages using cursor-based pagination
+        const take = 50;
         const messagesRaw = await db.chatMessage.findMany({
             where: {
                 teamId: teamId || null,
@@ -93,6 +95,10 @@ export async function GET(req: Request) {
                 projectId: teamId ? null : (projectId || null),
                 deletedAt: null, // Only fetch non-deleted messages or handle them in frontend
             },
+            take: take + 1,
+            skip: cursor ? 1 : 0,
+            cursor: cursor ? { id: cursor } : undefined,
+            orderBy: { createdAt: "desc" },
             include: {
                 replyTo: {
                     select: {
@@ -101,10 +107,17 @@ export async function GET(req: Request) {
                         userId: true,
                     }
                 }
-            },
-            orderBy: { createdAt: "asc" },
-            take: 100,
+            }
         });
+
+        let nextCursor = null;
+        if (messagesRaw.length > take) {
+            const nextItem = messagesRaw.pop(); // Remove the extra item
+            nextCursor = nextItem?.id || null;
+        }
+
+        // Reverse to return them in chronological order
+        messagesRaw.reverse();
 
         // Manually attach user info from primary DB
         const uniqueUserIds = [...new Set(messagesRaw.map(m => m.userId))];
@@ -139,6 +152,7 @@ export async function GET(req: Request) {
         return NextResponse.json({
             messages,
             lastReadAt,
+            nextCursor,
             limits: {
                 max: limits.maxChatMessages,
                 current: count,

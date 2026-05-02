@@ -28,6 +28,15 @@ export async function POST(req: Request) {
             }
         });
 
+        // Broadcast the read receipt to Ably
+        const { publishToChannel, getChatChannel } = await import("@/lib/ably");
+        const channelName = `team:${teamId}:chat`;
+        await publishToChannel(channelName, "read:updated", {
+            userId: user.id,
+            teamId,
+            timestamp: new Date().toISOString()
+        });
+
         return NextResponse.json({ success: true });
     } catch (error) {
         console.error("Chat read update error:", error);

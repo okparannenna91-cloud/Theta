@@ -55,10 +55,19 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
     const [dbUser, setDbUser] = useState<any>(null);
     const [replyTo, setReplyTo] = useState<any>(null);
     
+    const [cursor, setCursor] = useState<string | null>(null);
+    const [hasMore, setHasMore] = useState(false);
+    const [isFetchingMore, setIsFetchingMore] = useState(false);
+    const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
+    const [typingUsers, setTypingUsers] = useState<Record<string, {name: string, timestamp: number}>>({});
+    const [readReceipts, setReadReceipts] = useState<Record<string, string>>({});
+    
     const ablyRef = useRef<Ably.Realtime | null>(null);
     const channelRef = useRef<Ably.RealtimeChannel | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const lastReadRef = useRef<string | null>(null);
+    const lastTypedRef = useRef<number>(0);
+    const isPrependingRef = useRef(false);
 
     useEffect(() => {
         fetch("/api/auth/me")
@@ -132,6 +141,55 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                 setMessages((prev) => prev.map(m => m.id === msg.data.id ? { ...m, deletedAt: new Date().toISOString() } : m));
             });
 
+            channel.subscribe("typing", (msg) => {
+                if (msg.data.userId === user.id) return;
+                setTypingUsers(prev => ({
+                    ...prev,
+                    [msg.data.userId]: { name: msg.data.name, timestamp: Date.now() }
+                }));
+                setTimeout(() => {
+                    setTypingUsers(prev => {
+                        const now = Date.now();
+                        const next = { ...prev };
+                        let changed = false;
+                        for (const id in next) {
+                            if (now - next[id].timestamp > 2500) {
+                                delete next[id];
+                                changed = true;
+                            }
+                        }
+                        return changed ? next : prev;
+                    });
+                }, 3000);
+            });
+
+            channel.subscribe("read:updated", (msg) => {
+                const { userId, timestamp } = msg.data;
+                if (userId !== user.id) {
+                    setReadReceipts(prev => ({ ...prev, [userId]: timestamp }));
+                }
+            });
+
+            channel.presence.enter({
+                id: user.id,
+                name: user.fullName || user.firstName || "User",
+                imageUrl: user.imageUrl
+            });
+
+            channel.presence.subscribe(['enter', 'leave', 'update'], () => {
+                channel.presence.get((err, members) => {
+                    if (!err && members) {
+                        setOnlineUsers(members.map(m => m.data));
+                    }
+                });
+            });
+
+            channel.presence.get((err, members) => {
+                if (!err && members) {
+                    setOnlineUsers(members.map(m => m.data));
+                }
+            });
+
             ablyRef.current = ably;
             channelRef.current = channel;
 
@@ -141,6 +199,8 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                 const data = await historyRes.json();
                 if (data.messages && Array.isArray(data.messages)) {
                     setMessages(data.messages);
+                    setCursor(data.nextCursor);
+                    setHasMore(!!data.nextCursor);
                     if (data.limits) setLimits(data.limits);
                     if (data.lastReadAt) {
                         setLastReadAt(data.lastReadAt);
@@ -168,10 +228,61 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
     }, [connectAbly, user?.id, teamId]);
 
     useEffect(() => {
-        if (scrollRef.current) {
+        if (scrollRef.current && !isPrependingRef.current) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
+        isPrependingRef.current = false;
     }, [messages]);
+
+    const fetchOlderMessages = async () => {
+        if (!hasMore || isFetchingMore || !cursor) return;
+        setIsFetchingMore(true);
+        try {
+            const res = await fetch(`/api/chat?workspaceId=${workspaceId}&teamId=${teamId}&cursor=${cursor}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.messages && data.messages.length > 0) {
+                    const scrollNode = scrollRef.current;
+                    const oldScrollHeight = scrollNode ? scrollNode.scrollHeight : 0;
+                    
+                    isPrependingRef.current = true;
+                    setMessages(prev => [...data.messages, ...prev]);
+                    setCursor(data.nextCursor);
+                    setHasMore(!!data.nextCursor);
+                    
+                    requestAnimationFrame(() => {
+                        if (scrollNode) {
+                            scrollNode.scrollTop = scrollNode.scrollHeight - oldScrollHeight;
+                        }
+                    });
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch older messages", error);
+        } finally {
+            setIsFetchingMore(false);
+        }
+    };
+
+    const handleScroll = () => {
+        if (!scrollRef.current) return;
+        if (scrollRef.current.scrollTop === 0 && hasMore && !isFetchingMore) {
+            fetchOlderMessages();
+        }
+    };
+
+    const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setMessage(e.target.value);
+        if (!channelRef.current || !user?.id) return;
+        const now = Date.now();
+        if (now - lastTypedRef.current > 2000) {
+            channelRef.current.publish("typing", {
+                userId: user.id,
+                name: user.fullName || user.firstName || "Someone"
+            });
+            lastTypedRef.current = now;
+        }
+    };
 
     const isLimitReached = limits.max !== -1 && limits.current >= limits.max;
 
@@ -269,6 +380,21 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
 
     const pinnedMessages = messages.filter(m => m.isPinned && !m.deletedAt);
 
+    const latestSeenMessageMap: Record<string, string[]> = {};
+    Object.entries(readReceipts).forEach(([uid, t]) => {
+        let lastSeenMsgId = null;
+        for (let i = messages.length - 1; i >= 0; i--) {
+            if (messages[i].createdAt <= t) {
+                lastSeenMsgId = messages[i].id;
+                break;
+            }
+        }
+        if (lastSeenMsgId) {
+            if (!latestSeenMessageMap[lastSeenMsgId]) latestSeenMessageMap[lastSeenMsgId] = [];
+            latestSeenMessageMap[lastSeenMsgId].push(uid);
+        }
+    });
+
     return (
         <div className="flex flex-col h-full bg-white dark:bg-slate-950 relative">
             {/* Chat Header */}
@@ -282,7 +408,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                         <div className="flex items-center gap-1">
                             <div className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`} />
                             <span className="text-[10px] text-muted-foreground uppercase tracking-wider">
-                                {isConnected ? "Live" : "Connecting..."}
+                                {isConnected ? `${onlineUsers.length} Online` : "Connecting..."}
                             </span>
                         </div>
                     </div>
@@ -324,7 +450,12 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             </AnimatePresence>
 
             {/* Messages Area */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef} onScroll={handleScroll}>
+                {isFetchingMore && (
+                    <div className="flex justify-center py-2">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    </div>
+                )}
                 {isLoading && messages.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
                         <Loader2 className="h-8 w-8 animate-spin mb-2" />
@@ -437,6 +568,21 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                                                         </DropdownMenu>
                                                     </div>
                                                 )}
+                                                {/* Read Receipts */}
+                                                {latestSeenMessageMap[msg.id] && (
+                                                    <div className={`flex items-center gap-1 mt-1 px-1 ${isMe ? "justify-end" : "justify-start"}`}>
+                                                        <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">Seen by</span>
+                                                        <div className="flex -space-x-1">
+                                                            {latestSeenMessageMap[msg.id].map(uid => {
+                                                                const oUser = onlineUsers.find(u => u.id === uid);
+                                                                if (oUser && oUser.imageUrl) {
+                                                                    return <img key={uid} src={oUser.imageUrl} className="h-3 w-3 rounded-full border border-white" alt="seen" />
+                                                                }
+                                                                return <div key={uid} className="h-3 w-3 rounded-full bg-slate-300 border border-white" />
+                                                            })}
+                                                        </div>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
                                     </div>
@@ -448,7 +594,13 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             </div>
 
             {/* Input Area */}
-            <div className="p-6 border-t bg-slate-50/50 dark:bg-slate-900/50">
+            <div className="p-6 border-t bg-slate-50/50 dark:bg-slate-900/50 relative">
+                {Object.keys(typingUsers).length > 0 && (
+                    <div className="absolute -top-6 left-6 text-[10px] text-indigo-500 font-bold uppercase tracking-widest flex items-center gap-1">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        {Object.values(typingUsers).map(u => u.name).join(", ")} {Object.keys(typingUsers).length === 1 ? "is" : "are"} typing...
+                    </div>
+                )}
                 {/* Reply Context */}
                 {replyTo && (
                     <motion.div 
@@ -523,7 +675,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                         <Input
                             placeholder={isLimitReached ? "LIMIT REACHED" : "MESSAGE #TEAM..."}
                             value={message}
-                            onChange={(e) => setMessage(e.target.value)}
+                            onChange={handleInputChange}
                             className="border-none bg-transparent shadow-none focus-visible:ring-0 text-sm font-medium placeholder:text-[10px] placeholder:font-black placeholder:uppercase placeholder:tracking-[0.2em]"
                             disabled={!isConnected || isLimitReached}
                         />
