@@ -131,6 +131,7 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
+        // 1. Delete from shard (Authoritative)
         await db.teamMember.delete({
             where: {
                 teamId_userId: {
@@ -139,6 +140,21 @@ export async function DELETE(
                 },
             },
         });
+
+        // 2. Delete from primary (Legacy/Sync)
+        try {
+            await prisma.teamMember.delete({
+                where: {
+                    teamId_userId: {
+                        teamId: params.id,
+                        userId: userIdToRemove,
+                    },
+                },
+            });
+        } catch (e) {
+            // Ignore if already deleted from primary
+            console.log(`[Team Members DELETE] Primary record already gone or missing: ${userIdToRemove}`);
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {
@@ -189,6 +205,7 @@ export async function PATCH(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
+        // 1. Update shard (Authoritative)
         const member = await db.teamMember.update({
             where: {
                 teamId_userId: {
@@ -198,6 +215,21 @@ export async function PATCH(
             },
             data: { role },
         });
+
+        // 2. Update primary (Legacy/Sync)
+        try {
+            await prisma.teamMember.update({
+                where: {
+                    teamId_userId: {
+                        teamId: params.id,
+                        userId: userId,
+                    },
+                },
+                data: { role },
+            });
+        } catch (e) {
+            console.log(`[Team Members PATCH] Primary record missing for role update: ${userId}`);
+        }
 
         return NextResponse.json(member);
     } catch (error) {
