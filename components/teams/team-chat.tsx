@@ -177,18 +177,18 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             });
 
             channel.presence.subscribe(['enter', 'leave', 'update'], () => {
-                channel.presence.get((err, members) => {
-                    if (!err && members) {
+                channel.presence.get().then((members) => {
+                    if (members) {
                         setOnlineUsers(members.map(m => m.data));
                     }
-                });
+                }).catch(console.error);
             });
 
-            channel.presence.get((err, members) => {
-                if (!err && members) {
+            channel.presence.get().then((members) => {
+                if (members) {
                     setOnlineUsers(members.map(m => m.data));
                 }
-            });
+            }).catch(console.error);
 
             ablyRef.current = ably;
             channelRef.current = channel;
@@ -213,7 +213,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             console.error("[Chat] Ably setup error:", error);
             setIsLoading(false);
         }
-    }, [teamId, user?.id, workspaceId, markAsRead]);
+    }, [teamId, user?.id, user?.fullName, user?.firstName, user?.imageUrl, workspaceId, markAsRead]);
 
     useEffect(() => {
         if (user?.id && teamId) {
@@ -576,7 +576,11 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                                                             {latestSeenMessageMap[msg.id].map(uid => {
                                                                 const oUser = onlineUsers.find(u => u.id === uid);
                                                                 if (oUser && oUser.imageUrl) {
-                                                                    return <img key={uid} src={oUser.imageUrl} className="h-3 w-3 rounded-full border border-white" alt="seen" />
+                                                                    return (
+                                                                        <div key={uid} className="relative h-3 w-3 rounded-full border border-white overflow-hidden">
+                                                                            <Image src={oUser.imageUrl} fill className="object-cover" alt="seen" sizes="12px" />
+                                                                        </div>
+                                                                    );
                                                                 }
                                                                 return <div key={uid} className="h-3 w-3 rounded-full bg-slate-300 border border-white" />
                                                             })}
