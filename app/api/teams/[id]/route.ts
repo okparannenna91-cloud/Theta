@@ -146,14 +146,37 @@ export async function DELETE(
         const db = teamResult.db;
         const team = teamResult.data;
 
-        // Only workspace owners can delete teams?
+        // Check permissions: Workspace Owner/Admin OR Team Owner
         const { getWorkspaceMemberRole } = await import("@/lib/workspace");
-        const role = await getWorkspaceMemberRole(user.id, team.workspaceId);
+        const wsRole = await getWorkspaceMemberRole(user.id, team.workspaceId);
+        
+        // Find user's role within the team on this shard
+        const teamMembership = await db.teamMember.findUnique({
+            where: {
+                teamId_userId: {
+                    teamId: params.id,
+                    userId: user.id
+                }
+            }
+        });
 
-        if (role !== "owner" && role !== "admin") {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        const isWsManager = wsRole === "owner" || wsRole === "admin";
+        const isTeamOwner = teamMembership?.role === "owner" || teamMembership?.role === "admin";
+
+        if (!isWsManager && !isTeamOwner) {
+            console.error(`[Team DELETE] Forbidden. userId=${user.id}, wsRole=${wsRole}, teamRole=${teamMembership?.role}`);
+            return NextResponse.json({ error: "Forbidden: You do not have permission to delete this team." }, { status: 403 });
         }
 
+        console.log(`[Team DELETE] Deleting team ${params.id} from shard...`);
+        
+        // 1. Delete members from shard
+        await db.teamMember.deleteMany({ where: { teamId: params.id } });
+        
+        // 2. Delete members from primary (legacy)
+        await prisma.teamMember.deleteMany({ where: { teamId: params.id } });
+
+        // 3. Delete the team itself
         await db.team.delete({
             where: { id: params.id },
         });
