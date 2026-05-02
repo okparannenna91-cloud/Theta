@@ -23,11 +23,29 @@ export async function POST(req: Request) {
         const body = await req.json();
         const data = inviteSchema.parse(body);
 
-        // Verify user is admin/owner of workspace
-        const isAdmin = await isWorkspaceAdmin(user.id, data.workspaceId);
-        if (!isAdmin) {
+        // Verify user is admin/owner of workspace OR admin/owner of the target team
+        const { isWorkspaceAdmin, getWorkspaceMemberRole } = await import("@/lib/workspace");
+        const isWsAdmin = await isWorkspaceAdmin(user.id, data.workspaceId);
+        
+        let isTeamAdmin = false;
+        if (data.teamId) {
+            const { getPrismaClient } = await import("@/lib/prisma");
+            const db = getPrismaClient(data.workspaceId);
+            const teamMember = await db.teamMember.findUnique({
+                where: {
+                    teamId_userId: {
+                        teamId: data.teamId,
+                        userId: user.id
+                    }
+                }
+            });
+            isTeamAdmin = teamMember?.role === "admin" || teamMember?.role === "owner";
+        }
+
+        if (!isWsAdmin && !isTeamAdmin) {
+            console.error(`[Invite POST] Forbidden. userId=${user.id}, isWsAdmin=${isWsAdmin}, isTeamAdmin=${isTeamAdmin}`);
             return NextResponse.json(
-                { error: "Only workspace admins can create invites" },
+                { error: "Access denied: Only workspace admins or team owners can create invites" },
                 { status: 403 }
             );
         }
