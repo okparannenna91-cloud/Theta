@@ -21,16 +21,30 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const data = inviteSchema.parse(body);
+        // Determine workspaceId – required for permission checks and shard routing
+        let targetWorkspaceId: string | undefined = body.workspaceId;
+        // If missing, attempt to derive from teamId
+        if (!targetWorkspaceId && body.teamId) {
+            const { findAcrossShards } = await import("@/lib/prisma");
+            const teamLookup = await findAcrossShards<any>("team", { id: body.teamId });
+            if (teamLookup.data) {
+                targetWorkspaceId = teamLookup.data.workspaceId;
+                console.log(`[Invite POST] Derived workspaceId=${targetWorkspaceId} from teamId=${body.teamId}`);
+            }
+        }
+        if (!targetWorkspaceId) {
+            return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
+        }
+        const data = inviteSchema.parse({ ...body, workspaceId: targetWorkspaceId });
 
         // Verify user is admin/owner of workspace OR admin/owner of the target team
-        const { isWorkspaceAdmin, getWorkspaceMemberRole } = await import("@/lib/workspace");
-        const isWsAdmin = await isWorkspaceAdmin(user.id, data.workspaceId);
+        // Use derived targetWorkspaceId for workspace admin check
+        const isWsAdmin = await isWorkspaceAdmin(user.id, targetWorkspaceId);
         
         let isTeamAdmin = false;
         if (data.teamId) {
             const { getPrismaClient } = await import("@/lib/prisma");
-            const db = getPrismaClient(data.workspaceId);
+            const db = getPrismaClient(targetWorkspaceId);
             const teamMember = await db.teamMember.findUnique({
                 where: {
                     teamId_userId: {

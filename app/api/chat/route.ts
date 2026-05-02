@@ -158,10 +158,10 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        
-        // Derive workspaceId from teamId if it's missing or if we need to verify the shard
-        let targetWorkspaceId = body.workspaceId;
-        
+
+        // Determine workspaceId – required for shard routing
+        let targetWorkspaceId: string | undefined = body.workspaceId;
+        // If not provided, attempt to derive from teamId
         if (!targetWorkspaceId && body.teamId) {
             const { findAcrossShards } = await import("@/lib/prisma");
             const teamLookup = await findAcrossShards<any>("team", { id: body.teamId });
@@ -169,6 +169,9 @@ export async function POST(req: Request) {
                 targetWorkspaceId = teamLookup.data.workspaceId;
                 console.log(`[Chat POST] Derived workspaceId=${targetWorkspaceId} from teamId=${body.teamId}`);
             }
+        }
+        if (!targetWorkspaceId) {
+            return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
         const data = chatSchema.parse({ ...body, workspaceId: targetWorkspaceId });
