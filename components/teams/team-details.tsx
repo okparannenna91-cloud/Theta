@@ -57,6 +57,11 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
     const [copiedLink, setCopiedLink] = useState(false);
     const [memberSearch, setMemberSearch] = useState("");
 
+    const parsedEmails = inviteEmail
+        .split(",")
+        .map(e => e.trim())
+        .filter(e => e.includes("@") && e.includes("."));
+
     // Team Edit State
     const [editName, setEditName] = useState(team.name);
     const [editDescription, setEditDescription] = useState(team.description || "");
@@ -150,13 +155,15 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
 
     const inviteMutation = useMutation({
         mutationFn: async () => {
+            const emails = parsedEmails;
+            if (emails.length === 0) throw new Error("Please enter a valid email address");
             const res = await fetch("/api/invites", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     workspaceId: team.workspaceId,
                     teamId: team.id,
-                    email: inviteEmail,
+                    emails,
                     role: inviteRole,
                 }),
             });
@@ -165,15 +172,12 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
             return json;
         },
         onSuccess: (data) => {
-            // Invite created — copy link to clipboard and show it
-            if (data.inviteLink) {
+            const count = data.allInvites?.length || 1;
+            if (data.inviteLink && count === 1) {
                 navigator.clipboard.writeText(data.inviteLink).catch(() => {});
-                toast.success(
-                    `Invite created! Link copied to clipboard.`,
-                    { description: data.inviteLink, duration: 8000 }
-                );
+                toast.success(`Invite sent! Link copied to clipboard.`, { description: data.inviteLink, duration: 8000 });
             } else {
-                toast.success("Invite sent successfully");
+                toast.success(`${count} invite${count > 1 ? "s" : ""} sent successfully!`);
             }
             setInviteEmail("");
             queryClient.invalidateQueries({ queryKey: ["team-invites"] });
@@ -532,35 +536,65 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                 <Card>
                                     <CardHeader>
                                         <CardTitle>Invite New Members</CardTitle>
-                                        <CardDescription>Send invitations via email to grow your team.</CardDescription>
+                                        <CardDescription>Enter one or multiple email addresses separated by commas.</CardDescription>
                                     </CardHeader>
-                                    <CardContent>
-                                        <div className="flex flex-col sm:flex-row gap-4">
-                                            <Input
-                                                placeholder="Email address"
-                                                value={inviteEmail}
-                                                onChange={e => setInviteEmail(e.target.value)}
-                                                className="flex-1"
-                                            />
-                                            <select
-                                                className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                                                value={inviteRole}
-                                                onChange={e => setInviteRole(e.target.value)}
-                                            >
-                                                <option value="member">Member</option>
-                                                <option value="admin">Admin</option>
-                                            </select>
-                                            <Button onClick={() => inviteMutation.mutate()} disabled={!inviteEmail || inviteMutation.isPending}>
-                                                {inviteMutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                                                Send Invite
-                                            </Button>
+                                    <CardContent className="space-y-4">
+                                        <div className="flex flex-col gap-3">
+                                            <div className="relative">
+                                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                                                <Input
+                                                    placeholder="e.g. alice@co.com, bob@co.com, carol@co.com"
+                                                    value={inviteEmail}
+                                                    onChange={e => setInviteEmail(e.target.value)}
+                                                    className="pl-10"
+                                                />
+                                            </div>
+                                            {parsedEmails.length > 0 && (
+                                                <div className="flex flex-wrap gap-2">
+                                                    {parsedEmails.map(email => (
+                                                        <span key={email} className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-medium rounded-full border border-indigo-100 dark:border-indigo-800">
+                                                            {email}
+                                                        </span>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="flex gap-3">
+                                                <select
+                                                    className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
+                                                    value={inviteRole}
+                                                    onChange={e => setInviteRole(e.target.value)}
+                                                >
+                                                    <option value="member">Member</option>
+                                                    <option value="admin">Admin</option>
+                                                </select>
+                                                <Button
+                                                    className="flex-1"
+                                                    onClick={() => inviteMutation.mutate()}
+                                                    disabled={parsedEmails.length === 0 || inviteMutation.isPending}
+                                                >
+                                                    {inviteMutation.isPending ? (
+                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                    ) : (
+                                                        <UserPlus className="mr-2 h-4 w-4" />
+                                                    )}
+                                                    {parsedEmails.length > 1
+                                                        ? `Send ${parsedEmails.length} Invites`
+                                                        : "Send Invite"}
+                                                </Button>
+                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
 
                                 <div className="space-y-4">
                                     <h3 className="font-semibold text-sm text-muted-foreground uppercase">Pending Invitations</h3>
-                                    {invites?.map((invite: any) => (
+                                    {invites?.map((invite: any) => {
+                                            const expiresAt = new Date(invite.expiresAt);
+                                            const now = new Date();
+                                            const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                                            const isExpiringSoon = invite.status === "pending" && daysLeft <= 2 && daysLeft > 0;
+                                            const isExpired = daysLeft <= 0 && !invite.acceptedAt;
+                                            return (
                                         <div key={invite.id} className="flex items-center justify-between p-4 border rounded-lg bg-slate-50 dark:bg-slate-900/50">
                                             <div className="flex items-center gap-3">
                                                 <div className="h-8 w-8 rounded-full bg-white border flex items-center justify-center">
@@ -572,6 +606,12 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                                         <span>{format(new Date(invite.createdAt), "MMM d, yyyy")}</span>
                                                         <span>•</span>
                                                         <span className="capitalize">{invite.role}</span>
+                                                        {isExpiringSoon && (
+                                                            <span className="text-amber-600 font-semibold">• Expires in {daysLeft}d</span>
+                                                        )}
+                                                        {isExpired && (
+                                                            <span className="text-red-500 font-semibold">• Expired</span>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -617,8 +657,8 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                     <CardHeader>
                                         <CardTitle className="text-indigo-900 dark:text-indigo-200">Pro Tip</CardTitle>
                                         <CardDescription className="text-indigo-700/70 dark:text-indigo-300/70">
+                                            You can invite multiple people at once by separating their email addresses with commas.
                                             Admins can manage roles and remove members at any time.
-                                            Invited members will receive an email instruction.
                                         </CardDescription>
                                     </CardHeader>
                                 </Card>
@@ -662,7 +702,8 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                                     </div>
                                                 </div>
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                         {(!activities || activities.length === 0) && (
                                             <div className="pl-12 py-4 text-muted-foreground italic">No recent activity recorded.</div>
                                         )}

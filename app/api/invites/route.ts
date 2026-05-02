@@ -8,7 +8,8 @@ import { z } from "zod";
 
 const inviteSchema = z.object({
     workspaceId: z.string(),
-    email: z.string().email(),
+    email: z.string().email().optional(),
+    emails: z.array(z.string().email()).optional(),
     role: z.enum(["owner", "admin", "member"]).default("member"),
     teamId: z.string().optional(),
 });
@@ -66,6 +67,14 @@ export async function POST(req: Request) {
 
 
 
+        const emailsToProcess = new Set<string>();
+        if (data.email) emailsToProcess.add(data.email);
+        if (data.emails) data.emails.forEach(e => emailsToProcess.add(e));
+        
+        if (emailsToProcess.size === 0) {
+            return NextResponse.json({ error: "At least one email is required" }, { status: 400 });
+        }
+
         // Check plan limits strictly (including pending invites)
         const activeMemberCount = await (prisma.workspaceMember as any).count({
             where: { 
@@ -83,18 +92,10 @@ export async function POST(req: Request) {
 
         try {
             const { enforcePlanLimit } = await import("@/lib/plan-limits");
-            await enforcePlanLimit(data.workspaceId, "members", activeMemberCount + pendingInviteCount);
+            await enforcePlanLimit(data.workspaceId, "members", activeMemberCount + pendingInviteCount + emailsToProcess.size - 1); // -1 because limit applies to total after addition
         } catch (error: any) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
-
-        const invite = await createInvite(
-            data.workspaceId,
-            data.email,
-            data.role,
-            7,
-            data.teamId
-        );
 
         // Fetch workspace name for the email
         const emailWorkspace = await prisma.workspace.findUnique({
@@ -102,34 +103,46 @@ export async function POST(req: Request) {
             select: { name: true }
         });
 
-        // Generate invite link
         const protocol = req.headers.get("x-forwarded-proto") || "https";
         const host = req.headers.get("host");
         let baseUrl = process.env.NEXT_PUBLIC_APP_URL || (host ? `${protocol}://${host}` : "https://thetapm.site");
-        
-        // Final safeguard: If we accidentally get localhost in production, force the correct domain
         if (baseUrl.includes("localhost")) {
             baseUrl = "https://thetapm.site";
         }
-        const inviteLink = `${baseUrl}/invites/${invite.token}`;
-
-        // Send email
+        
         const { sendInviteEmail } = await import("@/lib/email");
-        try {
-            await sendInviteEmail({
-                to: data.email,
-                workspaceName: emailWorkspace?.name || "Theta Workspace",
-                inviteLink,
-                role: data.role,
-            });
-        } catch (emailError) {
-            console.error("Failed to send invite email:", emailError);
-            // We still return the invite so it can be copied manually if email fails
+        
+        const createdInvites = [];
+        
+        for (const targetEmail of Array.from(emailsToProcess)) {
+            const invite = await createInvite(
+                data.workspaceId,
+                targetEmail,
+                data.role,
+                7,
+                data.teamId
+            );
+            
+            const inviteLink = `${baseUrl}/invites/${invite.token}`;
+            
+            try {
+                await sendInviteEmail({
+                    to: targetEmail,
+                    workspaceName: emailWorkspace?.name || "Theta Workspace",
+                    inviteLink,
+                    role: data.role,
+                });
+            } catch (emailError) {
+                console.error(`Failed to send invite email to ${targetEmail}:`, emailError);
+            }
+            
+            createdInvites.push({ ...invite, inviteLink });
         }
 
+        // Maintain backward compatibility for single-email calls by returning the first invite as the main object
         return NextResponse.json({
-            ...invite,
-            inviteLink,
+            ...createdInvites[0],
+            allInvites: createdInvites
         });
     } catch (error) {
         if (error instanceof z.ZodError) {

@@ -125,6 +125,16 @@ export async function acceptInvite(token: string, userId: string) {
         data: { acceptedAt: new Date() },
     });
 
+    // Log the activity
+    const { logActivity } = await import("@/lib/activity");
+    await logActivity({
+        userId,
+        workspaceId: invite.workspaceId,
+        entityType: invite.teamId ? "team" : "workspace",
+        entityId: invite.teamId || invite.workspaceId,
+        action: "joined",
+    });
+
     return { workspace: invite.workspace };
 }
 

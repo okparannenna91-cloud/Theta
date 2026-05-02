@@ -11,7 +11,7 @@ export default async function InvitePage({ params }: { params: { token: string }
     
     // Safety check: Middleware handles this, but just in case
     if (!user) {
-        redirect("/sign-in");
+        redirect(`/sign-in?redirect_url=/invites/${params.token}`);
     }
 
     const { valid, invite, error } = await getInviteByToken(params.token);
