@@ -44,6 +44,7 @@ export async function GET(
     }
 
     if (!project) {
+      console.error(`[Project GET] 404: Project ${params.id} not found on any shard.`);
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
@@ -58,10 +59,11 @@ export async function GET(
     });
 
     if (!membership) {
-      console.error(`[Project GET] Access denied for user=${user.id} to workspace=${project.workspaceId}`);
+      console.error(`[Project GET] 403: User ${user.id} denied access to workspace ${project.workspaceId}`);
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    console.log(`[Project GET] Loading full relations for project=${project.id} from shard DB...`);
     // Re-fetch project with relations using the specific shard DB found
     const fullProject = await db.project.findUnique({
       where: { id: params.id },

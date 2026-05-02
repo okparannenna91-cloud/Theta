@@ -30,9 +30,13 @@ export function useWorkspace() {
       if (savedId && isValidSavedId) {
         if (activeWorkspaceId !== savedId) setActiveWorkspaceId(savedId);
       } else {
+        // If we have a project ID in the URL but no workspace, we'll try to find it
+        // For now, default to the first one but don't force it if the project search is ongoing
         const firstWorkspaceId = workspaces[0].id;
-        setActiveWorkspaceId(firstWorkspaceId);
-        localStorage.setItem("activeWorkspaceId", firstWorkspaceId);
+        if (!activeWorkspaceId) {
+            setActiveWorkspaceId(firstWorkspaceId);
+            localStorage.setItem("activeWorkspaceId", firstWorkspaceId);
+        }
       }
     }
   }, [workspaces, activeWorkspaceId]);
