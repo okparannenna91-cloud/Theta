@@ -39,21 +39,28 @@ export async function GET(
         }
 
         // Aggregate unique member count from both shards
-        const shardUserIds = (await db.teamMember.findMany({ 
+        const shardMembers = await db.teamMember.findMany({ 
             where: { teamId: params.id }, 
-            select: { userId: true } 
-        })).map(m => m.userId);
+            select: { userId: true, role: true } 
+        });
         
-        const primaryUserIds = (await prisma.teamMember.findMany({ 
+        const primaryMembers = await prisma.teamMember.findMany({ 
             where: { teamId: params.id }, 
-            select: { userId: true } 
-        })).map(m => m.userId);
-        
-        const membersCount = new Set([...shardUserIds, ...primaryUserIds]).size;
+            select: { userId: true, role: true } 
+        });
+
+        const allMembers = [...shardMembers, ...primaryMembers];
+        const uniqueUserIds = new Set(allMembers.map(m => m.userId));
+        const membersCount = uniqueUserIds.size;
+
+        // Find current user's role
+        const userMembership = allMembers.find(m => m.userId === user.id);
+        const userRole = userMembership?.role || "member";
 
         return NextResponse.json({
             ...team,
             membersCount,
+            userRole,
         });
     } catch (error) {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
