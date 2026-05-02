@@ -89,9 +89,13 @@ export async function GET(
         pt.team.members?.forEach((m: any) => { if (m.userId) allUserIds.add(m.userId); });
     });
 
+    // Safeguard: Only query valid MongoDB ObjectIds to prevent BSON errors from legacy data
+    const isValidObjectId = (id: string) => /^[a-fA-F0-9]{24}$/.test(id);
+    const validUserIds = Array.from(allUserIds).filter(isValidObjectId);
+
     // Fetch user profiles from the primary shard
     const users = await prisma.user.findMany({
-      where: { id: { in: Array.from(allUserIds) } },
+      where: { id: { in: validUserIds } },
       select: {
           id: true,
           name: true,

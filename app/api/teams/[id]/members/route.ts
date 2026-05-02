@@ -46,7 +46,9 @@ export async function GET(
             }
         }
 
-        const uniqueUserIds = [...new Set(membersRaw.map((m: any) => m.userId))];
+        const isValidObjectId = (id: string) => /^[a-fA-F0-9]{24}$/.test(id);
+        const uniqueUserIds = [...new Set(membersRaw.map((m: any) => m.userId))].filter(isValidObjectId);
+
         const users = await prisma.user.findMany({
             where: { id: { in: uniqueUserIds } },
             select: { id: true, name: true, email: true, imageUrl: true }

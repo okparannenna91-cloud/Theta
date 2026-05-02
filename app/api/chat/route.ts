@@ -7,14 +7,19 @@ import { z } from "zod";
 
 // Fetch and create team-specific chat messages
 
+const objectIdSchema = z.string().regex(/^[a-fA-F0-9]{24}$/, "Invalid ObjectId format");
+
 const chatSchema = z.object({
-    content: z.string().min(1).max(5000),
-    workspaceId: z.string(),
-    projectId: z.string().optional(),
-    teamId: z.string().optional(),
+    content: z.string().max(5000).optional().default(""),
+    workspaceId: objectIdSchema,
+    projectId: objectIdSchema.optional(),
+    teamId: objectIdSchema.optional(),
     attachment: z.any().optional(),
     tempId: z.string().optional(),
-    replyToId: z.string().optional(),
+    replyToId: objectIdSchema.optional(),
+}).refine(data => data.content.trim().length > 0 || data.attachment, {
+    message: "Message content or attachment is required",
+    path: ["content"]
 });
 
 export async function GET(req: Request) {
