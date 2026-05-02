@@ -158,20 +158,40 @@ export async function POST(req: Request) {
         }
 
         const body = await req.json();
-        const data = chatSchema.parse(body);
+        
+        // Derive workspaceId from teamId if it's missing or if we need to verify the shard
+        let targetWorkspaceId = body.workspaceId;
+        
+        if (!targetWorkspaceId && body.teamId) {
+            const { findAcrossShards } = await import("@/lib/prisma");
+            const teamLookup = await findAcrossShards<any>("team", { id: body.teamId });
+            if (teamLookup.data) {
+                targetWorkspaceId = teamLookup.data.workspaceId;
+                console.log(`[Chat POST] Derived workspaceId=${targetWorkspaceId} from teamId=${body.teamId}`);
+            }
+        }
+
+        const data = chatSchema.parse({ ...body, workspaceId: targetWorkspaceId });
 
         // Always use workspaceId-scoped shard (fast path)
         const db = getPrismaClient(data.workspaceId);
 
         // Verify access based on teamId or workspaceId
         if (data.teamId) {
-            // Use the known shard directly via workspaceId — no cross-shard search needed
+            // Use the known shard directly via workspaceId
             let teamMember = await db.teamMember.findUnique({
                 where: { teamId_userId: { teamId: data.teamId, userId: user.id } }
             });
 
             if (!teamMember) {
-                // Fallback to cross-shard search for legacy members that might be on the wrong shard
+                // Fallback to primary DB for legacy members
+                teamMember = await prisma.teamMember.findUnique({
+                    where: { teamId_userId: { teamId: data.teamId, userId: user.id } }
+                });
+            }
+
+            if (!teamMember) {
+                // Final fallback: cross-shard search
                 const { findAcrossShards } = await import("@/lib/prisma");
                 const result = await findAcrossShards<any>("teamMember", {
                     teamId_userId: { teamId: data.teamId, userId: user.id }
@@ -197,6 +217,7 @@ export async function POST(req: Request) {
             const { enforcePlanLimit } = await import("@/lib/plan-limits");
             await enforcePlanLimit(data.workspaceId, "chat", chatCount);
         } catch (error: any) {
+            console.warn(`[Chat POST] Plan limit check failed for workspace=${data.workspaceId}: ${error.message}`);
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
 

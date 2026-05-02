@@ -19,9 +19,29 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: project, db } = await findAcrossShards<Project>("project", {
-      id: params.id,
-    });
+    const { searchParams } = new URL(req.url);
+    const workspaceId = searchParams.get("workspaceId");
+
+    let project: Project | null = null;
+    let db: any = null;
+
+    if (workspaceId) {
+      const { getPrismaClient } = await import("@/lib/prisma");
+      db = getPrismaClient(workspaceId);
+      project = await db.project.findUnique({
+        where: { id: params.id },
+      });
+      console.log(`[Project GET] Target lookup with workspaceId=${workspaceId}. Found=${!!project}`);
+    }
+
+    if (!project) {
+      console.log(`[Project GET] Shard fallback search for projectId=${params.id}...`);
+      const result = await findAcrossShards<Project>("project", {
+        id: params.id,
+      });
+      project = result.data;
+      db = result.db;
+    }
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
@@ -38,11 +58,12 @@ export async function GET(
     });
 
     if (!membership) {
+      console.error(`[Project GET] Access denied for user=${user.id} to workspace=${project.workspaceId}`);
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     // Re-fetch project with relations using the specific shard DB found
-    const fullProject = await (db as any).project.findUnique({
+    const fullProject = await db.project.findUnique({
       where: { id: params.id },
       include: {
         tasks: {

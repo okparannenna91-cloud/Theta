@@ -36,18 +36,25 @@ export async function GET(
         });
 
         // Merge and deduplicate by userId
-        const seenUserIds = new Set();
-        const membersRaw = [];
+        // Favoring shard-specific data over primary legacy data
+        const membersMap = new Map();
 
-        for (const m of [...membersRawShard, ...membersRawPrimary]) {
-            if (!seenUserIds.has(m.userId)) {
-                seenUserIds.add(m.userId);
-                membersRaw.push(m);
-            }
+        // 1. Load primary (legacy) members
+        for (const m of membersRawPrimary) {
+            membersMap.set(m.userId, m);
         }
+
+        // 2. Overwrite/Add with shard-specific members (Authoritative)
+        for (const m of membersRawShard) {
+            membersMap.set(m.userId, m);
+        }
+
+        const membersRaw = Array.from(membersMap.values());
 
         const isValidObjectId = (id: string) => /^[a-fA-F0-9]{24}$/.test(id);
         const uniqueUserIds = [...new Set(membersRaw.map((m: any) => m.userId))].filter(isValidObjectId);
+
+        console.log(`[Team Members] Fetching user profiles for ${uniqueUserIds.length} users...`);
 
         const users = await prisma.user.findMany({
             where: { id: { in: uniqueUserIds } },
@@ -55,10 +62,18 @@ export async function GET(
         });
 
         const userMap = new Map(users.map(u => [u.id, u]));
-        const members = membersRaw.map((m: any) => ({
-            ...m,
-            user: userMap.get(m.userId) || null
-        }));
+        const members = membersRaw.map((m: any) => {
+            const userProfile = userMap.get(m.userId);
+            return {
+                ...m,
+                user: userProfile || {
+                    id: m.userId,
+                    name: "Unknown Member",
+                    email: "",
+                    imageUrl: null
+                }
+            };
+        });
 
         return NextResponse.json(members);
     } catch (error) {

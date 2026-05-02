@@ -36,8 +36,9 @@ import { InviteMemberDialog } from "@/components/projects/invite-member-dialog";
 import { ProjectTeamsTab } from "@/components/projects/project-teams-tab";
 import { User } from "lucide-react";
 
-async function fetchProject(id: string) {
-    const res = await fetch(`/api/projects/${id}`);
+async function fetchProject(id: string, workspaceId?: string | null) {
+    const url = workspaceId ? `/api/projects/${id}?workspaceId=${workspaceId}` : `/api/projects/${id}`;
+    const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch project");
     return res.json();
 }
@@ -48,8 +49,8 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     const [isInviteOpen, setIsInviteOpen] = useState(false);
 
     const { data: project, isLoading } = useQuery({
-        queryKey: ["project", params.id],
-        queryFn: () => fetchProject(params.id),
+        queryKey: ["project", params.id, activeWorkspaceId],
+        queryFn: () => fetchProject(params.id, activeWorkspaceId),
         enabled: !!params.id,
     });
 

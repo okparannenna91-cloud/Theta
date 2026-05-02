@@ -71,19 +71,17 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
     // --- QUERIES ---
 
     const { data: members, isLoading: isLoadingMembers } = useQuery({
-        queryKey: ["team-members", team.id],
+        queryKey: ["team-members", team.id, team.workspaceId],
         queryFn: async () => {
-            const res = await fetch(`/api/teams/${team.id}/members`);
+            const res = await fetch(`/api/teams/${team.id}/members?workspaceId=${team.workspaceId}`);
             if (!res.ok) throw new Error("Failed to fetch members");
             return res.json();
         }
     });
 
     const { data: invites, isLoading: isLoadingInvites } = useQuery({
-        queryKey: ["team-invites", team.id], // Scope to team
+        queryKey: ["team-invites", team.id, team.workspaceId], // Scope to team and workspace
         queryFn: async () => {
-            // Fetch invites for this specific team if possible, or workspace invites filtered
-            // Updated API supports teamId filter
             const res = await fetch(`/api/invites?workspaceId=${team.workspaceId}&teamId=${team.id}`);
             if (!res.ok) throw new Error("Failed to fetch invites");
             return res.json();
