@@ -297,6 +297,43 @@ export async function deleteWorkspace(workspaceId: string, userId: string) {
       throw new Error("You must have at least one workspace. Create another one before deleting this one.");
     }
 
+    // Multi-shard cleanup: Delete all workspace-scoped data across all shards
+    // This is necessary because Cascade deletes don't work across different DB clusters
+    const { getPrismaClient } = await import("./prisma");
+    const shards = [1, 2, 3, 4].map(i => {
+        // We use a try-catch for each shard to ensure one failure doesn't block the rest
+        try {
+            // This is a bit hacky but works given our getPrismaClient logic
+            // We need to target each shard's connection specifically
+            // Since our hashing is based on workspaceId, we can't easily "iterate shards" via getPrismaClient(workspaceId)
+            // But we have access to the underlying prismaShardX clients in prisma.ts
+            return true;
+        } catch(e) { return false; }
+    });
+
+    // Actually, a better way is to iterate over the actual shards we have initialized
+    const { prismaShard1, prismaShard2, prismaShard3, prismaShard4 } = await import("./prisma");
+    const allShards = [prismaShard1, prismaShard2, prismaShard3, prismaShard4].filter(Boolean);
+
+    await Promise.all(allShards.map(async (shard: any) => {
+        try {
+            // Delete workspace-scoped entities on this shard
+            const where = { workspaceId };
+            await Promise.all([
+                shard.project.deleteMany({ where }),
+                shard.task.deleteMany({ where }),
+                shard.team.deleteMany({ where }),
+                shard.board.deleteMany({ where }),
+                shard.chatMessage.deleteMany({ where }),
+                shard.activity.deleteMany({ where }),
+                shard.notification.deleteMany({ where }),
+            ]);
+        } catch (shardError) {
+            console.error(`Failed to cleanup shard during workspace deletion:`, shardError);
+        }
+    }));
+
+    // Finally, delete the workspace metadata from Shard 1
     return await prisma.workspace.delete({
       where: { id: workspaceId },
     });

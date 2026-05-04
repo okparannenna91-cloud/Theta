@@ -167,11 +167,13 @@ export async function GET(req: Request) {
         let workspaceId = searchParams.get("workspaceId");
         const teamId = searchParams.get("teamId");
 
-        const defaultMembership = await prisma.workspaceMember.findFirst({
-            where: { userId: user.id },
-            orderBy: { createdAt: "asc" },
-        });
-        workspaceId = defaultMembership?.workspaceId || null;
+        if (!workspaceId) {
+            const defaultMembership = await prisma.workspaceMember.findFirst({
+                where: { userId: user.id },
+                orderBy: { createdAt: "asc" },
+            });
+            workspaceId = defaultMembership?.workspaceId || null;
+        }
 
         if (!workspaceId) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });

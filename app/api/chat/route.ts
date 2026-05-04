@@ -37,6 +37,20 @@ export async function GET(req: Request) {
 
         // Determine workspaceId and DB shard
         let effectiveWorkspaceId = workspaceId;
+        
+        // If workspaceId is missing but teamId is present, try to derive it
+        if (!effectiveWorkspaceId && teamId) {
+            const { findAcrossShards } = await import("@/lib/prisma");
+            const teamLookup = await findAcrossShards<any>("team", { id: teamId });
+            if (teamLookup.data) {
+                effectiveWorkspaceId = teamLookup.data.workspaceId;
+            }
+        }
+
+        if (!effectiveWorkspaceId) {
+            return NextResponse.json({ error: "workspaceId or teamId is required to resolve shard" }, { status: 400 });
+        }
+
         let db = getPrismaClient(effectiveWorkspaceId);
 
         // If teamId is provided, check team access
