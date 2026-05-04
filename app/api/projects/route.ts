@@ -44,7 +44,7 @@ export async function GET(req: Request) {
 
     const { getPrismaClient, prisma: globalPrisma } = await import("@/lib/prisma");
     const db = getPrismaClient(workspaceId);
-    let whereClause: any = { workspaceId, teamId: null };
+    let whereClause: any = { workspaceId };
 
     if (teamId) {
       // Verify team membership

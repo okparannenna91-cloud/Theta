@@ -77,11 +77,15 @@ export const prisma = prismaShard1;
  * This ensures that all data for a specific workspace remains on the same shard.
  */
 export function getPrismaClient(workspaceId?: string | null): PrismaClient {
-  if (!workspaceId) return prisma;
+  if (!workspaceId || typeof workspaceId !== 'string') return prisma;
+
+  // Robust sanitization: trim and lowercase to ensure consistent hashing
+  // This prevents intermittent bugs where identical IDs hash differently due to casing
+  const sanitizedId = workspaceId.trim().toLowerCase();
 
   // Use the workspaceId string to determine the shard
   // Simple ASCII sum modulus approach
-  const hash = workspaceId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const hash = sanitizedId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const shardIndex = hash % 4;
 
   switch (shardIndex) {
@@ -104,20 +108,17 @@ export async function findAcrossShards<T>(
   const shards = [prismaShard1, prismaShard2, prismaShard3, prismaShard4];
 
   for (const [index, shard] of shards.entries()) {
-    if (!shard) {
-      console.log(`[Shard Search] Shard ${index + 1} is not initialized, skipping.`);
-      continue;
-    }
+    if (!shard) continue;
+    
     try {
-      console.log(`[Shard Search] Searching for ${modelName} with ${JSON.stringify(where)} on shard ${index + 1}...`);
       // @ts-ignore - Dynamic access to prisma models
       const record = await shard[modelName].findFirst({ where });
       if (record) {
-        console.log(`[Shard Search] Record found on shard ${index + 1}!`);
+        console.log(`[Shard Search] Record found for ${modelName} on shard ${index + 1}`);
         return { data: record as T, db: shard as PrismaClient };
       }
     } catch (e: any) {
-      console.error(`[Shard Search] Error searching shard ${index + 1}:`, e.message);
+      console.error(`[Shard Search] Error searching shard ${index + 1} for ${modelName}:`, e.message);
       continue;
     }
   }

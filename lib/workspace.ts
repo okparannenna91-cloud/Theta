@@ -61,6 +61,9 @@ export async function verifyWorkspaceAccess(
       },
     });
 
+    if (!membership) {
+      console.warn(`[Workspace Access] Access denied for user ${userId} to workspace ${workspaceId}. No membership found on Shard 1.`);
+    }
     return !!membership;
   } catch (error) {
     console.error("Verify workspace access error:", error);

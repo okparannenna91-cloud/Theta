@@ -54,7 +54,7 @@ export async function GET(req: Request) {
     }
 
     const db = getPrismaClient(workspaceId);
-    let projectWhere: any = { workspaceId, teamId: null };
+    let projectWhere: any = { workspaceId };
 
     // If teamId is provided, we only show tasks from projects belonging to that team
     if (teamId) {

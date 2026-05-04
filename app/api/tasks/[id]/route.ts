@@ -39,7 +39,29 @@ export async function PATCH(
     const body = await req.json();
     const data = updateSchema.parse(body);
 
-    const { data: task, db } = await findAcrossShards<Task>("task", { id: params.id });
+    const { searchParams } = new URL(req.url);
+    const workspaceId = searchParams.get("workspaceId");
+
+    let task: Task | null = null;
+    let db: any = null;
+
+    if (workspaceId) {
+        const { getPrismaClient } = await import("@/lib/prisma");
+        db = getPrismaClient(workspaceId);
+        task = await db.task.findUnique({ where: { id: params.id } });
+        
+        if (!task) {
+            // If not found on the specified shard, it might be an invalid workspaceId or moved record
+            // Fallback to searching all shards just in case
+            const searchResult = await findAcrossShards<Task>("task", { id: params.id });
+            task = searchResult.data;
+            db = searchResult.db;
+        }
+    } else {
+        const searchResult = await findAcrossShards<Task>("task", { id: params.id });
+        task = searchResult.data;
+        db = searchResult.db;
+    }
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -162,7 +184,27 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: task, db } = await findAcrossShards<Task>("task", { id: params.id });
+    const { searchParams } = new URL(req.url);
+    const workspaceId = searchParams.get("workspaceId");
+
+    let task: Task | null = null;
+    let db: any = null;
+
+    if (workspaceId) {
+        const { getPrismaClient } = await import("@/lib/prisma");
+        db = getPrismaClient(workspaceId);
+        task = await db.task.findUnique({ where: { id: params.id } });
+        
+        if (!task) {
+            const searchResult = await findAcrossShards<Task>("task", { id: params.id });
+            task = searchResult.data;
+            db = searchResult.db;
+        }
+    } else {
+        const searchResult = await findAcrossShards<Task>("task", { id: params.id });
+        task = searchResult.data;
+        db = searchResult.db;
+    }
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
