@@ -10,6 +10,9 @@ export interface LogActivityProps {
   projectId?: string;
 }
 
+/**
+ * Modern object-based logging function
+ */
 export async function logActivity({
   userId,
   workspaceId,
@@ -38,3 +41,26 @@ export async function logActivity({
   }
 }
 
+/**
+ * Backward compatibility wrapper for createActivity
+ * Maps positional arguments to the new object-based logActivity signature.
+ */
+export async function createActivity(
+  userId: string,
+  workspaceId: string,
+  action: string,
+  entityType: string,
+  entityId: string,
+  metadata?: any,
+  projectId?: string
+) {
+  return logActivity({
+    userId,
+    workspaceId,
+    action,
+    entityType,
+    entityId,
+    metadata,
+    projectId
+  });
+}
