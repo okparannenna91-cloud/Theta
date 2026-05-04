@@ -19,7 +19,7 @@ export default function WorkspacesPage() {
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const queryClient = useQueryClient();
     const router = useRouter();
-    const { workspaces, activeWorkspaceId, switchWorkspace, isLoading } = useWorkspace();
+    const { workspaces, activeWorkspaceId, switchWorkspace, isLoading, error } = useWorkspace();
 
     const createMutation = useMutation({
         mutationFn: async (name: string) => {
@@ -98,7 +98,7 @@ export default function WorkspacesPage() {
                         </div>
                         <CardTitle className="text-red-900 dark:text-red-200">Connection Issue</CardTitle>
                         <CardDescription>
-                            We couldn't retrieve your workspaces. This might be a temporary database shard timeout.
+                            We couldn&apos;t retrieve your workspaces. This might be a temporary database shard timeout.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center pb-6">

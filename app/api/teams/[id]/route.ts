@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { isWorkspaceAdmin } from "@/lib/workspace";
-import { createActivity } from "@/lib/activity";
+import { logActivity } from "@/lib/activity";
 
 const updateTeamSchema = z.object({
     name: z.string().min(1).optional(),
@@ -115,14 +115,14 @@ export async function PATCH(
         });
 
         // Log activity
-        await createActivity(
-            user.id,
-            team.workspaceId,
-            "updated",
-            "team",
-            team.id,
-            { teamName: updatedTeam.name, changes: Object.keys(data) }
-        );
+        await logActivity({
+            userId: user.id,
+            workspaceId: team.workspaceId,
+            action: "updated",
+            entityType: "team",
+            entityId: team.id,
+            metadata: { teamName: updatedTeam.name, changes: Object.keys(data) }
+        });
 
         return NextResponse.json(updatedTeam);
     } catch (error) {
@@ -189,14 +189,14 @@ export async function DELETE(
         });
 
         // Log activity
-        await createActivity(
-            user.id,
-            team.workspaceId,
-            "deleted",
-            "team",
-            team.id,
-            { teamName: team.name }
-        );
+        await logActivity({
+            userId: user.id,
+            workspaceId: team.workspaceId,
+            action: "deleted",
+            entityType: "team",
+            entityId: team.id,
+            metadata: { teamName: team.name }
+        });
 
         return NextResponse.json({ success: true });
     } catch (error) {
