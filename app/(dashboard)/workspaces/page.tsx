@@ -80,7 +80,37 @@ export default function WorkspacesPage() {
     if (isLoading) {
         return (
             <div className="p-8 flex items-center justify-center min-h-[400px]">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                <div className="flex flex-col items-center gap-4">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
+                    <p className="text-muted-foreground font-medium animate-pulse">Loading your workspaces...</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="p-8 flex items-center justify-center min-h-[400px]">
+                <Card className="max-w-md w-full border-red-100 bg-red-50/50 dark:bg-red-900/10 dark:border-red-900/20">
+                    <CardHeader className="text-center">
+                        <div className="mx-auto h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
+                            <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                        </div>
+                        <CardTitle className="text-red-900 dark:text-red-200">Connection Issue</CardTitle>
+                        <CardDescription>
+                            We couldn't retrieve your workspaces. This might be a temporary database shard timeout.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex justify-center pb-6">
+                        <Button 
+                            onClick={() => window.location.reload()}
+                            variant="outline"
+                            className="border-red-200 hover:bg-red-100 dark:border-red-800 dark:hover:bg-red-900/30"
+                        >
+                            Try Again
+                        </Button>
+                    </CardContent>
+                </Card>
             </div>
         );
     }

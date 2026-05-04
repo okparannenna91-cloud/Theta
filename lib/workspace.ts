@@ -103,20 +103,26 @@ export async function createWorkspace(
             role: "owner",
           },
         },
-        statuses: {
-          createMany: {
-            data: [
-              { name: "Todo", color: "#64748b", order: 0 },
-              { name: "In Progress", color: "#3b82f6", order: 1 },
-              { name: "Done", color: "#22c55e", order: 2 },
-            ]
-          }
-        }
       },
       include: {
         members: true,
       },
     });
+
+    // Create default statuses on the correct shard (where tasks will live)
+    try {
+      const db = getPrismaClient(workspace.id);
+      await db.status.createMany({
+        data: [
+          { workspaceId: workspace.id, name: "Todo", color: "#64748b", order: 0 },
+          { workspaceId: workspace.id, name: "In Progress", color: "#3b82f6", order: 1 },
+          { workspaceId: workspace.id, name: "Done", color: "#22c55e", order: 2 },
+        ]
+      });
+    } catch (statusError) {
+      console.error("Failed to create default statuses on shard:", statusError);
+      // We don't throw here to avoid failing workspace creation if status setup fails
+    }
 
     return workspace;
   } catch (error) {
@@ -150,13 +156,17 @@ export async function getUserWorkspaces(userId: string) {
     const workspacesWithCounts = await Promise.all(
       memberships.map(async (m) => {
         const workspaceId = m.workspaceId;
-        const db = getPrismaClient(workspaceId);
-        
-        const projectsCount = await db.project.count({
-          where: { workspaceId },
-        });
-
-        console.log(`[Workspace Count] Workspace ${workspaceId} (${m.workspace.name}): ${projectsCount} projects`);
+        let projectsCount = 0;
+        try {
+          const db = getPrismaClient(workspaceId);
+          projectsCount = await db.project.count({
+            where: { workspaceId },
+          });
+          console.log(`[Workspace Count] Workspace ${workspaceId} (${m.workspace.name}): ${projectsCount} projects`);
+        } catch (countError) {
+          console.error(`Failed to fetch project count for workspace ${workspaceId} on its shard:`, countError);
+          // Default to 0 instead of failing the whole list
+        }
 
         return {
           id: m.workspace.id,
@@ -213,9 +223,8 @@ export async function isWorkspaceAdmin(
   workspaceId: string
 ): Promise<boolean> {
   try {
-    const { getPrismaClient } = await import("./prisma");
-    const db = getPrismaClient(workspaceId);
-    const membership = await db.workspaceMember.findUnique({
+    // Workspace members are stored on the central metadata DB (Shard 1)
+    const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
           workspaceId,
@@ -235,9 +244,8 @@ export async function isWorkspaceAdmin(
  */
 export async function getWorkspaceMembers(workspaceId: string) {
   try {
-    const { getPrismaClient } = await import("./prisma");
-    const db = getPrismaClient(workspaceId);
-    return await db.workspaceMember.findMany({
+    // Workspace members are stored on the central metadata DB (Shard 1)
+    return await prisma.workspaceMember.findMany({
       where: { workspaceId },
       include: {
         user: {
