@@ -260,10 +260,8 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
         { id: "settings", label: "Settings", icon: Settings },
     ];
 
-    if (!isAdmin) {
-        // Hide settings tab for non-admins? or just show limited view
-        // Keeping it for visibility but disabling actions
-    }
+    // Access Control
+    const canManageSettings = isAdmin;
 
     return (
         <div className="space-y-6 max-w-6xl mx-auto">
@@ -589,63 +587,64 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                 <div className="space-y-4">
                                     <h3 className="font-semibold text-sm text-muted-foreground uppercase">Pending Invitations</h3>
                                     {invites?.map((invite: any) => {
-                                            const expiresAt = new Date(invite.expiresAt);
-                                            const now = new Date();
-                                            const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                                            const isExpiringSoon = invite.status === "pending" && daysLeft <= 2 && daysLeft > 0;
-                                            const isExpired = daysLeft <= 0 && !invite.acceptedAt;
-                                            return (
-                                        <div key={invite.id} className="flex items-center justify-between p-4 border rounded-lg bg-slate-50 dark:bg-slate-900/50">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-8 w-8 rounded-full bg-white border flex items-center justify-center">
-                                                    <Mail className="h-4 w-4 text-slate-400" />
-                                                </div>
-                                                <div>
-                                                    <p className="font-medium text-sm">{invite.email}</p>
-                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                        <span>{format(new Date(invite.createdAt), "MMM d, yyyy")}</span>
-                                                        <span>•</span>
-                                                        <span className="capitalize">{invite.role}</span>
-                                                        {isExpiringSoon && (
-                                                            <span className="text-amber-600 font-semibold">• Expires in {daysLeft}d</span>
-                                                        )}
-                                                        {isExpired && (
-                                                            <span className="text-red-500 font-semibold">• Expired</span>
-                                                        )}
+                                        const expiresAt = new Date(invite.expiresAt);
+                                        const now = new Date();
+                                        const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                                        const isExpiringSoon = invite.status === "pending" && daysLeft <= 2 && daysLeft > 0;
+                                        const isExpired = daysLeft <= 0 && !invite.acceptedAt;
+                                        return (
+                                            <div key={invite.id} className="flex items-center justify-between p-4 border rounded-lg bg-slate-50 dark:bg-slate-900/50">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-8 w-8 rounded-full bg-white border flex items-center justify-center">
+                                                        <Mail className="h-4 w-4 text-slate-400" />
+                                                    </div>
+                                                    <div>
+                                                        <p className="font-medium text-sm">{invite.email}</p>
+                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                            <span>{format(new Date(invite.createdAt), "MMM d, yyyy")}</span>
+                                                            <span>•</span>
+                                                            <span className="capitalize">{invite.role}</span>
+                                                            {isExpiringSoon && (
+                                                                <span className="text-amber-600 font-semibold">• Expires in {daysLeft}d</span>
+                                                            )}
+                                                            {isExpired && (
+                                                                <span className="text-red-500 font-semibold">• Expired</span>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
+                                                <div className="flex items-center gap-2">
+                                                    <Badge variant="outline" className={
+                                                        invite.status === "pending" ? "text-amber-600 bg-amber-50 border-amber-200" :
+                                                            invite.status === "revoked" ? "text-red-600 bg-red-50" : ""
+                                                    }>
+                                                        {invite.status}
+                                                    </Badge>
+                                                    {isAdmin && invite.status === "pending" && (
+                                                        <div className="flex items-center gap-1">
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                                                                disabled={resendInviteMutation.isPending}
+                                                                onClick={() => resendInviteMutation.mutate(invite.id)}
+                                                            >
+                                                                {resendInviteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Resend"}
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                                onClick={() => revokeInviteMutation.mutate(invite.id)}
+                                                            >
+                                                                Revoke
+                                                            </Button>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
-                                            <div className="flex items-center gap-2">
-                                                <Badge variant="outline" className={
-                                                    invite.status === "pending" ? "text-amber-600 bg-amber-50 border-amber-200" :
-                                                        invite.status === "revoked" ? "text-red-600 bg-red-50" : ""
-                                                }>
-                                                    {invite.status}
-                                                </Badge>
-                                                {isAdmin && invite.status === "pending" && (
-                                                    <div className="flex items-center gap-1">
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                                                            disabled={resendInviteMutation.isPending}
-                                                            onClick={() => resendInviteMutation.mutate(invite.id)}
-                                                        >
-                                                            {resendInviteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Resend"}
-                                                        </Button>
-                                                        <Button
-                                                            variant="ghost"
-                                                            size="sm"
-                                                            className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                            onClick={() => revokeInviteMutation.mutate(invite.id)}
-                                                        >
-                                                            Revoke
-                                                        </Button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                     {(!invites || invites.length === 0) && (
                                         <div className="text-center py-8 text-slate-400 italic">No pending invitations</div>
                                     )}
@@ -702,8 +701,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                                     </div>
                                                 </div>
                                             </div>
-                                            );
-                                        })}
+                                        ))}
                                         {(!activities || activities.length === 0) && (
                                             <div className="pl-12 py-4 text-muted-foreground italic">No recent activity recorded.</div>
                                         )}
