@@ -174,13 +174,38 @@ export async function GET(req: Request) {
       return { name: dayName, activities: count };
     });
 
-    // Project structure for treemap
-    const projectsWithTasks = await db.project.findMany({
-      where: whereProject,
-      include: {
-        _count: { select: { tasks: true } }
-      }
-    });
+    // Fetch workspace structure and statuses
+    const [projectsWithTasks, statuses] = await Promise.all([
+      db.project.findMany({
+        where: whereProject,
+        include: {
+          _count: { select: { tasks: true } }
+        }
+      }),
+      db.status.findMany({
+        where: { workspaceId },
+        orderBy: { order: "asc" }
+      })
+    ]);
+
+    // Dynamic Status Calculation
+    const statusDistribution = statuses.map(s => ({
+      name: s.name,
+      value: allTasks.filter((t: any) => 
+        t.statusId === s.id || t.status.toLowerCase() === s.name.toLowerCase()
+      ).length
+    }));
+
+    // Identify completion status (usually the last one)
+    const completionStatus = statuses[statuses.length - 1];
+    const completedTasksCount = completionStatus 
+        ? allTasks.filter((t: any) => t.statusId === completionStatus.id || t.status.toLowerCase() === completionStatus.name.toLowerCase()).length
+        : allTasks.filter((t: any) => t.status === "completed" || t.status === "done").length;
+
+    const completionRate =
+      allTasks.length > 0
+        ? Math.round((completedTasksCount / allTasks.length) * 100)
+        : 0;
 
     return NextResponse.json({
       projectsCount,
@@ -209,16 +234,11 @@ export async function GET(req: Request) {
         user: a.user
       })),
       activityTrends,
-      statusDistribution: [
-        { name: "Todo", value: allTasks.filter(t => t.status === "todo").length },
-        { name: "In Progress", value: allTasks.filter(t => t.status === "in_progress").length },
-        { name: "Review", value: allTasks.filter(t => t.status === "review").length },
-        { name: "Done", value: completedTasksCount },
-      ],
+      statusDistribution,
       priorityDistribution: [
-        { name: "Low", value: allTasks.filter(t => t.priority === "low").length },
-        { name: "Medium", value: allTasks.filter(t => t.priority === "medium").length },
-        { name: "High", value: allTasks.filter(t => t.priority === "high").length },
+        { name: "Low", value: allTasks.filter((t: any) => t.priority === "low").length },
+        { name: "Medium", value: allTasks.filter((t: any) => t.priority === "medium").length },
+        { name: "High", value: allTasks.filter((t: any) => t.priority === "high").length },
       ],
       workspaceStructure: [
         {

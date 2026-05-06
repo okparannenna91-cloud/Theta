@@ -122,6 +122,12 @@ export async function DELETE(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
+        // Nullify columnId on tasks (Relationship Consistency Fix)
+        await db.task.updateMany({
+            where: { columnId: params.id },
+            data: { columnId: null }
+        });
+
         await db.column.delete({
             where: { id: params.id },
         });

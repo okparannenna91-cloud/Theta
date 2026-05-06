@@ -39,13 +39,21 @@ export async function POST(req: Request) {
         const data = inviteSchema.parse({ ...body, workspaceId: targetWorkspaceId });
 
         // Verify user is admin/owner of workspace OR admin/owner of the target team
-        // Use derived targetWorkspaceId for workspace admin check
         const isWsAdmin = await isWorkspaceAdmin(user.id, targetWorkspaceId);
         
         let isTeamAdmin = false;
         if (data.teamId) {
             const { getPrismaClient } = await import("@/lib/prisma");
             const db = getPrismaClient(targetWorkspaceId);
+            const team = await db.team.findUnique({
+                where: { id: data.teamId }
+            });
+            
+            // CROSS-TENANT INJECTION FIX: Ensure team belongs to workspace
+            if (team && team.workspaceId !== targetWorkspaceId) {
+                return NextResponse.json({ error: "Invalid team for this workspace" }, { status: 400 });
+            }
+
             const teamMember = await db.teamMember.findUnique({
                 where: {
                     teamId_userId: {
@@ -65,7 +73,13 @@ export async function POST(req: Request) {
             );
         }
 
-
+        // PRIVILEGE ESCALATION FIX: Non-WS-Admins can ONLY invite as 'member'
+        if (!isWsAdmin && data.role !== "member") {
+            return NextResponse.json(
+                { error: "Access denied: Only workspace admins can invite users with admin/owner roles" },
+                { status: 403 }
+            );
+        }
 
         const emailsToProcess = new Set<string>();
         if (data.email) emailsToProcess.add(data.email);
@@ -230,10 +244,26 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: "Invite not found" }, { status: 404 });
         }
 
-        // Verify user is admin of workspace
-        const isAdmin = await isWorkspaceAdmin(user.id, invite.workspaceId);
-        if (!isAdmin) {
-            return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        // Verify user is admin of workspace OR admin of the team linked to the invite
+        const isWsAdmin = await isWorkspaceAdmin(user.id, invite.workspaceId);
+        
+        let isTeamAdmin = false;
+        if (invite.teamId) {
+            const { getPrismaClient } = await import("@/lib/prisma");
+            const db = getPrismaClient(invite.workspaceId);
+            const teamMember = await db.teamMember.findUnique({
+                where: {
+                    teamId_userId: {
+                        teamId: invite.teamId,
+                        userId: user.id
+                    }
+                }
+            });
+            isTeamAdmin = teamMember?.role === "admin" || teamMember?.role === "owner";
+        }
+
+        if (!isWsAdmin && !isTeamAdmin) {
+            return NextResponse.json({ error: "Forbidden: Only workspace admins or team admins can revoke invites" }, { status: 403 });
         }
 
         await prisma.invite.update({

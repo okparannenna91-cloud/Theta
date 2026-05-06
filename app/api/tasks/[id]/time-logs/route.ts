@@ -27,6 +27,13 @@ export async function POST(
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
         }
 
+        // Verify workspace access
+        const { verifyWorkspaceAccess } = await import("@/lib/workspace");
+        const hasAccess = await verifyWorkspaceAccess(user.id, task.workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
         const timeLog = await db.timeLog.create({
             data: {
                 duration,
@@ -59,7 +66,17 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { db } = await findAcrossShards<Task>("task", { id: params.id });
+        const { data: task, db } = await findAcrossShards<Task>("task", { id: params.id });
+        if (!task) {
+            return NextResponse.json({ error: "Task not found" }, { status: 404 });
+        }
+
+        // Verify workspace access
+        const { verifyWorkspaceAccess } = await import("@/lib/workspace");
+        const hasAccess = await verifyWorkspaceAccess(user.id, task.workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
         const rawTimeLogs = await db.timeLog.findMany({
             where: { taskId: params.id },
             orderBy: { createdAt: "desc" },

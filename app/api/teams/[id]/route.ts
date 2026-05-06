@@ -30,12 +30,13 @@ export async function GET(
         }
 
         const db = teamResult.db;
-        const team = await db.team.findUnique({
-            where: { id: params.id },
-        });
+        const team = teamResult.data;
 
-        if (!team) {
-            return NextResponse.json({ error: "Team not found" }, { status: 404 });
+        // Verify workspace access
+        const { verifyWorkspaceAccess } = await import("@/lib/workspace");
+        const hasAccess = await verifyWorkspaceAccess(user.id, team.workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
         // Aggregate unique member count from both shards
@@ -183,10 +184,21 @@ export async function DELETE(
         // 2. Delete members from primary (legacy)
         await prisma.teamMember.deleteMany({ where: { teamId: params.id } });
 
-        // 3. Delete the team itself
+        // 3. Nullify project teamId (Relationship Consistency)
+        await db.project.updateMany({
+            where: { teamId: params.id },
+            data: { teamId: null }
+        });
+
+        // 4. Delete the team itself
         await db.team.delete({
             where: { id: params.id },
         });
+
+        // Notify via Ably
+        const { getWorkspaceChannel, publishToChannel } = await import("@/lib/ably");
+        const workspaceChannel = getWorkspaceChannel(team.workspaceId);
+        await publishToChannel(workspaceChannel, "team:deleted", { id: params.id });
 
         // Log activity
         await logActivity({

@@ -28,21 +28,37 @@ export async function GET(req: Request) {
         const db = getPrismaClient(workspaceId);
         const cutoffDate = subDays(new Date(), days);
 
-        // Fetch fundamental data
-        const projects = await db.project.findMany({
-            where: { workspaceId },
-            include: { _count: { select: { tasks: true } } }
-        });
+        // Fetch fundamental data (Relationship & Analytics Accuracy Fix)
+        const [projects, tasks, statuses] = await Promise.all([
+            db.project.findMany({
+                where: { workspaceId },
+                include: { _count: { select: { tasks: true } } }
+            }),
+            db.task.findMany({
+                where: { workspaceId },
+                include: { project: true }
+            }),
+            db.status.findMany({
+                where: { workspaceId },
+                orderBy: { order: 'asc' }
+            })
+        ]);
 
-        const tasks = await db.task.findMany({
-            where: { workspaceId },
-            include: { project: true }
-        });
+        // Identify 'Done/Completed' status dynamically
+        const completionStatus = statuses[statuses.length - 1];
+        const completionIds = statuses.filter(s => s.name.toLowerCase() === 'done' || s.name.toLowerCase() === 'completed').map(s => s.id);
+        if (completionStatus && !completionIds.includes(completionStatus.id)) {
+            completionIds.push(completionStatus.id);
+        }
+
+        const isTaskCompleted = (t: any) => 
+            completionIds.includes(t.statusId) || 
+            ['done', 'completed'].includes(t.status.toLowerCase());
 
         const totalProjects = projects.length;
         const totalTasks = tasks.length;
-        const completedTasks = tasks.filter((t: any) => t.status === "done" || t.status === "completed");
-        const pendingTasks = tasks.filter((t: any) => t.status !== "done" && t.status !== "completed");
+        const completedTasks = tasks.filter(isTaskCompleted);
+        const pendingTasks = tasks.filter(t => !isTaskCompleted(t));
         const overdueTasks = pendingTasks.filter((t: any) => t.dueDate && isBefore(new Date(t.dueDate), new Date()));
         
         const projectCompletionRate = totalTasks > 0 ? (completedTasks.length / totalTasks) * 100 : 0;
@@ -61,8 +77,8 @@ export async function GET(req: Request) {
                     dateMap.get(dateStr).created += 1;
                 }
             }
-            if ((task.status === "done" || task.status === "completed") && task.updatedAt && isAfter(new Date(task.updatedAt), cutoffDate)) {
-                const dateStr = format(new Date(task.updatedAt), "MMM dd");
+            if (isTaskCompleted(task) && task.completedAt && isAfter(new Date(task.completedAt), cutoffDate)) {
+                const dateStr = format(new Date(task.completedAt), "MMM dd");
                 if (dateMap.has(dateStr)) {
                     dateMap.get(dateStr).completed += 1;
                 }
@@ -116,6 +132,24 @@ export async function GET(req: Request) {
         });
         const limits = getPlanLimits((workspace?.plan as any) || "free");
 
+        // Billing Enforcement (Security & Privilege Escalation Fix)
+        if (!limits.hasAdvancedAnalytics) {
+            return NextResponse.json({
+                totals: {
+                    projects: totalProjects,
+                    tasks: totalTasks,
+                    completedTasks: completedTasks.length,
+                    pendingTasks: pendingTasks.length,
+                    overdueTasks: overdueTasks.length,
+                    projectCompletionRate: Math.round(projectCompletionRate)
+                },
+                tasksOverTime: [],
+                teamProductivity: [],
+                mostActiveProjects: [],
+                limits: { hasAccess: false, message: "Upgrade to Pro for advanced analytics" }
+            });
+        }
+
         return NextResponse.json({
             totals: {
                 projects: totalProjects,
@@ -129,7 +163,7 @@ export async function GET(req: Request) {
             teamProductivity,
             mostActiveProjects,
             limits: {
-                hasAccess: limits.hasAdvancedAnalytics
+                hasAccess: true
             }
         });
     } catch (error) {

@@ -234,8 +234,9 @@ model Task {
   tagIds    String[]  @db.ObjectId
   tags      Tag[]     @relation("TaskTags", fields: [tagIds], references: [id])
   
-  statusId  String?   @db.ObjectId
-  customStatus Status? @relation(fields: [statusId], references: [id])
+  statusId     String?   @db.ObjectId
+  customStatus Status?   @relation(fields: [statusId], references: [id])
+  completedAt  DateTime? @db.Date
   
   estimatedHours Int?
   progress       Int       @default(0)

@@ -24,6 +24,13 @@ export async function GET(
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
         }
 
+        // Verify workspace access
+        const { verifyWorkspaceAccess } = await import("@/lib/workspace");
+        const hasAccess = await verifyWorkspaceAccess(user.id, task.workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
         const rawComments = await (db as any).comment.findMany({
             where: { taskId: params.id },
             orderBy: { createdAt: "desc" },

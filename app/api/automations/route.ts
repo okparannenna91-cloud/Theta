@@ -26,6 +26,13 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
+        // Verify workspace access
+        const { verifyWorkspaceAccess } = await import("@/lib/workspace");
+        const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
         const [automations, count] = await Promise.all([
             prisma.automation.findMany({
                 where: { workspaceId },
@@ -68,6 +75,13 @@ export async function POST(req: Request) {
 
         const body = await req.json();
         const data = automationSchema.parse(body);
+
+        // Verify workspace access
+        const { verifyWorkspaceAccess } = await import("@/lib/workspace");
+        const hasAccess = await verifyWorkspaceAccess(user.id, data.workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
 
         // Check plan limits strictly
         try {

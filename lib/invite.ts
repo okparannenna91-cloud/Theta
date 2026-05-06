@@ -135,6 +135,15 @@ export async function acceptInvite(token: string, userId: string) {
         action: "joined",
     });
 
+    // Real-time synchronization (Ably)
+    try {
+        const { publishToChannel, getWorkspaceChannel } = await import("@/lib/ably");
+        const channelName = getWorkspaceChannel(invite.workspaceId);
+        await publishToChannel(channelName, "member:joined", { userId, workspaceId: invite.workspaceId });
+    } catch (ablyError) {
+        console.error("Failed to notify join event via Ably:", ablyError);
+    }
+
     return { workspace: invite.workspace };
 }
 

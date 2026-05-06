@@ -29,9 +29,27 @@ import {
     CommandShortcut,
 } from "@/components/ui/command";
 
+import { useWorkspace } from "@/hooks/use-workspace";
+import { useQuery } from "@tanstack/react-query";
+import { useDebounce } from "@/hooks/use-debounce";
+
 export function CommandSearch() {
     const [open, setOpen] = React.useState(false);
+    const [query, setQuery] = React.useState("");
+    const debouncedQuery = useDebounce(query, 300);
     const router = useRouter();
+    const { activeWorkspaceId } = useWorkspace();
+
+    const { data: results, isLoading } = useQuery({
+        queryKey: ["search", activeWorkspaceId, debouncedQuery],
+        queryFn: async () => {
+            if (!debouncedQuery || debouncedQuery.length < 2) return null;
+            const res = await fetch(`/api/search?workspaceId=${activeWorkspaceId}&q=${debouncedQuery}`);
+            if (!res.ok) throw new Error("Search failed");
+            return res.json();
+        },
+        enabled: open && !!activeWorkspaceId && debouncedQuery.length >= 2,
+    });
 
     React.useEffect(() => {
         const down = (e: KeyboardEvent) => {
@@ -63,45 +81,67 @@ export function CommandSearch() {
                 </kbd>
             </button>
             <CommandDialog open={open} onOpenChange={setOpen}>
-                <CommandInput placeholder="Type a command or search..." />
+                <CommandInput 
+                    placeholder="Type a command or search..." 
+                    value={query}
+                    onValueChange={setQuery}
+                />
                 <CommandList>
-                    <CommandEmpty>No results found.</CommandEmpty>
+                    <CommandEmpty>{isLoading ? "Searching..." : "No results found."}</CommandEmpty>
+                    
+                    {results && (
+                        <>
+                            {results.projects?.length > 0 && (
+                                <CommandGroup heading="Projects">
+                                    {results.projects.map((p: any) => (
+                                        <CommandItem key={p.id} onSelect={() => runCommand(() => router.push(`/projects/${p.id}`))}>
+                                            <FolderKanban className="w-4 h-4 mr-2 text-indigo-500" />
+                                            <span>{p.name}</span>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {results.tasks?.length > 0 && (
+                                <CommandGroup heading="Tasks">
+                                    {results.tasks.map((t: any) => (
+                                        <CommandItem key={t.id} onSelect={() => runCommand(() => router.push(`/tasks/${t.id}`))}>
+                                            <CheckSquare className="w-4 h-4 mr-2 text-emerald-500" />
+                                            <div className="flex flex-col">
+                                                <span>{t.title}</span>
+                                                <span className="text-[10px] text-muted-foreground">{t.project?.name}</span>
+                                            </div>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+
+                            {results.members?.length > 0 && (
+                                <CommandGroup heading="Members">
+                                    {results.members.map((m: any) => (
+                                        <CommandItem key={m.id} onSelect={() => runCommand(() => router.push(`/profile/${m.id}`))}>
+                                            <Users className="w-4 h-4 mr-2 text-blue-500" />
+                                            <span>{m.name}</span>
+                                            <span className="ml-2 text-[10px] text-muted-foreground">({m.role})</span>
+                                        </CommandItem>
+                                    ))}
+                                </CommandGroup>
+                            )}
+                        </>
+                    )}
+
                     <CommandGroup heading="Suggestions">
                         <CommandItem onSelect={() => runCommand(() => router.push("/dashboard"))}>
-                            <Search className="w-4 h-4 mr-2" />
+                            <TrendingUp className="w-4 h-4 mr-2" />
                             <span>Dashboard</span>
                         </CommandItem>
                         <CommandItem onSelect={() => runCommand(() => router.push("/projects"))}>
                             <FolderKanban className="w-4 h-4 mr-2" />
                             <span>Projects</span>
                         </CommandItem>
-                        <CommandItem onSelect={() => runCommand(() => router.push("/tasks"))}>
-                            <CheckSquare className="w-4 h-4 mr-2" />
-                            <span>Tasks</span>
-                        </CommandItem>
-                        <CommandItem onSelect={() => runCommand(() => router.push("/calendar"))}>
-                            <Calendar className="w-4 h-4 mr-2" />
-                            <span>Calendar</span>
-                        </CommandItem>
-                        <CommandGroup heading="Analytics">
-                            <CommandItem onSelect={() => runCommand(() => router.push("/analytics"))}>
-                                <TrendingUp className="w-4 h-4 mr-2" />
-                                <span>View Analytics Dashboard</span>
-                            </CommandItem>
-                        </CommandGroup>
                     </CommandGroup>
                     <CommandSeparator />
                     <CommandGroup heading="Settings">
-                        <CommandItem onSelect={() => runCommand(() => router.push("/profile"))}>
-                            <User className="w-4 h-4 mr-2" />
-                            <span>Profile</span>
-                            <CommandShortcut>⌘P</CommandShortcut>
-                        </CommandItem>
-                        <CommandItem onSelect={() => runCommand(() => router.push("/billing"))}>
-                            <CreditCard className="w-4 h-4 mr-2" />
-                            <span>Billing</span>
-                            <CommandShortcut>⌘B</CommandShortcut>
-                        </CommandItem>
                         <CommandItem onSelect={() => runCommand(() => router.push("/settings"))}>
                             <Settings className="w-4 h-4 mr-2" />
                             <span>Settings</span>

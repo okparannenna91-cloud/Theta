@@ -250,8 +250,29 @@ export async function DELETE(
       return NextResponse.json({ error: "Access denied. Only project creators or workspace admins can delete projects." }, { status: 403 });
     }
 
+    // Manual Cascade: Delete all tasks associated with this project (Consistency Fix)
+    await (db as any).task.deleteMany({
+        where: { projectId: params.id }
+    });
+
     await (db as any).project.delete({
       where: { id: params.id },
+    });
+
+    // Notify via Ably
+    const { getWorkspaceChannel, publishToChannel } = await import("@/lib/ably");
+    const workspaceChannel = getWorkspaceChannel(project.workspaceId);
+    await publishToChannel(workspaceChannel, "project:deleted", { id: params.id });
+
+    // Log Activity
+    const { logActivity } = await import("@/lib/activity");
+    await logActivity({
+        userId: user.id,
+        workspaceId: project.workspaceId,
+        action: "deleted",
+        entityType: "project",
+        entityId: params.id,
+        metadata: { name: project.name }
     });
 
     return NextResponse.json({ success: true });

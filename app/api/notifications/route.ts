@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrismaClient } from "@/lib/prisma";
+import { verifyWorkspaceAccess } from "@/lib/workspace";
 
 export async function GET(req: Request) {
     try {
@@ -14,6 +15,12 @@ export async function GET(req: Request) {
         const take = parseInt(searchParams.get("take") || "20");
 
         if (!workspaceId) return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
+
+        // Verify workspace access
+        const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied to workspace" }, { status: 403 });
+        }
 
         const db = getPrismaClient(workspaceId);
         
@@ -84,6 +91,12 @@ export async function PATCH(req: Request) {
 
         if (!workspaceId) return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
 
+        // Verify workspace access
+        const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied to workspace" }, { status: 403 });
+        }
+
         const body = await req.json();
         const { notificationId, markAllAsRead, archived, pinned, read } = body;
 
@@ -98,6 +111,19 @@ export async function PATCH(req: Request) {
         }
 
         if (notificationId) {
+            // Verify notification ownership
+            const notification = await db.notification.findUnique({
+                where: { id: notificationId }
+            });
+
+            if (!notification) {
+                return NextResponse.json({ error: "Notification not found" }, { status: 404 });
+            }
+
+            if (notification.userId !== user.id) {
+                return NextResponse.json({ error: "Forbidden: You don't own this notification" }, { status: 403 });
+            }
+
             const data: any = {};
             if (read !== undefined) data.read = read;
             if (archived !== undefined) data.archived = archived;
@@ -128,7 +154,26 @@ export async function DELETE(req: Request) {
 
         if (!workspaceId || !notificationId) return NextResponse.json({ error: "Missing params" }, { status: 400 });
 
+        // Verify workspace access
+        const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied to workspace" }, { status: 403 });
+        }
+
         const db = getPrismaClient(workspaceId);
+
+        // Verify notification ownership
+        const notification = await db.notification.findUnique({
+            where: { id: notificationId }
+        });
+
+        if (!notification) {
+            return NextResponse.json({ error: "Notification not found" }, { status: 404 });
+        }
+
+        if (notification.userId !== user.id) {
+            return NextResponse.json({ error: "Forbidden: You don't own this notification" }, { status: 403 });
+        }
 
         await db.notification.delete({
             where: { id: notificationId }
@@ -140,3 +185,4 @@ export async function DELETE(req: Request) {
         return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 }
+

@@ -319,6 +319,34 @@ export async function deleteWorkspace(workspaceId: string, userId: string) {
         try {
             // Delete workspace-scoped entities on this shard
             const where = { workspaceId };
+            
+            // 1. Fetch parent IDs for entities that have children without workspaceId
+            const [tasks, boards, forms, teams] = await Promise.all([
+                shard.task.findMany({ where, select: { id: true } }),
+                shard.board.findMany({ where, select: { id: true } }),
+                shard.form.findMany({ where, select: { id: true } }),
+                shard.team.findMany({ where, select: { id: true } }),
+            ]);
+
+            const taskIds = tasks.map((t: any) => t.id);
+            const boardIds = boards.map((b: any) => b.id);
+            const formIds = forms.map((f: any) => f.id);
+            const teamIds = teams.map((t: any) => t.id);
+
+            // 2. Delete child entities first
+            await Promise.all([
+                taskIds.length > 0 ? shard.subtask.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
+                taskIds.length > 0 ? shard.comment.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
+                taskIds.length > 0 ? shard.timeLog.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
+                taskIds.length > 0 ? shard.taskDependency.deleteMany({ 
+                    where: { OR: [{ taskId: { in: taskIds } }, { predecessorId: { in: taskIds } }] } 
+                }) : Promise.resolve(),
+                boardIds.length > 0 ? shard.column.deleteMany({ where: { boardId: { in: boardIds } } }) : Promise.resolve(),
+                formIds.length > 0 ? shard.formResponse.deleteMany({ where: { formId: { in: formIds } } }) : Promise.resolve(),
+                teamIds.length > 0 ? shard.teamMember.deleteMany({ where: { teamId: { in: teamIds } } }) : Promise.resolve(),
+            ]);
+
+            // 3. Delete workspace-scoped entities
             await Promise.all([
                 shard.project.deleteMany({ where }),
                 shard.task.deleteMany({ where }),
@@ -327,6 +355,16 @@ export async function deleteWorkspace(workspaceId: string, userId: string) {
                 shard.chatMessage.deleteMany({ where }),
                 shard.activity.deleteMany({ where }),
                 shard.notification.deleteMany({ where }),
+                shard.tag.deleteMany({ where }),
+                shard.status.deleteMany({ where }),
+                shard.automation.deleteMany({ where }),
+                shard.document.deleteMany({ where }),
+                shard.calendarEvent.deleteMany({ where }),
+                shard.invite.deleteMany({ where }),
+                shard.integration.deleteMany({ where }),
+                shard.billingLog.deleteMany({ where }),
+                shard.form.deleteMany({ where }),
+                shard.projectTeam.deleteMany({ where }),
             ]);
         } catch (shardError) {
             console.error(`Failed to cleanup shard during workspace deletion:`, shardError);

@@ -138,6 +138,19 @@ export async function POST(req: Request) {
 
     const db = getPrismaClient(data.workspaceId);
 
+    // Find the correct statusId (Relationship Consistency Fix)
+    const statusRecord = await db.status.findFirst({
+        where: { 
+            workspaceId: data.workspaceId,
+            name: { equals: data.status, mode: 'insensitive' }
+        }
+    }) || await db.status.findFirst({
+        where: { 
+            workspaceId: data.workspaceId,
+            name: { equals: 'Todo', mode: 'insensitive' }
+        }
+    });
+
     // Verify project belongs to workspace and user has access
     const project = await db.project.findFirst({
       where: {
@@ -175,6 +188,7 @@ export async function POST(req: Request) {
         title: data.title,
         description: data.description,
         status: data.status,
+        statusId: statusRecord?.id, // Link to custom status
         priority: data.priority,
         workspaceId: data.workspaceId as string,
         projectId: data.projectId as string,
@@ -214,6 +228,18 @@ export async function POST(req: Request) {
     if (task.projectId) {
       const projectChannel = getProjectChannel(task.workspaceId, task.projectId);
       await publishToChannel(projectChannel, "task:created", task);
+    }
+
+    // Trigger Automations (Phase 2)
+    try {
+        const { processAutomations } = await import("@/lib/automations/engine");
+        await processAutomations(task.workspaceId, "TASK_CREATED", {
+            taskId: task.id,
+            projectId: task.projectId,
+            userId: user.id
+        });
+    } catch (automationError) {
+        console.error("Failed to trigger automations on task creation:", automationError);
     }
 
     // Log activity

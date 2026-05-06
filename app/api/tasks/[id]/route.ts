@@ -96,6 +96,31 @@ export async function PATCH(
       updateData.baselineDueDate = new Date(data.baselineDueDate);
     }
 
+    // Resolve statusId and handle completion logic (Analytics & State Integrity Fix)
+    if (data.status) {
+        const statusRecord = await db.status.findFirst({
+            where: { 
+                workspaceId: task.workspaceId,
+                name: { equals: data.status, mode: 'insensitive' }
+            }
+        });
+
+        if (statusRecord) {
+            updateData.statusId = statusRecord.id;
+            
+            // Completion Logic
+            const isNowCompleted = ['done', 'completed'].includes(data.status.toLowerCase());
+            const wasCompleted = ['done', 'completed'].includes(task.status.toLowerCase());
+
+            if (isNowCompleted && !wasCompleted) {
+                updateData.completedAt = new Date();
+                updateData.progress = 100;
+            } else if (!isNowCompleted && wasCompleted) {
+                updateData.completedAt = null;
+            }
+        }
+    }
+
     const updated = await db.task.update({
       where: { id: params.id },
       data: updateData,
@@ -126,6 +151,11 @@ export async function PATCH(
     // If this task has a parent, recursively update the parent's progress/duration
     if (updated.parentId) {
       await updateParentTask(updated.parentId, task.workspaceId, db);
+    }
+
+    // If the parentId was CHANGED, update the OLD parent too (Relationship State Fix)
+    if (data.parentId !== undefined && task.parentId && data.parentId !== task.parentId) {
+      await updateParentTask(task.parentId, task.workspaceId, db);
     }
 
     // Log Activity
@@ -159,6 +189,20 @@ export async function PATCH(
         `${user.name || "A member"} updated status of "${updated.title}" to ${updated.status}`,
         { taskId: updated.id, projectId: updated.projectId }
       );
+    }
+
+    // Trigger Automations if status changed (Phase 2)
+    if (data.status && data.status !== task.status) {
+        try {
+            const { processAutomations } = await import("@/lib/automations/engine");
+            await processAutomations(task.workspaceId, "TASK_STATUS_UPDATED", {
+                taskId: updated.id,
+                projectId: updated.projectId,
+                userId: user.id
+            });
+        } catch (automationError) {
+            console.error("Failed to trigger automations on status change:", automationError);
+        }
     }
 
     return NextResponse.json(updated);
@@ -225,9 +269,19 @@ export async function DELETE(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    // Manual Cascade: Recursively delete all child tasks (subtasks)
+    await db.task.deleteMany({
+      where: { parentId: params.id },
+    });
+
     await db.task.delete({
       where: { id: params.id },
     });
+
+    // If this task had a parent, update it now (Consistency Fix)
+    if (task.parentId) {
+      await updateParentTask(task.parentId, task.workspaceId, db);
+    }
 
     // Notify via Ably
     const workspaceChannel = getWorkspaceChannel(task.workspaceId);
