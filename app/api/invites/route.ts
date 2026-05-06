@@ -128,6 +128,17 @@ export async function POST(req: Request) {
         
         const createdInvites = [];
         
+        let teamName: string | undefined;
+        if (data.teamId) {
+            const { getPrismaClient } = await import("@/lib/prisma");
+            const db = getPrismaClient(data.workspaceId);
+            const team = await db.team.findUnique({
+                where: { id: data.teamId },
+                select: { name: true }
+            });
+            teamName = team?.name;
+        }
+
         for (const targetEmail of Array.from(emailsToProcess)) {
             const invite = await createInvite(
                 data.workspaceId,
@@ -145,6 +156,7 @@ export async function POST(req: Request) {
                     workspaceName: emailWorkspace?.name || "Theta Workspace",
                     inviteLink,
                     role: data.role,
+                    teamName,
                 });
             } catch (emailError) {
                 console.error(`Failed to send invite email to ${targetEmail}:`, emailError);
@@ -294,6 +306,18 @@ export async function PATCH(req: Request) {
 
         const { invite, workspaceName } = await resendInvite(inviteId);
 
+        // Fetch team name if applicable
+        let teamName: string | undefined;
+        if (invite.teamId) {
+            const { getPrismaClient } = await import("@/lib/prisma");
+            const db = getPrismaClient(invite.workspaceId);
+            const team = await db.team.findUnique({
+                where: { id: invite.teamId },
+                select: { name: true }
+            });
+            teamName = team?.name;
+        }
+
         // Verify user is admin of workspace
         const isAdmin = await isWorkspaceAdmin(user.id, invite.workspaceId);
         if (!isAdmin) {
@@ -318,6 +342,7 @@ export async function PATCH(req: Request) {
             workspaceName: workspaceName || "Theta Workspace",
             inviteLink,
             role: invite.role,
+            teamName,
         });
 
         return NextResponse.json({

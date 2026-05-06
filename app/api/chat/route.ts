@@ -104,10 +104,10 @@ export async function GET(req: Request) {
         const take = 50;
         const messagesRaw = await db.chatMessage.findMany({
             where: {
-                teamId: teamId || null,
                 workspaceId: effectiveWorkspaceId as string,
-                projectId: teamId ? null : (projectId || null),
-                deletedAt: null, // Only fetch non-deleted messages or handle them in frontend
+                ...(teamId ? { teamId } : { teamId: null }),
+                ...(projectId ? { projectId } : (teamId ? {} : { projectId: null })),
+                deletedAt: null,
             },
             take: take + 1,
             skip: cursor ? 1 : 0,
@@ -257,11 +257,11 @@ export async function POST(req: Request) {
             data: {
                 content: data.content,
                 workspaceId: data.workspaceId,
-                projectId: data.projectId ?? undefined,
-                teamId: data.teamId ?? undefined,
+                projectId: data.projectId ?? null,
+                teamId: data.teamId ?? null,
                 userId: user.id as string,
-                attachment: (data.attachment as any) ?? undefined,
-                replyToId: data.replyToId ?? undefined,
+                attachment: (data.attachment as any) ?? null,
+                replyToId: data.replyToId ?? null,
             },
             include: {
                 replyTo: {

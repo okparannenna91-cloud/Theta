@@ -184,7 +184,10 @@ export async function DELETE(
         // 2. Delete members from primary (legacy)
         await prisma.teamMember.deleteMany({ where: { teamId: params.id } });
 
-        // 3. Nullify project teamId (Relationship Consistency)
+        // 3. Delete all chat messages for this team (Consistency Fix)
+        await db.chatMessage.deleteMany({ where: { teamId: params.id } });
+
+        // 4. Nullify project teamId (Relationship Consistency)
         await db.project.updateMany({
             where: { teamId: params.id },
             data: { teamId: null }

@@ -7,6 +7,7 @@ interface SendInviteEmailParams {
     workspaceName: string;
     inviteLink: string;
     role: string;
+    teamName?: string;
 }
 
 export async function sendInviteEmail({
@@ -21,16 +22,22 @@ export async function sendInviteEmail({
     }
 
     try {
+        const subject = teamName 
+            ? `You've been invited to join the ${teamName} team in ${workspaceName}`
+            : `You've been invited to join ${workspaceName} on Theta`;
+
         const { data, error } = await resend.emails.send({
-            from: "Theta <ezekiel@thetapm.site>", // Replace with your verified domain in production
+            from: "Theta <ezekiel@thetapm.site>",
             to: [to],
-            subject: `You've been invited to join ${workspaceName} on Theta`,
+            subject,
             html: `
                 <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; background-color: #f8fafc; padding: 40px 20px; text-align: center;">
                     <div style="max-width: 500px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; padding: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); border: 1px solid #e2e8f0;">
-                        <h1 style="color: #4f46e5; margin-top: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Join ${workspaceName}</h1>
+                        <h1 style="color: #4f46e5; margin-top: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Join ${teamName ? teamName : workspaceName}</h1>
                         <p style="color: #334155; font-size: 16px; line-height: 24px;">Hello!</p>
-                        <p style="color: #475569; font-size: 15px; line-height: 24px; margin-bottom: 32px;">You have been invited to collaborate in the <strong>${workspaceName}</strong> workspace as a <strong style="text-transform: capitalize;">${role}</strong>. Theta is where your team's work gets done faster.</p>
+                        <p style="color: #475569; font-size: 15px; line-height: 24px; margin-bottom: 32px;">
+                            You have been invited to collaborate in <strong>${workspaceName}</strong> ${teamName ? `on the <strong>${teamName}</strong> team` : ''} as a <strong style="text-transform: capitalize;">${role}</strong>. Theta is where your team's work gets done faster.
+                        </p>
                         
                         <a href="${inviteLink}" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; border-radius: 9999px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.39);">
                             Accept Invitation
