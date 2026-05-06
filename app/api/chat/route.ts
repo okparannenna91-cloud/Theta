@@ -102,13 +102,26 @@ export async function GET(req: Request) {
 
         // Get chat messages using cursor-based pagination
         const take = 50;
+        // Optimized Filter (Persistence & Shard Consistency Fix)
+        const where: any = {
+            workspaceId: effectiveWorkspaceId as string,
+            deletedAt: null,
+        };
+
+        if (teamId) {
+            where.teamId = teamId;
+        } else if (projectId) {
+            where.projectId = projectId;
+            where.teamId = null;
+        } else {
+            where.teamId = null;
+            where.projectId = null;
+        }
+
+        console.log(`[Chat GET] Querying messages. workspaceId=${effectiveWorkspaceId}, teamId=${teamId}, projectId=${projectId}`);
+
         const messagesRaw = await db.chatMessage.findMany({
-            where: {
-                workspaceId: effectiveWorkspaceId as string,
-                ...(teamId ? { teamId } : { teamId: null }),
-                ...(projectId ? { projectId } : (teamId ? {} : { projectId: null })),
-                deletedAt: null,
-            },
+            where,
             take: take + 1,
             skip: cursor ? 1 : 0,
             cursor: cursor ? { id: cursor } : undefined,
