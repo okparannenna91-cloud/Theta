@@ -15,6 +15,7 @@ export async function sendInviteEmail({
     workspaceName,
     inviteLink,
     role,
+    teamName,
 }: SendInviteEmailParams) {
     if (!process.env.RESEND_API_KEY) {
         console.warn("RESEND_API_KEY is not set. Skipping email send.");
