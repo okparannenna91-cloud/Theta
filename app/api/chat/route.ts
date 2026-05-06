@@ -102,12 +102,13 @@ export async function GET(req: Request) {
 
         // Get chat messages using cursor-based pagination
         const take = 50;
-        // Optimized Filter (Persistence & Shard Consistency Fix)
+        // DIAGNOSTIC: Permissive filter to see if ANY messages exist on this shard
         const where: any = {
             workspaceId: effectiveWorkspaceId as string,
             deletedAt: null,
         };
 
+        /* 
         if (teamId) {
             where.teamId = teamId;
         } else if (projectId) {
@@ -117,8 +118,9 @@ export async function GET(req: Request) {
             where.teamId = null;
             where.projectId = null;
         }
+        */
 
-        console.log(`[Chat GET] Querying messages. workspaceId=${effectiveWorkspaceId}, teamId=${teamId}, projectId=${projectId}`);
+        console.log(`[Chat GET] DIAGNOSTIC QUERY. workspaceId=${effectiveWorkspaceId}`);
 
         const messagesRaw = await db.chatMessage.findMany({
             where,
