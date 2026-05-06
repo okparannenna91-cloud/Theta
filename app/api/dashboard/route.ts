@@ -95,13 +95,6 @@ export async function GET(req: Request) {
       include: { project: true } // Need project to display context
     });
 
-    const completedTasksList = allTasks.filter((t: any) => t.status === "completed");
-    const completedTasksCount = completedTasksList.length;
-    const completionRate =
-      allTasks.length > 0
-        ? Math.round((completedTasksCount / allTasks.length) * 100)
-        : 0;
-
     const recentProjects = await db.project.findMany({
       where: whereProject,
       take: 5,
