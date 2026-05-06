@@ -102,72 +102,61 @@ export async function GET(req: Request) {
 
         // Get chat messages using cursor-based pagination
         const take = 50;
-        // Optimized Filter: Use teamId or projectId as the primary key for the query.
-        // Since these IDs are unique, we don't need the workspaceId in the 'where' clause,
-        // but we still use it to select the correct database shard.
-        const where: any = {
-            deletedAt: null,
+        // DIAGNOSTIC BROAD FETCH: Get last 100 messages for the workspace to see what's actually in there
+        const workspaceWhere = { 
+            workspaceId: effectiveWorkspaceId as string,
+            deletedAt: null 
         };
-
-        if (teamId) {
-            where.teamId = teamId;
-        } else if (projectId) {
-            where.projectId = projectId;
-            where.teamId = null;
-        } else {
-            // Only for global workspace chat, we must use workspaceId
-            where.workspaceId = effectiveWorkspaceId as string;
-            where.teamId = null;
-            where.projectId = null;
-        }
-
-        console.log(`[Chat GET] Querying messages on shard. teamId=${teamId}, projectId=${projectId}, effectiveWorkspaceId=${effectiveWorkspaceId}`);
-
+        
         let messagesRaw = await db.chatMessage.findMany({
-            where,
-            take: take + 1,
-            skip: cursor ? 1 : 0,
-            cursor: cursor ? { id: cursor } : undefined,
+            where: workspaceWhere,
+            take: 100,
             orderBy: { createdAt: "desc" },
             include: {
-                replyTo: {
-                    select: {
-                        id: true,
-                        content: true,
-                        userId: true,
-                    }
-                }
+                replyTo: { select: { id: true, content: true, userId: true } }
             }
         });
 
-        // SELF-HEALING FALLBACK: If no messages found for a team, verify if the team is on a different shard
+        console.log(`[Chat Debug] Found ${messagesRaw.length} total messages for workspace ${effectiveWorkspaceId} on current shard.`);
+        
+        if (teamId) {
+            console.log(`[Chat Debug] Filtering for teamId: ${teamId}`);
+            // Log some samples to see why they might not match
+            messagesRaw.slice(0, 5).forEach(m => {
+                console.log(` - Sample Msg ${m.id}: teamId=${m.teamId}, type=${typeof m.teamId}`);
+            });
+            
+            // Apply filtering in JS to be safe against type mismatches
+            const filtered = messagesRaw.filter(m => String(m.teamId) === String(teamId));
+            
+            if (filtered.length === 0 && messagesRaw.length > 0) {
+                console.log(`[Chat Debug] WARNING: Workspace has messages but NONE match teamId ${teamId}.`);
+            }
+            
+            messagesRaw = filtered;
+        } else if (projectId) {
+            messagesRaw = messagesRaw.filter(m => String(m.projectId) === String(projectId));
+        }
+
+        // SELF-HEALING FALLBACK: If still nothing, search all shards for the team's true location
         if (messagesRaw.length === 0 && teamId) {
-            console.log(`[Chat GET] No messages found for team ${teamId} on shard derived from ${effectiveWorkspaceId}. Attempting self-healing cross-shard lookup...`);
             const { findAcrossShards, getPrismaClient } = await import("@/lib/prisma");
             const teamLookup = await findAcrossShards<any>("team", { id: teamId });
             
             if (teamLookup.data && teamLookup.data.workspaceId !== effectiveWorkspaceId) {
-                console.log(`[Chat GET] Shard mismatch detected! Team ${teamId} actually belongs to workspace ${teamLookup.data.workspaceId}. Re-querying correct shard...`);
+                console.log(`[Chat Debug] SHARD MISMATCH! Team actually on workspace ${teamLookup.data.workspaceId}. Re-querying...`);
                 effectiveWorkspaceId = teamLookup.data.workspaceId;
                 db = getPrismaClient(effectiveWorkspaceId);
                 
-                // Re-run query on the correct shard
-                messagesRaw = await db.chatMessage.findMany({
-                    where,
-                    take: take + 1,
-                    skip: cursor ? 1 : 0,
-                    cursor: cursor ? { id: cursor } : undefined,
+                const messagesFromCorrectShard = await db.chatMessage.findMany({
+                    where: { workspaceId: effectiveWorkspaceId, deletedAt: null },
+                    take: 100,
                     orderBy: { createdAt: "desc" },
                     include: {
-                        replyTo: {
-                            select: {
-                                id: true,
-                                content: true,
-                                userId: true,
-                            }
-                        }
+                        replyTo: { select: { id: true, content: true, userId: true } }
                     }
                 });
+                messagesRaw = messagesFromCorrectShard.filter(m => String(m.teamId) === String(teamId));
             }
         }
 
@@ -198,7 +187,7 @@ export async function GET(req: Request) {
             select: { plan: true }
         });
         const limits = getPlanLimits((workspace?.plan as any) || "free");
-        const count = await db.chatMessage.count({ where });
+        const count = await db.chatMessage.count({ where: workspaceWhere });
 
         // Get unread info
         let lastReadAt = null;
