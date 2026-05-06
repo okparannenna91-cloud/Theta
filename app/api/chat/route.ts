@@ -149,7 +149,7 @@ export async function GET(req: Request) {
                 db = getPrismaClient(effectiveWorkspaceId);
                 
                 const messagesFromCorrectShard = await db.chatMessage.findMany({
-                    where: { workspaceId: effectiveWorkspaceId, deletedAt: null },
+                    where: { workspaceId: effectiveWorkspaceId as string, deletedAt: null },
                     take: 100,
                     orderBy: { createdAt: "desc" },
                     include: {
