@@ -2,7 +2,11 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { generateWithOpenAI, generateWithVision } from "@/lib/openai";
 import { streamText } from "ai";
-import { openai } from "@ai-sdk/openai";
+import { createOpenAI } from "@ai-sdk/openai";
+
+const openaiProvider = createOpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 const NOVA_SYSTEM_PROMPT = `You are Nova, a helpful and efficient AI assistant for project management on thetapm.site. 
 Your name symbolizes new beginnings and brilliant intelligence. Keep responses concise, actionable, and professional. 
@@ -50,18 +54,18 @@ export async function POST(req: Request) {
                         workspaceId,
                         projectId: projectId || undefined 
                     },
-                    take: 20,
+                    take: 10,
                     orderBy: { updatedAt: 'desc' },
                     select: { title: true, status: true, priority: true, description: true }
                 }),
                 db.team.findMany({
                     where: { workspaceId },
-                    take: 5,
+                    take: 3,
                     select: { name: true }
                 }),
                 db.integration.findMany({
                     where: { workspaceId },
-                    take: 10,
+                    take: 5,
                     select: { provider: true }
                 }),
                 db.aiMemory.findMany({
@@ -72,7 +76,7 @@ export async function POST(req: Request) {
                     where: { 
                         task: { workspaceId }
                     },
-                    take: 5,
+                    take: 3,
                     orderBy: { createdAt: 'desc' },
                     select: { content: true, user: { select: { name: true } } }
                 })
@@ -103,13 +107,14 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
             if (conversationId) {
                 const history = await db.aiMessage.findMany({
                     where: { conversationId },
-                    orderBy: { createdAt: "asc" },
-                    take: 20
+                    orderBy: { createdAt: "desc" },
+                    take: 10
                 });
 
                 if (history.length > 0) {
                     workspaceContext += "\nCONVERSATION HISTORY:\n";
-                    history.forEach((m: any) => {
+                    // Reverse because we took desc
+                    history.reverse().forEach((m: any) => {
                         workspaceContext += `${m.role.toUpperCase()}: ${m.content}\n`;
                     });
                     workspaceContext += "---\n";
@@ -135,7 +140,7 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
         if (shouldStream) {
             try {
                 const result = await streamText({
-                    model: openai("gpt-4o-mini"),
+                    model: openaiProvider("gpt-4o-mini"),
                     system: systemPromptWithContext,
                     prompt: prompt,
                     async onFinish({ text }) {
