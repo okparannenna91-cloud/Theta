@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, getPrismaClient } from "@/lib/prisma";
+import { prisma, getPrismaClient, prismaShard1, prismaShard2, prismaShard3, prismaShard4 } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { publishToChannel, getChatChannel } from "@/lib/ably";
 import { z } from "zod";
