@@ -250,6 +250,14 @@ export async function POST(req: Request) {
 
         // Always use workspaceId-scoped shard (fast path)
         const db = getPrismaClient(data.workspaceId);
+        
+        // DIAGNOSTIC: Log exact shard info
+        console.log(`[Chat POST Debug] SAVING MESSAGE:
+            - workspaceId: ${data.workspaceId}
+            - teamId: ${data.teamId}
+            - targetShard: ${data.workspaceId ? (data.workspaceId.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % 4) : 0}
+            - dbClient: ${db === prismaShard1 ? "Shard1" : db === prismaShard2 ? "Shard2" : db === prismaShard3 ? "Shard3" : "Shard4"}
+        `);
 
         // Verify access based on teamId or workspaceId
         if (data.teamId) {
