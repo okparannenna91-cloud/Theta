@@ -43,6 +43,7 @@ model Workspace {
   automations    Automation[]
   documents     Document[]
   forms         Form[]
+  aiConversations AiConversation[]
 
   @@map("workspaces")
 }
@@ -163,6 +164,8 @@ model User {
   timeLogs      TimeLog[]
   documents     Document[]
   preferences   UserPreference?
+  aiConversations AiConversation[]
+  aiMemories      AiMemory[]
 
   @@map("users")
 }
@@ -595,4 +598,50 @@ model BillingLog {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("billing_logs")
+}
+
+model AiConversation {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String?  @default("New Conversation")
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  isPinned    Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  lastMessageAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages    AiMessage[]
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String   @db.ObjectId
+  role           String   // user, assistant, system
+  content        String
+  metadata       Json?    // For actions, file refs, etc.
+  createdAt      DateTime @default(now())
+
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("ai_messages")
+}
+
+model AiMemory {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  workspaceId String?  @db.ObjectId
+  key         String   // e.g., "writing_style", "preferred_tone"
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@map("ai_memories")
 }

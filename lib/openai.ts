@@ -58,3 +58,21 @@ export async function generateWithVision(prompt: string, imageUrl: string, syste
 
     return response.choices[0].message.content;
 }
+
+/**
+ * Stream a response using OpenAI
+ */
+export async function streamWithOpenAI(prompt: string, systemPrompt?: string) {
+    if (!apiKey) {
+        throw new Error("OpenAI API key missing");
+    }
+
+    return await openai.chat.completions.create({
+        model: "gpt-4o-mini",
+        messages: [
+            { role: "system", content: systemPrompt || "You are a helpful assistant." },
+            { role: "user", content: prompt }
+        ],
+        stream: true,
+    });
+}

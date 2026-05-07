@@ -26,6 +26,7 @@ import {
   Puzzle,
   GanttChartSquare,
   BarChart3,
+  Sparkles,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { ModeToggle } from "./mode-toggle";
@@ -51,6 +52,7 @@ export function Sidebar() {
 
   const navigation = [
     { name: t("dashboard"), href: "/dashboard", icon: LayoutDashboard },
+    { name: "Nova AI", href: "/nova", icon: Sparkles },
     { name: t("workspaces"), href: "/workspaces", icon: Building2 },
     { name: t("portfolio"), href: "/portfolio", icon: FolderKanban },
     { name: t("projects"), href: "/projects", icon: LayoutList },

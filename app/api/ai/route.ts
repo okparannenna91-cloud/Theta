@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { generateWithOpenAI, generateWithVision } from "@/lib/openai";
+import { streamText } from "ai";
+import { openai } from "@ai-sdk/openai";
 
 const NOVA_SYSTEM_PROMPT = `You are Nova, a helpful and efficient AI assistant for project management on thetapm.site. 
 Your name symbolizes new beginnings and brilliant intelligence. Keep responses concise, actionable, and professional. 
@@ -13,7 +15,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { prompt, imageUrl, workspaceId } = await req.json();
+        const { prompt, imageUrl, workspaceId, conversationId, projectId } = await req.json();
 
         if (!prompt) {
             return NextResponse.json({ error: "Nova needs a prompt to help you" }, { status: 400 });
@@ -37,17 +39,20 @@ export async function POST(req: Request) {
             const { getPrismaClient } = await import("@/lib/prisma");
             const db = getPrismaClient(workspaceId);
             
-            const [projects, tasks, teams, integrations] = await Promise.all([
+            const [projects, tasks, teams, integrations, memories, recentComments] = await Promise.all([
                 db.project.findMany({
                     where: { workspaceId },
-                    take: 5,
-                    select: { name: true }
+                    take: 10,
+                    select: { name: true, id: true }
                 }),
                 db.task.findMany({
-                    where: { workspaceId },
-                    take: 10,
+                    where: { 
+                        workspaceId,
+                        projectId: projectId || undefined 
+                    },
+                    take: 20,
                     orderBy: { updatedAt: 'desc' },
-                    select: { title: true, status: true, priority: true }
+                    select: { title: true, status: true, priority: true, description: true }
                 }),
                 db.team.findMany({
                     where: { workspaceId },
@@ -58,24 +63,114 @@ export async function POST(req: Request) {
                     where: { workspaceId },
                     take: 10,
                     select: { provider: true }
+                }),
+                db.aiMemory.findMany({
+                    where: { userId: user.id },
+                    select: { key: true, content: true }
+                }),
+                db.comment.findMany({
+                    where: { 
+                        task: { workspaceId }
+                    },
+                    take: 5,
+                    orderBy: { createdAt: 'desc' },
+                    select: { content: true, user: { select: { name: true } } }
                 })
             ]);
 
+            const focusedProject = projectId ? projects.find((p: any) => p.id === projectId) : null;
+
             workspaceContext = `
 CURRENT WORKSPACE CONTEXT:
+${focusedProject ? `[FOCUSED ON PROJECT: ${focusedProject.name}]` : "[GLOBAL WORKSPACE VIEW]"}
 Projects: ${projects.length > 0 ? projects.map((p: any) => p.name).join(", ") : "None yet"}
 Recent Tasks: ${tasks.length > 0 ? tasks.map((t: any) => `${t.title} [${t.status}, ${t.priority}]`).join(", ") : "None yet"}
+Recent Team Activity: ${recentComments.length > 0 ? recentComments.map((c: any) => `${c.user?.name}: ${c.content.substring(0, 50)}...`).join(" | ") : "No recent activity"}
 Teams: ${teams.length > 0 ? teams.map((t: any) => t.name).join(", ") : "None yet"}
 Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) => i.provider).join(", ") : "None connected"}
 ---
 `;
+
+            if (memories.length > 0) {
+                workspaceContext += "\nPERSONALIZED USER PREFERENCES:\n";
+                memories.forEach((m: any) => {
+                    workspaceContext += `- ${m.key}: ${m.content}\n`;
+                });
+                workspaceContext += "---\n";
+            }
+
+            // Fetch conversation history if ID is provided
+            if (conversationId) {
+                const history = await db.aiMessage.findMany({
+                    where: { conversationId },
+                    orderBy: { createdAt: "asc" },
+                    take: 20
+                });
+
+                if (history.length > 0) {
+                    workspaceContext += "\nCONVERSATION HISTORY:\n";
+                    history.forEach((m: any) => {
+                        workspaceContext += `${m.role.toUpperCase()}: ${m.content}\n`;
+                    });
+                    workspaceContext += "---\n";
+                }
+
+                // Save User Message
+                await db.aiMessage.create({
+                    data: {
+                        conversationId,
+                        role: "user",
+                        content: prompt,
+                        metadata: imageUrl ? { imageUrl } : undefined
+                    }
+                });
+            }
         }
 
         const systemPromptWithContext = `${NOVA_SYSTEM_PROMPT}${workspaceContext}`;
 
+        // Check if we should stream
+        const shouldStream = !imageUrl;
+
+        if (shouldStream) {
+            try {
+                const result = await streamText({
+                    model: openai("gpt-4o-mini"),
+                    system: systemPromptWithContext,
+                    prompt: prompt,
+                    async onFinish({ text }) {
+                        if (workspaceId) {
+                            const { incrementNovaUsage } = await import("@/lib/usage-tracking");
+                            await incrementNovaUsage(workspaceId, user.id);
+
+                            if (conversationId) {
+                                const { getPrismaClient } = await import("@/lib/prisma");
+                                const db = getPrismaClient(workspaceId);
+                                await db.aiMessage.create({
+                                    data: {
+                                        conversationId,
+                                        role: "assistant",
+                                        content: text
+                                    }
+                                });
+                                await db.aiConversation.update({
+                                    where: { id: conversationId },
+                                    data: { lastMessageAt: new Date() }
+                                });
+                            }
+                        }
+                    },
+                });
+
+                return result.toTextStreamResponse();
+            } catch (error: any) {
+                console.warn("Streaming failed, falling back to non-streaming...", error);
+            }
+        }
+
         let text = "";
         try {
-            // Priority 1: OpenAI
+            // Priority 1: OpenAI (Non-streaming fallback or Vision)
             try {
                 if (imageUrl) {
                     text = await generateWithVision(prompt, imageUrl, systemPromptWithContext) || "";
@@ -118,6 +213,24 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
         if (workspaceId) {
             const { incrementNovaUsage } = await import("@/lib/usage-tracking");
             await incrementNovaUsage(workspaceId, user.id);
+
+            // Save Assistant Message
+            if (conversationId) {
+                const { getPrismaClient } = await import("@/lib/prisma");
+                const db = getPrismaClient(workspaceId);
+                await db.aiMessage.create({
+                    data: {
+                        conversationId,
+                        role: "assistant",
+                        content: text
+                    }
+                });
+                
+                await db.aiConversation.update({
+                    where: { id: conversationId },
+                    data: { lastMessageAt: new Date() }
+                });
+            }
         }
 
         return NextResponse.json({ text });

@@ -228,6 +228,8 @@ export function NovaAssistant() {
                                             )}>
                                                 <div className={cn(
                                                     "h-8 w-8 rounded-full shrink-0 flex items-center justify-center",
+                                                    msg.role === "nova" ? "bg-indigo-100 text-indigo-600" : "bg-slate-100 text-slate-600"
+                                                )}>
                                                     {msg.role === "nova" ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
                                                 </div>
                                                 <div className={cn(
