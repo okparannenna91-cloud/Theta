@@ -51,7 +51,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
         }
     }, [messages]);
 
-    const fetchMessages = async () => {
+    const fetchMessages = useCallback(async () => {
         try {
             const res = await fetch(`/api/ai/conversations/${conversationId}?workspaceId=${workspaceId}`);
             if (res.ok) {
@@ -61,9 +61,9 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
         } catch (error) {
             console.error("Failed to fetch messages");
         }
-    };
+    }, [conversationId, workspaceId]);
 
-    const fetchProjects = async () => {
+    const fetchProjects = useCallback(async () => {
         try {
             const res = await fetch(`/api/projects?workspaceId=${workspaceId}`);
             if (res.ok) {
@@ -73,7 +73,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
         } catch (error) {
             console.error("Failed to fetch projects");
         }
-    };
+    }, [workspaceId]);
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
@@ -305,13 +305,14 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                                   const match = /language-(\w+)/.exec(className || '')
                                                   return match ? (
                                                     <SyntaxHighlighter
-                                                      children={String(children).replace(/\n$/, '')}
                                                       style={syntaxStyle}
                                                       language={match[1]}
                                                       PreTag="div"
                                                       className="rounded-2xl !bg-slate-950 !p-6"
                                                       {...props}
-                                                    />
+                                                    >
+                                                      {String(children).replace(/\n$/, '')}
+                                                    </SyntaxHighlighter>
                                                   ) : (
                                                     <code className={cn("bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md text-indigo-500 font-bold", className)} {...props}>
                                                       {children}

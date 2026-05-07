@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { Button } from "@/components/ui/button";
 import { Plus, MessageSquare, Pin, Archive, Search, MoreVertical, Trash2, BrainCircuit } from "lucide-react";
@@ -31,9 +31,9 @@ export function NovaSidebar({ activeConversationId, onSelectConversation, onNewC
         if (activeWorkspaceId) {
             fetchConversations();
         }
-    }, [activeWorkspaceId]);
+    }, [activeWorkspaceId, fetchConversations]);
 
-    const fetchConversations = async () => {
+    const fetchConversations = useCallback(async () => {
         try {
             const res = await fetch(`/api/ai/conversations?workspaceId=${activeWorkspaceId}`);
             if (res.ok) {
@@ -45,7 +45,7 @@ export function NovaSidebar({ activeConversationId, onSelectConversation, onNewC
         } finally {
             setLoading(false);
         }
-    };
+    }, [activeWorkspaceId]);
 
     const filteredConversations = conversations.filter(c => 
         c.title.toLowerCase().includes(searchQuery.toLowerCase())
