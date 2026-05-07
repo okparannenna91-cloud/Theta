@@ -86,7 +86,14 @@ const uris = [
 export const prismaShard1 = globalStore.shard1 || (globalStore.shard1 = createClient("Shard 1", uris[0])!);
 export const prismaShard2 = globalStore.shard2 || (globalStore.shard2 = createClient("Shard 2", uris[1]) || prismaShard1);
 export const prismaShard3 = globalStore.shard3 || (globalStore.shard3 = createClient("Shard 3", uris[2]) || prismaShard1);
-export const prismaShard4 = globalStore.shard4 || (globalStore.shard4 = createClient("Shard 4", uris[3]) || prismaShard1);
+
+// SHARD 4 DECOMMISSIONED: Mirroring Shard 1 to prevent hangs
+export const prismaShard4 = prismaShard1;
+
+// Update global store to reflect decommissioning
+if (globalThis.__prismaShards) {
+    globalThis.__prismaShards.shard4 = prismaShard4;
+}
 
 // Default export (Legacy support & Global collections)
 export const prisma = prismaShard1;

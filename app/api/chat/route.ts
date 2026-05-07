@@ -66,10 +66,9 @@ export async function GET(req: Request) {
                     setTimeout(() => reject(new Error("Timeout")), 3000)
                 );
                 
-                // Fetch ALL messages for the workspace on this shard to filter in JS (Ultimate resiliency)
+                // TOTAL BYPASS: Fetch without 'where' to ensure visibility (matching debug/db)
                 const queryPromise = (shard.client as any).chatMessage.findMany({
-                    where: { workspaceId: effectiveWorkspaceId, deletedAt: null },
-                    take: 200,
+                    take: 500,
                     orderBy: { createdAt: "desc" },
                     include: {
                         replyTo: { select: { id: true, content: true, userId: true } }
@@ -88,9 +87,15 @@ export async function GET(req: Request) {
         let allMessagesRaw = allResults.flat();
 
         // Perform strict JS-side filtering to bypass Prisma/Mongo type issues
+        if (effectiveWorkspaceId) {
+            allMessagesRaw = allMessagesRaw.filter(m => String(m.workspaceId) === String(effectiveWorkspaceId));
+        }
         if (teamId) {
             allMessagesRaw = allMessagesRaw.filter(m => String(m.teamId) === String(teamId));
         }
+        
+        // Filter out deleted messages
+        allMessagesRaw = allMessagesRaw.filter(m => !m.deletedAt);
 
         // Sort and limit
         const finalMessagesRaw = allMessagesRaw.sort((a, b) => 
