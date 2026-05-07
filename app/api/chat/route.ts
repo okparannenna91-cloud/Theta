@@ -49,7 +49,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId or teamId is required to resolve shard" }, { status: 400 });
         }
 
-        // FINAL NUCLEAR BYPASS: Use the exact logic that worked in /api/debug/db
+        // FINAL NUCLEAR BYPASS: Parallel shard scan with timeout to prevent hangs
         const shards = [
             { name: "Shard 1", client: prismaShard1 },
             { name: "Shard 2", client: prismaShard2 },
@@ -57,11 +57,15 @@ export async function GET(req: Request) {
             { name: "Shard 4", client: prismaShard4 },
         ];
 
-        let allMessages: any[] = [];
-        for (const shard of shards) {
+        const scanShard = async (shard: any) => {
+            if (!shard.client) return [];
             try {
-                if (!shard.client) continue;
-                const results = await (shard.client as any).chatMessage.findMany({
+                // Add a 3-second timeout to the database query
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("Timeout")), 3000)
+                );
+                
+                const queryPromise = (shard.client as any).chatMessage.findMany({
                     where: teamId ? { teamId, deletedAt: null } : { workspaceId: effectiveWorkspaceId, deletedAt: null },
                     take: 50,
                     orderBy: { createdAt: "desc" },
@@ -69,13 +73,17 @@ export async function GET(req: Request) {
                         replyTo: { select: { id: true, content: true, userId: true } }
                     }
                 });
-                if (results.length > 0) {
-                    allMessages.push(...results.map((m: any) => ({ ...m, shard: shard.name })));
-                }
+
+                const results: any = await Promise.race([queryPromise, timeoutPromise]);
+                return results.map((m: any) => ({ ...m, shard: shard.name }));
             } catch (e) {
-                console.error(`[Chat Bypass] Error on ${shard.name}:`, e);
+                console.error(`[Chat Bypass] Shard ${shard.name} failed or timed out`);
+                return [];
             }
-        }
+        };
+
+        const allResults = await Promise.all(shards.map(scanShard));
+        const allMessages = allResults.flat();
 
         // Sort and limit
         const finalMessagesRaw = allMessages.sort((a, b) => 
