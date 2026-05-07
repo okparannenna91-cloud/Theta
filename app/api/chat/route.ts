@@ -100,100 +100,50 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId or teamId is required" }, { status: 400 });
         }
 
-        // Get chat messages using cursor-based pagination
-        const take = 50;
-        // DIAGNOSTIC BROAD FETCH: Get last 100 messages for the workspace to see what's actually in there
-        const workspaceWhere = { 
-            workspaceId: effectiveWorkspaceId as string,
-            deletedAt: null 
-        };
-        
-        let messagesRaw = await db.chatMessage.findMany({
-            where: workspaceWhere,
-            take: 100,
-            orderBy: { createdAt: "desc" },
-            include: {
-                replyTo: { select: { id: true, content: true, userId: true } }
-            }
-        });
+        // FINAL NUCLEAR BYPASS: Use the exact logic that worked in /api/debug/db
+        const shards = [
+            { name: "Shard 1", client: prismaShard1 },
+            { name: "Shard 2", client: prismaShard2 },
+            { name: "Shard 3", client: prismaShard3 },
+            { name: "Shard 4", client: prismaShard4 },
+        ];
 
-        console.log(`[Chat Debug] Found ${messagesRaw.length} total messages for workspace ${effectiveWorkspaceId} on current shard.`);
-        
-        let debugInfo = {};
-        if (teamId) {
-            console.log(`[Chat Debug] Filtering for teamId: ${teamId}`);
-            const filtered = messagesRaw.filter((m: any) => String(m.teamId) === String(teamId));
-            
-            if (filtered.length === 0 && messagesRaw.length > 0) {
-                console.log(`[Chat Debug] WARNING: Workspace has ${messagesRaw.length} messages but NONE match teamId ${teamId}.`);
-                // INJECT ALL MESSAGES for debugging
-                messagesRaw = messagesRaw.map((m: any) => ({
-                    ...m,
-                    debugMismatch: true,
-                    expectedTeamId: teamId,
-                    actualTeamId: m.teamId
-                }));
-            } else {
-                messagesRaw = filtered;
-            }
-        } else if (projectId) {
-            messagesRaw = messagesRaw.filter((m: any) => String(m.projectId) === String(projectId));
-        }
-
-        // FINAL NUCLEAR OPTION: Manual shard loop (Same logic that worked in /api/debug/db)
-        if (teamId) {
-            const shards = [
-                { name: "Shard 1", client: prismaShard1 },
-                { name: "Shard 2", client: prismaShard2 },
-                { name: "Shard 3", client: prismaShard3 },
-                { name: "Shard 4", client: prismaShard4 },
-            ];
-
-            const allResults: any[] = [];
-            for (const shard of shards) {
-                try {
-                    if (!shard.client) continue;
-                    const results = await (shard.client as any).chatMessage.findMany({
-                        where: { teamId, deletedAt: null },
-                        take: 50,
-                        orderBy: { createdAt: "desc" },
-                        include: {
-                            replyTo: { select: { id: true, content: true, userId: true } }
-                        }
-                    });
-                    if (results.length > 0) {
-                        console.log(`[Chat Nuclear] Found ${results.length} messages on ${shard.name}`);
-                        allResults.push(...results);
+        let allMessages: any[] = [];
+        for (const shard of shards) {
+            try {
+                if (!shard.client) continue;
+                const results = await (shard.client as any).chatMessage.findMany({
+                    where: teamId ? { teamId, deletedAt: null } : { workspaceId: effectiveWorkspaceId, deletedAt: null },
+                    take: 50,
+                    orderBy: { createdAt: "desc" },
+                    include: {
+                        replyTo: { select: { id: true, content: true, userId: true } }
                     }
-                } catch (e) {
-                    console.error(`[Chat Nuclear] Error on ${shard.name}:`, e);
+                });
+                if (results.length > 0) {
+                    allMessages.push(...results.map(m => ({ ...m, shard: shard.name })));
                 }
-            }
-
-            if (allResults.length > 0) {
-                messagesRaw = allResults.sort((a, b) => 
-                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-                ).slice(0, 50);
+            } catch (e) {
+                console.error(`[Chat Bypass] Error on ${shard.name}:`, e);
             }
         }
 
-        let nextCursor = null;
-        if (messagesRaw.length > take) {
-            const nextItem = messagesRaw.pop(); // Remove the extra item
-            nextCursor = nextItem?.id || null;
-        }
+        // Sort and limit
+        const finalMessagesRaw = allMessages.sort((a, b) => 
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        ).slice(0, 50);
 
-        // Reverse to return them in chronological order
-        messagesRaw.reverse();
+        // Reverse for chronological UI
+        finalMessagesRaw.reverse();
 
-        // Manually attach user info from primary DB
-        const uniqueUserIds = [...new Set(messagesRaw.map((m: any) => m.userId))] as string[];
+        // Attach users
+        const uniqueUserIds = [...new Set(finalMessagesRaw.map(m => m.userId))] as string[];
         const users = await prisma.user.findMany({
             where: { id: { in: uniqueUserIds } },
             select: { id: true, name: true, imageUrl: true }
         });
 
-        const messages = messagesRaw.map((m: any) => ({
+        const messages = finalMessagesRaw.map(m => ({
             ...m,
             user: users.find(u => u.id === m.userId) || null
         }));
@@ -204,25 +154,26 @@ export async function GET(req: Request) {
             select: { plan: true }
         });
         const limits = getPlanLimits((workspace?.plan as any) || "free");
-        const count = teamId ? messagesRaw.length : await db.chatMessage.count({ where: workspaceWhere });
 
         // Get unread info
         let lastReadAt = null;
         if (teamId) {
-            const membership = await db.teamMember.findUnique({
-                where: { teamId_userId: { teamId, userId: user.id } },
-                select: { lastReadAt: true }
+            // Need to check across shards for membership too if we want lastReadAt
+            const { findAcrossShards } = await import("@/lib/prisma");
+            const membership = await findAcrossShards<any>("teamMember", {
+                teamId_userId: { teamId, userId: user.id }
             });
-            lastReadAt = membership?.lastReadAt;
+            lastReadAt = membership.data?.lastReadAt;
         }
 
         return NextResponse.json({
             messages,
+            nextCursor: null,
+            hasMore: false,
             lastReadAt,
-            nextCursor,
             limits: {
                 max: limits.maxChatMessages,
-                current: count,
+                current: messages.length,
             }
         });
     } catch (error) {
