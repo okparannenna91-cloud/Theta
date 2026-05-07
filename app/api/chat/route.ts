@@ -140,15 +140,20 @@ export async function GET(req: Request) {
             messagesRaw = messagesRaw.filter((m: any) => String(m.projectId) === String(projectId));
         }
 
-        // NUCLEAR FALLBACK: If still nothing, search EVERY SHARD for messages belonging to this team
-        if (messagesRaw.length === 0 && teamId) {
-            console.log(`[Chat Nuclear] No messages found on initial shards. Scanning ALL shards for teamId=${teamId}...`);
-            const { prismaShard1, prismaShard2, prismaShard3, prismaShard4 } = await import("@/lib/prisma");
-            const shards = [prismaShard1, prismaShard2, prismaShard3, prismaShard4];
-            const allResults = await Promise.all(shards.map(async (shard, i) => {
-                if (!shard) return [];
+        // FINAL NUCLEAR OPTION: Manual shard loop (Same logic that worked in /api/debug/db)
+        if (teamId) {
+            const shards = [
+                { name: "Shard 1", client: prismaShard1 },
+                { name: "Shard 2", client: prismaShard2 },
+                { name: "Shard 3", client: prismaShard3 },
+                { name: "Shard 4", client: prismaShard4 },
+            ];
+
+            const allResults: any[] = [];
+            for (const shard of shards) {
                 try {
-                    const results = await (shard as any).chatMessage.findMany({
+                    if (!shard.client) continue;
+                    const results = await (shard.client as any).chatMessage.findMany({
                         where: { teamId, deletedAt: null },
                         take: 50,
                         orderBy: { createdAt: "desc" },
@@ -156,16 +161,20 @@ export async function GET(req: Request) {
                             replyTo: { select: { id: true, content: true, userId: true } }
                         }
                     });
-                    if (results.length > 0) console.log(`[Chat Nuclear] Found ${results.length} messages on shard ${i+1}`);
-                    return results;
+                    if (results.length > 0) {
+                        console.log(`[Chat Nuclear] Found ${results.length} messages on ${shard.name}`);
+                        allResults.push(...results);
+                    }
                 } catch (e) {
-                    return [];
+                    console.error(`[Chat Nuclear] Error on ${shard.name}:`, e);
                 }
-            }));
-            
-            messagesRaw = allResults.flat().sort((a: any, b: any) => 
-                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-            ).slice(0, 50);
+            }
+
+            if (allResults.length > 0) {
+                messagesRaw = allResults.sort((a, b) => 
+                    new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+                ).slice(0, 50);
+            }
         }
 
         let nextCursor = null;
@@ -195,7 +204,7 @@ export async function GET(req: Request) {
             select: { plan: true }
         });
         const limits = getPlanLimits((workspace?.plan as any) || "free");
-        const count = await db.chatMessage.count({ where: workspaceWhere });
+        const count = teamId ? messagesRaw.length : await db.chatMessage.count({ where: workspaceWhere });
 
         // Get unread info
         let lastReadAt = null;
