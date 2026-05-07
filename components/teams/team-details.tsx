@@ -39,6 +39,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { TeamChat } from "./team-chat";
+import { SimpleChat } from "./simple-chat";
 import { usePopups } from "@/components/popups/popup-manager";
 import { format } from "date-fns";
 import Image from "next/image";
@@ -518,7 +519,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                             animate={{ opacity: 1 }}
                             className="bg-white dark:bg-slate-900 rounded-2xl border shadow-sm h-[600px] overflow-hidden"
                         >
-                            <TeamChat teamId={team.id} workspaceId={team.workspaceId} />
+                            <SimpleChat teamId={team.id} workspaceId={team.workspaceId} />
                         </motion.div>
                     )}
 
