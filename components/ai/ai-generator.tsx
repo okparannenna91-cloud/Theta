@@ -42,6 +42,7 @@ export function AiGenerator({
 
         try {
             setIsLoading(true);
+            setResult("");
             const res = await fetch("/api/ai", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -53,10 +54,22 @@ export function AiGenerator({
                 throw new Error(errorData.error || "Generation failed");
             }
 
-            const data = await res.json();
-            setResult(data.text);
+            const reader = res.body?.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedResponse = "";
+
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    accumulatedResponse += chunk;
+                    setResult(accumulatedResponse);
+                }
+            }
         } catch (error: any) {
-            toast.error(error.message || "Boots couldn't generate content. Please try again.");
+            toast.error(error.message || "Nova couldn't generate content. Please try again.");
         } finally {
             setIsLoading(false);
         }
@@ -100,7 +113,7 @@ export function AiGenerator({
 
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label>What can Boots help you with?</Label>
+                            <Label>What can Nova help you with?</Label>
                             <div className="flex gap-2">
                                 <Input
                                     value={prompt}
@@ -144,7 +157,7 @@ export function AiGenerator({
 
                         {result && (
                             <div className="space-y-2">
-                                <Label>Boots says:</Label>
+                                <Label>Nova says:</Label>
                                 <div className="relative">
                                     <Textarea
                                         value={result}

@@ -104,15 +104,36 @@ export function NovaAssistant() {
                 throw new Error(error.error || "Failed to get response");
             }
 
-            const data = await res.json();
+            const reader = res.body?.getReader();
+            const decoder = new TextDecoder();
+            let accumulatedResponse = "";
+            const assistantId = "nova-" + Date.now();
 
-            const novaMessage: Message = {
+            // Initial assistant message
+            setMessages((prev) => [...prev, {
                 role: "nova",
-                content: data.text,
+                content: "",
                 timestamp: new Date(),
-            };
+            }]);
 
-            setMessages((prev) => [...prev, novaMessage]);
+            if (reader) {
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value);
+                    accumulatedResponse += chunk;
+                    
+                    setMessages((prev) => {
+                        const newMessages = [...prev];
+                        const lastMessage = newMessages[newMessages.length - 1];
+                        if (lastMessage && lastMessage.role === "nova") {
+                            lastMessage.content = accumulatedResponse;
+                        }
+                        return newMessages;
+                    });
+                }
+            }
 
             // Re-fetch usage to show updated count
             fetchUsage();
