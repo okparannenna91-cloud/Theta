@@ -34,23 +34,6 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    useEffect(() => {
-        if (conversationId) {
-            fetchMessages();
-        } else {
-            setMessages([]);
-        }
-        if (workspaceId) {
-            fetchProjects();
-        }
-    }, [conversationId, workspaceId, fetchMessages, fetchProjects]);
-
-    useEffect(() => {
-        if (scrollRef.current) {
-            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-        }
-    }, [messages]);
-
     const fetchMessages = useCallback(async () => {
         try {
             const res = await fetch(`/api/ai/conversations/${conversationId}?workspaceId=${workspaceId}`);
@@ -74,6 +57,23 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
             console.error("Failed to fetch projects");
         }
     }, [workspaceId]);
+
+    useEffect(() => {
+        if (conversationId) {
+            fetchMessages();
+        } else {
+            setMessages([]);
+        }
+        if (workspaceId) {
+            fetchProjects();
+        }
+    }, [conversationId, workspaceId, fetchMessages, fetchProjects]);
+
+    useEffect(() => {
+        if (scrollRef.current) {
+            scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+        }
+    }, [messages]);
 
     const handleSend = async () => {
         if (!input.trim() || isLoading) return;
