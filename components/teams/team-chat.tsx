@@ -95,6 +95,12 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
     // ─── Standalone history fetch (always runs on mount, independent of Ably) ───
     const fetchMessages = useCallback(async (cursorParam?: string | null) => {
         try {
+            if (!workspaceId || !teamId || workspaceId === "undefined" || teamId === "undefined") {
+                console.warn("[Chat] Aborting fetch: missing or invalid IDs", { workspaceId, teamId });
+                return;
+            }
+            console.log("[Chat] Fetching messages for:", { workspaceId, teamId });
+            
             if (!cursorParam) setIsLoading(true);
             const url = `/api/chat?workspaceId=${workspaceId}&teamId=${teamId}${
                 cursorParam ? `&cursor=${cursorParam}` : ""
