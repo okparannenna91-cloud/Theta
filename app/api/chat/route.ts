@@ -31,9 +31,7 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const workspaceId = searchParams.get("workspaceId");
-        const projectId = searchParams.get("projectId");
         const teamId = searchParams.get("teamId");
-        const cursor = searchParams.get("cursor");
 
         // Determine workspaceId and DB shard
         let effectiveWorkspaceId = workspaceId;
@@ -49,55 +47,6 @@ export async function GET(req: Request) {
 
         if (!effectiveWorkspaceId) {
             return NextResponse.json({ error: "workspaceId or teamId is required to resolve shard" }, { status: 400 });
-        }
-
-        let db = getPrismaClient(effectiveWorkspaceId);
-
-        // If teamId is provided, check team access
-        if (teamId) {
-            if (effectiveWorkspaceId) {
-                // If workspaceId is provided, we know the shard. Just verify team access directly on that shard.
-                let teamMember = await db.teamMember.findUnique({
-                    where: { teamId_userId: { teamId, userId: user.id } }
-                });
-
-                if (!teamMember) {
-                    // Fallback to cross-shard search for legacy members that might be on the wrong shard
-                    const { findAcrossShards } = await import("@/lib/prisma");
-                    const result = await findAcrossShards<any>("teamMember", {
-                        teamId_userId: { teamId, userId: user.id }
-                    });
-                    teamMember = result.data;
-                }
-
-                if (!teamMember) {
-                    return NextResponse.json({ error: "Access denied to team chat" }, { status: 403 });
-                }
-            } else {
-                // Legacy support if workspaceId is not passed in GET explicitly
-                const { findAcrossShards } = await import("@/lib/prisma");
-                const result = await findAcrossShards<any>("teamMember", {
-                    teamId_userId: { teamId, userId: user.id }
-                });
-
-                if (!result.data) {
-                    return NextResponse.json({ error: "Access denied to team chat" }, { status: 403 });
-                }
-
-                db = result.db;
-                const team = await db.team.findUnique({
-                    where: { id: teamId },
-                    select: { workspaceId: true }
-                });
-                effectiveWorkspaceId = team?.workspaceId || null;
-            }
-        } else if (workspaceId) {
-            const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
-            if (!hasAccess) {
-                return NextResponse.json({ error: "Access denied to workspace" }, { status: 403 });
-            }
-        } else {
-            return NextResponse.json({ error: "workspaceId or teamId is required" }, { status: 400 });
         }
 
         // FINAL NUCLEAR BYPASS: Use the exact logic that worked in /api/debug/db
@@ -121,7 +70,7 @@ export async function GET(req: Request) {
                     }
                 });
                 if (results.length > 0) {
-                    allMessages.push(...results.map(m => ({ ...m, shard: shard.name })));
+                    allMessages.push(...results.map((m: any) => ({ ...m, shard: shard.name })));
                 }
             } catch (e) {
                 console.error(`[Chat Bypass] Error on ${shard.name}:`, e);
@@ -137,13 +86,13 @@ export async function GET(req: Request) {
         finalMessagesRaw.reverse();
 
         // Attach users
-        const uniqueUserIds = [...new Set(finalMessagesRaw.map(m => m.userId))] as string[];
+        const uniqueUserIds = [...new Set(finalMessagesRaw.map((m: any) => m.userId))] as string[];
         const users = await prisma.user.findMany({
             where: { id: { in: uniqueUserIds } },
             select: { id: true, name: true, imageUrl: true }
         });
 
-        const messages = finalMessagesRaw.map(m => ({
+        const messages = finalMessagesRaw.map((m: any) => ({
             ...m,
             user: users.find(u => u.id === m.userId) || null
         }));
@@ -158,7 +107,6 @@ export async function GET(req: Request) {
         // Get unread info
         let lastReadAt = null;
         if (teamId) {
-            // Need to check across shards for membership too if we want lastReadAt
             const { findAcrossShards } = await import("@/lib/prisma");
             const membership = await findAcrossShards<any>("teamMember", {
                 teamId_userId: { teamId, userId: user.id }
@@ -193,13 +141,11 @@ export async function POST(req: Request) {
 
         // Determine workspaceId – required for shard routing
         let targetWorkspaceId: string | undefined = body.workspaceId;
-        // If not provided, attempt to derive from teamId
         if (!targetWorkspaceId && body.teamId) {
             const { findAcrossShards } = await import("@/lib/prisma");
             const teamLookup = await findAcrossShards<any>("team", { id: body.teamId });
             if (teamLookup.data) {
                 targetWorkspaceId = teamLookup.data.workspaceId;
-                console.log(`[Chat POST] Derived workspaceId=${targetWorkspaceId} from teamId=${body.teamId}`);
             }
         }
         if (!targetWorkspaceId) {
@@ -207,34 +153,20 @@ export async function POST(req: Request) {
         }
 
         const data = chatSchema.parse({ ...body, workspaceId: targetWorkspaceId });
-
-        // Always use workspaceId-scoped shard (fast path)
         const db = getPrismaClient(data.workspaceId);
         
-        // DIAGNOSTIC: Log exact shard info
-        console.log(`[Chat POST Debug] SAVING MESSAGE:
-            - workspaceId: ${data.workspaceId}
-            - teamId: ${data.teamId}
-            - targetShard: ${data.workspaceId ? (data.workspaceId.split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % 4) : 0}
-            - dbClient: ${db === prismaShard1 ? "Shard1" : db === prismaShard2 ? "Shard2" : db === prismaShard3 ? "Shard3" : "Shard4"}
-        `);
-
-        // Verify access based on teamId or workspaceId
         if (data.teamId) {
-            // Use the known shard directly via workspaceId
             let teamMember = await db.teamMember.findUnique({
                 where: { teamId_userId: { teamId: data.teamId, userId: user.id } }
             });
 
             if (!teamMember) {
-                // Fallback to primary DB for legacy members
                 teamMember = await prisma.teamMember.findUnique({
                     where: { teamId_userId: { teamId: data.teamId, userId: user.id } }
                 });
             }
 
             if (!teamMember) {
-                // Final fallback: cross-shard search
                 const { findAcrossShards } = await import("@/lib/prisma");
                 const result = await findAcrossShards<any>("teamMember", {
                     teamId_userId: { teamId: data.teamId, userId: user.id }
@@ -243,7 +175,6 @@ export async function POST(req: Request) {
             }
 
             if (!teamMember) {
-                console.error(`[Chat POST] Team access denied. teamId=${data.teamId}, userId=${user.id}, workspaceId=${data.workspaceId}`);
                 return NextResponse.json({ error: "Forbidden: not a team member" }, { status: 403 });
             }
         } else {
@@ -251,127 +182,37 @@ export async function POST(req: Request) {
             if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // Check plan limits for chat messages
-        const chatCount = await db.chatMessage.count({
-            where: { workspaceId: data.workspaceId }
-        });
-
-        try {
-            const { enforcePlanLimit } = await import("@/lib/plan-limits");
-            await enforcePlanLimit(data.workspaceId, "chat", chatCount);
-        } catch (error: any) {
-            console.warn(`[Chat POST] Plan limit check failed for workspace=${data.workspaceId}: ${error.message}`);
-            return NextResponse.json({ error: error.message }, { status: 403 });
-        }
-
-        // Create the message on the correct shard
         const messageRaw = await db.chatMessage.create({
             data: {
                 content: data.content,
                 workspaceId: data.workspaceId,
                 projectId: data.projectId ?? null,
                 teamId: data.teamId ?? null,
-                userId: user.id as string,
-                attachment: (data.attachment as any) ?? null,
+                userId: user.id,
+                attachment: data.attachment,
                 replyToId: data.replyToId ?? null,
             },
             include: {
-                replyTo: {
-                    select: {
-                        id: true,
-                        content: true,
-                        userId: true,
-                    }
-                }
+                replyTo: { select: { id: true, content: true, userId: true } }
             }
         });
 
-        console.log(`[Chat POST] Message saved. id=${messageRaw.id}, teamId=${data.teamId}, workspaceId=${data.workspaceId}`);
-
-        // Use current user info (Shard 1)
-        const message = {
-            ...messageRaw,
-            user: {
-                id: user.id,
-                name: user.name,
-                imageUrl: user.imageUrl,
-            },
-        };
-
-        // Publish to Ably
-        const channelName = data.teamId
-            ? `team:${data.teamId}:chat`
+        const channelName = data.teamId 
+            ? `team:${data.teamId}:chat` 
             : getChatChannel(data.workspaceId, data.projectId);
+        
+        await publishToChannel(channelName, "message", {
+            ...messageRaw,
+            tempId: body.tempId,
+        });
 
-        await publishToChannel(channelName, "message", { ...message, tempId: data.tempId });
-
-        return NextResponse.json(message);
-    } catch (error) {
+        return NextResponse.json(messageRaw);
+    } catch (error: any) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: error.errors }, { status: 400 });
         }
         console.error("Chat POST error:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
-    }
-}
-
-export async function PATCH(req: Request) {
-    try {
-        const user = await getCurrentUser();
-        if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-        const { searchParams } = new URL(req.url);
-        const messageId = searchParams.get("id");
-        const workspaceId = searchParams.get("workspaceId");
-
-        if (!messageId || !workspaceId) {
-            return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
-        }
-
-        const db = getPrismaClient(workspaceId);
-        const body = await req.json();
-
-        // Check if user is owner of message (for editing) or has workspace access (for pinning)
-        const message = await db.chatMessage.findUnique({
-            where: { id: messageId }
-        });
-
-        if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
-
-        const updateData: any = {};
-        if (body.content !== undefined && message.userId === user.id) {
-            updateData.content = body.content;
-            updateData.isEdited = true;
-        }
-        if (body.isPinned !== undefined) {
-            const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
-            if (hasAccess) updateData.isPinned = body.isPinned;
-        }
-
-        const updated = await db.chatMessage.update({
-            where: { id: messageId },
-            data: updateData,
-            include: {
-                replyTo: {
-                    select: { id: true, content: true, userId: true }
-                }
-            }
-        });
-
-        // Publish update to Ably
-        const channelName = updated.teamId
-            ? `team:${updated.teamId}:chat`
-            : getChatChannel(updated.workspaceId, updated.projectId ?? undefined);
-        
-        await publishToChannel(channelName, "message:updated", updated);
-
-        return NextResponse.json(updated);
-    } catch (error) {
-        console.error("Chat PATCH error:", error);
-        return NextResponse.json({ error: "Internal error" }, { status: 500 });
+        return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
     }
 }
 
@@ -396,13 +237,11 @@ export async function DELETE(req: Request) {
         if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
         if (message.userId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        // Soft delete
         const deleted = await db.chatMessage.update({
             where: { id: messageId },
             data: { deletedAt: new Date() }
         });
 
-        // Publish delete to Ably
         const channelName = deleted.teamId
             ? `team:${deleted.teamId}:chat`
             : getChatChannel(deleted.workspaceId, deleted.projectId ?? undefined);
