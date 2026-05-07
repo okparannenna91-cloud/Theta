@@ -27,12 +27,6 @@ export function NovaSidebar({ activeConversationId, onSelectConversation, onNewC
     const [loading, setLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState("");
 
-    useEffect(() => {
-        if (activeWorkspaceId) {
-            fetchConversations();
-        }
-    }, [activeWorkspaceId, fetchConversations]);
-
     const fetchConversations = useCallback(async () => {
         try {
             const res = await fetch(`/api/ai/conversations?workspaceId=${activeWorkspaceId}`);
@@ -46,6 +40,12 @@ export function NovaSidebar({ activeConversationId, onSelectConversation, onNewC
             setLoading(false);
         }
     }, [activeWorkspaceId]);
+
+    useEffect(() => {
+        if (activeWorkspaceId) {
+            fetchConversations();
+        }
+    }, [activeWorkspaceId, fetchConversations]);
 
     const filteredConversations = conversations.filter(c => 
         c.title.toLowerCase().includes(searchQuery.toLowerCase())
