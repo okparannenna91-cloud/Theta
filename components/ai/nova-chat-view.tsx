@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, User, Loader2, Copy, RefreshCw, Trash2, CheckCircle2, FileText, ChevronRight, Paperclip, X, Target, Layout } from "lucide-react";
@@ -43,7 +43,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
         if (workspaceId) {
             fetchProjects();
         }
-    }, [conversationId, workspaceId]);
+    }, [conversationId, workspaceId, fetchMessages, fetchProjects]);
 
     useEffect(() => {
         if (scrollRef.current) {
