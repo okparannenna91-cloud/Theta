@@ -119,7 +119,11 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                         if (scrollNode) scrollNode.scrollTop = scrollNode.scrollHeight - oldScrollHeight;
                     });
                 } else {
-                    setMessages(data.messages);
+                    if (data.messages.length === 0 && messages.length > 0) {
+                        console.warn("[Chat] API returned 0 messages but UI has some. Potential sync bug. Ignoring empty update.");
+                    } else {
+                        setMessages(data.messages);
+                    }
                 }
                 setCursor(data.nextCursor);
                 setHasMore(!!data.nextCursor);
@@ -469,6 +473,11 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* DIAGNOSTIC FOOTER */}
+            <div className="absolute top-2 left-2 z-50 pointer-events-none opacity-20 text-[10px] font-mono bg-black/5 p-1 rounded">
+                WS: {workspaceId} | TM: {teamId} | MSGS: {messages.length}
+            </div>
 
             {/* Messages Area */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4" ref={scrollRef} onScroll={handleScroll}>
