@@ -122,12 +122,12 @@ export async function GET(req: Request) {
         if (teamId) {
             console.log(`[Chat Debug] Filtering for teamId: ${teamId}`);
             // Log some samples to see why they might not match
-            messagesRaw.slice(0, 5).forEach(m => {
+            messagesRaw.slice(0, 5).forEach((m: any) => {
                 console.log(` - Sample Msg ${m.id}: teamId=${m.teamId}, type=${typeof m.teamId}`);
             });
             
             // Apply filtering in JS to be safe against type mismatches
-            const filtered = messagesRaw.filter(m => String(m.teamId) === String(teamId));
+            const filtered = messagesRaw.filter((m: any) => String(m.teamId) === String(teamId));
             
             if (filtered.length === 0 && messagesRaw.length > 0) {
                 console.log(`[Chat Debug] WARNING: Workspace has messages but NONE match teamId ${teamId}.`);
@@ -135,7 +135,7 @@ export async function GET(req: Request) {
             
             messagesRaw = filtered;
         } else if (projectId) {
-            messagesRaw = messagesRaw.filter(m => String(m.projectId) === String(projectId));
+            messagesRaw = messagesRaw.filter((m: any) => String(m.projectId) === String(projectId));
         }
 
         // SELF-HEALING FALLBACK: If still nothing, search all shards for the team's true location
@@ -156,7 +156,7 @@ export async function GET(req: Request) {
                         replyTo: { select: { id: true, content: true, userId: true } }
                     }
                 });
-                messagesRaw = messagesFromCorrectShard.filter(m => String(m.teamId) === String(teamId));
+                messagesRaw = messagesFromCorrectShard.filter((m: any) => String(m.teamId) === String(teamId));
             }
         }
 
@@ -170,13 +170,13 @@ export async function GET(req: Request) {
         messagesRaw.reverse();
 
         // Manually attach user info from primary DB
-        const uniqueUserIds = [...new Set(messagesRaw.map(m => m.userId))];
+        const uniqueUserIds = [...new Set(messagesRaw.map((m: any) => m.userId))] as string[];
         const users = await prisma.user.findMany({
             where: { id: { in: uniqueUserIds } },
             select: { id: true, name: true, imageUrl: true }
         });
 
-        const messages = messagesRaw.map(m => ({
+        const messages = messagesRaw.map((m: any) => ({
             ...m,
             user: users.find(u => u.id === m.userId) || null
         }));

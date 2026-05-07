@@ -76,6 +76,7 @@ export const prisma = prismaShard1;
  * Consistent hashing to select a shard based on workspaceId.
  * This ensures that all data for a specific workspace remains on the same shard.
  */
+export function getPrismaClient(workspaceId?: string | null): PrismaClient {
   // Reject falsy values or the literal strings "undefined"/"null" which can come from frontend misconfiguration
   if (!workspaceId || typeof workspaceId !== 'string' || workspaceId === "undefined" || workspaceId === "null") {
     return prisma;
