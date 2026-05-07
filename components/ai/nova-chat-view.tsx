@@ -51,7 +51,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
             const res = await fetch(`/api/projects?workspaceId=${workspaceId}`);
             if (res.ok) {
                 const data = await res.json();
-                setProjects(data);
+                setProjects(data.projects || []);
             }
         } catch (error) {
             console.error("Failed to fetch projects");
