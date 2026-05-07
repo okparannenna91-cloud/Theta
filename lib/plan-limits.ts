@@ -14,8 +14,8 @@ export interface PlanLimits {
     maxFileSize: number;              // in MB per file
 
     // AI & Automation
-    hasBootsAI: boolean;
-    maxBootsRequests: number;         // per month
+    hasNovaAI: boolean;
+    maxNovaRequests: number;         // per month
     hasCustomAutomation: boolean;
     maxAutomations: number;
 
@@ -44,8 +44,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxCalendarEvents: 20,
         maxStorage: 100, // 100MB
         maxFileSize: 5, // 5MB
-        hasBootsAI: true,
-        maxBootsRequests: 10,
+        hasNovaAI: true,
+        maxNovaRequests: 10,
         hasCustomAutomation: false,
         maxAutomations: 0,
         hasIntegrations: false,
@@ -68,8 +68,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxCalendarEvents: 100,
         maxStorage: 5 * 1024, // 5GB
         maxFileSize: 25, // 25MB
-        hasBootsAI: true,
-        maxBootsRequests: 100,
+        hasNovaAI: true,
+        maxNovaRequests: 100,
         hasCustomAutomation: false,
         maxAutomations: 0,
         hasIntegrations: true,
@@ -92,8 +92,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxCalendarEvents: -1,
         maxStorage: 50 * 1024, // 50GB
         maxFileSize: 100, // 100MB
-        hasBootsAI: true,
-        maxBootsRequests: 500,
+        hasNovaAI: true,
+        maxNovaRequests: 500,
         hasCustomAutomation: true,
         maxAutomations: 5,
         hasIntegrations: true,
@@ -116,8 +116,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxCalendarEvents: -1,
         maxStorage: 500 * 1024, // 500GB
         maxFileSize: 500, // 500MB
-        hasBootsAI: true,
-        maxBootsRequests: 2000,
+        hasNovaAI: true,
+        maxNovaRequests: 2000,
         hasCustomAutomation: true,
         maxAutomations: -1,
         hasIntegrations: true,
@@ -220,23 +220,23 @@ export function hasAdvancedAnalyticsAccess(plan: PlanName): boolean {
 }
 
 /**
- * Check if workspace has access to Boots AI
+ * Check if workspace has access to Nova AI
  */
-export function hasBootsAIAccess(plan: PlanName): boolean {
-    return PLAN_LIMITS[plan].hasBootsAI;
+export function hasNovaAIAccess(plan: PlanName): boolean {
+    return PLAN_LIMITS[plan].hasNovaAI;
 }
 
 /**
- * Check if workspace can make more Boots AI requests
+ * Check if workspace can make more Nova AI requests
  */
-export function canUseBootsAI(
+export function canUseNovaAI(
     plan: PlanName,
     currentRequestCount: number
 ): boolean {
     const limits = PLAN_LIMITS[plan];
-    if (!limits.hasBootsAI) return false;
-    if (limits.maxBootsRequests === -1) return true;
-    return currentRequestCount < limits.maxBootsRequests;
+    if (!limits.hasNovaAI) return false;
+    if (limits.maxNovaRequests === -1) return true;
+    return currentRequestCount < limits.maxNovaRequests;
 }
 
 /**
@@ -268,7 +268,7 @@ export function getPlanLimitMessage(plan: PlanName, feature: string): string {
         case "storage":
             return `Your ${plan} plan includes ${limits.maxStorage}MB of storage. Upgrade for more space.`;
         case "boots":
-            return `Your ${plan} plan allows ${limits.maxBootsRequests} Boots AI requests per month. Upgrade for more.`;
+            return `Your ${plan} plan allows ${limits.maxNovaRequests} Nova AI requests per month. Upgrade for more.`;
         case "chat":
             return `Your ${plan} plan allows up to ${limits.maxChatMessages} chat messages. Upgrade to unlock more.`;
         case "integrations":
@@ -347,7 +347,7 @@ export async function enforcePlanLimit(
         case "teams": isAllowed = limits.maxTeams === -1 || currentCount < limits.maxTeams; break;
         case "boards": isAllowed = limits.maxBoards === -1 || currentCount < limits.maxBoards; break;
         case "calendar_events": isAllowed = limits.maxCalendarEvents === -1 || currentCount < limits.maxCalendarEvents; break;
-        case "boots": isAllowed = limits.hasBootsAI && (limits.maxBootsRequests === -1 || currentCount < limits.maxBootsRequests); break;
+        case "boots": isAllowed = limits.hasNovaAI && (limits.maxNovaRequests === -1 || currentCount < limits.maxNovaRequests); break;
         case "chat": isAllowed = limits.maxChatMessages === -1 || currentCount < limits.maxChatMessages; break;
         case "integrations": isAllowed = limits.hasIntegrations && (limits.maxIntegrations === -1 || currentCount < limits.maxIntegrations); break;
         case "analytics": isAllowed = limits.hasAdvancedAnalytics; break;

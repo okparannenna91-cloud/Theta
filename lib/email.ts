@@ -176,7 +176,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
                         <ul style="color: #475569; font-size: 14px; line-height: 22px; padding-left: 20px; margin-bottom: 0;">
                             <li style="margin-bottom: 8px;"><strong>Create a Project:</strong> Organise your work into sleek project spaces.</li>
                             <li style="margin-bottom: 8px;"><strong>Invite your Team:</strong> Collaboration is at the heart of Theta.</li>
-                            <li><strong>Meet Boots:</strong> Your AI assistant is ready to help in the bottom right corner.</li>
+                            <li><strong>Meet Nova:</strong> Your AI assistant is ready to help in the bottom right corner.</li>
                         </ul>
                     </div>
                     

@@ -1,6 +1,6 @@
 # Theta - Project Management SaaS
 
-A complete, production-ready project management SaaS application built with Next.js 14, React, TypeScript, and modern web technologies. Theta features multi-tenant workspaces, AI-powered assistance (Boots), real-time notifications, and comprehensive project management tools.
+A complete, production-ready project management SaaS application built with Next.js 14, React, TypeScript, and modern web technologies. Theta features multi-tenant workspaces, AI-powered assistance (Nova), real-time notifications, and comprehensive project management tools.
 
 ## 🚀 Features
 
@@ -18,7 +18,7 @@ A complete, production-ready project management SaaS application built with Next
 - 📈 **Strategic Portfolio** - High-level organizational overview to monitor project health across the entire workspace.
 - 📊 **Gantt & Timeline** - Professional project visualization tools for scheduling and dependency tracking.
 - ⏱️ **Time Tracking** - Built-in manual stopwatch and manual logging to track task duration.
-- 🤖 **Boots AI Assistant** - Specialized AI generation powered by Google Gemini for project descriptions, task breakdowns, and content drafting.
+- 🤖 **Nova AI Assistant** - Specialized AI generation powered by Google Gemini for project descriptions, task breakdowns, and content drafting.
 - ⚡ **Workflow Automations** - Custom rules system to automate task priority, notifications, and status transitions.
 - 🔔 **Real-time Notifications** - Instant updates via Ably integration for task assignments, mentions, and system alerts.
 - 📈 **Detailed Analytics** - In-depth insights into workspace usage, team productivity, and project health.
@@ -43,7 +43,7 @@ A complete, production-ready project management SaaS application built with Next
 - **Database**: MongoDB with Prisma ORM
 - **Payments**: Ivno (USD/Crypto) & Paystack (NGN)
 - **File Storage**: Cloudinary
-- **AI**: Google Gemini (Boots AI)
+- **AI**: Google Gemini (Nova AI)
 - **Email**: Resend
 - **Real-time**: Ably (WebSockets)
 - **State Management**: TanStack Query (React Query)
@@ -126,7 +126,7 @@ The application uses Next.js App Router with specialized route groupings:
   - `teams/`, `settings/`, `billing/` - Administrative modules.
   - `calendar/`, `notifications/`, `analytics/` - Support modules.
 - `api/` - Backend service layer (Workspace-protected).
-  - `ai/` - Boots AI content generation endpoints.
+  - `ai/` - Nova AI content generation endpoints.
   - `billing/`, `ivno/` & `paystack/` - Subscription and payment processing.
   - `webhooks/` - Handlers for Ivno, Paystack and other external events.
   - `upload/` - Secure file upload signatures and management.
@@ -138,7 +138,7 @@ The core processing engine of Theta:
 - `billing-plans.ts` - Definition of subscription tiers and pricing.
 - `plan-limits.ts` - Middleware-level enforcement of feature and storage quotas.
 - `usage-tracking.ts` - Service for monitoring real-time consumption (AI requests, storage, etc.).
-- `openai.ts` - Configuration and prompt engineering for Boots AI.
+- `openai.ts` - Configuration and prompt engineering for Nova AI.
 - `ably.ts` - Real-time pub/sub infrastructure for notifications and chat.
 - `notifications.ts` - Multi-channel notification delivery logic.
 - `integrations/` - Third-party service connectors (e.g., Slack).
@@ -147,7 +147,7 @@ The core processing engine of Theta:
 ### UI Components (`/components`)
 - `ui/` - Atomic design system components built on shadcn/ui.
 - `layout/` - Shell components including Sidebar, Navbar, and Workspace Switcher.
-- `ai/` - Interactive Boots AI interface components.
+- `ai/` - Interactive Nova AI interface components.
 - `billing/` - Ivno & Paystack checkout forms, pricing tables, and usage meters.
 - `common/` - Shared high-level components like `FileUpload` and `DataTable`.
 
@@ -163,8 +163,8 @@ The application features a robust usage enforcement system:
 - **AI Credits**: Periodic reset of AI generation requests based on plan tier.
 - **Member Limits**: Controls on the number of team members in a workspace.
 
-### Boots AI (OpenAI)
-Boots AI is deeply integrated into the workflow. It uses OpenAI's model to:
+### Nova AI (OpenAI)
+Nova AI is deeply integrated into the workflow. It uses OpenAI's model to:
 1.  Draft project roadmaps and descriptions.
 2.  Generate task lists from high-level project goals.
 3.  Summarize activity logs and project progress.

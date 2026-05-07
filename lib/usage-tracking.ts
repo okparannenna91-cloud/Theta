@@ -10,7 +10,7 @@ export interface UsageStats {
     boards: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
     calendar_events: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
     storage: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
-    boots: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
+    nova: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
     chat_messages: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
     integrations: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
     automations: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
@@ -67,7 +67,7 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
 
         const now = new Date();
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-        const bootsRequestCount = await shardPrisma.activity.count({
+        const novaRequestCount = await shardPrisma.activity.count({
             where: {
                 workspaceId,
                 action: "ai_generation",
@@ -93,7 +93,7 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
             boards: createStat(boardCount, limits.maxBoards),
             calendar_events: createStat(calendarEventCount, limits.maxCalendarEvents),
             storage: createStat(storageUsed, limits.maxStorage),
-            boots: createStat(bootsRequestCount, limits.maxBootsRequests),
+            nova: createStat(novaRequestCount, limits.maxNovaRequests),
             chat_messages: createStat(chatMessageCount, limits.maxChatMessages),
             integrations: createStat(integrationCount, limits.maxIntegrations),
             automations: createStat(automationCount, limits.maxAutomations),
@@ -175,7 +175,7 @@ export async function calculateStorageUsed(workspaceId: string): Promise<number>
     return totalBytes / (1024 * 1024); // in MB
 }
 
-export async function getBootsRequestCount(workspaceId: string): Promise<number> {
+export async function getNovaRequestCount(workspaceId: string): Promise<number> {
     const { getPrismaClient } = await import("./prisma");
     const now = new Date();
     const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -203,14 +203,14 @@ export async function getIntegrationCount(workspaceId: string): Promise<number> 
     });
 }
 
-export async function incrementBootsUsage(workspaceId: string, userId: string): Promise<void> {
+export async function incrementNovaUsage(workspaceId: string, userId: string): Promise<void> {
     const { createActivity } = await import("./activity");
     await createActivity(
         userId,
         workspaceId,
         "ai_generation",
         "ai",
-        "boots",
+        "boots", // Keep internal ID for history
         { timestamp: new Date() }
     );
 }

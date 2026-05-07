@@ -13,12 +13,12 @@ import { toast } from "sonner";
 import Image from "next/image";
 
 interface Message {
-    role: "user" | "boots";
+    role: "user" | "nova";
     content: string;
     timestamp: Date;
 }
 
-export function BootsAssistant() {
+export function NovaAssistant() {
     const { activeWorkspaceId } = useWorkspace();
     const { showUpgradePrompt } = usePopups();
     const [isOpen, setIsOpen] = useState(false);
@@ -26,8 +26,8 @@ export function BootsAssistant() {
     const [input, setInput] = useState("");
     const [messages, setMessages] = useState<Message[]>([
         {
-            role: "boots",
-            content: "Hi! I'm Boots, your project assistant. How can I help you get work done today?",
+            role: "nova",
+            content: "Hi! I'm Nova, your project assistant. How can I help you get work done today?",
             timestamp: new Date(),
         },
     ]);
@@ -41,10 +41,10 @@ export function BootsAssistant() {
             const res = await fetch(`/api/billing/usage?workspaceId=${activeWorkspaceId}`);
             if (res.ok) {
                 const data = await res.json();
-                if (data.boots) {
+                if (data.nova) {
                     setUsage({
-                        current: data.boots.current,
-                        max: data.boots.max
+                        current: data.nova.current,
+                        max: data.nova.max
                     });
                 }
             }
@@ -106,18 +106,18 @@ export function BootsAssistant() {
 
             const data = await res.json();
 
-            const bootsMessage: Message = {
-                role: "boots",
+            const novaMessage: Message = {
+                role: "nova",
                 content: data.text,
                 timestamp: new Date(),
             };
 
-            setMessages((prev) => [...prev, bootsMessage]);
+            setMessages((prev) => [...prev, novaMessage]);
 
             // Re-fetch usage to show updated count
             fetchUsage();
         } catch (error: any) {
-            toast.error(error.message || "Boots is having trouble connecting.");
+            toast.error(error.message || "Nova is having trouble connecting.");
         } finally {
             setIsLoading(false);
         }
@@ -126,7 +126,7 @@ export function BootsAssistant() {
     const clearChat = () => {
         setMessages([
             {
-                role: "boots",
+                role: "nova",
                 content: "Chat cleared. What's next on our list?",
                 timestamp: new Date(),
             },
@@ -159,7 +159,7 @@ export function BootsAssistant() {
                                     <Sparkles className="h-4 w-4" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="font-bold text-sm tracking-tight leading-none text-white">Boots AI</span>
+                                    <span className="font-bold text-sm tracking-tight leading-none text-white">Nova AI</span>
                                     <span className="text-[10px] text-white/70 font-medium">
                                         {usage && usage.max !== -1 ? `${usage.current}/${usage.max} Requests` : isLimitReached ? "Limit Reached" : "Always here to help"}
                                     </span>
@@ -228,13 +228,11 @@ export function BootsAssistant() {
                                             )}>
                                                 <div className={cn(
                                                     "h-8 w-8 rounded-full shrink-0 flex items-center justify-center",
-                                                    msg.role === "boots" ? "bg-indigo-100 text-indigo-600" : "bg-slate-200 text-slate-600"
-                                                )}>
-                                                    {msg.role === "boots" ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
+                                                    {msg.role === "nova" ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
                                                 </div>
                                                 <div className={cn(
                                                     "rounded-2xl px-4 py-2.5 text-sm shadow-sm",
-                                                    msg.role === "boots"
+                                                    msg.role === "nova"
                                                         ? "bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-indigo-50 dark:border-indigo-900/30 rounded-tl-none"
                                                         : "bg-indigo-600 text-white rounded-tr-none"
                                                 )}>
@@ -253,7 +251,7 @@ export function BootsAssistant() {
                                         <div className="flex justify-start">
                                             <div className="flex gap-2 items-center bg-white dark:bg-slate-800 border border-indigo-50 dark:border-indigo-900/30 rounded-2xl rounded-tl-none px-4 py-2 text-sm shadow-sm">
                                                 <Loader2 className="h-3 w-3 animate-spin text-indigo-500" />
-                                                <span className="text-slate-500">Boots is thinking...</span>
+                                                <span className="text-slate-500">Nova is thinking...</span>
                                             </div>
                                         </div>
                                     )}
@@ -264,7 +262,7 @@ export function BootsAssistant() {
                                     <form onSubmit={handleSend} className="flex w-full items-center gap-2">
                                         <div className="relative flex-1">
                                             <Input
-                                                placeholder={isLimitReached ? "Request limit reached" : "Write anything to Boots..."}
+                                                placeholder={isLimitReached ? "Request limit reached" : "Write anything to Nova..."}
                                                 value={input}
                                                 onChange={(e) => setInput(e.target.value)}
                                                 className="pr-10 bg-slate-50 dark:bg-slate-800 border-none focus-visible:ring-indigo-500 h-11 rounded-xl"
@@ -308,7 +306,7 @@ export function BootsAssistant() {
                         </span>
                     )}
                 </div>
-                {!isOpen && <span className="font-bold text-sm tracking-tight uppercase">Ask Boots</span>}
+                {!isOpen && <span className="font-bold text-sm tracking-tight uppercase">Ask Nova</span>}
                 {isOpen && <X className="h-6 w-6" />}
             </motion.button>
         </div>

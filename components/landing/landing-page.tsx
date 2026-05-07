@@ -316,7 +316,7 @@ export default function LandingPage() {
       </section>
 
 
-      {/* Meet Boots AI Assistant */}
+      {/* Meet Nova AI Assistant */}
       <section id="boots-ai" className="relative py-32 sm:py-48 overflow-hidden">
         <div className="absolute inset-0 mesh-gradient opacity-10"></div>
         <div className="container mx-auto px-6 relative z-10">
@@ -331,18 +331,18 @@ export default function LandingPage() {
                 <Cpu className="w-4 h-4" /> Neural Engine Active
               </div>
               <h2 className="text-5xl sm:text-7xl font-black text-slate-950 dark:text-white mb-10 leading-[0.9] tracking-tighter">
-                MEET <span className="text-gradient">BOOTS</span>, <br />
+                MEET <span className="text-gradient">NOVA</span>, <br />
                 YOUR CO-PILOT.
               </h2>
               <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 leading-relaxed font-medium">
-                Boots is a deeply integrated intelligence layer within your workspace, transcending traditional chatbots to provide autonomous project optimization.
+                Nova is a deeply integrated intelligence layer within your workspace, transcending traditional chatbots to provide autonomous project optimization.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {[
                   { icon: Wand2, title: "Neural Generation", desc: "Synthesize project architectures and complex documentation in milliseconds." },
                   { icon: Brain, title: "Strategic Insight", desc: "Access high-level brainstorming and strategic roadmapping on demand." },
-                  { icon: MessageSquare, title: "Semantic Context", desc: "Boots possesses total awareness of your workspace's semantic relationships." },
+                  { icon: MessageSquare, title: "Semantic Context", desc: "Nova possesses total awareness of your workspace's semantic relationships." },
                   { icon: Zap, title: "Fluid Efficiency", desc: "Automate complex multi-step workflows with natural language commands." },
                 ].map((item, i) => (
                   <div key={i} className="p-8 glass rounded-[2rem] border border-white/10 hover:border-primary/20 transition-all duration-300 group">
@@ -365,9 +365,9 @@ export default function LandingPage() {
                 <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-3xl rounded-full translate-x-1/2 -translate-y-1/2" />
 
                 <div className="flex items-center gap-4 mb-10 pb-6 border-b border-white/5">
-                  <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-3xl shadow-lg shadow-primary/20 group-hover:rotate-6 transition-transform">👢</div>
+                  <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-3xl shadow-lg shadow-primary/20 group-hover:rotate-6 transition-transform">✨</div>
                   <div>
-                    <h3 className="text-xl font-black tracking-tight text-slate-950 dark:text-white">Boots Protocol</h3>
+                    <h3 className="text-xl font-black tracking-tight text-slate-950 dark:text-white">Nova Protocol</h3>
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                       <p className="text-primary text-[10px] font-black uppercase tracking-widest">Neural Link Steady</p>

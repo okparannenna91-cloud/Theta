@@ -26,8 +26,8 @@ interface AiGeneratorProps {
 
 export function AiGenerator({
     onGenerate,
-    title = "Boots - Your AI Work Assistant",
-    placeholder = "Ask Boots anything...",
+    title = "Nova - Your AI Work Assistant",
+    placeholder = "Ask Nova anything...",
     initialPrompt = "",
 }: AiGeneratorProps) {
     const [open, setOpen] = useState(false);
@@ -84,7 +84,7 @@ export function AiGenerator({
                 onClick={() => setOpen(true)}
             >
                 <Sparkles className="h-4 w-4 mr-2" />
-                👢 Ask Boots
+                ✨ Ask Nova
             </Button>
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="sm:max-w-[500px]">
@@ -94,7 +94,7 @@ export function AiGenerator({
                             {title}
                         </DialogTitle>
                         <DialogDescription>
-                            Boots helps you get work done faster. Ask Boots to write descriptions, brainstorm ideas, or generate content.
+                            Nova helps you get work done faster. Ask Nova to write descriptions, brainstorm ideas, or generate content.
                         </DialogDescription>
                     </DialogHeader>
 

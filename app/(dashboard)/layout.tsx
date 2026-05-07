@@ -4,7 +4,7 @@ import { PopupProvider } from "@/components/popups/popup-manager";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { OnboardingWrapper } from "@/components/onboarding/onboarding-wrapper";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
-import { BootsAssistant } from "@/components/ai/boots-assistant";
+import { NovaAssistant } from "@/components/ai/nova-assistant";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { AppsDropdown } from "@/components/apps/apps-dropdown";
 
@@ -34,10 +34,9 @@ export default function DashboardLayout({
               {children}
             </main>
           </div>
-          <BootsAssistant />
+          <NovaAssistant />
         </div>
       </OnboardingWrapper>
     </PopupProvider>
   );
 }
-

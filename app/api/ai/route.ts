@@ -2,8 +2,8 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { generateWithOpenAI, generateWithVision } from "@/lib/openai";
 
-const BOOTS_SYSTEM_PROMPT = `You are Boots, a helpful and efficient AI assistant for project management on thetapm.site. 
-Your name comes from "you get it - work!" Keep responses concise, actionable, and professional. 
+const NOVA_SYSTEM_PROMPT = `You are Nova, a helpful and efficient AI assistant for project management on thetapm.site. 
+Your name symbolizes new beginnings and brilliant intelligence. Keep responses concise, actionable, and professional. 
 Focus on helping users get work done faster. Be friendly but direct.`;
 
 export async function POST(req: Request) {
@@ -16,13 +16,13 @@ export async function POST(req: Request) {
         const { prompt, imageUrl, workspaceId } = await req.json();
 
         if (!prompt) {
-            return NextResponse.json({ error: "Boots needs a prompt to help you" }, { status: 400 });
+            return NextResponse.json({ error: "Nova needs a prompt to help you" }, { status: 400 });
         }
 
         // Check limits if workspaceId is provided
         if (workspaceId) {
-            const { getBootsRequestCount } = await import("@/lib/usage-tracking");
-            const currentUsage = await getBootsRequestCount(workspaceId);
+            const { getNovaRequestCount } = await import("@/lib/usage-tracking");
+            const currentUsage = await getNovaRequestCount(workspaceId);
 
             try {
                 const { enforcePlanLimit } = await import("@/lib/plan-limits");
@@ -71,7 +71,7 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
 `;
         }
 
-        const systemPromptWithContext = `${BOOTS_SYSTEM_PROMPT}${workspaceContext}`;
+        const systemPromptWithContext = `${NOVA_SYSTEM_PROMPT}${workspaceContext}`;
 
         let text = "";
         try {
@@ -116,22 +116,22 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
 
         // Increment usage if workspaceId is provided
         if (workspaceId) {
-            const { incrementBootsUsage } = await import("@/lib/usage-tracking");
-            await incrementBootsUsage(workspaceId, user.id);
+            const { incrementNovaUsage } = await import("@/lib/usage-tracking");
+            await incrementNovaUsage(workspaceId, user.id);
         }
 
         return NextResponse.json({ text });
     } catch (error: any) {
         if (error.status === 429) {
             return NextResponse.json(
-                { error: "Boots is taking a short break (Rate Limit reached). Please wait about 30 seconds and try again." },
+                { error: "Nova is taking a short break (Rate Limit reached). Please wait about 30 seconds and try again." },
                 { status: 429 }
             );
         }
 
-        console.error("Boots AI error:", error);
+        console.error("Nova AI error:", error);
         return NextResponse.json(
-            { error: error.message || "Boots encountered an error. Please try again." },
+            { error: error.message || "Nova encountered an error. Please try again." },
             { status: 500 }
         );
     }
