@@ -22,6 +22,8 @@ const chatSchema = z.object({
     path: ["content"]
 });
 
+export const dynamic = "force-dynamic";
+
 export async function GET(req: Request) {
     try {
         const user = await getCurrentUser();
@@ -30,8 +32,8 @@ export async function GET(req: Request) {
         }
 
         const { searchParams } = new URL(req.url);
-        const workspaceId = searchParams.get("workspaceId");
-        const teamId = searchParams.get("teamId");
+        const workspaceId = searchParams.get("workspaceId")?.trim();
+        const teamId = searchParams.get("teamId")?.trim();
 
         // Determine workspaceId and DB shard
         let effectiveWorkspaceId = workspaceId;
@@ -60,14 +62,14 @@ export async function GET(req: Request) {
         const scanShard = async (shard: any) => {
             if (!shard.client) return [];
             try {
-                // Add a 3-second timeout to the database query
                 const timeoutPromise = new Promise((_, reject) => 
                     setTimeout(() => reject(new Error("Timeout")), 3000)
                 );
                 
+                // Fetch ALL messages for the workspace on this shard to filter in JS (Ultimate resiliency)
                 const queryPromise = (shard.client as any).chatMessage.findMany({
-                    where: teamId ? { teamId, deletedAt: null } : { workspaceId: effectiveWorkspaceId, deletedAt: null },
-                    take: 50,
+                    where: { workspaceId: effectiveWorkspaceId, deletedAt: null },
+                    take: 200,
                     orderBy: { createdAt: "desc" },
                     include: {
                         replyTo: { select: { id: true, content: true, userId: true } }
@@ -83,10 +85,15 @@ export async function GET(req: Request) {
         };
 
         const allResults = await Promise.all(shards.map(scanShard));
-        const allMessages = allResults.flat();
+        let allMessagesRaw = allResults.flat();
+
+        // Perform strict JS-side filtering to bypass Prisma/Mongo type issues
+        if (teamId) {
+            allMessagesRaw = allMessagesRaw.filter(m => String(m.teamId) === String(teamId));
+        }
 
         // Sort and limit
-        const finalMessagesRaw = allMessages.sort((a, b) => 
+        const finalMessagesRaw = allMessagesRaw.sort((a, b) => 
             new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
         ).slice(0, 50);
 
