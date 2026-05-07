@@ -519,6 +519,12 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                                             </div>
 
                                             <div className="relative">
+                                                {msg.debugMismatch && (
+                                                    <div className="mb-2 p-2 bg-red-100 dark:bg-red-900/30 text-[9px] font-bold text-red-600 rounded-lg border border-red-200">
+                                                        DIAGNOSTIC: This message belongs to a different team! 
+                                                        (Found: {msg.actualTeamId || "null"}, Expected: {msg.expectedTeamId})
+                                                    </div>
+                                                )}
                                                 <div className={`rounded-2xl px-4 py-2.5 text-sm shadow-sm transition-all ${
                                                     msg.deletedAt 
                                                     ? "bg-slate-100 dark:bg-slate-900 text-slate-400 italic border border-slate-200 dark:border-slate-800" 

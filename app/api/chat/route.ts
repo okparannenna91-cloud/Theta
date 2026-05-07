@@ -119,45 +119,53 @@ export async function GET(req: Request) {
 
         console.log(`[Chat Debug] Found ${messagesRaw.length} total messages for workspace ${effectiveWorkspaceId} on current shard.`);
         
+        let debugInfo = {};
         if (teamId) {
             console.log(`[Chat Debug] Filtering for teamId: ${teamId}`);
-            // Log some samples to see why they might not match
-            messagesRaw.slice(0, 5).forEach((m: any) => {
-                console.log(` - Sample Msg ${m.id}: teamId=${m.teamId}, type=${typeof m.teamId}`);
-            });
-            
-            // Apply filtering in JS to be safe against type mismatches
             const filtered = messagesRaw.filter((m: any) => String(m.teamId) === String(teamId));
             
             if (filtered.length === 0 && messagesRaw.length > 0) {
-                console.log(`[Chat Debug] WARNING: Workspace has messages but NONE match teamId ${teamId}.`);
+                console.log(`[Chat Debug] WARNING: Workspace has ${messagesRaw.length} messages but NONE match teamId ${teamId}.`);
+                // INJECT ALL MESSAGES for debugging
+                messagesRaw = messagesRaw.map((m: any) => ({
+                    ...m,
+                    debugMismatch: true,
+                    expectedTeamId: teamId,
+                    actualTeamId: m.teamId
+                }));
+            } else {
+                messagesRaw = filtered;
             }
-            
-            messagesRaw = filtered;
         } else if (projectId) {
             messagesRaw = messagesRaw.filter((m: any) => String(m.projectId) === String(projectId));
         }
 
-        // SELF-HEALING FALLBACK: If still nothing, search all shards for the team's true location
+        // NUCLEAR FALLBACK: If still nothing, search EVERY SHARD for messages belonging to this team
         if (messagesRaw.length === 0 && teamId) {
-            const { findAcrossShards, getPrismaClient } = await import("@/lib/prisma");
-            const teamLookup = await findAcrossShards<any>("team", { id: teamId });
+            console.log(`[Chat Nuclear] No messages found on initial shards. Scanning ALL shards for teamId=${teamId}...`);
+            const { prismaShard1, prismaShard2, prismaShard3, prismaShard4 } = await import("@/lib/prisma");
+            const shards = [prismaShard1, prismaShard2, prismaShard3, prismaShard4];
+            const allResults = await Promise.all(shards.map(async (shard, i) => {
+                if (!shard) return [];
+                try {
+                    const results = await (shard as any).chatMessage.findMany({
+                        where: { teamId, deletedAt: null },
+                        take: 50,
+                        orderBy: { createdAt: "desc" },
+                        include: {
+                            replyTo: { select: { id: true, content: true, userId: true } }
+                        }
+                    });
+                    if (results.length > 0) console.log(`[Chat Nuclear] Found ${results.length} messages on shard ${i+1}`);
+                    return results;
+                } catch (e) {
+                    return [];
+                }
+            }));
             
-            if (teamLookup.data && teamLookup.data.workspaceId !== effectiveWorkspaceId) {
-                console.log(`[Chat Debug] SHARD MISMATCH! Team actually on workspace ${teamLookup.data.workspaceId}. Re-querying...`);
-                effectiveWorkspaceId = teamLookup.data.workspaceId;
-                db = getPrismaClient(effectiveWorkspaceId);
-                
-                const messagesFromCorrectShard = await db.chatMessage.findMany({
-                    where: { workspaceId: effectiveWorkspaceId as string, deletedAt: null },
-                    take: 100,
-                    orderBy: { createdAt: "desc" },
-                    include: {
-                        replyTo: { select: { id: true, content: true, userId: true } }
-                    }
-                });
-                messagesRaw = messagesFromCorrectShard.filter((m: any) => String(m.teamId) === String(teamId));
-            }
+            messagesRaw = allResults.flat().sort((a: any, b: any) => 
+                new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+            ).slice(0, 50);
         }
 
         let nextCursor = null;
