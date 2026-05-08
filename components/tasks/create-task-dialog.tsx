@@ -185,8 +185,8 @@ export function CreateTaskDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todo">Todo</SelectItem>
-                  <SelectItem value="in-progress">In Progress</SelectItem>
-                  <SelectItem value="completed">Completed</SelectItem>
+                  <SelectItem value="in_progress">In Progress</SelectItem>
+                  <SelectItem value="done">Completed</SelectItem>
                 </SelectContent>
               </Select>
             </div>

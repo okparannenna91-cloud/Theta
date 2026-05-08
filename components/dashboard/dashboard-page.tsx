@@ -326,12 +326,12 @@ export default function DashboardPage() {
                       </div>
                       <Badge
                         variant="secondary"
-                        className={`rounded-xl h-8 px-4 font-black uppercase tracking-widest text-[10px] ${task.status === "completed"
+                        className={`rounded-xl h-8 px-4 font-black uppercase tracking-widest text-[10px] ${(task.status === "done" || task.status === "completed")
                           ? "bg-emerald-500/10 text-emerald-600 border-none"
                           : "bg-amber-500/10 text-amber-600 border-none"
                           }`}
                       >
-                        {task.status}
+                        {task.status.replace(/[_-]/g, " ")}
                       </Badge>
                     </div>
                   ))}

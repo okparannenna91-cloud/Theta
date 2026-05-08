@@ -80,7 +80,7 @@ export async function GET(req: Request) {
     const tasksCount = await db.task.count({
       where: {
         project: whereProject,
-        status: { not: "completed" }
+        status: { notIn: ["completed", "done"] }
       },
     });
 

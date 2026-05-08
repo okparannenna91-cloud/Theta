@@ -6,14 +6,41 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
 import { Circle, CheckCircle2, MoreVertical, Plus } from "lucide-react";
 import { TaskDialog } from "@/components/tasks/task-dialog";
+import { cn } from "@/lib/utils";
+
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 interface ProjectTasksViewProps {
     project: any;
 }
 
 export function ProjectTasksView({ project }: ProjectTasksViewProps) {
+    const queryClient = useQueryClient();
     const [selectedTask, setSelectedTask] = useState<any | null>(null);
     const safeTasks = Array.isArray(project?.tasks) ? project.tasks : [];
+
+    const updateMutation = useMutation({
+        mutationFn: async ({ id, data }: { id: string; data: any }) => {
+            const res = await fetch(`/api/tasks/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+            if (!res.ok) throw new Error("Failed to update task");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["projects"] });
+            toast.success("Task updated");
+        },
+    });
+
+    const handleToggleDone = (e: React.MouseEvent, task: any) => {
+        e.stopPropagation();
+        const newStatus = (task.status === "done" || task.status === "completed") ? "todo" : "done";
+        updateMutation.mutate({ id: task.id, data: { status: newStatus } });
+    };
 
     return (
         <div className="space-y-4 h-full overflow-y-auto pr-2">
@@ -28,14 +55,19 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                         className="group p-4 flex items-center gap-4 hover:border-indigo-500/50 cursor-pointer transition-all shadow-sm"
                         onClick={() => setSelectedTask(task)}
                     >
-                        {task.status === "done" ? (
-                            <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                        ) : (
-                            <Circle className="h-5 w-5 text-slate-300" />
-                        )}
+                        <button
+                            onClick={(e) => handleToggleDone(e, task)}
+                            className="hover:scale-110 transition-transform active:scale-95 z-10"
+                        >
+                            {task.status === "done" || task.status === "completed" ? (
+                                <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                            ) : (
+                                <Circle className="h-5 w-5 text-slate-300 hover:text-emerald-500/50" />
+                            )}
+                        </button>
 
                         <div className="flex-1 min-w-0">
-                            <h4 className="text-sm font-bold truncate group-hover:text-indigo-600 transition-colors">{task.title}</h4>
+                            <h4 className={cn("text-sm font-bold truncate group-hover:text-indigo-600 transition-colors", (task.status === "done" || task.status === "completed") && "line-through text-muted-foreground opacity-50")}>{task.title}</h4>
                             <div className="flex items-center gap-3 mt-1">
                                 <Badge variant="outline" className="text-[9px] uppercase font-black tracking-tighter bg-slate-50 border-none px-2">
                                     {task.priority || "Medium"}

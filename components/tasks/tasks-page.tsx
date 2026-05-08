@@ -146,8 +146,10 @@ export default function TasksPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
+      case "done":
       case "completed":
         return <CheckCircle2 className="h-4 w-4 text-green-600" />;
+      case "in_progress":
       case "in-progress":
         return <Clock className="h-4 w-4 text-blue-600" />;
       default:
@@ -250,7 +252,7 @@ export default function TasksPage() {
                             id: task.id,
                             data: {
                               status:
-                                task.status === "completed" ? "todo" : "completed",
+                                task.status === "done" || task.status === "completed" ? "todo" : "done",
                             },
                           })
                         }
@@ -260,7 +262,7 @@ export default function TasksPage() {
                       </button>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 mb-1">
-                          <CardTitle className={cn("text-base font-bold transition-all", task.status === "completed" && "line-through text-muted-foreground")}>
+                          <CardTitle className={cn("text-base font-bold transition-all", (task.status === "done" || task.status === "completed") && "line-through text-muted-foreground")}>
                             {task.title}
                           </CardTitle>
                           {task.attachments?.length > 0 && (
@@ -329,7 +331,7 @@ export default function TasksPage() {
                             id: task.id,
                             data: {
                               status:
-                                task.status === "completed" ? "todo" : "completed",
+                                task.status === "done" || task.status === "completed" ? "todo" : "done",
                             },
                           })
                         }
@@ -340,7 +342,7 @@ export default function TasksPage() {
                     </td>
                     <td className="p-4">
                       <div className="flex flex-col">
-                         <span className={cn("text-xs font-bold truncate max-w-[200px]", task.status === "completed" && "line-through text-muted-foreground")}>
+                         <span className={cn("text-xs font-bold truncate max-w-[200px]", (task.status === "done" || task.status === "completed") && "line-through text-muted-foreground")}>
                            {task.title}
                          </span>
                          {task.description && <span className="text-[10px] text-muted-foreground truncate max-w-[200px] mt-0.5 italic">{task.description}</span>}
@@ -354,10 +356,10 @@ export default function TasksPage() {
                     <td className="p-4">
                        <div className="flex items-center gap-1.5 capitalize text-[10px] font-bold text-slate-600 dark:text-slate-400">
                           <div className={cn("h-1.5 w-1.5 rounded-full", 
-                            task.status === "completed" ? "bg-emerald-500" : 
-                            task.status === "in-progress" ? "bg-blue-500" : "bg-slate-400"
+                            (task.status === "done" || task.status === "completed") ? "bg-emerald-500" : 
+                            (task.status === "in_progress" || task.status === "in-progress") ? "bg-blue-500" : "bg-slate-400"
                           )} />
-                          {task.status.replace(/-/g, " ")}
+                          {task.status.replace(/[_-]/g, " ")}
                        </div>
                     </td>
                     <td className="p-4">
@@ -466,8 +468,8 @@ export default function TasksPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="todo">Todo</SelectItem>
-                    <SelectItem value="in-progress">In Progress</SelectItem>
-                    <SelectItem value="completed">Completed</SelectItem>
+                    <SelectItem value="in_progress">In Progress</SelectItem>
+                    <SelectItem value="done">Completed</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
