@@ -76,10 +76,15 @@ export async function GET(req: Request) {
       where: whereProject,
     });
 
-    // Fetch tasks linked to these projects
+    // Fetch tasks linked to this workspace
+    const whereTask: any = { workspaceId };
+    if (teamId) {
+      whereTask.project = { teamId };
+    }
+
     const tasksCount = await db.task.count({
       where: {
-        project: whereProject,
+        ...whereTask,
         status: { notIn: ["completed", "done"] }
       },
     });
@@ -89,10 +94,8 @@ export async function GET(req: Request) {
     });
 
     const allTasks = await db.task.findMany({
-      where: {
-        project: whereProject
-      },
-      include: { project: true } // Need project to display context
+      where: whereTask,
+      include: { project: true }
     });
 
     const recentProjects = await db.project.findMany({
@@ -107,9 +110,7 @@ export async function GET(req: Request) {
     });
 
     const recentTasks = await db.task.findMany({
-      where: {
-        project: whereProject
-      },
+      where: whereTask,
       take: 5,
       orderBy: { createdAt: "desc" },
       include: {
