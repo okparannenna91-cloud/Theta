@@ -99,7 +99,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
         setActivePopup({ 
             id: "ai_suggestion", 
             type: "ai_suggestion", 
-            title: "Boots Intelligence", 
+            title: "Nova Intelligence", 
             description: suggestion,
             data 
         });

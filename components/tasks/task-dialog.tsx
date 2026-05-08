@@ -20,8 +20,11 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Calendar as CalendarIcon, Flag, Layout, Type, AlignLeft, Clock, Sparkles, Loader2 as Spinner, X } from "lucide-react";
+import { Calendar as CalendarIcon, Flag, Layout, Type, AlignLeft, Clock, Sparkles, Loader2 as Spinner, X, Trash2, Palette, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
+import { motion, AnimatePresence } from "framer-motion";
+import { useAbly } from "@/hooks/use-ably";
+import { getTaskChannel } from "@/lib/ably";
 import {
     Popover,
     PopoverContent,
@@ -57,6 +60,24 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     const [dependencyIds, setDependencyIds] = useState<string[]>(task?.dependencyIds || []);
     const [isSummarizing, setIsSummarizing] = useState(false);
     const [summary, setSummary] = useState<string | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+    const [color, setColor] = useState(task?.color || "");
+
+    const taskChannel = getTaskChannel(workspaceId, task.id);
+
+    useAbly(taskChannel, "task:updated", (updatedTask) => {
+        if (updatedTask.id === task.id) {
+            setTitle(updatedTask.title);
+            setDescription(updatedTask.description || "");
+            setStatus(updatedTask.status);
+            setPriority(updatedTask.priority);
+            setDueDate(updatedTask.dueDate ? new Date(updatedTask.dueDate) : undefined);
+            setEstimatedHours(updatedTask.estimatedHours || 0);
+            setProgress(updatedTask.progress || 0);
+            setColor(updatedTask.color || "");
+        }
+    });
 
     const activeWorkspace = queryClient.getQueryData<any[]>(["workspaces"])?.find(w => w.id === workspaceId);
     const statuses = activeWorkspace?.statuses || [
@@ -75,6 +96,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             setEstimatedHours(task.estimatedHours || 0);
             setProgress(task.progress || 0);
             setDependencyIds(task.dependencyIds || []);
+            setColor(task.color || "");
         }
     }, [task]);
 
@@ -99,6 +121,25 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
         updateMutation.mutate({ [field]: value });
     };
 
+    const deleteMutation = useMutation({
+        mutationFn: async () => {
+            const res = await fetch(`/api/tasks/${task.id}?workspaceId=${workspaceId}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) throw new Error("Failed to delete task");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["board"] });
+            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            toast.success("Task deleted");
+            onClose();
+        },
+        onError: (error: any) => {
+            toast.error(error.message || "Failed to delete task");
+        }
+    });
+
     const handleAISummary = async () => {
         setIsSummarizing(true);
         try {
@@ -114,7 +155,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             const data = await res.json();
             setSummary(data.text);
         } catch (error) {
-            toast.error("Boots couldn't summarize this task.");
+            toast.error("Nova couldn't summarize this task.");
         } finally {
             setIsSummarizing(false);
         }
@@ -129,9 +170,16 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
                     {/* Main Content */}
                     <div className="flex-1 p-6 sm:p-8 space-y-8 bg-white dark:bg-slate-900 shadow-xl rounded-l-2xl">
                         <div className="space-y-4">
-                            <div className="flex items-center gap-3 text-muted-foreground mb-1">
-                                <Layout className="h-4 w-4" />
-                                <span className="text-[10px] font-bold uppercase tracking-widest">Task Details</span>
+                            <div className="flex items-center justify-between gap-3 mb-1">
+                                <div className="flex items-center gap-3 text-muted-foreground">
+                                    <Layout className="h-4 w-4" />
+                                    <span className="text-[10px] font-bold uppercase tracking-widest">Task Details</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[10px] text-muted-foreground font-medium italic">
+                                        Updated {format(new Date(task.updatedAt), "HH:mm")}
+                                    </span>
+                                </div>
                             </div>
                             <Input
                                 value={title}
@@ -188,23 +236,30 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
                                 ) : (
                                     <Sparkles className="h-4 w-4" />
                                 )}
-                                {isSummarizing ? "Analyzing..." : "Boots Insights"}
+                                {isSummarizing ? "Analyzing..." : "Nova Insights"}
                             </Button>
 
-                            {summary && (
-                                <div className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-indigo-100 dark:border-indigo-900/30 shadow-sm animate-in fade-in slide-in-from-top-2">
-                                    <div className="flex items-center gap-1.5 mb-2 text-indigo-600">
-                                        <Sparkles className="h-3 w-3" />
-                                        <span className="text-[10px] font-black uppercase tracking-widest">AI Insights</span>
-                                        <button onClick={() => setSummary(null)} className="ml-auto text-muted-foreground hover:text-foreground">
-                                            <X className="h-3 w-3" />
-                                        </button>
-                                    </div>
-                                    <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400 italic">
-                                        {summary}
-                                    </p>
-                                </div>
-                            )}
+                            <AnimatePresence>
+                                {summary && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: -10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        exit={{ opacity: 0, scale: 0.95 }}
+                                        className="p-3 bg-white dark:bg-slate-900 rounded-xl border border-indigo-100 dark:border-indigo-900/30 shadow-sm"
+                                    >
+                                        <div className="flex items-center gap-1.5 mb-2 text-indigo-600">
+                                            <Sparkles className="h-3 w-3" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Nova AI Insights</span>
+                                            <button onClick={() => setSummary(null)} className="ml-auto text-muted-foreground hover:text-foreground">
+                                                <X className="h-3 w-3" />
+                                            </button>
+                                        </div>
+                                        <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-400 italic">
+                                            {summary}
+                                        </p>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                             <div className="space-y-3">
                                 <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Status</Label>
                                 <Select
@@ -309,11 +364,72 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
                                 </div>
                             </div>
 
+                            <div className="space-y-3">
+                                <Label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Task Color</Label>
+                                <div className="grid grid-cols-5 gap-2">
+                                    {["", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b", "#0f172a", "#4f46e5"].map((c) => (
+                                        <button
+                                            key={c}
+                                            onClick={() => {
+                                                setColor(c);
+                                                handleUpdate("color", c);
+                                            }}
+                                            className={cn(
+                                                "h-6 w-6 rounded-full border border-slate-200 dark:border-slate-800 transition-all",
+                                                color === c ? "ring-2 ring-indigo-500 ring-offset-2 scale-110" : "hover:scale-105",
+                                                !c && "bg-slate-100 dark:bg-slate-800"
+                                            )}
+                                            style={c ? { backgroundColor: c } : {}}
+                                        />
+                                    ))}
+                                </div>
+                            </div>
+
                             <TagSelector
                                 taskId={task.id}
                                 workspaceId={workspaceId}
                                 currentTagIds={task.tagIds || []}
                             />
+
+                            <hr className="border-slate-100 dark:border-slate-800" />
+
+                            <div className="space-y-4">
+                                {!showDeleteConfirm ? (
+                                    <Button
+                                        variant="ghost"
+                                        className="w-full justify-start gap-2 text-xs font-bold text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-all"
+                                        onClick={() => setShowDeleteConfirm(true)}
+                                    >
+                                        <Trash2 className="h-4 w-4" />
+                                        Delete Task
+                                    </Button>
+                                ) : (
+                                    <div className="p-3 bg-red-50 dark:bg-red-950/20 border border-red-100 dark:border-red-900/30 rounded-xl space-y-3 animate-in zoom-in-95">
+                                        <div className="flex items-center gap-2 text-red-600">
+                                            <AlertCircle className="h-4 w-4" />
+                                            <span className="text-[10px] font-black uppercase">Confirm Delete?</span>
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <Button
+                                                size="sm"
+                                                variant="outline"
+                                                className="flex-1 h-8 text-[10px] font-bold"
+                                                onClick={() => setShowDeleteConfirm(false)}
+                                            >
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                className="flex-1 h-8 text-[10px] font-bold bg-red-600 hover:bg-red-700 text-white"
+                                                onClick={() => deleteMutation.mutate()}
+                                                disabled={deleteMutation.isPending}
+                                            >
+                                                {deleteMutation.isPending ? "..." : "Delete"}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
 
                             <div className="pt-4 space-y-4">
                                 <div className="flex items-center gap-2 text-muted-foreground">

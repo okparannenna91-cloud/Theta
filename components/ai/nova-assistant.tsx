@@ -81,7 +81,7 @@ export function NovaAssistant() {
 
         try {
             if (isLimitReached) {
-                showUpgradePrompt("boots");
+                showUpgradePrompt("nova");
                 return;
             }
 
@@ -98,7 +98,7 @@ export function NovaAssistant() {
                 const error = await res.json();
                 // Specific check for limit error from server
                 if (res.status === 403 && (error.error?.includes("limit") || error.error?.includes("plan"))) {
-                    showUpgradePrompt("boots");
+                    showUpgradePrompt("nova");
                     return;
                 }
                 throw new Error(error.error || "Failed to get response");
@@ -192,7 +192,7 @@ export function NovaAssistant() {
                                         variant="ghost"
                                         size="sm"
                                         className="h-8 text-xs font-black bg-white/20 hover:bg-white/30 text-white rounded-lg px-3"
-                                        onClick={() => showUpgradePrompt("boots")}
+                                        onClick={() => showUpgradePrompt("nova")}
                                     >
                                         <ArrowUpCircle className="h-3.5 w-3.5 mr-1.5" />
                                         Upgrade
