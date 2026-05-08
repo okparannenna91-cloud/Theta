@@ -160,7 +160,9 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             >
+              <div className="inline-flex items-center gap-2.5 px-6 py-2.5 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-[0.3em] mb-12 border border-primary/20 backdrop-blur-3xl shadow-2xl">
                 <Sparkles className="w-3.5 h-3.5" /> Keeping Teams Connected
+              </div>
 
               <h1 className="text-6xl sm:text-8xl lg:text-[10rem] font-black mb-10 leading-[0.85] tracking-tight text-slate-950 dark:text-white">
                 ORCHESTRATE <br />
