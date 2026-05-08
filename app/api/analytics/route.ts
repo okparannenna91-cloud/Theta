@@ -132,24 +132,6 @@ export async function GET(req: Request) {
         });
         const limits = getPlanLimits((workspace?.plan as any) || "free");
 
-        // Billing Enforcement (Security & Privilege Escalation Fix)
-        if (!limits.hasAdvancedAnalytics) {
-            return NextResponse.json({
-                totals: {
-                    projects: totalProjects,
-                    tasks: totalTasks,
-                    completedTasks: completedTasks.length,
-                    pendingTasks: pendingTasks.length,
-                    overdueTasks: overdueTasks.length,
-                    projectCompletionRate: Math.round(projectCompletionRate)
-                },
-                tasksOverTime: [],
-                teamProductivity: [],
-                mostActiveProjects: [],
-                limits: { hasAccess: false, message: "Upgrade to Pro for advanced analytics" }
-            });
-        }
-
         return NextResponse.json({
             totals: {
                 projects: totalProjects,
@@ -163,7 +145,7 @@ export async function GET(req: Request) {
             teamProductivity,
             mostActiveProjects,
             limits: {
-                hasAccess: true
+                hasAccess: limits.hasAdvancedAnalytics
             }
         });
     } catch (error) {

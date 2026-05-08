@@ -78,9 +78,9 @@ export function PortfolioPage() {
         return { ...p, progress, completed, total };
     }) || [];
 
-    // Calculate resource utilization based on team productivity vs total tasks
-    const resourceUtilization = analyticsData?.teamProductivity?.length 
-        ? Math.min(Math.round((totals.completedTasks / Math.max(totals.tasks, 1)) * 100) + 20, 100) 
+    // Calculate resource utilization based on completion rate and total activity
+    const resourceUtilization = totals.tasks > 0 
+        ? Math.min(Math.round((totals.completedTasks / totals.tasks) * 100) + 15, 100) 
         : 0;
 
     return (
@@ -157,43 +157,52 @@ export function PortfolioPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="h-[300px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={analyticsData?.tasksOverTime || []}>
-                                    <defs>
-                                        <linearGradient id="colorCreated" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                        </linearGradient>
-                                        <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700}} />
-                                    <YAxis hide />
-                                    <Tooltip 
-                                      contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 700}} 
-                                    />
-                                    <Area 
-                                      type="monotone" 
-                                      dataKey="created" 
-                                      name="TASKS CREATED"
-                                      stroke="#6366f1" 
-                                      strokeWidth={4}
-                                      fillOpacity={1} 
-                                      fill="url(#colorCreated)" 
-                                    />
-                                    <Area 
-                                      type="monotone" 
-                                      dataKey="completed" 
-                                      name="TASKS COMPLETED"
-                                      stroke="#10b981" 
-                                      strokeWidth={4}
-                                      fillOpacity={1} 
-                                      fill="url(#colorCompleted)" 
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
+                            {analyticsData?.tasksOverTime?.length > 0 ? (
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={analyticsData.tasksOverTime}>
+                                        <defs>
+                                            <linearGradient id="colorCreated" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                            </linearGradient>
+                                            <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
+                                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                                            </linearGradient>
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
+                                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700}} dy={10} />
+                                        <YAxis hide />
+                                        <Tooltip 
+                                          contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 700}} 
+                                        />
+                                        <Area 
+                                          type="monotone" 
+                                          dataKey="created" 
+                                          name="TASKS CREATED"
+                                          stroke="#6366f1" 
+                                          strokeWidth={4}
+                                          fillOpacity={1} 
+                                          fill="url(#colorCreated)" 
+                                          animationDuration={2000}
+                                        />
+                                        <Area 
+                                          type="monotone" 
+                                          dataKey="completed" 
+                                          name="TASKS COMPLETED"
+                                          stroke="#10b981" 
+                                          strokeWidth={4}
+                                          fillOpacity={1} 
+                                          fill="url(#colorCompleted)" 
+                                          animationDuration={2000}
+                                        />
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            ) : (
+                                <div className="h-full flex items-center justify-center text-muted-foreground text-xs font-bold uppercase tracking-widest italic">
+                                    No performance data available for this period
+                                </div>
+                            )}
                         </CardContent>
                     </Card>
                 </FadeIn>
