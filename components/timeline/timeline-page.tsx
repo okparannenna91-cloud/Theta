@@ -103,7 +103,7 @@ export default function TimelinePage() {
                         Timeline
                         <Badge variant="outline" className="ml-2 bg-primary/5 text-primary border-primary/20 font-black uppercase tracking-widest text-[9px]">Beta</Badge>
                     </h1>
-                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/60">Strategic Roadmap Synchronization</p>
+                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground/60">Project Timeline Updates</p>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-3">

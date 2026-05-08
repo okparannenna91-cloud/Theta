@@ -88,7 +88,7 @@ export function PortfolioPage() {
             <div className="flex flex-col gap-3">
                 <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-gradient">Portfolio Overview</h1>
                 <p className="text-lg text-muted-foreground font-medium max-w-2xl">
-                    Strategic health check of all active projects in this node.
+                    Overall health of all your active projects.
                 </p>
             </div>
 
@@ -103,7 +103,7 @@ export function PortfolioPage() {
                             <div className="text-5xl font-black drop-shadow-sm">{totals.projects}</div>
                             <div className="flex items-center gap-1 mt-3 px-2 py-1 bg-white/20 rounded-full w-fit text-[10px] font-bold">
                                 <TrendingUp className="h-3 w-3" />
-                                <span>SYSTEM NOMINAL</span>
+                                <span>SYSTEM OK</span>
                             </div>
                         </CardContent>
                     </Card>
@@ -248,7 +248,7 @@ export function PortfolioPage() {
                         <div className="h-12 w-12 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl flex items-center justify-center">
                             <FolderKanban className="h-6 w-6 text-indigo-600" />
                         </div>
-                        Strategic Health Index
+                        Project Health Index
                     </h2>
                     <Badge className="bg-indigo-600 rounded-full px-4 py-1.5 font-black uppercase tracking-widest text-[9px] shadow-lg shadow-indigo-500/20">
                         {totals.projectCompletionRate}% OVERALL COMPLETION
@@ -270,7 +270,7 @@ export function PortfolioPage() {
                                             </div>
                                             <div>
                                                 <h3 className="font-black text-2xl tracking-tighter mb-1.5 group-hover:text-indigo-600 transition-colors">{project.name}</h3>
-                                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground line-clamp-1">{project.description || "Foundational intelligence module"}</p>
+                                                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground line-clamp-1">{project.description || "Basic project module"}</p>
                                             </div>
                                         </div>
  
@@ -297,7 +297,7 @@ export function PortfolioPage() {
                                         <div className="flex items-center gap-10 min-w-[240px] justify-end">
                                             <div className="text-right">
                                                 <div className="text-3xl font-black tracking-tighter">{project.total}</div>
-                                                <div className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">Intelligence Nodes</div>
+                                                <div className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.2em] mt-1">Project Tasks</div>
                                             </div>
                                             <Badge variant={project.progress > 75 ? "default" : "secondary"} className={cn(
                                                 "rounded-[1.25rem] h-12 px-8 font-black uppercase tracking-widest text-[9px] shadow-lg transition-all",

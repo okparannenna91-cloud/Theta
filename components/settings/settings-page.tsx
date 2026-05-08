@@ -115,7 +115,7 @@ export default function SettingsPage() {
       <div className="mb-10 lg:mb-12">
         <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-3 text-gradient">Settings</h1>
         <p className="text-lg text-muted-foreground font-medium max-w-2xl">
-          Personalize your Theta experience and manage your security protocols.
+          Personalize your Theta experience and manage your security settings.
         </p>
       </div>
 
@@ -133,7 +133,7 @@ export default function SettingsPage() {
               <CardHeader className="pb-8">
                 <CardTitle className="text-xl font-black tracking-tight">Interface Theme</CardTitle>
                 <CardDescription className="font-medium text-sm">
-                  Select your preferred sensory mode for the application.
+                  Choose your favorite theme for the application.
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-10">
@@ -170,7 +170,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between p-6 glass rounded-2xl border-white/10">
                   <div className="space-y-1">
                     <Label className="text-lg font-black tracking-tight">Compact Mode</Label>
-                    <p className="text-sm text-muted-foreground font-medium">Maximize data density across your workspace dashboards.</p>
+                    <p className="text-sm text-muted-foreground font-medium">Show more information on your screen at once.</p>
                   </div>
                    <Switch
                     checked={compactMode}
@@ -214,7 +214,7 @@ export default function SettingsPage() {
                 <div className="flex items-center justify-between p-8 border-t border-white/5 bg-white/10 dark:bg-slate-900/10">
                   <div className="space-y-1">
                     <Label className="text-lg font-black tracking-tight">Desktop Push Notifications</Label>
-                    <p className="text-sm text-muted-foreground font-medium">Real-time low-latency alerts directly within your OS.</p>
+                    <p className="text-sm text-muted-foreground font-medium">Get instant alerts directly on your computer.</p>
                   </div>
                    <Switch
                     checked={pushNotifications}
@@ -247,7 +247,7 @@ export default function SettingsPage() {
                     <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 font-black uppercase tracking-widest text-[9px] border-none ml-2">
                       Secured High
                     </Badge>
-                    <p className="text-sm text-muted-foreground font-medium">Enhanced biometric or token-based secondary validation.</p>
+                    <p className="text-sm text-muted-foreground font-medium">Extra security for your account with secondary validation.</p>
                   </div>
                    <Button 
                     variant="outline" 
@@ -261,7 +261,7 @@ export default function SettingsPage() {
                 <div className="pt-8 border-t border-white/5">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div className="space-y-1">
-                      <Label className="text-lg font-black tracking-tight">Legal Protocols</Label>
+                      <Label className="text-lg font-black tracking-tight">Legal Info</Label>
                       <p className="text-sm text-muted-foreground font-medium">Review our privacy standards and platform terms.</p>
                     </div>
                     <div className="flex gap-4">
@@ -287,7 +287,7 @@ export default function SettingsPage() {
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
                     <div className="space-y-1 text-foreground">
                       <Label className="text-lg font-black tracking-tight text-rose-500">Danger Zone</Label>
-                      <p className="text-sm text-muted-foreground font-medium">Irreversible removal of all workspace data and access credentials.</p>
+                      <p className="text-sm text-muted-foreground font-medium">Irreversible removal of all your data and access info.</p>
                     </div>
                      <Button 
                       variant="destructive" 
@@ -389,7 +389,7 @@ export default function SettingsPage() {
          <div className="flex justify-end gap-4 pt-10">
           <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest self-center mr-4 pt-1">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2" />
-            System Synchronized
+            Everything up to date
           </p>
         </div>
       </div>

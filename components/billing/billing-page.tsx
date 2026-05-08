@@ -211,7 +211,7 @@ export default function BillingPage() {
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="font-bold text-sm uppercase tracking-wider text-indigo-900 flex items-center gap-2">
-                    <Zap className="h-4 w-4" /> Core Resources
+                    <Zap className="h-4 w-4" /> Basic Usage
                   </h4>
                 </div>
                 <div className="space-y-4">
@@ -243,7 +243,7 @@ export default function BillingPage() {
             </div>
             {provider === "paystack" && (
               <p className="text-[10px] text-muted-foreground">
-                Subscription managed in-app via Paystack Security
+                Subscription managed in-app via Paystack Secure Checkout
               </p>
             )}
           </CardFooter>
@@ -371,7 +371,7 @@ export default function BillingPage() {
                         }
                       }}
                     >
-                      {isInitializingPayment === plan.id ? "Initializing..." :
+                      {isInitializingPayment === plan.id ? "Starting..." :
                         isCurrentPlan ? "Current Active Plan" :
                           (currency === "USD" && !subscription?.isIvnoConfigured) ? "Checkout Coming Soon" :
                             (currency === "NGN" && !subscription?.isPaystackConfigured) ? "Checkout Coming Soon" :

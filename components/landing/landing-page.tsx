@@ -68,7 +68,7 @@ function StatsSection() {
       <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent pointer-events-none" />
       <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 lg:grid-cols-4 gap-12 relative z-10">
         {[
-          { label: "Active Nodes", value: stats.activeUsers, suffix: "+" },
+          { label: "Active Users", value: stats.activeUsers, suffix: "+" },
           { label: "Synced Tasks", value: stats.dailyTasks, suffix: "k" },
           { label: "Uptime SLA", value: stats.uptimeSLA, suffix: "%" },
           { label: "Clusters", value: stats.teamWorkspaces, suffix: "" },
@@ -160,9 +160,7 @@ export default function LandingPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             >
-              <div className="inline-flex items-center gap-2.5 px-6 py-2.5 rounded-full bg-primary/10 text-primary text-[10px] font-black uppercase tracking-[0.3em] mb-12 border border-primary/20 backdrop-blur-3xl shadow-2xl">
-                <Sparkles className="w-3.5 h-3.5" /> Synchronizing Reality
-              </div>
+                <Sparkles className="w-3.5 h-3.5" /> Keeping Teams Connected
 
               <h1 className="text-6xl sm:text-8xl lg:text-[10rem] font-black mb-10 leading-[0.85] tracking-tight text-slate-950 dark:text-white">
                 ORCHESTRATE <br />
@@ -170,21 +168,21 @@ export default function LandingPage() {
               </h1>
 
               <p className="text-xl lg:text-3xl text-slate-600 dark:text-slate-400 mb-16 max-w-3xl mx-auto leading-relaxed font-medium tracking-tight">
-                Experience the next evolution of project synchronization. <br className="hidden sm:block" />
-                Autonomous, beautiful, and built for high-velocity teams.
+                Experience the next evolution of project collaboration. <br className="hidden sm:block" />
+                Smart, beautiful, and built for high-velocity teams.
               </p>
 
               <div className="flex flex-col sm:flex-row gap-8 justify-center items-center">
                 <SignUpButton mode="modal">
                   <Button size="lg" className="h-20 px-14 bg-primary hover:bg-primary/90 text-white shadow-[0_20px_40px_-15px_rgba(139,92,246,0.5)] font-black uppercase tracking-[0.15em] text-sm rounded-[2rem] group transition-all duration-500 hover:scale-[1.05] active:scale-95 relative overflow-hidden">
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
-                    Initialize Beta
+                    Get Started Free
                     <ArrowRight className="ml-3 w-6 h-6 group-hover:translate-x-2 transition-transform duration-500" />
                   </Button>
                 </SignUpButton>
                 <Link href="/pricing">
                   <Button size="lg" variant="outline" className="h-20 px-14 border-primary/20 bg-background/50 backdrop-blur-xl hover:bg-background/80 text-foreground font-black uppercase tracking-[0.15em] text-sm rounded-[2rem] transition-all duration-500 hover:border-primary/40 shadow-xl">
-                    Full Protocol
+                    All Features
                   </Button>
                 </Link>
               </div>
@@ -223,10 +221,10 @@ export default function LandingPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
           {[
-            { icon: Zap, title: "Zero Latency Sync", description: "Experience sub-50ms task updates and collaborative live boards powered by Ably." },
+            { icon: Zap, title: "Instant Live Updates", description: "Experience near-instant task updates and collaborative live boards powered by Ably." },
             { icon: BarChart3, title: "Deep Analytics", description: "Visualize project roadmaps with high-fidelity Gantt charts and performance timelines." },
             { icon: Layers, title: "Portfolio Health", description: "Strategic dashboard to monitor all projects and overall organizational health at a glance." },
-            { icon: Shield, title: "Atomic Isolation", description: "Enterprise-grade workspace separation ensures your data stays logically private and secure." },
+            { icon: Shield, title: "Private Workspaces", description: "Enterprise-grade workspace separation ensures your data stays private and secure." },
             { icon: Users, title: "Rapid Onboarding", description: "Seamlessly integrate team members with secure, tokenized invite links and role-based access." },
             { icon: Database, title: "Dynamic Automations", description: "Set up complex triggers to automate repetitive tasks and cross-workspace status updates." },
           ].map((feature, i) => (
@@ -328,21 +326,21 @@ export default function LandingPage() {
               className="lg:w-1/2"
             >
               <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-2xl bg-primary/10 text-primary text-[10px] font-black uppercase tracking-[0.25em] mb-10 border border-primary/20 backdrop-blur-3xl shadow-2xl">
-                <Cpu className="w-4 h-4" /> Neural Engine Active
+                <Cpu className="w-4 h-4" /> AI Assistant Online
               </div>
               <h2 className="text-5xl sm:text-7xl font-black text-slate-950 dark:text-white mb-10 leading-[0.9] tracking-tighter">
                 MEET <span className="text-gradient">NOVA</span>, <br />
                 YOUR CO-PILOT.
               </h2>
               <p className="text-xl text-slate-600 dark:text-slate-400 mb-12 leading-relaxed font-medium">
-                Nova is a deeply integrated intelligence layer within your workspace, transcending traditional chatbots to provide autonomous project optimization.
+                Nova is a deeply integrated intelligence layer within your workspace, transcending traditional chatbots to provide automatic project help.
               </p>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {[
-                  { icon: Wand2, title: "Neural Generation", desc: "Synthesize project architectures and complex documentation in milliseconds." },
+                  { icon: Wand2, title: "AI Content Creation", desc: "Create project plans and complex documentation in seconds." },
                   { icon: Brain, title: "Strategic Insight", desc: "Access high-level brainstorming and strategic roadmapping on demand." },
-                  { icon: MessageSquare, title: "Semantic Context", desc: "Nova possesses total awareness of your workspace's semantic relationships." },
+                  { icon: MessageSquare, title: "Smart Context", desc: "Nova understands how everything in your workspace is connected." },
                   { icon: Zap, title: "Fluid Efficiency", desc: "Automate complex multi-step workflows with natural language commands." },
                 ].map((item, i) => (
                   <div key={i} className="p-8 glass rounded-[2rem] border border-white/10 hover:border-primary/20 transition-all duration-300 group">
@@ -367,10 +365,10 @@ export default function LandingPage() {
                 <div className="flex items-center gap-4 mb-10 pb-6 border-b border-white/5">
                   <div className="w-14 h-14 rounded-2xl bg-primary flex items-center justify-center text-3xl shadow-lg shadow-primary/20 group-hover:rotate-6 transition-transform">✨</div>
                   <div>
-                    <h3 className="text-xl font-black tracking-tight text-slate-950 dark:text-white">Nova Protocol</h3>
+                    <h3 className="text-xl font-black tracking-tight text-slate-950 dark:text-white">Nova AI</h3>
                     <div className="flex items-center gap-2">
                       <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <p className="text-primary text-[10px] font-black uppercase tracking-widest">Neural Link Steady</p>
+                      <p className="text-primary text-[10px] font-black uppercase tracking-widest">AI Connected</p>
                     </div>
                   </div>
                 </div>
@@ -378,7 +376,7 @@ export default function LandingPage() {
                 <div className="space-y-8 min-h-[300px]">
                   <div className="flex justify-start">
                     <div className="bg-secondary/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 p-6 rounded-[2rem] rounded-tl-none max-w-[85%] text-sm font-medium leading-relaxed border border-white/5">
-                      Operational. I&apos;ve analyzed the current project trajectory. Shall we initialize the sprint optimization sequence?
+                      Operational. I&apos;ve analyzed the current project. Shall we start organizing the project?
                     </div>
                   </div>
                   <div className="flex justify-end">
@@ -388,9 +386,9 @@ export default function LandingPage() {
                   </div>
                   <div className="flex justify-start">
                     <div className="bg-secondary/50 dark:bg-slate-800/50 text-slate-600 dark:text-slate-300 p-6 rounded-[2rem] rounded-tl-none max-w-[85%] text-sm font-medium border border-white/5">
-                      <p className="font-black text-primary mb-3 uppercase tracking-wider text-xs">Analysis Complete:</p>
+                      <p className="font-black text-primary mb-3 uppercase tracking-wider text-xs">Finished Reading:</p>
                       <ul className="space-y-3">
-                        {["Deploy dynamic glassmorphism layers", "Initialize neural padding adjustments", "Synchronize real-time tenant state", "Optimize sub-50ms render cycles"].map((li, i) => (
+                        {["Deploy modern layout layers", "Adjust layout spacing", "Update real-time team state", "Optimize for fast rendering"].map((li, i) => (
                           <li key={i} className="flex gap-3 items-center">
                             <span className="w-1 h-1 rounded-full bg-primary" />
                             {li}
@@ -418,7 +416,7 @@ export default function LandingPage() {
                   <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
                     <Sparkles className="w-5 h-5 text-emerald-500" />
                   </div>
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-950 dark:text-white">Neural Suggestion</p>
+                  <p className="text-xs font-black uppercase tracking-widest text-slate-950 dark:text-white">Smart Suggestion</p>
                 </div>
               </motion.div>
             </motion.div>
@@ -436,8 +434,8 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6 relative z-10">
           <div className="max-w-4xl mx-auto mb-24 text-center">
             <FadeIn>
-              <h2 className="text-5xl sm:text-7xl font-black text-white mb-8 tracking-tighter leading-[0.9]">INITIALIZED <br /><span className="text-gradient">IN SECONDS.</span></h2>
-              <p className="text-xl text-slate-400 font-medium leading-relaxed">Friction eliminated. Go from zero to operational in three precise steps.</p>
+              <h2 className="text-5xl sm:text-7xl font-black text-white mb-8 tracking-tighter leading-[0.9]">READY <br /><span className="text-gradient">IN SECONDS.</span></h2>
+              <p className="text-xl text-slate-400 font-medium leading-relaxed">Friction eliminated. Go from zero to working in three simple steps.</p>
             </FadeIn>
           </div>
 
@@ -445,9 +443,9 @@ export default function LandingPage() {
             <div className="hidden md:block absolute top-[52px] left-[calc(16%+40px)] right-[calc(16%+40px)] h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
 
             {[
-              { step: "01", title: "Provision Workspace", desc: "Sign up and auto-provision your isolated, private workspace in the secure Theta cloud infrastructure." },
-              { step: "02", title: "Deploy Your Team", desc: "Generate cryptographically secure invite links and assign granular roles with precision access control." },
-              { step: "03", title: "Execute & Ship", desc: "Collaborate with sub-50ms Ably-powered live boards, real-time task sync, and workspace-level intelligence." },
+              { step: "01", title: "Setup Workspace", desc: "Sign up and set up your private workspace in the secure Theta cloud." },
+              { step: "02", title: "Invite Your Team", desc: "Create secure invite links and assign different roles with specific access settings." },
+              { step: "03", title: "Start Working", desc: "Collaborate with instant live boards, live task updates, and workspace-level intelligence." },
             ].map((s, i) => (
               <FadeIn key={i} delay={i * 0.15}>
                 <div className="relative z-10 flex flex-col items-center text-center group">
@@ -473,9 +471,9 @@ export default function LandingPage() {
             <h2 className="text-5xl sm:text-7xl font-black text-slate-950 dark:text-white mb-10 leading-[0.9] tracking-tighter">YOUR TEAM. <br /><span className="text-gradient">ANY SIZE.</span></h2>
             <div className="space-y-6">
               {[
-                { title: "Engineering Teams", role: "Sprint planning, bug tracking, and sub-50ms real-time collaboration tools." },
-                { title: "Agency Directors", role: "Multi-workspace isolation to manage diverse client portfolios with precision." },
-                { title: "Product Architects", role: "Visual Gantt roadmaps and portfolio health analytics for delivery confidence." },
+                { title: "Engineering Teams", role: "Sprint planning, bug tracking, and real-time collaboration tools." },
+                { title: "Agency Directors", role: "Separate workspaces to manage diverse client portfolios easily." },
+                { title: "Product Architects", role: "Visual Gantt roadmaps and project health analytics for delivery confidence." },
               ].map((team, i) => (
                 <motion.div
                   key={i}
@@ -518,7 +516,7 @@ export default function LandingPage() {
                 {[1, 2, 3, 4].map(i => <div key={i} className="w-12 h-12 rounded-full border-2 border-white bg-primary/20" />)}
                 <div className="w-12 h-12 rounded-full border-2 border-white bg-primary flex items-center justify-center text-white text-xs font-black">+46</div>
               </div>
-              <p className="text-sm font-black text-slate-950 dark:text-white tracking-tight">450+ Teams Synchronized</p>
+              <p className="text-sm font-black text-slate-950 dark:text-white tracking-tight">450+ Teams Connected</p>
               <p className="text-xs text-slate-500 font-medium mt-1">Growing 32% month over month.</p>
             </motion.div>
           </div>
@@ -547,7 +545,7 @@ export default function LandingPage() {
               <div className="space-y-5">
                 <div className="aspect-square bg-primary rounded-[2.5rem] p-10 text-white flex flex-col justify-center items-center text-center shadow-[0_30px_60px_-15px_rgba(139,92,246,0.4)] group hover:scale-[1.02] transition-transform">
                   <Shield className="w-16 h-16 mb-6 group-hover:scale-110 transition-transform" />
-                  <p className="text-xl font-black uppercase tracking-tighter">Atomic Security</p>
+                  <p className="text-xl font-black uppercase tracking-tighter">Secure & Private</p>
                 </div>
                 <div className="aspect-[4/3] glass-card rounded-[2.5rem] p-10 flex flex-col justify-center border border-white/10">
                   <p className="text-slate-950 dark:text-white font-black mb-6 uppercase tracking-[0.2em] text-xs">Integrations</p>
@@ -564,9 +562,9 @@ export default function LandingPage() {
               <h2 className="text-5xl sm:text-7xl font-black text-slate-950 dark:text-white mb-12 leading-[0.9] tracking-tighter">WHY <span className="text-gradient">THETA</span>?</h2>
               <div className="space-y-12">
                 {[
-                  { label: "Extreme Velocity", body: "Built on Next.js App Router and Ably, Theta delivers near-instant response times. Zero loading spinners. Zero friction in your backlog management flow." },
-                  { label: "Atomic Isolation", body: "Our multi-tenant architecture uses strictly isolated patterns to ensure your data stays logically separate — even on shared infrastructure." },
-                  { label: "Predictable Cost", body: "No hidden fees. A Free tier that lets you ship. A Lifetime plan that turns Theta into a permanent team asset, not a recurring drain." },
+                  { label: "High Speed", body: "Built on Next.js and Ably, Theta delivers near-instant response times. No more waiting." },
+                  { label: "Private Workspaces", body: "Our secure platform uses strictly isolated patterns to ensure your data stays private — even on shared infrastructure." },
+                  { label: "Simple Pricing", body: "No hidden fees. A Free tier that lets you start. A Lifetime plan that turns Theta into a permanent team asset." },
                 ].map((item, i) => (
                   <motion.div
                     key={i}
@@ -599,7 +597,7 @@ export default function LandingPage() {
             {
               name: "Sarah Chen",
               role: "CTO @ Fluxio",
-              content: "The real-time collaboration is flawless. We moved our entire 40-person engineering team in one afternoon. The multi-tenant isolation gives us the privacy we need for client projects."
+              content: "The real-time collaboration is flawless. We moved our entire 40-person engineering team in one afternoon. The private workspaces give us the security we need for client projects."
             },
             {
               name: "Marcus Thorne",
@@ -647,16 +645,16 @@ export default function LandingPage() {
 
           <div className="relative z-10">
             <div className="inline-flex items-center gap-2.5 px-6 py-2.5 rounded-full bg-white/10 text-white text-[10px] font-black uppercase tracking-[0.3em] mb-12 border border-white/20 backdrop-blur-xl">
-              <Sparkles className="w-3.5 h-3.5" /> Initialize Your Protocol
+              <Sparkles className="w-3.5 h-3.5" /> Start Your Journey
             </div>
-            <h2 className="text-5xl sm:text-8xl font-black mb-10 leading-[0.85] tracking-tighter">ELEVATE YOUR <br />TEAM VELOCITY.</h2>
+            <h2 className="text-5xl sm:text-8xl font-black mb-10 leading-[0.85] tracking-tighter">SPEED UP YOUR <br />TEAM WORKFLOW.</h2>
             <p className="text-xl sm:text-2xl mb-16 text-white/80 max-w-2xl mx-auto leading-relaxed font-medium">
-              2,400+ teams already synchronized. Your workspace is 30 seconds away.
+              2,400+ teams already connected. Your workspace is 30 seconds away.
             </p>
             <div className="flex flex-col sm:flex-row gap-6 justify-center items-center">
               <SignUpButton mode="modal">
                 <Button size="lg" className="h-20 px-16 bg-white text-primary hover:bg-white/90 w-full sm:w-auto font-black uppercase tracking-[0.15em] text-sm rounded-[2rem] shadow-2xl hover:scale-[1.04] active:scale-95 transition-all duration-500">
-                  Initialize Free
+                  Start for Free
                 </Button>
               </SignUpButton>
               <Link href="/pricing" className="w-full sm:w-auto">
@@ -687,7 +685,7 @@ export default function LandingPage() {
                 <span className="text-3xl font-black text-gradient tracking-tighter">Theta</span>
               </div>
               <p className="text-slate-500 dark:text-slate-400 text-base leading-relaxed max-w-xs mb-10 font-medium">
-                Building the most intelligent, feature-complete project synchronization platform for modern teams.
+                Building the most intelligent, feature-complete project collaboration platform for modern teams.
               </p>
               <div className="flex gap-4">
                 {[1, 2, 3, 4].map(i => <div key={i} className="w-12 h-12 rounded-2xl glass border border-white/10 flex items-center justify-center hover:border-primary/30 hover:scale-110 transition-all duration-300 cursor-pointer" />)}
@@ -697,7 +695,7 @@ export default function LandingPage() {
             <div className="hidden lg:block" />
 
             {[
-              { label: "Protocol", links: [["Features", "#features"], ["Pricing", "/pricing"], ["Integrations", "#"], ["Roadmap", "#"]] },
+              { label: "Platform", links: [["Features", "#features"], ["Pricing", "/pricing"], ["Integrations", "#"], ["Roadmap", "#"]] },
               { label: "Company", links: [["About", "#"], ["Careers", "#"], ["Blog", "#"], ["Contact", "#"]] },
               { label: "Resources", links: [["Docs", "/docs"], ["API Reference", "#"], ["Help Center", "#"], ["Status", "#"]] },
             ].map((col, i) => (
@@ -721,7 +719,7 @@ export default function LandingPage() {
           <div className="flex flex-col sm:flex-row justify-between items-center gap-6 pt-10 border-t border-white/5 text-slate-600 dark:text-slate-400 text-xs font-black uppercase tracking-[0.2em]">
             <p>&copy; 2026 Theta Systems. Built by Pioneers.</p>
             <div className="flex gap-8">
-              <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Protocol</Link>
+              <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-primary transition-colors">Terms of Service</Link>
               <Link href="/docs" className="hover:text-primary transition-colors">Documentation</Link>
             </div>
