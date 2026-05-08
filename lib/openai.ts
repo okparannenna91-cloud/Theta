@@ -3,7 +3,7 @@ import OpenAI from "openai";
 const apiKey = process.env.OPENAI_API_KEY;
 
 if (!apiKey) {
-    console.warn("OPENAI_API_KEY is not defined in environment variables. Boots AI primary functions will be limited.");
+    console.warn("OPENAI_API_KEY is not defined in environment variables. Nova AI primary functions will be limited.");
 }
 
 export const openai = new OpenAI({

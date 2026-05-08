@@ -21,8 +21,12 @@ export async function generateWithCohere(prompt: string, systemPrompt?: string) 
     const response = await cohere.chat({
         message: prompt,
         preamble: systemPrompt,
-        model: "command-a-03-2025", // Latest high-performance model
+        model: "command-r", // Stable, high-performance model
     });
+
+    if (!response || !response.text) {
+        throw new Error("Empty response from Cohere");
+    }
 
     return response.text;
 }

@@ -32,7 +32,7 @@ export async function POST(req: Request) {
 
             try {
                 const { enforcePlanLimit } = await import("@/lib/plan-limits");
-                await enforcePlanLimit(workspaceId, "boots", currentUsage);
+                await enforcePlanLimit(workspaceId, "nova", currentUsage);
             } catch (error: any) {
                 return NextResponse.json({ error: error.message }, { status: 403 });
             }
@@ -137,80 +137,73 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
         // Check if we should stream
         const shouldStream = !imageUrl;
 
-        if (shouldStream) {
-            try {
-                const result = await streamText({
-                    model: openaiProvider("gpt-4o-mini"),
-                    system: systemPromptWithContext,
-                    prompt: prompt,
-                    async onFinish({ text }) {
-                        if (workspaceId) {
-                            const { incrementNovaUsage } = await import("@/lib/usage-tracking");
-                            await incrementNovaUsage(workspaceId, user.id);
+        let text = "";
+        let provider = "openai";
 
-                            if (conversationId) {
-                                const { getPrismaClient } = await import("@/lib/prisma");
-                                const db = getPrismaClient(workspaceId);
-                                await db.aiMessage.create({
-                                    data: {
-                                        conversationId,
-                                        role: "assistant",
-                                        content: text
-                                    }
-                                });
-                                await db.aiConversation.update({
-                                    where: { id: conversationId },
-                                    data: { lastMessageAt: new Date() }
-                                });
-                            }
-                        }
-                    },
-                });
+        try {
+            // 6-second timeout for OpenAI
+            const timeoutPromise = new Promise((_, reject) => 
+                setTimeout(() => reject(new Error("AI_TIMEOUT")), 6000)
+            );
 
-                return result.toTextStreamResponse();
-            } catch (error: any) {
-                console.warn("Streaming failed, falling back to non-streaming...", error);
+            if (shouldStream) {
+                const result = await Promise.race([
+                    streamText({
+                        model: openaiProvider("gpt-4o-mini"),
+                        system: systemPromptWithContext,
+                        prompt: prompt,
+                        async onFinish({ text }) {
+                            await handleAiFinish(text, "openai");
+                        },
+                    }),
+                    timeoutPromise
+                ]);
+
+                return (result as any).toTextStreamResponse();
+            } else {
+                const openaiPromise = imageUrl 
+                    ? generateWithVision(prompt, imageUrl, systemPromptWithContext)
+                    : generateWithOpenAI(prompt, systemPromptWithContext);
+                
+                const result = await Promise.race([openaiPromise, timeoutPromise]);
+                text = result as string;
+            }
+        } catch (error: any) {
+            if (error.message === "AI_TIMEOUT" || error.status === 429) {
+                console.warn(`OpenAI ${error.message === "AI_TIMEOUT" ? "timed out" : "rate limited"}, switching to Cohere fallback...`);
+                provider = "cohere";
+                
+                const { generateWithCohere } = await import("@/lib/cohere");
+                text = await generateWithCohere(prompt, systemPromptWithContext);
+                
+                await handleAiFinish(text, "cohere");
+            } else {
+                console.error("AI Generation Error:", error);
+                throw error;
             }
         }
 
-        let text = "";
-        try {
-            // Priority 1: OpenAI (Non-streaming fallback or Vision)
-            try {
-                if (imageUrl) {
-                    text = await generateWithVision(prompt, imageUrl, systemPromptWithContext) || "";
-                } else {
-                    text = await generateWithOpenAI(prompt, systemPromptWithContext) || "";
-                }
-            } catch (openaiError: any) {
-                // Check if it's a rate limit error (status 429)
-                if (openaiError.status === 429) {
-                    console.warn("OpenAI Rate limited, attempting Cohere fallback...");
-                    // Try Cohere as fallback for rate limits
-                    if (imageUrl) throw openaiError; // Vision can't easily fallback to Cohere
+        async function handleAiFinish(aiText: string, aiProvider: string) {
+            if (workspaceId) {
+                const { incrementNovaUsage } = await import("@/lib/usage-tracking");
+                await incrementNovaUsage(workspaceId, user.id);
 
-                    const { generateWithCohere } = await import("@/lib/cohere");
-                    text = await generateWithCohere(prompt, systemPromptWithContext);
-                } else {
-                    throw openaiError; // Re-throw other errors to hit standard catch
+                if (conversationId) {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    await db.aiMessage.create({
+                        data: {
+                            conversationId,
+                            role: "assistant",
+                            content: aiText,
+                            metadata: { provider: aiProvider }
+                        }
+                    });
+                    await db.aiConversation.update({
+                        where: { id: conversationId },
+                        data: { lastMessageAt: new Date() }
+                    });
                 }
-            }
-        } catch (error: any) {
-            console.warn("Primary AI providers failed, attempting general fallback...", error);
-
-            if (imageUrl) {
-                throw error; // Vision must stay OpenAI for now
-            }
-
-            try {
-                // Last ditch attempt with Cohere if not already tried for 429 above
-                if (!text) {
-                    const { generateWithCohere } = await import("@/lib/cohere");
-                    text = await generateWithCohere(prompt, systemPromptWithContext);
-                }
-            } catch (cohereError: any) {
-                console.error("General fallback also failed:", cohereError);
-                throw error; // Throw previous provider's error
             }
         }
 
