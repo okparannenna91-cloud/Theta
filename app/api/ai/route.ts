@@ -137,51 +137,71 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
         // Check if we should stream
         const shouldStream = !imageUrl;
 
-        let text = "";
-        let provider = "openai";
+        let resultText = "";
+        let finalProvider = "openai";
 
         try {
-            // 6-second timeout for OpenAI
+            // 6-second timeout for primary provider
             const timeoutPromise = new Promise((_, reject) => 
                 setTimeout(() => reject(new Error("AI_TIMEOUT")), 6000)
             );
 
             if (shouldStream) {
-                const result = await Promise.race([
-                    streamText({
-                        model: openaiProvider("gpt-4o-mini"),
+                try {
+                    const result = await Promise.race([
+                        streamText({
+                            model: openaiProvider("gpt-4o-mini"),
+                            system: systemPromptWithContext,
+                            prompt: prompt,
+                            async onFinish({ text }) {
+                                await handleAiFinish(text, "openai");
+                            },
+                        }),
+                        timeoutPromise
+                    ]);
+                    return (result as any).toTextStreamResponse();
+                } catch (error) {
+                    console.warn("OpenAI failed or timed out, trying OpenRouter fallback...");
+                    const { openrouter } = await import("@/lib/openrouter");
+                    const result = await streamText({
+                        model: openrouter("openai/gpt-4o-mini"),
                         system: systemPromptWithContext,
                         prompt: prompt,
                         async onFinish({ text }) {
-                            await handleAiFinish(text, "openai");
+                            await handleAiFinish(text, "openrouter");
                         },
-                    }),
-                    timeoutPromise
-                ]);
-
-                return (result as any).toTextStreamResponse();
+                    });
+                    return result.toTextStreamResponse();
+                }
             } else {
                 const openaiPromise = imageUrl 
                     ? generateWithVision(prompt, imageUrl, systemPromptWithContext)
                     : generateWithOpenAI(prompt, systemPromptWithContext);
                 
-                const result = await Promise.race([openaiPromise, timeoutPromise]);
-                text = result as string;
+                try {
+                    resultText = await Promise.race([openaiPromise, timeoutPromise]) as string;
+                } catch (error) {
+                    console.warn("OpenAI failed or timed out, trying OpenRouter fallback...");
+                    finalProvider = "openrouter";
+                    const { generateWithOpenRouter } = await import("@/lib/openrouter");
+                    resultText = await generateWithOpenRouter(prompt, systemPromptWithContext, imageUrl);
+                }
             }
         } catch (error: any) {
-            if (error.message === "AI_TIMEOUT" || error.status === 429) {
-                console.warn(`OpenAI ${error.message === "AI_TIMEOUT" ? "timed out" : "rate limited"}, switching to Cohere fallback...`);
-                provider = "cohere";
-                
+            console.error("Primary and Secondary AI fallbacks failed, trying Cohere final fallback...", error);
+            finalProvider = "cohere";
+            
+            try {
                 const { generateWithCohere } = await import("@/lib/cohere");
-                text = await generateWithCohere(prompt, systemPromptWithContext);
-                
-                await handleAiFinish(text, "cohere");
-            } else {
-                console.error("AI Generation Error:", error);
-                throw error;
+                resultText = await generateWithCohere(prompt, systemPromptWithContext);
+            } catch (cohereError: any) {
+                console.error("All AI providers failed:", cohereError);
+                throw new Error("Nova Neural Link is currently unavailable. Please try again in a few moments.");
             }
         }
+
+        // If we reached here, it means it's a non-streaming response (or fallback from stream failed to start)
+        await handleAiFinish(resultText, finalProvider);
 
         async function handleAiFinish(aiText: string, aiProvider: string) {
             if (workspaceId) {
@@ -207,31 +227,7 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
             }
         }
 
-        // Increment usage if workspaceId is provided
-        if (workspaceId) {
-            const { incrementNovaUsage } = await import("@/lib/usage-tracking");
-            await incrementNovaUsage(workspaceId, user.id);
-
-            // Save Assistant Message
-            if (conversationId) {
-                const { getPrismaClient } = await import("@/lib/prisma");
-                const db = getPrismaClient(workspaceId);
-                await db.aiMessage.create({
-                    data: {
-                        conversationId,
-                        role: "assistant",
-                        content: text
-                    }
-                });
-                
-                await db.aiConversation.update({
-                    where: { id: conversationId },
-                    data: { lastMessageAt: new Date() }
-                });
-            }
-        }
-
-        return NextResponse.json({ text });
+        return NextResponse.json({ text: resultText });
     } catch (error: any) {
         if (error.status === 429) {
             return NextResponse.json(
