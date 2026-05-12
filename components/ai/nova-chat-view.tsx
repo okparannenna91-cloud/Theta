@@ -146,6 +146,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
         const tempId = Date.now().toString();
         setMessages(prev => [...prev, { id: tempId, role: "user", content: userMessage, createdAt: new Date().toISOString() }]);
 
+        try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased to 15s for actions
 
