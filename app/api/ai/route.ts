@@ -197,6 +197,35 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                     return { members: members.map(m => ({ id: m.userId, name: m.user.name })) };
                 }
             },
+            breakdown_task: {
+                description: 'Break down a complex task into multiple subtasks.',
+                parameters: z.object({
+                    taskId: z.string().describe('The ID of the parent task'),
+                    subtasks: z.array(z.string()).describe('List of subtask titles')
+                }),
+                execute: async ({ taskId, subtasks: subtaskTitles }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    
+                    const createdSubtasks = await Promise.all(
+                        subtaskTitles.map((title: string, index: number) => 
+                            db.subtask.create({
+                                data: { title, taskId, order: index }
+                            })
+                        )
+                    );
+
+                    await db.activity.create({
+                        data: { 
+                            action: "UPDATED", entityType: "TASK", entityId: taskId, 
+                            workspaceId, userId: user.id,
+                            metadata: { source: "NOVA_AI", addedSubtasks: subtaskTitles.length } 
+                        }
+                    });
+
+                    return { success: true, message: `Broke down task into **${createdSubtasks.length}** subtasks.` };
+                }
+            },
             remember_preference: {
                 description: 'Save a user preference or piece of information to memory.',
                 parameters: z.object({
