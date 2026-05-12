@@ -6,6 +6,10 @@ import { createOpenAI } from "@ai-sdk/openai";
 export const openrouter = createOpenAI({
   apiKey: process.env.OPENROUTER,
   baseURL: "https://openrouter.ai/api/v1",
+  headers: {
+    "HTTP-Referer": "https://thetapm.site",
+    "X-Title": "Nova AI",
+  }
 });
 
 /**
@@ -47,7 +51,7 @@ export async function generateWithOpenRouter(prompt: string, systemPrompt?: stri
             "X-Title": "Nova AI",
         },
         body: JSON.stringify({
-            model: imageUrl ? "openai/gpt-4o-mini" : "openai/gpt-4o-mini", // Both support vision
+            model: imageUrl ? "google/gemini-flash-1.5" : "google/gemini-flash-1.5",
             messages: messages,
         })
     });
