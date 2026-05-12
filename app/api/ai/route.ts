@@ -4,8 +4,9 @@ export const maxDuration = 60; // Max allowed for Pro, ignored for Hobby but goo
 
 import { getCurrentUser } from "@/lib/auth";
 import { generateWithOpenAI, generateWithVision } from "@/lib/openai";
-import { streamText } from "ai";
+import { streamText, tool, generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
+import { z } from "zod";
 
 const openaiProvider = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -143,6 +144,149 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
         let resultText = "";
         let finalProvider = "openai";
 
+        // Define tools for Nova to execute actions
+        const tools = {
+            create_task: tool({
+                description: 'Create a new task in the current workspace and project.',
+                parameters: z.object({
+                    title: z.string().describe('The title of the task'),
+                    description: z.string().optional().describe('Detailed description of the task'),
+                    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional().default('medium'),
+                    status: z.string().optional().default('todo'),
+                    projectId: z.string().optional().describe('Specific project ID if mentioned, otherwise uses the active project context')
+                }),
+                execute: async ({ title, description, priority, status, projectId }) => {
+                    if (!workspaceId) return { error: "No workspace context found." };
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+
+                    // Use provided projectId or fallback to the first project in the workspace
+                    let targetProjectId = projectId;
+                    if (!targetProjectId) {
+                        const firstProject = await db.project.findFirst({ where: { workspaceId } });
+                        if (!firstProject) return { error: "No projects found in this workspace. Create a project first." };
+                        targetProjectId = firstProject.id;
+                    }
+
+                    const task = await db.task.create({
+                        data: {
+                            title,
+                            description,
+                            priority,
+                            status,
+                            workspaceId,
+                            projectId: targetProjectId,
+                            userId: user.id,
+                        }
+                    });
+
+                    // Log activity
+                    await db.activity.create({
+                        data: {
+                            action: "CREATED",
+                            entityType: "TASK",
+                            entityId: task.id,
+                            workspaceId,
+                            userId: user.id,
+                            projectId: targetProjectId,
+                            metadata: { source: "NOVA_AI", taskTitle: title }
+                        }
+                    });
+
+                    return { success: true, taskId: task.id, message: `Task "${title}" created successfully.` };
+                },
+            }),
+            update_task: tool({
+                description: 'Update an existing task status, priority, or details.',
+                parameters: z.object({
+                    taskId: z.string().describe('The ID of the task to update'),
+                    status: z.string().optional(),
+                    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+                    title: z.string().optional()
+                }),
+                execute: async ({ taskId, status, priority, title }) => {
+                    if (!workspaceId) return { error: "No workspace context" };
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+
+                    const task = await db.task.update({
+                        where: { id: taskId },
+                        data: {
+                            ...(status && { status }),
+                            ...(priority && { priority }),
+                            ...(title && { title })
+                        }
+                    });
+
+                    await db.activity.create({
+                        data: {
+                            action: "UPDATED",
+                            entityType: "TASK",
+                            entityId: task.id,
+                            workspaceId,
+                            userId: user.id,
+                            projectId: task.projectId,
+                            metadata: { source: "NOVA_AI", changes: { status, priority, title } }
+                        }
+                    });
+
+                    return { success: true, message: `Task "${task.title}" updated successfully.` };
+                },
+            }),
+            list_members: tool({
+                description: 'List all team members in the workspace to help with assignment.',
+                parameters: z.object({}),
+                execute: async () => {
+                    if (!workspaceId) return { error: "No workspace context" };
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+
+                    const members = await db.workspaceMember.findMany({
+                        where: { workspaceId },
+                        include: { user: true }
+                    });
+
+                    return {
+                        members: members.map(m => ({
+                            id: m.userId,
+                            name: m.user.name,
+                            email: m.user.email
+                        }))
+                    };
+                },
+            }),
+            delete_task: tool({
+                description: 'Delete a task from the workspace. Use this only when the user is explicit about deletion.',
+                parameters: z.object({
+                    taskId: z.string().describe('The ID of the task to delete'),
+                }),
+                execute: async ({ taskId }) => {
+                    if (!workspaceId) return { error: "No workspace context" };
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+
+                    const task = await db.task.findUnique({ where: { id: taskId } });
+                    if (!task) return { error: "Task not found" };
+
+                    await db.task.delete({ where: { id: taskId } });
+
+                    await db.activity.create({
+                        data: {
+                            action: "DELETED",
+                            entityType: "TASK",
+                            entityId: taskId,
+                            workspaceId,
+                            userId: user.id,
+                            projectId: task.projectId,
+                            metadata: { source: "NOVA_AI", taskTitle: task.title }
+                        }
+                    });
+
+                    return { success: true, message: `Task "${task.title}" deleted successfully.` };
+                },
+            }),
+        };
+
         try {
             // Prioritize OpenRouter for stability, but try streaming first
             finalProvider = "openrouter";
@@ -150,15 +294,18 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
 
             if (shouldStream) {
                 try {
-                    // Try streaming with a short timeout for the first chunk
                     const result = await streamText({
                         model: openrouter("openai/gpt-4o-mini"),
-                        system: systemPromptWithContext,
+                        system: systemPromptWithContext + "\n\nYou are Nova, an AI Operator. You can execute actions like creating or updating tasks. When you perform an action, briefly tell the user what you did.",
                         prompt: prompt,
+                        tools,
+                        maxSteps: 5, // Allow multi-step reasoning/actions
                         onFinish: async ({ text }) => {
-                            handleAiFinish(text, "openrouter").catch(e => 
-                                console.error("Background save failed:", e)
-                            );
+                            if (text) {
+                                handleAiFinish(text, "openrouter").catch(e => 
+                                    console.error("Background save failed:", e)
+                                );
+                            }
                         },
                     });
                     return result.toTextStreamResponse();
