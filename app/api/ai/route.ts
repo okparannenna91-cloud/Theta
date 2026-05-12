@@ -204,6 +204,8 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
         await handleAiFinish(resultText, finalProvider);
 
         async function handleAiFinish(aiText: string, aiProvider: string) {
+            if (!user) return; // Guard for TypeScript
+            
             if (workspaceId) {
                 const { incrementNovaUsage } = await import("@/lib/usage-tracking");
                 await incrementNovaUsage(workspaceId, user.id);
