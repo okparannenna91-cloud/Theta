@@ -82,62 +82,31 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
             await incrementNovaUsage(workspaceId, user.id);
         } catch (e) {}
 
-        const tools: any = {
-            create_project: {
-                description: 'Create a new project.',
-                parameters: z.object({
-                    name: z.string().describe('Project name'),
-                    description: z.string().optional()
-                }),
-                execute: async ({ name, description }: any) => {
-                    const { getPrismaClient } = await import("@/lib/prisma");
-                    const db = getPrismaClient(workspaceId);
-                    const project = await db.project.create({
-                        data: { name, description, workspaceId, userId: user.id }
-                    });
-                    await db.activity.create({
-                        data: { 
-                            action: "CREATED", 
-                            entityType: "PROJECT", 
-                            entityId: project.id, 
-                            workspaceId, 
-                            userId: user.id, 
-                            projectId: project.id,
-                            metadata: { source: "NOVA_AI" } 
-                        }
-                    });
-                    return { success: true, message: `Project **${name}** created.` };
-                }
-            },
-            create_task: {
-                description: 'Create a task.',
-                parameters: z.object({
-                    title: z.string(),
-                    projectId: z.string().optional()
-                }),
-                execute: async ({ title, projectId }: any) => {
-                    const { getPrismaClient } = await import("@/lib/prisma");
-                    const db = getPrismaClient(workspaceId);
-                    let targetId = projectId;
-                    if (!targetId) {
-                        const p = await db.project.findFirst({ where: { workspaceId } });
-                        if (!p) return { error: "No projects. Create one first." };
-                        targetId = p.id;
-                    }
-                    await db.task.create({ data: { title, workspaceId, projectId: targetId, userId: user.id, status: 'todo' } });
-                    return { success: true, message: `Task **${title}** created.` };
-                },
-            },
-        };
+        const shouldStream = !imageUrl;
+
+        // 1. Increment usage
+        try {
+            const { incrementNovaUsage } = await import("@/lib/usage-tracking");
+            await incrementNovaUsage(workspaceId, user.id);
+        } catch (e) {}
+
+        const systemPrompt = `${NOVA_SYSTEM_PROMPT}\n${workspaceContext}\nYou are Nova. Be professional and helpful.`;
 
         if (shouldStream) {
-            const { openrouter } = await import("@/lib/openrouter");
+            // Use direct OpenAI provider pointed at OpenRouter for maximum stability
+            const openrouterProvider = createOpenAI({
+                apiKey: process.env.OPENROUTER,
+                baseURL: "https://openrouter.ai/api/v1",
+                headers: {
+                    "HTTP-Referer": "https://thetapm.site",
+                    "X-Title": "Nova AI",
+                }
+            });
+
             const result = await streamText({
-                model: openrouter("openai/gpt-4o-mini"),
+                model: openrouterProvider("openai/gpt-4o-mini"),
                 system: systemPrompt,
                 prompt: prompt,
-                tools,
-                maxSteps: 10, // More steps for complex workflows
                 onFinish: async ({ text }: any) => {
                     if (text && conversationId) {
                         const { getPrismaClient } = await import("@/lib/prisma");
@@ -145,7 +114,7 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                         await db.aiMessage.create({ data: { conversationId, role: "assistant", content: text } });
                     }
                 },
-            } as any);
+            });
             return result.toTextStreamResponse();
         } else {
             const { generateWithOpenRouter } = await import("@/lib/openrouter");
