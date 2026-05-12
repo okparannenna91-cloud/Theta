@@ -203,11 +203,13 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
 
         // Final check to ensure we don't return an empty string
         if (!resultText) {
-            resultText = "Nova is momentarily silent. Please try asking your question again.";
+            resultText = "Nova is momentarily silent. The neural link is experiencing high latency. Please try your request again in a few seconds.";
         }
 
-        // If we reached here, it means it's a non-streaming response
-        await handleAiFinish(resultText, finalProvider);
+        // FIRE-AND-FORGET background tasks to prevent them from timing out the response
+        handleAiFinish(resultText, finalProvider).catch(e => {
+            console.error("Background handleAiFinish failed:", e);
+        });
 
         async function handleAiFinish(aiText: string, aiProvider: string) {
             if (!user) return; // Guard for TypeScript
