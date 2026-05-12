@@ -92,6 +92,7 @@ export const viewport: Viewport = {
 import { I18nProvider } from "@/lib/i18n";
 
 import { PopupProvider } from "@/components/popups/popup-manager";
+import { CommandPalette } from "@/components/ai/command-palette";
 
 export default function RootLayout({
   children,
@@ -112,6 +113,7 @@ export default function RootLayout({
               <AblyProvider>
                 <PopupProvider>
                   <I18nProvider>
+                    <CommandPalette />
                     {children}
                     <Toaster richColors position="top-center" />
                   </I18nProvider>

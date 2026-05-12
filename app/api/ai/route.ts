@@ -144,22 +144,43 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
         let finalProvider = "openai";
 
         try {
-            // Since OpenAI is hitting 429 quota limits, we prioritize OpenRouter for immediate stability
-            console.log("Prioritizing OpenRouter due to OpenAI quota limits...");
+            // Prioritize OpenRouter for stability, but try streaming first
             finalProvider = "openrouter";
-            
-            try {
+            const { openrouter } = await import("@/lib/openrouter");
+
+            if (shouldStream) {
+                try {
+                    // Try streaming with a short timeout for the first chunk
+                    const result = await streamText({
+                        model: openrouter("openai/gpt-4o-mini"),
+                        system: systemPromptWithContext,
+                        prompt: prompt,
+                        onFinish: async ({ text }) => {
+                            handleAiFinish(text, "openrouter").catch(e => 
+                                console.error("Background save failed:", e)
+                            );
+                        },
+                    });
+                    return result.toTextStreamResponse();
+                } catch (streamError: any) {
+                    console.warn("OpenRouter streaming failed, falling back to non-streaming...", streamError.message);
+                    const { generateWithOpenRouter } = await import("@/lib/openrouter");
+                    resultText = await generateWithOpenRouter(prompt, systemPromptWithContext, imageUrl);
+                }
+            } else {
                 const { generateWithOpenRouter } = await import("@/lib/openrouter");
                 resultText = await generateWithOpenRouter(prompt, systemPromptWithContext, imageUrl);
-            } catch (error: any) {
-                console.warn("OpenRouter failed, falling back to Cohere...", error.message);
-                finalProvider = "cohere";
-                const { generateWithCohere } = await import("@/lib/cohere");
-                resultText = await generateWithCohere(prompt, systemPromptWithContext);
             }
         } catch (error: any) {
-            console.error("All AI providers failed:", error);
-            resultText = "Nova Neural Link is currently experiencing high demand. Please try again in a few moments.";
+            console.error("OpenRouter failed, trying Cohere...", error);
+            finalProvider = "cohere";
+            try {
+                const { generateWithCohere } = await import("@/lib/cohere");
+                resultText = await generateWithCohere(prompt, systemPromptWithContext);
+            } catch (cohereError: any) {
+                console.error("Final fallback failed:", cohereError);
+                resultText = "Nova Neural Link is temporarily congested. Please try again in 30 seconds.";
+            }
         }
 
         // Final check to ensure we don't return an empty string

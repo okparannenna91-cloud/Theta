@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { Button } from "@/components/ui/button";
-import { Send, Sparkles, User, Loader2, Copy, RefreshCw, Trash2, CheckCircle2, FileText, ChevronRight, Paperclip, X, Target, Layout } from "lucide-react";
+import { Send, Sparkles, User, Loader2, Copy, RefreshCw, Trash2, CheckCircle2, FileText, ChevronRight, Paperclip, X, Target, Layout, Mic, MicOff, Terminal, Eraser, ListTodo, BookOpen } from "lucide-react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
@@ -32,8 +32,17 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
     const [isUploading, setIsUploading] = useState(false);
     const [projects, setProjects] = useState<{ id: string, name: string }[]>([]);
     const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
+    const [isListening, setIsListening] = useState(false);
+    const [showSlashMenu, setShowSlashMenu] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const SLASH_COMMANDS = [
+        { icon: ListTodo, label: "Create Task", command: "/task ", description: "Turn this thought into a task" },
+        { icon: BookOpen, label: "Summarize", command: "/summarize", description: "Summarize the current view" },
+        { icon: Eraser, label: "Clear Chat", command: "/clear", description: "Reset the conversation" },
+        { icon: Terminal, label: "Debug", command: "/debug", description: "Show system diagnostics" },
+    ];
 
     const fetchMessages = useCallback(async () => {
         try {
@@ -426,13 +435,81 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                     <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-[2.2rem] blur opacity-10 group-focus-within:opacity-30 transition-opacity duration-500" />
                     <textarea 
                         value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && (e.preventDefault(), handleSend())}
+                        onChange={(e) => {
+                            const val = e.target.value;
+                            setInput(val);
+                            setShowSlashMenu(val === "/");
+                        }}
+                        onKeyDown={(e) => {
+                            if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleSend();
+                            }
+                        }}
                         placeholder="Ask Nova to build something brilliant..."
                         rows={1}
-                        className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] px-10 py-6 pr-32 text-base font-medium focus:outline-none focus:ring-0 focus:border-indigo-500 transition-all resize-none overflow-hidden min-h-[72px] relative z-10 shadow-2xl shadow-slate-200/50 dark:shadow-none placeholder:text-slate-400 placeholder:font-bold"
+                        className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] px-10 py-6 pr-44 text-base font-medium focus:outline-none focus:ring-0 focus:border-indigo-500 transition-all resize-none overflow-hidden min-h-[72px] relative z-10 shadow-2xl shadow-slate-200/50 dark:shadow-none placeholder:text-slate-400 placeholder:font-bold"
                     />
+
+                    {showSlashMenu && (
+                        <div className="absolute bottom-full left-4 mb-4 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 p-2 overflow-hidden animate-in fade-in slide-in-from-bottom-2">
+                            <div className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 mb-1">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nova Commands</p>
+                            </div>
+                            {SLASH_COMMANDS.map((cmd) => (
+                                <button
+                                    key={cmd.command}
+                                    onClick={() => {
+                                        setInput(cmd.command);
+                                        setShowSlashMenu(false);
+                                    }}
+                                    className="w-full flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-left group"
+                                >
+                                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-white dark:group-hover:bg-slate-700 transition-colors">
+                                        <cmd.icon className="w-4 h-4 text-slate-500 dark:text-slate-400" />
+                                    </div>
+                                    <div>
+                                        <p className="text-sm font-bold text-slate-900 dark:text-white">{cmd.label}</p>
+                                        <p className="text-[10px] text-slate-400 font-medium">{cmd.description}</p>
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 z-20 flex items-center gap-2">
+                        <Button 
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => {
+                                if (isListening) {
+                                    setIsListening(false);
+                                    return;
+                                }
+                                const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+                                if (!SpeechRecognition) {
+                                    toast.error("Speech recognition not supported in this browser");
+                                    return;
+                                }
+                                const recognition = new SpeechRecognition();
+                                recognition.continuous = false;
+                                recognition.interimResults = false;
+                                recognition.lang = 'en-US';
+                                recognition.onstart = () => setIsListening(true);
+                                recognition.onend = () => setIsListening(false);
+                                recognition.onresult = (event: any) => {
+                                    const transcript = event.results[0][0].transcript;
+                                    setInput(prev => prev + (prev ? " " : "") + transcript);
+                                };
+                                recognition.start();
+                            }}
+                            className={cn(
+                                "w-12 h-12 rounded-2xl transition-all",
+                                isListening ? "bg-red-500/10 text-red-500 animate-pulse" : "text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
+                            )}
+                        >
+                            {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                        </Button>
                         <input 
                             type="file"
                             ref={fileInputRef}
