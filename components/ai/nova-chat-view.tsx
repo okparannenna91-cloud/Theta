@@ -36,6 +36,56 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
     const [showSlashMenu, setShowSlashMenu] = useState(false);
     const scrollRef = useRef<HTMLDivElement>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const recognitionRef = useRef<any>(null);
+
+    const toggleListening = () => {
+        if (isListening) {
+            recognitionRef.current?.stop();
+            setIsListening(false);
+            return;
+        }
+
+        const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
+        if (!SpeechRecognition) {
+            toast.error("Speech recognition not supported in this browser");
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+            setIsListening(true);
+            toast.info("Nova is listening...");
+        };
+
+        recognition.onresult = (event: any) => {
+            const transcript = Array.from(event.results)
+                .map((result: any) => result[0])
+                .map((result: any) => result.transcript)
+                .join("");
+            setInput(transcript);
+        };
+
+        recognition.onerror = (event: any) => {
+            console.error("Speech recognition error", event.error);
+            setIsListening(false);
+            if (event.error === 'not-allowed') {
+                toast.error("Microphone access denied. Please check your browser settings.");
+            } else {
+                toast.error("Voice input error. Please try again.");
+            }
+        };
+
+        recognition.onend = () => {
+            setIsListening(false);
+        };
+
+        recognitionRef.current = recognition;
+        recognition.start();
+    };
 
     const SLASH_COMMANDS = [
         { icon: ListTodo, label: "Create Task", command: "/task ", description: "Turn this thought into a task" },
@@ -481,28 +531,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                         <Button 
                             variant="ghost"
                             size="icon"
-                            onClick={() => {
-                                if (isListening) {
-                                    setIsListening(false);
-                                    return;
-                                }
-                                const SpeechRecognition = (window as any).webkitSpeechRecognition || (window as any).SpeechRecognition;
-                                if (!SpeechRecognition) {
-                                    toast.error("Speech recognition not supported in this browser");
-                                    return;
-                                }
-                                const recognition = new SpeechRecognition();
-                                recognition.continuous = false;
-                                recognition.interimResults = false;
-                                recognition.lang = 'en-US';
-                                recognition.onstart = () => setIsListening(true);
-                                recognition.onend = () => setIsListening(false);
-                                recognition.onresult = (event: any) => {
-                                    const transcript = event.results[0][0].transcript;
-                                    setInput(prev => prev + (prev ? " " : "") + transcript);
-                                };
-                                recognition.start();
-                            }}
+                            onClick={toggleListening}
                             className={cn(
                                 "w-12 h-12 rounded-2xl transition-all",
                                 isListening ? "bg-red-500/10 text-red-500 animate-pulse" : "text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10"
