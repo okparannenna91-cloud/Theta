@@ -301,7 +301,6 @@ If you create a task, mention its title. If you update a task, mention the chang
 Use bold text for task titles and statuses.`,
                         prompt: prompt,
                         tools,
-                        maxSteps: 5,
                         onFinish: async ({ text }) => {
                             if (text) {
                                 handleAiFinish(text, "openrouter").catch(e => 
