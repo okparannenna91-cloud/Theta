@@ -522,6 +522,11 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                 rows={1}
                                 className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] px-10 py-6 pr-20 text-base font-medium focus:outline-none focus:ring-0 focus:border-indigo-500 transition-all resize-none overflow-hidden min-h-[72px] relative z-10 shadow-2xl shadow-slate-200/50 dark:shadow-none placeholder:text-slate-400 placeholder:font-bold"
                             />
+                            <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20">
+                                <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
+                                    <Paperclip className="w-5 h-5" />
+                                </Button>
+                            </div>
                             <Button 
                                 onClick={handleSend}
                                 disabled={!input.trim() || isLoading}

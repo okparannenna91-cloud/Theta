@@ -355,6 +355,28 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                     };
                 }
             },
+            project_health_analysis: {
+                description: 'Perform a comprehensive health check on a project.',
+                parameters: z.object({
+                    projectId: z.string().describe('The ID of the project to analyze')
+                }),
+                execute: async ({ projectId }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    
+                    const [overdue, inProgress, members] = await Promise.all([
+                        db.task.count({ where: { projectId, dueDate: { lt: new Date() }, status: { not: 'done' } } }),
+                        db.task.count({ where: { projectId, status: 'in_progress' } }),
+                        db.workspaceMember.count({ where: { workspaceId } })
+                    ]);
+
+                    return { 
+                        healthScore: 85 - (overdue * 5),
+                        metrics: { overdue, inProgress, teamMembers: members },
+                        status: overdue > 3 ? "AT_RISK" : "HEALTHY"
+                    };
+                }
+            },
             remember_preference: {
                 description: 'Save a user preference or piece of information to memory.',
                 parameters: z.object({
