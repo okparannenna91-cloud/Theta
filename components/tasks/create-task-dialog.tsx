@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
+import { Sparkles } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
 
@@ -132,12 +133,36 @@ export function CreateTaskDialog({
 
           <div>
             <Label htmlFor="title">Task Title</Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-            />
+            <div className="relative">
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                className="pr-10"
+                placeholder="What needs to be done?"
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                    if (!title) return;
+                    const res = await fetch("/api/ai/recommend", {
+                        method: "POST",
+                        body: JSON.stringify({ title, workspaceId: activeWorkspaceId })
+                    });
+                    if (res.ok) {
+                        const data = await res.json();
+                        if (data.priority) setPriority(data.priority);
+                        if (data.projectId && data.projectId !== "no-project") setProjectId(data.projectId);
+                        import("sonner").then(({ toast }) => toast.success("Nova recommended priority and project!"));
+                    }
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-500 hover:text-indigo-600 transition-colors"
+                title="Nova Recommendation"
+              >
+                <Sparkles className="w-4 h-4" />
+              </button>
+            </div>
           </div>
           <div className="space-y-2">
             <div className="flex items-center justify-between">

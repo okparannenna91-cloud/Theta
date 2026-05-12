@@ -226,6 +226,27 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                     return { success: true, message: `Broke down task into **${createdSubtasks.length}** subtasks.` };
                 }
             },
+            create_automation: {
+                description: 'Create a new automated workflow in the workspace.',
+                parameters: z.object({
+                    name: z.string().describe('Descriptive name for the automation'),
+                    trigger: z.string().describe('The event that triggers this (e.g. TASK_COMPLETED, MEMBER_ADDED)'),
+                    action: z.string().describe('The action to take (e.g. SEND_EMAIL, NOTIFY_CHANNEL, UPDATE_STATUS)'),
+                    config: z.record(z.any()).describe('Configuration for the automation')
+                }),
+                execute: async ({ name, trigger, action, config }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    
+                    const automation = await db.automation.create({
+                        data: {
+                            name, trigger, action, config, workspaceId, active: true
+                        }
+                    });
+
+                    return { success: true, message: `Automation "**${name}**" has been created and activated.` };
+                }
+            },
             remember_preference: {
                 description: 'Save a user preference or piece of information to memory.',
                 parameters: z.object({

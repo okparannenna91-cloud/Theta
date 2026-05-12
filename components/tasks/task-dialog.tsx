@@ -147,7 +147,11 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    prompt: `Please summarize this task and suggest next steps:\nTitle: ${title}\nDescription: ${description}\nStatus: ${status}\nPriority: ${priority}`,
+                    prompt: `/summarize Summarize the current state of this task and recommend next steps.
+Task: ${title}
+Current Progress: ${progress}%
+Subtasks: ${task.subtasks?.map((s:any) => s.title).join(", ") || "None"}
+Last Description: ${description}`,
                     workspaceId,
                 }),
             });

@@ -537,16 +537,42 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                     <TabsContent key={tab} value={tab} className="flex-1 flex flex-col items-center justify-center text-center p-8 m-0 data-[state=active]:flex">
                         <div className="max-w-md space-y-6">
                             <div className="w-20 h-20 rounded-[2rem] bg-slate-100 dark:bg-slate-900 flex items-center justify-center mx-auto border-2 border-dashed border-slate-200 dark:border-slate-800">
-                                <Sparkles className="w-10 h-10 text-slate-300 dark:text-slate-700" />
+                                {tab === "sprint" ? <SprintIcon className="w-10 h-10 text-indigo-500" /> : <Sparkles className="w-10 h-10 text-slate-300 dark:text-slate-700" />}
                             </div>
                             <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Nova {tab.charAt(0).toUpperCase() + tab.slice(1)} Mode</h3>
                             <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                                Nova is currently calibrating her intelligence for this workspace mode. 
-                                In the meantime, you can continue our conversation in the **Chat** tab.
+                                {tab === "sprint" 
+                                    ? "Generate deep-dive reports, velocity charts, and bottleneck analysis for your current sprint."
+                                    : `Nova is currently calibrating her intelligence for ${tab} mode.`
+                                }
                             </p>
-                            <Button variant="outline" onClick={() => setActiveTab("chat")} className="rounded-xl font-black uppercase tracking-widest text-[10px]">
-                                Back to Neural Chat
-                            </Button>
+                            <div className="flex flex-col gap-2">
+                                {tab === "sprint" && (
+                                    <Button 
+                                        onClick={() => {
+                                            setActiveTab("chat");
+                                            setInput("/report Generate a comprehensive status report for the current sprint.");
+                                        }}
+                                        className="rounded-xl font-black uppercase tracking-widest text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white h-12"
+                                    >
+                                        Generate Neural Report
+                                    </Button>
+                                )}
+                                {tab === "automations" && (
+                                    <Button 
+                                        onClick={() => {
+                                            setActiveTab("chat");
+                                            setInput("Create an automation that...");
+                                        }}
+                                        className="rounded-xl font-black uppercase tracking-widest text-[10px] bg-purple-600 hover:bg-purple-700 text-white h-12"
+                                    >
+                                        Architect Automation
+                                    </Button>
+                                )}
+                                <Button variant="outline" onClick={() => setActiveTab("chat")} className="rounded-xl font-black uppercase tracking-widest text-[10px] h-12">
+                                    Back to Neural Chat
+                                </Button>
+                            </div>
                         </div>
                     </TabsContent>
                 ))}
