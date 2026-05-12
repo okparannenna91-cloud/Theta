@@ -144,9 +144,9 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
         let resultText = "";
         let finalProvider = "openai";
 
-        // Define tools for Nova to execute actions
-        const tools = {
-            create_task: tool({
+        // Define tools for Nova to execute actions as plain objects to fix TS overload issues
+        const tools: any = {
+            create_task: {
                 description: 'Create a new task in the current workspace and project.',
                 parameters: z.object({
                     title: z.string().describe('The title of the task'),
@@ -155,13 +155,7 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                     status: z.string().optional(),
                     projectId: z.string().optional().describe('Specific project ID if mentioned, otherwise uses the active project context')
                 }),
-                execute: async ({ title, description, priority, status, projectId }: { 
-                    title: string, 
-                    description?: string, 
-                    priority?: 'low' | 'medium' | 'high' | 'urgent', 
-                    status?: string, 
-                    projectId?: string 
-                }) => {
+                execute: async ({ title, description, priority, status, projectId }: any) => {
                     if (!workspaceId) return { error: "No workspace context found." };
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
@@ -199,8 +193,8 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
 
                     return { success: true, taskId: task.id, message: `Task "${title}" created successfully.` };
                 },
-            }),
-            update_task: tool({
+            },
+            update_task: {
                 description: 'Update an existing task status, priority, or details.',
                 parameters: z.object({
                     taskId: z.string().describe('The ID of the task to update'),
@@ -208,12 +202,7 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                     priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
                     title: z.string().optional()
                 }),
-                execute: async ({ taskId, status, priority, title }: { 
-                    taskId: string, 
-                    status?: string, 
-                    priority?: 'low' | 'medium' | 'high' | 'urgent', 
-                    title?: string 
-                }) => {
+                execute: async ({ taskId, status, priority, title }: any) => {
                     if (!workspaceId) return { error: "No workspace context" };
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
@@ -241,8 +230,8 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
 
                     return { success: true, message: `Task "${task.title}" updated successfully.` };
                 },
-            }),
-            list_members: tool({
+            },
+            list_members: {
                 description: 'List all team members in the workspace to help with assignment.',
                 parameters: z.object({}),
                 execute: async () => {
@@ -263,13 +252,13 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                         }))
                     };
                 },
-            }),
-            delete_task: tool({
+            },
+            delete_task: {
                 description: 'Delete a task from the workspace.',
                 parameters: z.object({
                     taskId: z.string().describe('The ID of the task to delete'),
                 }),
-                execute: async ({ taskId }: { taskId: string }) => {
+                execute: async ({ taskId }: any) => {
                     if (!workspaceId) return { error: "No workspace context" };
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
@@ -293,7 +282,7 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
 
                     return { success: true, message: `Task "${task.title}" deleted successfully.` };
                 },
-            }),
+            },
         };
 
         try {
