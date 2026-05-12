@@ -73,15 +73,6 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
             }
         }
 
-        const systemPrompt = `${NOVA_SYSTEM_PROMPT}\n${workspaceContext}\nYou are Nova, an AI Operator. Execute tools when asked. Summarize actions in bold.`;
-        const shouldStream = !imageUrl;
-
-        // 1. Increment usage
-        try {
-            const { incrementNovaUsage } = await import("@/lib/usage-tracking");
-            await incrementNovaUsage(workspaceId, user.id);
-        } catch (e) {}
-
         const shouldStream = !imageUrl;
 
         // 1. Increment usage
