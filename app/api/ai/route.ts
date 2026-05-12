@@ -141,10 +141,15 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
         // Check if we should stream
         const shouldStream = !imageUrl;
 
-        let resultText = "";
-        let finalProvider = "openai";
+        // 1. ALWAYS increment usage at the start of a valid request
+        try {
+            const { incrementNovaUsage } = await import("@/lib/usage-tracking");
+            await incrementNovaUsage(workspaceId, user.id);
+        } catch (e) {
+            console.error("Failed to increment usage:", e);
+        }
 
-        // Define tools for Nova to execute actions as plain objects to fix TS overload issues
+        // Define tools for Nova to execute actions
         const tools: any = {
             create_task: {
                 description: 'Create a new task in the current workspace and project.',
@@ -153,234 +158,104 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                     description: z.string().optional().describe('Detailed description of the task'),
                     priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
                     status: z.string().optional(),
-                    projectId: z.string().optional().describe('Specific project ID if mentioned, otherwise uses the active project context')
+                    projectId: z.string().optional()
                 }),
                 execute: async ({ title, description, priority, status, projectId }: any) => {
-                    if (!workspaceId) return { error: "No workspace context found." };
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
-
                     let targetProjectId = projectId;
                     if (!targetProjectId) {
                         const firstProject = await db.project.findFirst({ where: { workspaceId } });
                         if (!firstProject) return { error: "No projects found" };
                         targetProjectId = firstProject.id;
                     }
-
                     const task = await db.task.create({
                         data: {
-                            title,
-                            description,
+                            title, description, 
                             priority: priority || 'medium',
                             status: status || 'todo',
-                            workspaceId,
-                            projectId: targetProjectId,
-                            userId: user.id,
+                            workspaceId, projectId: targetProjectId, userId: user.id,
                         }
                     });
-
                     await db.activity.create({
                         data: {
-                            action: "CREATED",
-                            entityType: "TASK",
-                            entityId: task.id,
-                            workspaceId,
-                            userId: user.id,
-                            projectId: targetProjectId,
+                            action: "CREATED", entityType: "TASK", entityId: task.id,
+                            workspaceId, userId: user.id, projectId: targetProjectId,
                             metadata: { source: "NOVA_AI", taskTitle: title }
                         }
                     });
-
-                    return { success: true, taskId: task.id, message: `Task "${title}" created successfully.` };
+                    return { success: true, message: `Task "${title}" created.` };
                 },
             },
             update_task: {
-                description: 'Update an existing task status, priority, or details.',
+                description: 'Update an existing task.',
                 parameters: z.object({
-                    taskId: z.string().describe('The ID of the task to update'),
+                    taskId: z.string(),
                     status: z.string().optional(),
-                    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
-                    title: z.string().optional()
+                    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional()
                 }),
-                execute: async ({ taskId, status, priority, title }: any) => {
-                    if (!workspaceId) return { error: "No workspace context" };
+                execute: async ({ taskId, status, priority }: any) => {
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
-
                     const task = await db.task.update({
                         where: { id: taskId },
-                        data: {
-                            ...(status && { status }),
-                            ...(priority && { priority }),
-                            ...(title && { title })
-                        }
+                        data: { ...(status && { status }), ...(priority && { priority }) }
                     });
-
-                    await db.activity.create({
-                        data: {
-                            action: "UPDATED",
-                            entityType: "TASK",
-                            entityId: task.id,
-                            workspaceId,
-                            userId: user.id,
-                            projectId: task.projectId,
-                            metadata: { source: "NOVA_AI", changes: { status, priority, title } }
-                        }
-                    });
-
-                    return { success: true, message: `Task "${task.title}" updated successfully.` };
+                    return { success: true, message: `Task "${task.title}" updated.` };
                 },
             },
             list_members: {
-                description: 'List all team members in the workspace to help with assignment.',
+                description: 'List team members.',
                 parameters: z.object({}),
                 execute: async () => {
-                    if (!workspaceId) return { error: "No workspace context" };
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
-
                     const members = await db.workspaceMember.findMany({
                         where: { workspaceId },
                         include: { user: true }
                     });
-
-                    return {
-                        members: members.map(m => ({
-                            id: m.userId,
-                            name: m.user.name,
-                            email: m.user.email
-                        }))
-                    };
+                    return { members: members.map(m => ({ id: m.userId, name: m.user.name })) };
                 },
-            },
-            delete_task: {
-                description: 'Delete a task from the workspace.',
-                parameters: z.object({
-                    taskId: z.string().describe('The ID of the task to delete'),
-                }),
-                execute: async ({ taskId }: any) => {
-                    if (!workspaceId) return { error: "No workspace context" };
-                    const { getPrismaClient } = await import("@/lib/prisma");
-                    const db = getPrismaClient(workspaceId);
-
-                    const task = await db.task.findUnique({ where: { id: taskId } });
-                    if (!task) return { error: "Task not found" };
-
-                    await db.task.delete({ where: { id: taskId } });
-
-                    await db.activity.create({
-                        data: {
-                            action: "DELETED",
-                            entityType: "TASK",
-                            entityId: taskId,
-                            workspaceId,
-                            userId: user.id,
-                            projectId: task.projectId,
-                            metadata: { source: "NOVA_AI", taskTitle: task.title }
-                        }
-                    });
-
-                    return { success: true, message: `Task "${task.title}" deleted successfully.` };
-                },
-            },
+            }
         };
 
-        try {
-            // Prioritize OpenRouter for stability, but try streaming first
-            finalProvider = "openrouter";
-            const { openrouter } = await import("@/lib/openrouter");
-
-            if (shouldStream) {
-                try {
-                    const result = await streamText({
-                        model: openrouter("openai/gpt-4o-mini"),
-                        system: systemPromptWithContext + `
+        const systemPrompt = systemPromptWithContext + `
 You are Nova, an AI Operator for Theta. 
-When you execute a tool, always summarize what you did in a professional, actionable way.
-If you create a task, mention its title. If you update a task, mention the change.
-Use bold text for task titles and statuses.`,
-                        prompt: prompt,
-                        tools,
-                        maxSteps: 5,
-                        onFinish: async ({ text }: any) => {
-                            if (text) {
-                                handleAiFinish(text, "openrouter").catch(e => 
-                                    console.error("Background save failed:", e)
-                                );
-                            }
-                        },
-                    } as any);
-                    return result.toTextStreamResponse();
-                } catch (streamError: any) {
-                    console.warn("OpenRouter streaming failed, falling back to non-streaming...", streamError.message);
-                    const { generateWithOpenRouter } = await import("@/lib/openrouter");
-                    resultText = await generateWithOpenRouter(prompt, systemPromptWithContext, imageUrl);
-                }
-            } else {
-                const { generateWithOpenRouter } = await import("@/lib/openrouter");
-                resultText = await generateWithOpenRouter(prompt, systemPromptWithContext, imageUrl);
-            }
-        } catch (error: any) {
-            console.error("OpenRouter failed, trying Cohere...", error);
-            finalProvider = "cohere";
-            try {
-                const { generateWithCohere } = await import("@/lib/cohere");
-                resultText = await generateWithCohere(prompt, systemPromptWithContext);
-            } catch (cohereError: any) {
-                console.error("Final fallback failed:", cohereError);
-                resultText = "Nova Neural Link is temporarily congested. Please try again in 30 seconds.";
-            }
-        }
+When you execute a tool, summarize it professionally. Use bold for task titles.`;
 
-        // Final check to ensure we don't return an empty string
-        if (!resultText) {
-            resultText = "Nova is momentarily silent. Please try asking your question again.";
-        }
-
-        // FIRE-AND-FORGET background tasks
-        handleAiFinish(resultText, finalProvider).catch(e => {
-            console.error("Background handleAiFinish failed:", e);
-        });
-
-        async function handleAiFinish(aiText: string, aiProvider: string) {
-            if (!user) return;
-            if (workspaceId) {
-                try {
-                    const { incrementNovaUsage } = await import("@/lib/usage-tracking");
-                    await incrementNovaUsage(workspaceId, user.id);
-
-                    if (conversationId) {
+        if (shouldStream) {
+            const { openrouter } = await import("@/lib/openrouter");
+            const result = await streamText({
+                model: openrouter("openai/gpt-4o-mini"),
+                system: systemPrompt,
+                prompt: prompt,
+                tools,
+                maxSteps: 5,
+                onFinish: async ({ text }: any) => {
+                    if (text && conversationId) {
                         const { getPrismaClient } = await import("@/lib/prisma");
                         const db = getPrismaClient(workspaceId);
                         await db.aiMessage.create({
-                            data: {
-                                conversationId,
-                                role: "assistant",
-                                content: aiText,
-                                metadata: { provider: aiProvider }
-                            }
+                            data: { conversationId, role: "assistant", content: text }
                         });
                     }
-                } catch (e) {
-                    console.error("Error in handleAiFinish background task:", e);
-                }
+                },
+            } as any);
+            return result.toTextStreamResponse();
+        } else {
+            const { generateWithOpenRouter } = await import("@/lib/openrouter");
+            const text = await generateWithOpenRouter(prompt, systemPrompt, imageUrl);
+            if (conversationId) {
+                const { getPrismaClient } = await import("@/lib/prisma");
+                const db = getPrismaClient(workspaceId);
+                await db.aiMessage.create({
+                    data: { conversationId, role: "assistant", content: text }
+                });
             }
+            return new Response(text);
         }
-
-        return new Response(resultText, {
-            headers: { "Content-Type": "text/plain; charset=utf-8" }
-        });
     } catch (error: any) {
         console.error("Nova AI error:", error);
-        
-        // Return the error message directly so the user can see it in the chat bubble
-        const errorMessage = `Nova Error: ${error.message || "Unknown error"}. 
-        Details: ${error.stack?.split('\n')[0] || "No stack trace"}.
-        Please report this to the support team.`;
-        
-        return new Response(errorMessage, {
-            status: 200, // Return 200 so the client shows it in the bubble
-            headers: { "Content-Type": "text/plain; charset=utf-8" }
-        });
+        return new Response(`Nova Error: ${error.message}`, { status: 200 });
     }
 }
