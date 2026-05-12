@@ -127,6 +127,15 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
         if (workspaceId) {
             fetchProjects();
         }
+
+        // Handle prompt from URL for Command Palette AI
+        const params = new URLSearchParams(window.location.search);
+        const urlPrompt = params.get("prompt");
+        if (urlPrompt && !isLoading) {
+            setInput(urlPrompt);
+            // Optional: auto-send
+            // handleSend(urlPrompt); 
+        }
     }, [conversationId, workspaceId, fetchMessages, fetchProjects]);
 
     useEffect(() => {

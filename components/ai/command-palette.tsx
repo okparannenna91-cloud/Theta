@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 
 export function CommandPalette() {
   const [open, setOpen] = React.useState(false);
+  const [search, setSearch] = React.useState("");
   const router = useRouter();
 
   React.useEffect(() => {
@@ -39,15 +40,47 @@ export function CommandPalette() {
     command();
   }, []);
 
+  const handleAskNova = () => {
+    runCommand(() => {
+        router.push(`/nova?prompt=${encodeURIComponent(search)}`);
+    });
+  };
+
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <CommandInput placeholder="Type a command or ask Nova..." />
+      <CommandInput 
+        placeholder="Type a command or ask Nova..." 
+        value={search}
+        onValueChange={setSearch}
+      />
       <CommandList className="max-h-[450px]">
-        <CommandEmpty>No results found.</CommandEmpty>
+        <CommandEmpty>
+            <div className="py-6 text-center">
+                <Sparkles className="mx-auto h-8 w-8 text-indigo-500 animate-pulse mb-4" />
+                <p className="text-sm font-medium text-slate-500">No command found.</p>
+                <Button 
+                    variant="ghost" 
+                    className="mt-4 text-indigo-600 font-bold hover:text-indigo-700"
+                    onClick={handleAskNova}
+                >
+                    Ask Nova: "{search}"
+                </Button>
+            </div>
+        </CommandEmpty>
+        
+        {search.length > 0 && (
+            <CommandGroup heading="AI Intelligence">
+                <CommandItem onSelect={handleAskNova} className="cursor-pointer">
+                    <Sparkles className="mr-2 h-4 w-4 text-indigo-500" />
+                    <span>Ask Nova: <span className="font-bold text-indigo-600">"{search}"</span></span>
+                </CommandItem>
+            </CommandGroup>
+        )}
+
         <CommandGroup heading="Quick Actions">
           <CommandItem onSelect={() => runCommand(() => router.push("/nova"))}>
             <Sparkles className="mr-2 h-4 w-4 text-purple-500" />
-            <span>Ask Nova AI</span>
+            <span>Open Nova Chat</span>
             <CommandShortcut>⌘N</CommandShortcut>
           </CommandItem>
           <CommandItem onSelect={() => runCommand(() => router.push("/boards"))}>
