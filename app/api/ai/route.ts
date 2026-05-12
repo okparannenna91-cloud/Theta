@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60; // Max allowed for Pro, ignored for Hobby but good for documentation
+
 import { getCurrentUser } from "@/lib/auth";
 import { generateWithOpenAI, generateWithVision } from "@/lib/openai";
 import { streamText } from "ai";
@@ -165,21 +168,11 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                     ]) as any;
                     return result.toTextStreamResponse();
                 } catch (error: any) {
-                    console.warn(`OpenAI failed (${error.message}), trying OpenRouter fallback...`);
-                    const { openrouter } = await import("@/lib/openrouter");
-                    const result = await streamText({
-                        model: openrouter("openai/gpt-4o-mini"), // Verified working in debug test
-                        system: systemPromptWithContext,
-                        prompt: prompt,
-                        onFinish: async ({ text }) => {
-                            try {
-                                await handleAiFinish(text, "openrouter");
-                            } catch (e) {
-                                console.error("Error in OpenRouter onFinish:", e);
-                            }
-                        },
-                    });
-                    return result.toTextStreamResponse();
+                    console.warn(`OpenAI streaming failed (${error.message}), falling back to non-streaming OpenRouter...`);
+                    finalProvider = "openrouter";
+                    const { generateWithOpenRouter } = await import("@/lib/openrouter");
+                    resultText = await generateWithOpenRouter(prompt, systemPromptWithContext, imageUrl);
+                    // Continue to non-streaming response at the end
                 }
             } else {
                 const openaiPromise = imageUrl 
