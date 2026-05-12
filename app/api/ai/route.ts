@@ -235,7 +235,9 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
             }
         }
 
-        return NextResponse.json({ text: resultText });
+        return new Response(resultText, {
+            headers: { "Content-Type": "text/plain; charset=utf-8" }
+        });
     } catch (error: any) {
         if (error.status === 429) {
             return NextResponse.json(
