@@ -129,6 +129,13 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                         m.id === assistantId ? { ...m, content: accumulatedResponse } : m
                     ));
                 }
+
+                // If stream was empty, show a fallback message
+                if (!accumulatedResponse) {
+                    setMessages(prev => prev.map(m => 
+                        m.id === assistantId ? { ...m, content: "Nova connection timed out. Please try again or switch provider." } : m
+                    ));
+                }
             }
         } catch (error: any) {
             console.error("Failed to send message:", error);

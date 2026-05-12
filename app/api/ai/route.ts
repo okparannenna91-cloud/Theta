@@ -141,9 +141,9 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
         let finalProvider = "openai";
 
         try {
-            // 6-second timeout for primary provider
+            // 8-second timeout for primary provider to allow for cold starts
             const timeoutPromise = new Promise((_, reject) => 
-                setTimeout(() => reject(new Error("AI_TIMEOUT")), 6000)
+                setTimeout(() => reject(new Error("AI_TIMEOUT")), 8000)
             );
 
             if (shouldStream) {
@@ -153,22 +153,30 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                             model: openaiProvider("gpt-4o-mini"),
                             system: systemPromptWithContext,
                             prompt: prompt,
-                            async onFinish({ text }) {
-                                await handleAiFinish(text, "openai");
+                            onFinish: async ({ text }) => {
+                                try {
+                                    await handleAiFinish(text, "openai");
+                                } catch (e) {
+                                    console.error("Error in OpenAI onFinish:", e);
+                                }
                             },
                         }),
                         timeoutPromise
-                    ]);
-                    return (result as any).toTextStreamResponse();
-                } catch (error) {
-                    console.warn("OpenAI failed or timed out, trying OpenRouter fallback...");
+                    ]) as any;
+                    return result.toTextStreamResponse();
+                } catch (error: any) {
+                    console.warn(`OpenAI failed (${error.message}), trying OpenRouter fallback...`);
                     const { openrouter } = await import("@/lib/openrouter");
                     const result = await streamText({
-                        model: openrouter("openai/gpt-4o-mini"),
+                        model: openrouter("anthropic/claude-3-haiku"), // More reliable fallback
                         system: systemPromptWithContext,
                         prompt: prompt,
-                        async onFinish({ text }) {
-                            await handleAiFinish(text, "openrouter");
+                        onFinish: async ({ text }) => {
+                            try {
+                                await handleAiFinish(text, "openrouter");
+                            } catch (e) {
+                                console.error("Error in OpenRouter onFinish:", e);
+                            }
                         },
                     });
                     return result.toTextStreamResponse();
@@ -180,8 +188,8 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                 
                 try {
                     resultText = await Promise.race([openaiPromise, timeoutPromise]) as string;
-                } catch (error) {
-                    console.warn("OpenAI failed or timed out, trying OpenRouter fallback...");
+                } catch (error: any) {
+                    console.warn(`OpenAI vision/text failed (${error.message}), trying OpenRouter fallback...`);
                     finalProvider = "openrouter";
                     const { generateWithOpenRouter } = await import("@/lib/openrouter");
                     resultText = await generateWithOpenRouter(prompt, systemPromptWithContext, imageUrl);
@@ -196,11 +204,16 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                 resultText = await generateWithCohere(prompt, systemPromptWithContext);
             } catch (cohereError: any) {
                 console.error("All AI providers failed:", cohereError);
-                throw new Error("Nova Neural Link is currently unavailable. Please try again in a few moments.");
+                resultText = "Nova Neural Link is currently under high load. Please try again in 30 seconds.";
             }
         }
 
-        // If we reached here, it means it's a non-streaming response (or fallback from stream failed to start)
+        // Final check to ensure we don't return an empty string
+        if (!resultText) {
+            resultText = "Nova is momentarily silent. Please try asking your question again.";
+        }
+
+        // If we reached here, it means it's a non-streaming response
         await handleAiFinish(resultText, finalProvider);
 
         async function handleAiFinish(aiText: string, aiProvider: string) {
