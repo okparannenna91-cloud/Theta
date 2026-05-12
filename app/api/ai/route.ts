@@ -93,10 +93,18 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const project = await db.project.create({
-                        data: { name, description, workspaceId }
+                        data: { name, description, workspaceId, userId: user.id }
                     });
                     await db.activity.create({
-                        data: { action: "CREATED", entityType: "PROJECT", entityId: project.id, workspaceId, userId: user.id, metadata: { source: "NOVA_AI" } }
+                        data: { 
+                            action: "CREATED", 
+                            entityType: "PROJECT", 
+                            entityId: project.id, 
+                            workspaceId, 
+                            userId: user.id, 
+                            projectId: project.id,
+                            metadata: { source: "NOVA_AI" } 
+                        }
                     });
                     return { success: true, message: `Project **${name}** created.` };
                 }
