@@ -143,8 +143,59 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
         let resultText = "";
         let finalProvider = "openai";
 
-        // HARDCODED TEST RESPONSE
-        resultText = "Nova is online and received your message: " + prompt;
+        try {
+            // Since OpenAI is hitting 429 quota limits, we prioritize OpenRouter for immediate stability
+            console.log("Prioritizing OpenRouter due to OpenAI quota limits...");
+            finalProvider = "openrouter";
+            
+            try {
+                const { generateWithOpenRouter } = await import("@/lib/openrouter");
+                resultText = await generateWithOpenRouter(prompt, systemPromptWithContext, imageUrl);
+            } catch (error: any) {
+                console.warn("OpenRouter failed, falling back to Cohere...", error.message);
+                finalProvider = "cohere";
+                const { generateWithCohere } = await import("@/lib/cohere");
+                resultText = await generateWithCohere(prompt, systemPromptWithContext);
+            }
+        } catch (error: any) {
+            console.error("All AI providers failed:", error);
+            resultText = "Nova Neural Link is currently experiencing high demand. Please try again in a few moments.";
+        }
+
+        // Final check to ensure we don't return an empty string
+        if (!resultText) {
+            resultText = "Nova is momentarily silent. Please try asking your question again.";
+        }
+
+        // FIRE-AND-FORGET background tasks
+        handleAiFinish(resultText, finalProvider).catch(e => {
+            console.error("Background handleAiFinish failed:", e);
+        });
+
+        async function handleAiFinish(aiText: string, aiProvider: string) {
+            if (!user) return;
+            if (workspaceId) {
+                try {
+                    const { incrementNovaUsage } = await import("@/lib/usage-tracking");
+                    await incrementNovaUsage(workspaceId, user.id);
+
+                    if (conversationId) {
+                        const { getPrismaClient } = await import("@/lib/prisma");
+                        const db = getPrismaClient(workspaceId);
+                        await db.aiMessage.create({
+                            data: {
+                                conversationId,
+                                role: "assistant",
+                                content: aiText,
+                                metadata: { provider: aiProvider }
+                            }
+                        });
+                    }
+                } catch (e) {
+                    console.error("Error in handleAiFinish background task:", e);
+                }
+            }
+        }
 
         return new Response(resultText, {
             headers: { "Content-Type": "text/plain; charset=utf-8" }
