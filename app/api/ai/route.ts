@@ -151,20 +151,25 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                 parameters: z.object({
                     title: z.string().describe('The title of the task'),
                     description: z.string().optional().describe('Detailed description of the task'),
-                    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional().default('medium'),
-                    status: z.string().optional().default('todo'),
+                    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+                    status: z.string().optional(),
                     projectId: z.string().optional().describe('Specific project ID if mentioned, otherwise uses the active project context')
                 }),
-                execute: async ({ title, description, priority, status, projectId }) => {
+                execute: async ({ title, description, priority, status, projectId }: { 
+                    title: string, 
+                    description?: string, 
+                    priority?: 'low' | 'medium' | 'high' | 'urgent', 
+                    status?: string, 
+                    projectId?: string 
+                }) => {
                     if (!workspaceId) return { error: "No workspace context found." };
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
 
-                    // Use provided projectId or fallback to the first project in the workspace
                     let targetProjectId = projectId;
                     if (!targetProjectId) {
                         const firstProject = await db.project.findFirst({ where: { workspaceId } });
-                        if (!firstProject) return { error: "No projects found in this workspace. Create a project first." };
+                        if (!firstProject) return { error: "No projects found" };
                         targetProjectId = firstProject.id;
                     }
 
@@ -172,15 +177,14 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                         data: {
                             title,
                             description,
-                            priority,
-                            status,
+                            priority: priority || 'medium',
+                            status: status || 'todo',
                             workspaceId,
                             projectId: targetProjectId,
                             userId: user.id,
                         }
                     });
 
-                    // Log activity
                     await db.activity.create({
                         data: {
                             action: "CREATED",
@@ -204,7 +208,12 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                     priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
                     title: z.string().optional()
                 }),
-                execute: async ({ taskId, status, priority, title }) => {
+                execute: async ({ taskId, status, priority, title }: { 
+                    taskId: string, 
+                    status?: string, 
+                    priority?: 'low' | 'medium' | 'high' | 'urgent', 
+                    title?: string 
+                }) => {
                     if (!workspaceId) return { error: "No workspace context" };
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
@@ -256,11 +265,11 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                 },
             }),
             delete_task: tool({
-                description: 'Delete a task from the workspace. Use this only when the user is explicit about deletion.',
+                description: 'Delete a task from the workspace.',
                 parameters: z.object({
                     taskId: z.string().describe('The ID of the task to delete'),
                 }),
-                execute: async ({ taskId }) => {
+                execute: async ({ taskId }: { taskId: string }) => {
                     if (!workspaceId) return { error: "No workspace context" };
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
