@@ -241,17 +241,16 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
             headers: { "Content-Type": "text/plain; charset=utf-8" }
         });
     } catch (error: any) {
-        if (error.status === 429) {
-            return NextResponse.json(
-                { error: "Nova is taking a short break (Rate Limit reached). Please wait about 30 seconds and try again." },
-                { status: 429 }
-            );
-        }
-
         console.error("Nova AI error:", error);
-        return NextResponse.json(
-            { error: error.message || "Nova encountered an error. Please try again." },
-            { status: 500 }
-        );
+        
+        // Return the error message directly so the user can see it in the chat bubble
+        const errorMessage = `Nova Error: ${error.message || "Unknown error"}. 
+        Details: ${error.stack?.split('\n')[0] || "No stack trace"}.
+        Please report this to the support team.`;
+        
+        return new Response(errorMessage, {
+            status: 200, // Return 200 so the client shows it in the bubble
+            headers: { "Content-Type": "text/plain; charset=utf-8" }
+        });
     }
 }
