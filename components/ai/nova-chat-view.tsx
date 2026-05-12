@@ -411,7 +411,6 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                             </ReactMarkdown>
                                         </div>
                                     )}
-                                </div>
 
                                     {m.role === "assistant" && m.content.length > 50 && (
                                         <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
