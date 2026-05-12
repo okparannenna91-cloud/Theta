@@ -47,186 +47,81 @@ export async function POST(req: Request) {
             const { getPrismaClient } = await import("@/lib/prisma");
             const db = getPrismaClient(workspaceId);
             
-            const [projects, tasks, teams, integrations, memories, recentComments] = await Promise.all([
-                db.project.findMany({
-                    where: { workspaceId },
-                    take: 10,
-                    select: { name: true, id: true }
-                }),
-                db.task.findMany({
-                    where: { 
-                        workspaceId,
-                        projectId: projectId || undefined 
-                    },
-                    take: 10,
+            // Only fetch essentials to reduce latency
+            const [projects, tasks, memories] = await Promise.all([
+                db.project.findMany({ where: { workspaceId }, take: 5, select: { name: true, id: true } }),
+                db.task.findMany({ 
+                    where: { workspaceId, projectId: projectId || undefined },
+                    take: 5, 
                     orderBy: { updatedAt: 'desc' },
-                    select: { title: true, status: true, priority: true, description: true }
+                    select: { title: true, status: true } 
                 }),
-                db.team.findMany({
-                    where: { workspaceId },
-                    take: 3,
-                    select: { name: true }
-                }),
-                db.integration.findMany({
-                    where: { workspaceId },
-                    take: 5,
-                    select: { provider: true }
-                }),
-                db.aiMemory.findMany({
-                    where: { userId: user.id },
-                    select: { key: true, content: true }
-                }),
-                db.comment.findMany({
-                    where: { 
-                        task: { workspaceId }
-                    },
-                    take: 3,
-                    orderBy: { createdAt: 'desc' },
-                    select: { content: true, user: { select: { name: true } } }
-                })
+                db.aiMemory.findMany({ where: { userId: user.id }, take: 5, select: { key: true, content: true } })
             ]);
 
             const focusedProject = projectId ? projects.find((p: any) => p.id === projectId) : null;
-
             workspaceContext = `
-CURRENT WORKSPACE CONTEXT:
-${focusedProject ? `[FOCUSED ON PROJECT: ${focusedProject.name}]` : "[GLOBAL WORKSPACE VIEW]"}
-Projects: ${projects.length > 0 ? projects.map((p: any) => p.name).join(", ") : "None yet"}
-Recent Tasks: ${tasks.length > 0 ? tasks.map((t: any) => `${t.title} [${t.status}, ${t.priority}]`).join(", ") : "None yet"}
-Recent Team Activity: ${recentComments.length > 0 ? recentComments.map((c: any) => `${c.user?.name}: ${c.content.substring(0, 50)}...`).join(" | ") : "No recent activity"}
-Teams: ${teams.length > 0 ? teams.map((t: any) => t.name).join(", ") : "None yet"}
-Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) => i.provider).join(", ") : "None connected"}
----
-`;
+CONTEXT: ${focusedProject ? `[Project: ${focusedProject.name}]` : "[Global]"}
+Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || "None"}
+---`;
 
-            if (memories.length > 0) {
-                workspaceContext += "\nPERSONALIZED USER PREFERENCES:\n";
-                memories.forEach((m: any) => {
-                    workspaceContext += `- ${m.key}: ${m.content}\n`;
-                });
-                workspaceContext += "---\n";
-            }
-
-            // Fetch conversation history if ID is provided
             if (conversationId) {
-                const history = await db.aiMessage.findMany({
-                    where: { conversationId },
-                    orderBy: { createdAt: "desc" },
-                    take: 10
-                });
-
-                if (history.length > 0) {
-                    workspaceContext += "\nCONVERSATION HISTORY:\n";
-                    // Reverse because we took desc
-                    history.reverse().forEach((m: any) => {
-                        workspaceContext += `${m.role.toUpperCase()}: ${m.content}\n`;
-                    });
-                    workspaceContext += "---\n";
-                }
-
                 // Save User Message
                 await db.aiMessage.create({
-                    data: {
-                        conversationId,
-                        role: "user",
-                        content: prompt,
-                        metadata: imageUrl ? { imageUrl } : undefined
-                    }
+                    data: { conversationId, role: "user", content: prompt }
                 });
             }
         }
 
-        const systemPromptWithContext = `${NOVA_SYSTEM_PROMPT}${workspaceContext}`;
-
-        // Check if we should stream
+        const systemPrompt = `${NOVA_SYSTEM_PROMPT}\n${workspaceContext}\nYou are Nova, an AI Operator. Execute tools when asked. Summarize actions in bold.`;
         const shouldStream = !imageUrl;
 
-        // 1. ALWAYS increment usage at the start of a valid request
+        // 1. Increment usage
         try {
             const { incrementNovaUsage } = await import("@/lib/usage-tracking");
             await incrementNovaUsage(workspaceId, user.id);
-        } catch (e) {
-            console.error("Failed to increment usage:", e);
-        }
+        } catch (e) {}
 
-        // Define tools for Nova to execute actions
         const tools: any = {
             create_task: {
-                description: 'Create a new task in the current workspace and project.',
+                description: 'Create a task.',
                 parameters: z.object({
-                    title: z.string().describe('The title of the task'),
-                    description: z.string().optional().describe('Detailed description of the task'),
+                    title: z.string(),
+                    description: z.string().optional(),
                     priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
-                    status: z.string().optional(),
                     projectId: z.string().optional()
                 }),
-                execute: async ({ title, description, priority, status, projectId }: any) => {
+                execute: async ({ title, description, priority, projectId }: any) => {
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
-                    let targetProjectId = projectId;
-                    if (!targetProjectId) {
-                        const firstProject = await db.project.findFirst({ where: { workspaceId } });
-                        if (!firstProject) return { error: "No projects found" };
-                        targetProjectId = firstProject.id;
+                    let targetId = projectId;
+                    if (!targetId) {
+                        const p = await db.project.findFirst({ where: { workspaceId } });
+                        if (!p) return { error: "No projects" };
+                        targetId = p.id;
                     }
                     const task = await db.task.create({
-                        data: {
-                            title, description, 
-                            priority: priority || 'medium',
-                            status: status || 'todo',
-                            workspaceId, projectId: targetProjectId, userId: user.id,
-                        }
+                        data: { title, description, priority: priority || 'medium', status: 'todo', workspaceId, projectId: targetId, userId: user.id }
                     });
-                    await db.activity.create({
-                        data: {
-                            action: "CREATED", entityType: "TASK", entityId: task.id,
-                            workspaceId, userId: user.id, projectId: targetProjectId,
-                            metadata: { source: "NOVA_AI", taskTitle: title }
-                        }
-                    });
-                    return { success: true, message: `Task "${title}" created.` };
-                },
-            },
-            update_task: {
-                description: 'Update an existing task.',
-                parameters: z.object({
-                    taskId: z.string(),
-                    status: z.string().optional(),
-                    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional()
-                }),
-                execute: async ({ taskId, status, priority }: any) => {
-                    const { getPrismaClient } = await import("@/lib/prisma");
-                    const db = getPrismaClient(workspaceId);
-                    const task = await db.task.update({
-                        where: { id: taskId },
-                        data: { ...(status && { status }), ...(priority && { priority }) }
-                    });
-                    return { success: true, message: `Task "${task.title}" updated.` };
+                    return { success: true, message: `Created: **${title}**` };
                 },
             },
             list_members: {
-                description: 'List team members.',
+                description: 'List team.',
                 parameters: z.object({}),
                 execute: async () => {
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
-                    const members = await db.workspaceMember.findMany({
-                        where: { workspaceId },
-                        include: { user: true }
-                    });
-                    return { members: members.map(m => ({ id: m.userId, name: m.user.name })) };
+                    const members = await db.workspaceMember.findMany({ where: { workspaceId }, include: { user: true } });
+                    return { members: members.map(m => m.user.name) };
                 },
             }
         };
 
-        const systemPrompt = systemPromptWithContext + `
-You are Nova, an AI Operator for Theta. 
-When you execute a tool, summarize it professionally. Use bold for task titles.`;
-
         if (shouldStream) {
             const { openrouter } = await import("@/lib/openrouter");
             const result = await streamText({
-                model: openrouter("google/gemini-flash-1.5"),
+                model: openrouter("openai/gpt-4o-mini"), // OpenRouter's most stable endpoint
                 system: systemPrompt,
                 prompt: prompt,
                 tools,
@@ -235,9 +130,7 @@ When you execute a tool, summarize it professionally. Use bold for task titles.`
                     if (text && conversationId) {
                         const { getPrismaClient } = await import("@/lib/prisma");
                         const db = getPrismaClient(workspaceId);
-                        await db.aiMessage.create({
-                            data: { conversationId, role: "assistant", content: text }
-                        });
+                        await db.aiMessage.create({ data: { conversationId, role: "assistant", content: text } });
                     }
                 },
             } as any);
@@ -245,13 +138,6 @@ When you execute a tool, summarize it professionally. Use bold for task titles.`
         } else {
             const { generateWithOpenRouter } = await import("@/lib/openrouter");
             const text = await generateWithOpenRouter(prompt, systemPrompt, imageUrl);
-            if (conversationId) {
-                const { getPrismaClient } = await import("@/lib/prisma");
-                const db = getPrismaClient(workspaceId);
-                await db.aiMessage.create({
-                    data: { conversationId, role: "assistant", content: text }
-                });
-            }
             return new Response(text);
         }
     } catch (error: any) {
