@@ -11,6 +11,8 @@ import { usePopups } from "@/components/popups/popup-manager";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Image from "next/image";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { History, Zap, MessageSquare, ClipboardList, FileEdit, Calculator } from "lucide-react";
 
 interface Message {
     role: "user" | "nova";
@@ -180,24 +182,11 @@ export function NovaAssistant() {
                                     <Sparkles className="h-4 w-4" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="font-bold text-sm tracking-tight leading-none text-white">Nova AI</span>
-                                    <span className="text-[10px] text-white/70 font-medium">
-                                        {usage && usage.max !== -1 ? `${usage.current}/${usage.max} Requests` : isLimitReached ? "Limit Reached" : "Always here to help"}
-                                    </span>
+                                    <span className="font-bold text-sm tracking-tight leading-none text-white">Nova Sidebar</span>
+                                    <span className="text-[10px] text-white/70 font-medium tracking-tight">V2 Neural Core Active</span>
                                 </div>
                             </div>
                             <div className="flex items-center gap-1">
-                                {isLimitReached && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-8 text-xs font-black bg-white/20 hover:bg-white/30 text-white rounded-lg px-3"
-                                        onClick={() => showUpgradePrompt("nova")}
-                                    >
-                                        <ArrowUpCircle className="h-3.5 w-3.5 mr-1.5" />
-                                        Upgrade
-                                    </Button>
-                                )}
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -206,17 +195,6 @@ export function NovaAssistant() {
                                 >
                                     {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
                                 </Button>
-                                {!isMinimized && (
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-white hover:bg-white/20"
-                                        onClick={clearChat}
-                                        title="Clear conversation"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                )}
                                 <Button
                                     variant="ghost"
                                     size="icon"
@@ -229,12 +207,30 @@ export function NovaAssistant() {
                         </div>
 
                         {!isMinimized && (
-                            <>
-                                {/* Messages */}
-                                <div
-                                    ref={scrollRef}
-                                    className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/50"
-                                >
+                            <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden">
+                                <div className="px-4 pt-4 border-b bg-white dark:bg-slate-900">
+                                    <TabsList className="grid w-full grid-cols-3 bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+                                        <TabsTrigger value="chat" className="rounded-lg text-[10px] font-black uppercase tracking-widest py-2">
+                                            <MessageSquare className="w-3 h-3 mr-1.5" />
+                                            Chat
+                                        </TabsTrigger>
+                                        <TabsTrigger value="history" className="rounded-lg text-[10px] font-black uppercase tracking-widest py-2">
+                                            <History className="w-3 h-3 mr-1.5" />
+                                            History
+                                        </TabsTrigger>
+                                        <TabsTrigger value="workflows" className="rounded-lg text-[10px] font-black uppercase tracking-widest py-2">
+                                            <Zap className="w-3 h-3 mr-1.5" />
+                                            Actions
+                                        </TabsTrigger>
+                                    </TabsList>
+                                </div>
+
+                                <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden m-0 data-[state=active]:flex">
+                                    {/* Messages */}
+                                    <div
+                                        ref={scrollRef}
+                                        className="flex-1 overflow-y-auto p-4 space-y-4 bg-slate-50/50 dark:bg-slate-900/50"
+                                    >
                                     {messages.map((msg, i) => (
                                         <div
                                             key={i}
@@ -303,11 +299,60 @@ export function NovaAssistant() {
                                         </Button>
                                     </form>
                                 </CardFooter>
-                            </>
-                        )}
-                    </motion.div>
-                )}
-            </AnimatePresence>
+                            </TabsContent>
+
+                            <TabsContent value="history" className="flex-1 overflow-y-auto p-4 m-0">
+                                <div className="space-y-4">
+                                    {[
+                                        { title: "Sprint Planning", date: "2 hours ago", icon: ClipboardList },
+                                        { title: "Task Deconstruction", date: "Yesterday", icon: Zap },
+                                        { title: "Project Spec Draft", date: "2 days ago", icon: FileEdit },
+                                    ].map((item, i) => (
+                                        <div key={i} className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 hover:border-indigo-500/50 transition-all cursor-pointer group">
+                                            <div className="flex items-center gap-3">
+                                                <div className="p-2 bg-white dark:bg-slate-900 rounded-lg shadow-sm group-hover:text-indigo-500">
+                                                    <item.icon className="w-4 h-4" />
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-slate-900 dark:text-white">{item.title}</span>
+                                                    <span className="text-[10px] text-slate-400 font-medium">{item.date}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </TabsContent>
+
+                            <TabsContent value="workflows" className="flex-1 overflow-y-auto p-4 m-0">
+                                <div className="grid grid-cols-2 gap-3">
+                                    {[
+                                        { label: "Summarize", icon: ClipboardList, color: "bg-blue-500", prompt: "Summarize my active tasks." },
+                                        { label: "Daily Standup", icon: MessageSquare, color: "bg-emerald-500", prompt: "Prepare a daily standup for me." },
+                                        { label: "Draft Spec", icon: FileEdit, color: "bg-amber-500", prompt: "Draft a technical spec for..." },
+                                        { label: "Calc Velocity", icon: Calculator, color: "bg-indigo-500", prompt: "Calculate the team velocity." },
+                                    ].map((action, i) => (
+                                        <button 
+                                            key={i} 
+                                            onClick={() => {
+                                                setInput(action.prompt);
+                                                // We don't have a direct way to trigger send from here without refactoring
+                                                // but setting input is a good start
+                                            }}
+                                            className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center gap-3 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group"
+                                        >
+                                            <div className={cn("p-2 rounded-xl text-white shadow-lg", action.color)}>
+                                                <action.icon className="w-5 h-5" />
+                                            </div>
+                                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">{action.label}</span>
+                                        </button>
+                                    ))}
+                                </div>
+                            </TabsContent>
+                        </Tabs>
+                    )}
+                </motion.div>
+            )}
+        </AnimatePresence>
 
             <motion.button
                 whileHover={{ scale: 1.05 }}
