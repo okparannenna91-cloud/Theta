@@ -247,6 +247,67 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                     return { success: true, message: `Automation "**${name}**" has been created and activated.` };
                 }
             },
+            search_workspace: {
+                description: 'Search for tasks, documents, and comments across the entire workspace.',
+                parameters: z.object({
+                    query: z.string().describe('The search query or keyword')
+                }),
+                execute: async ({ query }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    
+                    const [tasks, docs] = await Promise.all([
+                        db.task.findMany({
+                            where: { workspaceId, OR: [{ title: { contains: query, mode: 'insensitive' } }, { description: { contains: query, mode: 'insensitive' } }] },
+                            take: 5
+                        }),
+                        db.document.findMany({
+                            where: { workspaceId, OR: [{ title: { contains: query, mode: 'insensitive' } }, { content: { contains: query, mode: 'insensitive' } }] },
+                            take: 5
+                        })
+                    ]);
+
+                    return { 
+                        results: [
+                            ...tasks.map(t => ({ type: 'TASK', title: t.title, id: t.id })),
+                            ...docs.map(d => ({ type: 'DOCUMENT', title: d.title, id: d.id }))
+                        ] 
+                    };
+                }
+            },
+            create_document: {
+                description: 'Create a new document in the workspace knowledge base.',
+                parameters: z.object({
+                    title: z.string().describe('The title of the document'),
+                    content: z.string().describe('The markdown content of the document')
+                }),
+                execute: async ({ title, content }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    
+                    const doc = await db.document.create({
+                        data: { title, content, workspaceId }
+                    });
+
+                    return { success: true, message: `Document "**${title}**" created.`, id: doc.id };
+                }
+            },
+            read_document: {
+                description: 'Read the content of a document to gain knowledge.',
+                parameters: z.object({
+                    id: z.string().describe('The ID of the document to read')
+                }),
+                execute: async ({ id }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    
+                    const doc = await db.document.findUnique({
+                        where: { id }
+                    });
+
+                    return { title: doc?.title, content: doc?.content };
+                }
+            },
             remember_preference: {
                 description: 'Save a user preference or piece of information to memory.',
                 parameters: z.object({

@@ -335,8 +335,6 @@ export function NovaAssistant() {
                                             key={i} 
                                             onClick={() => {
                                                 setInput(action.prompt);
-                                                // We don't have a direct way to trigger send from here without refactoring
-                                                // but setting input is a good start
                                             }}
                                             className="p-4 bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center gap-3 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all group"
                                         >
@@ -346,6 +344,26 @@ export function NovaAssistant() {
                                             <span className="text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400">{action.label}</span>
                                         </button>
                                     ))}
+                                </div>
+
+                                <div className="mt-6 px-2">
+                                    <h4 className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 mb-4 px-2">Prompt Templates</h4>
+                                    <div className="space-y-2">
+                                        {[
+                                            { name: "Bug Report Architect", desc: "Structured bug reproduction steps" },
+                                            { name: "Sprint Planner", desc: "Generate milestones and tasks" },
+                                            { name: "PRD Drafter", desc: "Draft a full product requirement doc" },
+                                        ].map((t, i) => (
+                                            <button 
+                                                key={i} 
+                                                onClick={() => setInput(`${t.name}: `)}
+                                                className="w-full p-3 text-left bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
+                                            >
+                                                <p className="text-[11px] font-bold text-slate-900 dark:text-white">{t.name}</p>
+                                                <p className="text-[9px] text-slate-400 font-medium">{t.desc}</p>
+                                            </button>
+                                        ))}
+                                    </div>
                                 </div>
                             </TabsContent>
                         </Tabs>
