@@ -296,10 +296,14 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                 try {
                     const result = await streamText({
                         model: openrouter("openai/gpt-4o-mini"),
-                        system: systemPromptWithContext + "\n\nYou are Nova, an AI Operator. You can execute actions like creating or updating tasks. When you perform an action, briefly tell the user what you did.",
+                        system: systemPromptWithContext + `
+You are Nova, an AI Operator for Theta. 
+When you execute a tool, always summarize what you did in a professional, actionable way.
+If you create a task, mention its title. If you update a task, mention the change.
+Use bold text for task titles and statuses.`,
                         prompt: prompt,
                         tools,
-                        maxSteps: 5, // Allow multi-step reasoning/actions
+                        maxSteps: 5,
                         onFinish: async ({ text }) => {
                             if (text) {
                                 handleAiFinish(text, "openrouter").catch(e => 
