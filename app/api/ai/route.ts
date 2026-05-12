@@ -302,7 +302,7 @@ Use bold text for task titles and statuses.`,
                         prompt: prompt,
                         tools,
                         maxSteps: 5,
-                        onFinish: async ({ text }) => {
+                        onFinish: async ({ text }: any) => {
                             if (text) {
                                 handleAiFinish(text, "openrouter").catch(e => 
                                     console.error("Background save failed:", e)
