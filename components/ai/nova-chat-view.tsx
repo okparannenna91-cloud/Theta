@@ -206,7 +206,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                 // If stream was empty, show a fallback message
                 if (!accumulatedResponse) {
                     setMessages(prev => prev.map(m => 
-                        m.id === assistantId ? { ...m, content: "Nova is taking longer than usual to respond. This usually happens during complex database actions. Please check your tasks in a moment or try a shorter command." } : m
+                        m.id === assistantId ? { ...m, content: "Nova is taking her time to architect this perfectly. Please stay on this page; she'll be with you shortly." } : m
                     ));
                 }
             }

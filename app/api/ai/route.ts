@@ -83,49 +83,53 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
         } catch (e) {}
 
         const tools: any = {
+            create_project: {
+                description: 'Create a new project.',
+                parameters: z.object({
+                    name: z.string().describe('Project name'),
+                    description: z.string().optional()
+                }),
+                execute: async ({ name, description }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    const project = await db.project.create({
+                        data: { name, description, workspaceId }
+                    });
+                    await db.activity.create({
+                        data: { action: "CREATED", entityType: "PROJECT", entityId: project.id, workspaceId, userId: user.id, metadata: { source: "NOVA_AI" } }
+                    });
+                    return { success: true, message: `Project **${name}** created.` };
+                }
+            },
             create_task: {
                 description: 'Create a task.',
                 parameters: z.object({
                     title: z.string(),
-                    description: z.string().optional(),
-                    priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
                     projectId: z.string().optional()
                 }),
-                execute: async ({ title, description, priority, projectId }: any) => {
+                execute: async ({ title, projectId }: any) => {
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     let targetId = projectId;
                     if (!targetId) {
                         const p = await db.project.findFirst({ where: { workspaceId } });
-                        if (!p) return { error: "No projects" };
+                        if (!p) return { error: "No projects. Create one first." };
                         targetId = p.id;
                     }
-                    const task = await db.task.create({
-                        data: { title, description, priority: priority || 'medium', status: 'todo', workspaceId, projectId: targetId, userId: user.id }
-                    });
-                    return { success: true, message: `Created: **${title}**` };
+                    await db.task.create({ data: { title, workspaceId, projectId: targetId, userId: user.id, status: 'todo' } });
+                    return { success: true, message: `Task **${title}** created.` };
                 },
             },
-            list_members: {
-                description: 'List team.',
-                parameters: z.object({}),
-                execute: async () => {
-                    const { getPrismaClient } = await import("@/lib/prisma");
-                    const db = getPrismaClient(workspaceId);
-                    const members = await db.workspaceMember.findMany({ where: { workspaceId }, include: { user: true } });
-                    return { members: members.map(m => m.user.name) };
-                },
-            }
         };
 
         if (shouldStream) {
             const { openrouter } = await import("@/lib/openrouter");
             const result = await streamText({
-                model: openrouter("openai/gpt-4o-mini"), // OpenRouter's most stable endpoint
+                model: openrouter("openai/gpt-4o-mini"),
                 system: systemPrompt,
                 prompt: prompt,
                 tools,
-                maxSteps: 5,
+                maxSteps: 10, // More steps for complex workflows
                 onFinish: async ({ text }: any) => {
                     if (text && conversationId) {
                         const { getPrismaClient } = await import("@/lib/prisma");
