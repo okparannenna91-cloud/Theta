@@ -226,7 +226,7 @@ When you execute a tool, summarize it professionally. Use bold for task titles.`
         if (shouldStream) {
             const { openrouter } = await import("@/lib/openrouter");
             const result = await streamText({
-                model: openrouter("openai/gpt-4o-mini"),
+                model: openrouter("google/gemini-flash-1.5"),
                 system: systemPrompt,
                 prompt: prompt,
                 tools,

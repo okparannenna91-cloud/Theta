@@ -166,7 +166,10 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
             clearTimeout(timeoutId);
             setAttachment(null);
 
-            if (!res.ok) throw new Error("Failed to connect to Nova Neural Link");
+            if (!res.ok) {
+                const errorText = await res.text();
+                throw new Error(errorText || `Connection failed with status ${res.status}`);
+            }
 
             const reader = res.body?.getReader();
             const decoder = new TextDecoder();
@@ -203,7 +206,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                 // If stream was empty, show a fallback message
                 if (!accumulatedResponse) {
                     setMessages(prev => prev.map(m => 
-                        m.id === assistantId ? { ...m, content: "Nova connection timed out. Please try again or switch provider." } : m
+                        m.id === assistantId ? { ...m, content: "Nova is taking longer than usual to respond. This usually happens during complex database actions. Please check your tasks in a moment or try a shorter command." } : m
                     ));
                 }
             }
