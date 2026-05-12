@@ -168,7 +168,7 @@ Connected Integrations: ${integrations.length > 0 ? integrations.map((i: any) =>
                     console.warn(`OpenAI failed (${error.message}), trying OpenRouter fallback...`);
                     const { openrouter } = await import("@/lib/openrouter");
                     const result = await streamText({
-                        model: openrouter("anthropic/claude-3-haiku"), // More reliable fallback
+                        model: openrouter("openai/gpt-4o-mini"), // Verified working in debug test
                         system: systemPromptWithContext,
                         prompt: prompt,
                         onFinish: async ({ text }) => {
