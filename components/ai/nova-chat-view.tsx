@@ -173,21 +173,27 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
             let accumulatedResponse = "";
             const assistantId = "nova-" + Date.now();
 
-            // Initial assistant bubble
+            // Initial assistant bubble with "Thinking" state
             setMessages(prev => [...prev, { 
                 id: assistantId, 
                 role: "assistant", 
-                content: "", 
+                content: "thinking...", 
                 createdAt: new Date().toISOString() 
             }]);
 
             if (reader) {
+                let firstChunk = true;
                 while (true) {
                     const { done, value } = await reader.read();
                     if (done) break;
                     
                     const chunk = decoder.decode(value);
-                    accumulatedResponse += chunk;
+                    if (firstChunk) {
+                        accumulatedResponse = chunk;
+                        firstChunk = false;
+                    } else {
+                        accumulatedResponse += chunk;
+                    }
                     
                     setMessages(prev => prev.map(m => 
                         m.id === assistantId ? { ...m, content: accumulatedResponse } : m
@@ -369,33 +375,43 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                         ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-tr-none" 
                                         : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white rounded-tl-none group-hover:shadow-xl group-hover:shadow-indigo-500/5 group-hover:border-indigo-500/20"
                                 )}>
-                                    <div className="prose dark:prose-invert prose-sm max-w-none prose-headings:font-black prose-headings:tracking-tighter prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:p-0 prose-pre:rounded-2xl">
-                                        <ReactMarkdown 
-                                            remarkPlugins={[remarkGfm]}
-                                            components={{
-                                                code({node, className, children, ...props}: any) {
-                                                  const match = /language-(\w+)/.exec(className || '')
-                                                  return match ? (
-                                                    <SyntaxHighlighter
-                                                      style={syntaxStyle}
-                                                      language={match[1]}
-                                                      PreTag="div"
-                                                      className="rounded-2xl !bg-slate-950 !p-6"
-                                                      {...props}
-                                                    >
-                                                      {String(children).replace(/\n$/, '')}
-                                                    </SyntaxHighlighter>
-                                                  ) : (
-                                                    <code className={cn("bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md text-indigo-500 font-bold", className)} {...props}>
-                                                      {children}
-                                                    </code>
-                                                  )
-                                                }
-                                            }}
-                                        >
-                                            {m.content}
-                                        </ReactMarkdown>
-                                    </div>
+                                    {m.content === "thinking..." ? (
+                                        <div className="flex items-center gap-2 py-1">
+                                            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                            <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" />
+                                            <span className="text-xs font-black uppercase tracking-widest text-slate-400 ml-2">Nova is thinking...</span>
+                                        </div>
+                                    ) : (
+                                        <div className="prose dark:prose-invert prose-sm max-w-none prose-headings:font-black prose-headings:tracking-tighter prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:p-0 prose-pre:rounded-2xl">
+                                            <ReactMarkdown 
+                                                remarkPlugins={[remarkGfm]}
+                                                components={{
+                                                    code({node, className, children, ...props}: any) {
+                                                        const match = /language-(\w+)/.exec(className || '')
+                                                        return match ? (
+                                                            <SyntaxHighlighter
+                                                                style={syntaxStyle}
+                                                                language={match[1]}
+                                                                PreTag="div"
+                                                                className="rounded-2xl !bg-slate-950 !p-6"
+                                                                {...props}
+                                                            >
+                                                                {String(children).replace(/\n$/, '')}
+                                                            </SyntaxHighlighter>
+                                                        ) : (
+                                                            <code className={cn("bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md text-indigo-500 font-bold", className)} {...props}>
+                                                                {children}
+                                                            </code>
+                                                        )
+                                                    }
+                                                }}
+                                            >
+                                                {m.content}
+                                            </ReactMarkdown>
+                                        </div>
+                                    )}
+                                </div>
 
                                     {m.role === "assistant" && m.content.length > 50 && (
                                         <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
