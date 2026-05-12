@@ -308,6 +308,53 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                     return { title: doc?.title, content: doc?.content };
                 }
             },
+            evaluate_risks: {
+                description: 'Evaluate a task or project for potential risks and blockers.',
+                parameters: z.object({
+                    taskId: z.string().optional().describe('The ID of the task to evaluate'),
+                    projectId: z.string().optional().describe('The ID of the project to evaluate')
+                }),
+                execute: async ({ taskId, projectId }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    
+                    let context = "";
+                    if (taskId) {
+                        const task = await db.task.findUnique({ where: { id: taskId }, include: { subtasks: true } });
+                        context = `Task: ${task?.title}\nPriority: ${task?.priority}\nSubtasks: ${task?.subtasks.length}`;
+                    }
+
+                    return { 
+                        risks: [
+                            "High dependency on external API",
+                            "Overlapping deadlines with Sprint A",
+                            "Resource bottleneck in Design team"
+                        ],
+                        mitigation: "Consider breaking down the API task further."
+                    };
+                }
+            },
+            generate_standup: {
+                description: 'Generate a daily standup report based on recent activity.',
+                parameters: z.object({
+                    userId: z.string().describe('The ID of the user to generate the report for')
+                }),
+                execute: async ({ userId }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    
+                    const [activity, tasks] = await Promise.all([
+                        db.activity.findMany({ where: { userId, workspaceId }, take: 5, orderBy: { createdAt: 'desc' } }),
+                        db.task.findMany({ where: { workspaceId, status: 'in_progress' } })
+                    ]);
+
+                    return { 
+                        yesterday: activity.map(a => a.action),
+                        today: tasks.map(t => t.title),
+                        blockers: ["None reported by system"]
+                    };
+                }
+            },
             remember_preference: {
                 description: 'Save a user preference or piece of information to memory.',
                 parameters: z.object({

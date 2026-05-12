@@ -243,6 +243,32 @@ Last Description: ${description}`,
                                 {isSummarizing ? "Analyzing..." : "Nova Insights"}
                             </Button>
 
+                            <Button
+                                variant="outline"
+                                className="w-full justify-start gap-2 bg-rose-600/10 hover:bg-rose-600/20 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-900/50 font-bold text-xs"
+                                onClick={async () => {
+                                    setIsSummarizing(true);
+                                    try {
+                                        const res = await fetch("/api/ai", {
+                                            method: "POST",
+                                            headers: { "Content-Type": "application/json" },
+                                            body: JSON.stringify({
+                                                prompt: `/risks Analyze potential risks for this task: ${title}`,
+                                                workspaceId,
+                                            }),
+                                        });
+                                        const data = await res.json();
+                                        setSummary(data.text);
+                                    } finally {
+                                        setIsSummarizing(false);
+                                    }
+                                }}
+                                disabled={isSummarizing}
+                            >
+                                <AlertCircle className="h-4 w-4" />
+                                Risk Breakdown
+                            </Button>
+
                             <AnimatePresence>
                                 {summary && (
                                     <motion.div 

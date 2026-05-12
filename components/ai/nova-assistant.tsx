@@ -353,10 +353,17 @@ export function NovaAssistant() {
                                             { name: "Bug Report Architect", desc: "Structured bug reproduction steps" },
                                             { name: "Sprint Planner", desc: "Generate milestones and tasks" },
                                             { name: "PRD Drafter", desc: "Draft a full product requirement doc" },
+                                            { name: "Meeting Architect", desc: "Extract tasks from a transcript" },
                                         ].map((t, i) => (
                                             <button 
                                                 key={i} 
-                                                onClick={() => setInput(`${t.name}: `)}
+                                                onClick={() => {
+                                                    if (t.name === "Meeting Architect") {
+                                                        setInput("/meeting [Paste transcript here]");
+                                                    } else {
+                                                        setInput(`${t.name}: `);
+                                                    }
+                                                }}
                                                 className="w-full p-3 text-left bg-slate-50 dark:bg-slate-800/50 rounded-xl hover:bg-indigo-50 dark:hover:bg-indigo-500/10 transition-colors"
                                             >
                                                 <p className="text-[11px] font-bold text-slate-900 dark:text-white">{t.name}</p>
