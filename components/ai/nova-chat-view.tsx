@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { Button } from "@/components/ui/button";
 import { Send, Sparkles, User, Loader2, Copy, RefreshCw, Trash2, CheckCircle2, FileText, ChevronRight, Paperclip, X, Target, Layout } from "lucide-react";
+import Image from "next/image";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -387,8 +388,14 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                         <div className="absolute bottom-full mb-4 left-0 animate-in fade-in slide-in-from-bottom-2">
                             <div className="bg-white dark:bg-slate-900 border-2 border-indigo-500/20 rounded-2xl p-3 shadow-xl flex items-center gap-3 pr-4">
                                 {attachment.type.startsWith("image") ? (
-                                    <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800">
-                                        <img src={attachment.url} alt="Preview" className="w-full h-full object-cover" />
+                                    <div className="w-10 h-10 rounded-lg overflow-hidden border border-slate-200 dark:border-slate-800 relative">
+                                        <Image 
+                                            src={attachment.url} 
+                                            alt="Preview" 
+                                            fill 
+                                            className="object-cover"
+                                            unoptimized
+                                        />
                                     </div>
                                 ) : (
                                     <div className="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-500/10 flex items-center justify-center">

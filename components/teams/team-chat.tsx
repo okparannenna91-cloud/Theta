@@ -109,22 +109,24 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             if (!res.ok) throw new Error("Failed to load messages");
             const data = await res.json();
             if (data.messages && Array.isArray(data.messages)) {
-                if (cursorParam) {
-                    // Prepending older messages
-                    const scrollNode = scrollRef.current;
-                    const oldScrollHeight = scrollNode ? scrollNode.scrollHeight : 0;
-                    isPrependingRef.current = true;
-                    setMessages(prev => [...data.messages, ...prev]);
-                    requestAnimationFrame(() => {
-                        if (scrollNode) scrollNode.scrollTop = scrollNode.scrollHeight - oldScrollHeight;
-                    });
-                } else {
-                    if (data.messages.length === 0 && messages.length > 0) {
-                        console.warn("[Chat] API returned 0 messages but UI has some. Potential sync bug. Ignoring empty update.");
+                    if (cursorParam) {
+                        // Prepending older messages
+                        const scrollNode = scrollRef.current;
+                        const oldScrollHeight = scrollNode ? scrollNode.scrollHeight : 0;
+                        isPrependingRef.current = true;
+                        setMessages(prev => [...data.messages, ...prev]);
+                        requestAnimationFrame(() => {
+                            if (scrollNode) scrollNode.scrollTop = scrollNode.scrollHeight - oldScrollHeight;
+                        });
                     } else {
-                        setMessages(data.messages);
+                        setMessages(prev => {
+                            if (data.messages.length === 0 && prev.length > 0) {
+                                console.warn("[Chat] API returned 0 messages but UI has some. Potential sync bug. Ignoring empty update.");
+                                return prev;
+                            }
+                            return data.messages;
+                        });
                     }
-                }
                 setCursor(data.nextCursor);
                 setHasMore(!!data.nextCursor);
                 if (data.limits) setLimits(data.limits);
@@ -244,7 +246,10 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
 
             // Ably connected — if messages haven't loaded yet, trigger a fetch
             ably.connection.once("connected", () => {
-                if (messages.length === 0) fetchMessages();
+                setMessages(prev => {
+                    if (prev.length === 0) fetchMessages();
+                    return prev;
+                });
             });
 
         } catch (error) {
