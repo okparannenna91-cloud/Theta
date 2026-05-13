@@ -126,7 +126,7 @@ export function CommandPalette() {
                     onClick={handleAskNova}
                 >
                     <Sparkles className="mr-3 h-4 w-4" />
-                    Authorize Nova Search: "{search}"
+                    Authorize Nova Search: &quot;{search}&quot;
                 </Button>
             </motion.div>
           </CommandEmpty>
@@ -164,7 +164,7 @@ export function CommandPalette() {
                         </div>
                         <div className="flex-1">
                           <p className="text-sm font-black uppercase tracking-tight">Ask Nova</p>
-                          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest line-clamp-1 italic">"{search}"</p>
+                          <p className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest line-clamp-1 italic">&quot;{search}&quot;</p>
                         </div>
                         <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
                           <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />

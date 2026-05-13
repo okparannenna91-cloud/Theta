@@ -2,6 +2,7 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -762,7 +763,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                           className="h-8 w-8 rounded-full border-2 border-white dark:border-slate-950 bg-slate-100 shadow-xl overflow-hidden transition-all hover:scale-110 hover:z-10"
                           title={user.name}
                         >
-                           <img src={user.avatar} className="h-full w-full object-cover" alt={user.name} />
+                           <Image src={user.avatar} className="h-full w-full object-cover" alt={user.name} width={32} height={32} />
                         </div>
                       ))}
                       <div className="h-8 w-8 rounded-full border-2 border-white dark:border-slate-950 bg-indigo-600 flex items-center justify-center text-[8px] text-white font-black z-20 shadow-xl">

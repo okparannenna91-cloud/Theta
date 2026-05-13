@@ -139,7 +139,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
             // Optional: auto-send
             // handleSend(urlPrompt); 
         }
-    }, [conversationId, workspaceId, fetchMessages, fetchProjects]);
+    }, [conversationId, workspaceId, fetchMessages, fetchProjects, isLoading]);
 
     useEffect(() => {
         if (scrollRef.current) {

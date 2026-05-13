@@ -1,5 +1,41 @@
+"use client";
+
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import Image from "next/image";
+import * as Ably from "ably";
+import { useUser } from "@clerk/nextjs";
+import { 
+  Hash, 
+  Pin, 
+  PinOff, 
+  MoreVertical, 
+  MessageSquare, 
+  Reply, 
+  Image as ImageIcon, 
+  FileText, 
+  Paperclip, 
+  Lock, 
+  Send, 
+  Sparkles, 
+  X, 
+  Loader2,
+  ChevronDown
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
+import { motion, AnimatePresence } from "framer-motion";
+import { usePopups } from "@/components/popups/popup-manager";
 import { MotionWrapper, FadeIn } from "@/components/common/motion-wrapper";
+import { FileUpload } from "@/components/common/file-upload";
 import { cn } from "@/lib/utils";
+import { format, parseISO } from "date-fns";
+
+interface TeamChatProps {
+    teamId: string;
+    workspaceId: string;
+}
 
 export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
     const { user } = useUser();

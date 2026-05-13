@@ -328,7 +328,7 @@ Last Description: ${description}`,
                                                 <span className="text-[10px] font-black uppercase tracking-[0.3em]">Neural Insights</span>
                                             </div>
                                             <p className="text-sm font-bold leading-relaxed italic opacity-90">
-                                                "{summary}"
+                                                &quot;{summary}&quot;
                                             </p>
                                         </motion.div>
                                     )}
