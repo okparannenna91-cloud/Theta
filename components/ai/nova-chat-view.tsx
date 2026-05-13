@@ -431,20 +431,45 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                                     <ReactMarkdown 
                                                         remarkPlugins={[remarkGfm]}
                                                         components={{
-                                                            code({node, className, children, ...props}: any) {
-                                                                const match = /language-(\w+)/.exec(className || '')
-                                                                return match ? (
-                                                                    <SyntaxHighlighter
-                                                                        style={syntaxStyle}
-                                                                        language={match[1]}
-                                                                        PreTag="div"
-                                                                        className="rounded-2xl !bg-slate-950 !p-6"
-                                                                        {...props}
-                                                                    >
-                                                                        {String(children).replace(/\n$/, '')}
-                                                                    </SyntaxHighlighter>
+                                                            table: ({ children }) => (
+                                                                <div className="my-6 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                                                    <table className="w-full border-collapse bg-white dark:bg-slate-900 text-left text-sm text-slate-500 dark:text-slate-400">
+                                                                        {children}
+                                                                    </table>
+                                                                </div>
+                                                            ),
+                                                            thead: ({ children }) => <thead className="bg-slate-50 dark:bg-slate-800/50">{children}</thead>,
+                                                            th: ({ children }) => <th className="px-6 py-4 font-black uppercase tracking-widest text-[10px] text-slate-900 dark:text-white">{children}</th>,
+                                                            td: ({ children }) => <td className="px-6 py-4 border-t border-slate-100 dark:border-slate-800">{children}</td>,
+                                                            code: ({ node, inline, className, children, ...props }: any) => {
+                                                                const match = /language-(\w+)/.exec(className || "");
+                                                                return !inline && match ? (
+                                                                    <div className="relative group/code my-6">
+                                                                        <div className="absolute right-4 top-4 opacity-0 group-hover/code:opacity-100 transition-opacity z-10">
+                                                                            <Button 
+                                                                                variant="secondary" 
+                                                                                size="icon" 
+                                                                                className="h-8 w-8 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border-white/10"
+                                                                                onClick={() => {
+                                                                                    navigator.clipboard.writeText(String(children).replace(/\n$/, ""));
+                                                                                    toast.success("Code copied!");
+                                                                                }}
+                                                                            >
+                                                                                <Copy className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </div>
+                                                                        <SyntaxHighlighter
+                                                                            style={syntaxStyle}
+                                                                            language={match[1]}
+                                                                            PreTag="div"
+                                                                            className="rounded-2xl !bg-slate-950 !p-6 !m-0 border border-white/5 shadow-2xl"
+                                                                            {...props}
+                                                                        >
+                                                                            {String(children).replace(/\n$/, "")}
+                                                                        </SyntaxHighlighter>
+                                                                    </div>
                                                                 ) : (
-                                                                    <code className={cn("bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md text-indigo-500 font-bold", className)} {...props}>
+                                                                    <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md font-bold text-indigo-600 dark:text-indigo-400" {...props}>
                                                                         {children}
                                                                     </code>
                                                                 )
@@ -484,6 +509,17 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                                     >
                                                         <RefreshCw className="w-3.5 h-3.5" />
                                                         Estimate
+                                                    </Button>
+                                                    <Button 
+                                                        variant="outline" 
+                                                        size="sm" 
+                                                        onClick={() => {
+                                                            setInput(`/share Save and share this conversation with the workspace.`);
+                                                        }}
+                                                        className="h-9 px-4 rounded-xl border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest hover:border-purple-500 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-all flex items-center gap-2"
+                                                    >
+                                                        <Send className="w-3.5 h-3.5" />
+                                                        Share Thread
                                                     </Button>
                                                 </div>
                                             )}

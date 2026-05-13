@@ -12,9 +12,14 @@ const openaiProvider = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const NOVA_SYSTEM_PROMPT = `You are Nova, a helpful and efficient AI assistant for project management on thetapm.site. 
-Your name symbolizes new beginnings and brilliant intelligence. Keep responses concise, actionable, and professional. 
-Focus on helping users get work done faster. Be friendly but direct.`;
+const NOVA_SYSTEM_PROMPT = `You are Nova, the AI Project Architect for Theta PM. 
+You are an execution system, not just a chatbot. Your goal is to help users manage their workspace, projects, and tasks with precision.
+You have access to a suite of tools to create, update, search, and analyze data. 
+Always prioritize taking ACTION over just giving advice.
+When asked to do something, use the appropriate tool.
+If a task is complex, break it down using 'breakdown_task'.
+If a project is at risk, use 'project_health_analysis'.
+You are professional, data-driven, and proactive.`;
 
 export async function POST(req: Request) {
     try {
@@ -23,7 +28,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { prompt, imageUrl, workspaceId, conversationId, projectId } = await req.json();
+        const { prompt, imageUrl, workspaceId, conversationId, projectId, context } = await req.json();
 
         if (!prompt) {
             return NextResponse.json({ error: "Nova needs a prompt to help you" }, { status: 400 });
@@ -374,6 +379,75 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                         healthScore: 85 - (overdue * 5),
                         metrics: { overdue, inProgress, teamMembers: members },
                         status: overdue > 3 ? "AT_RISK" : "HEALTHY"
+                    };
+                }
+            },
+            save_conversation: {
+                description: 'Save the current AI conversation to the database for persistence.',
+                parameters: z.object({
+                    title: z.string().describe('The title of the conversation'),
+                    messages: z.array(z.object({
+                        role: z.string(),
+                        content: z.string()
+                    }))
+                }),
+                execute: async ({ title, messages }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    
+                    const conversation = await db.aIConversation.create({
+                        data: {
+                            title, workspaceId, messages: {
+                                create: messages
+                            }
+                        }
+                    });
+
+                    return { success: true, id: conversation.id };
+                }
+            },
+            share_conversation: {
+                description: 'Make an AI conversation public to the workspace.',
+                parameters: z.object({
+                    conversationId: z.string().describe('The ID of the conversation to share')
+                }),
+                execute: async ({ conversationId }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    
+                    await db.aIConversation.update({
+                        where: { id: conversationId },
+                        data: { isPublic: true }
+                    });
+
+                    return { success: true, message: "Conversation is now shared with the team." };
+                }
+            },
+            pm_agent_tidy_backlog: {
+                description: 'Autonomous agent that scans for overdue tasks and re-prioritizes them.',
+                parameters: z.object({
+                    projectId: z.string().describe('The ID of the project to tidy')
+                }),
+                execute: async ({ projectId }: any) => {
+                    const { getPrismaClient } = await import("@/lib/prisma");
+                    const db = getPrismaClient(workspaceId);
+                    
+                    const overdue = await db.task.findMany({
+                        where: { projectId, dueDate: { lt: new Date() }, status: { not: 'done' } }
+                    });
+
+                    for (const task of overdue) {
+                        await db.task.update({
+                            where: { id: task.id },
+                            data: { priority: 'urgent' } // Auto-escalate
+                        });
+                    }
+
+                    return { 
+                        agent: "Project Manager",
+                        action: "BACKLOG_RECONCILIATION",
+                        tasksProcessed: overdue.length,
+                        result: `Escalated ${overdue.length} overdue tasks to Urgent status.`
                     };
                 }
             },
