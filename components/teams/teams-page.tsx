@@ -162,255 +162,262 @@ export default function TeamsPage() {
   }
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+    <div className="p-4 sm:p-12 lg:p-16 max-w-7xl mx-auto relative selection:bg-indigo-500/30">
+      {/* Neural Mesh Background */}
+      <div className="absolute top-0 right-0 -z-20 w-[800px] h-[800px] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none animate-pulse" />
+      <div className="absolute bottom-0 left-0 -z-20 w-[600px] h-[600px] bg-purple-600/5 blur-[100px] rounded-full pointer-events-none" />
+
+      <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10 mb-16">
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          className="flex-1"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-4"
         >
-          <h1 className="text-3xl font-bold mb-2 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            Teams
+          <h1 className="text-5xl sm:text-7xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
+            Neural <span className="text-indigo-600">Collective</span>
           </h1>
-          <p className="text-muted-foreground flex items-center gap-2 font-medium">
-            <Users className="h-4 w-4" />
-            Manage your collaborative groups
-          </p>
+          <div className="flex items-center gap-4">
+            <div className="h-1.5 w-16 bg-indigo-600 rounded-full" />
+            <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] opacity-80">
+              Workspace Collaboration & Permission Matrix
+            </p>
+          </div>
         </motion.div>
         
-        <div className="flex flex-col sm:flex-row items-end gap-4 w-full sm:w-auto">
-          <div className="flex flex-col items-end">
+        <div className="flex flex-col sm:flex-row items-end gap-8 w-full lg:w-auto">
+          <div className="flex flex-col items-end space-y-3">
             {teamLimits.max !== -1 && (
-              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">
-                Teams: {teamLimits.current} / {teamLimits.max}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Teams capacity</span>
+                <div className="h-1 w-24 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-indigo-600" style={{ width: `${(teamLimits.current / teamLimits.max) * 100}%` }} />
+                </div>
+                <span className="text-[10px] font-black text-indigo-600">{teamLimits.current}/{teamLimits.max}</span>
+              </div>
             )}
             {memberLimits.max !== -1 && (
-              <span className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">
-                Members: {memberLimits.current} / {memberLimits.max}
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Neural Nodes</span>
+                <div className="h-1 w-24 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <div className="h-full bg-purple-600" style={{ width: `${(memberLimits.current / memberLimits.max) * 100}%` }} />
+                </div>
+                <span className="text-[10px] font-black text-purple-600">{memberLimits.current}/{memberLimits.max}</span>
+              </div>
             )}
-            <Button 
-                onClick={() => setIsOpen(true)} 
-                className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 shadow-md"
-                variant={isTeamLimitReached ? "outline" : "default"}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Create New Team
-            </Button>
           </div>
+          <Button 
+              onClick={() => setIsOpen(true)} 
+              className="h-14 px-10 rounded-2xl shadow-2xl shadow-indigo-500/20 bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-[0.2em] text-[10px] transition-all hover:scale-105"
+              variant={isTeamLimitReached ? "outline" : "default"}
+          >
+            <Plus className="h-4 w-4 mr-3" />
+            Initialize Collective
+          </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
         <AnimatePresence>
           {teams?.map((team: any, i: number) => (
             <motion.div
               key={team.id}
               layout
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ delay: i * 0.05 }}
+              transition={{ delay: i * 0.1, duration: 0.6 }}
               onClick={() => {
                 setSelectedTeam(team);
                 setView("details");
               }}
               className="cursor-pointer group"
             >
-              <Card className="h-full border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 transition-all duration-300 shadow-sm hover:shadow-lg hover:-translate-y-1 overflow-hidden relative flex flex-col">
+              <Card className="glass-card border-none rounded-[3rem] h-full transition-all duration-700 hover:scale-[1.03] hover:shadow-[0_40px_80px_-20px_rgba(99,102,241,0.2)] overflow-hidden relative flex flex-col p-10">
                 {team.status === "archived" && (
-                  <div className="absolute top-0 left-0 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-br-lg text-[10px] font-bold uppercase text-slate-500 border-b border-r">
-                    Archived
+                  <div className="absolute top-8 left-8 bg-slate-100 dark:bg-slate-800 px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
+                    Archived Collective
                   </div>
                 )}
 
-                <div className="absolute top-0 right-0 p-4 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <div className="bg-indigo-50 dark:bg-indigo-900/30 p-2 rounded-full">
-                    <ArrowLeft className="h-4 w-4 text-indigo-600 rotate-180" />
+                <div className="absolute top-10 right-10 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
+                  <div className="bg-indigo-600/10 p-3 rounded-2xl text-indigo-600">
+                    <ArrowLeft className="h-5 w-5 rotate-180" />
                   </div>
                 </div>
 
-                <CardHeader className="pb-3 pt-6">
-                  <div className="flex items-start gap-4">
-                    <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white shadow-md group-hover:scale-110 transition-transform shrink-0">
-                      <Users className="h-6 w-6" />
+                <div className="pt-6 space-y-8 flex-1">
+                  <div className="flex items-center gap-6">
+                    <div className="h-16 w-16 rounded-[1.5rem] bg-indigo-600/10 flex items-center justify-center text-indigo-600 shadow-sm group-hover:bg-indigo-600 group-hover:text-white transition-all duration-700 shrink-0">
+                      <Users className="h-8 w-8" />
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <CardTitle className="text-lg group-hover:text-indigo-600 transition-colors truncate pr-6">
+                    <div className="min-w-0">
+                      <h3 className="text-2xl font-black tracking-tighter uppercase group-hover:text-indigo-600 transition-colors truncate">
                         {team.name}
-                      </CardTitle>
-                      <div className="flex items-center gap-2 mt-1">
+                      </h3>
+                      <div className="flex items-center gap-3 mt-2">
                         {team.userRole === "owner" || team.userRole === "admin" ? (
-                          <span className="inline-flex items-center rounded-full bg-indigo-50 dark:bg-indigo-900/30 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:text-indigo-300 ring-1 ring-inset ring-indigo-700/10">
-                            {team.userRole === "owner" ? "Owner" : "Admin"}
+                          <span className="inline-flex items-center rounded-lg bg-indigo-500/10 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-indigo-600 border border-indigo-500/20">
+                            {team.userRole === "owner" ? "Grandmaster" : "Admin"}
                           </span>
                         ) : (
-                          <span className="inline-flex items-center rounded-full bg-slate-50 dark:bg-slate-900/30 px-2 py-0.5 text-xs font-medium text-slate-600 dark:text-slate-400 ring-1 ring-inset ring-slate-500/10">
+                          <span className="inline-flex items-center rounded-lg bg-slate-100 dark:bg-slate-800 px-3 py-1 text-[9px] font-black uppercase tracking-widest text-slate-400 border border-slate-200/50 dark:border-slate-700/50">
                             Member
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
-                  {team.description ? (
-                    <CardDescription className="line-clamp-2 mt-3 text-sm h-10">
-                      {team.description}
-                    </CardDescription>
-                  ) : (
-                    <div className="h-10 mt-3" />
-                  )}
-                </CardHeader>
-
-                <CardContent className="mt-auto pt-0 pb-4">
-                  <div className="flex items-center justify-between pt-4 border-t border-slate-50 dark:border-slate-800">
-                    <div className="flex items-center gap-2">
-                      <div className="flex -space-x-2 overflow-hidden">
-                        {team.members?.slice(0, 4).map((m: any) => (
-                          <div
-                            key={m.userId}
-                            className="h-7 w-7 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold overflow-hidden"
-                            title={m.user?.name || "User"}
-                          >
-                            {m.user?.imageUrl ? (
-                              <Image src={m.user.imageUrl} alt={m.user.name || "Member"} width={28} height={28} className="h-full w-full object-cover" />
-                            ) : (
-                              (m.user?.name?.[0] || "?")
-                            )}
-                          </div>
-                        ))}
-                        {(team.membersCount || 0) > 4 && (
-                          <div className="h-7 w-7 rounded-full border-2 border-white dark:border-slate-900 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[9px] font-medium text-muted-foreground">
-                            +{team.membersCount - 4}
-                          </div>
-                        )}
-                      </div>
-                      <span className="text-xs text-muted-foreground ml-1">
-                        {team.membersCount || 1} members
-                      </span>
-                    </div>
-
-                    {(team.userRole === "admin" || team.userRole === "owner") && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSelectedTeam(team);
-                          setIsInviteOpen(true);
-                        }}
-                      >
-                        <UserPlus className="h-3.5 w-3.5 mr-1" />
-                        Invite
-                      </Button>
-                    )}
+                  
+                  <div className="space-y-4">
+                    <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-relaxed h-12 line-clamp-3">
+                      {team.description || "Operational collective synchronized within the neural core."}
+                    </p>
                   </div>
-                </CardContent>
+                </div>
+
+                <div className="mt-12 pt-8 border-t border-indigo-500/5 flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="flex -space-x-3 overflow-hidden">
+                      {team.members?.slice(0, 4).map((m: any) => (
+                        <div
+                          key={m.userId}
+                          className="h-10 w-10 rounded-full ring-4 ring-white dark:ring-slate-950 bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-[10px] font-black uppercase overflow-hidden transition-all hover:scale-110 hover:z-10 shadow-xl"
+                        >
+                          {m.user?.imageUrl ? (
+                            <Image src={m.user.imageUrl} alt={m.user.name || "Member"} width={40} height={40} className="h-full w-full object-cover" />
+                          ) : (
+                            (m.user?.name?.[0] || "?")
+                          )}
+                        </div>
+                      ))}
+                      {(team.membersCount || 0) > 4 && (
+                        <div className="h-10 w-10 rounded-full ring-4 ring-white dark:ring-slate-950 bg-indigo-600 text-white flex items-center justify-center text-[9px] font-black uppercase z-10">
+                          +{team.membersCount - 4}
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                      {team.membersCount || 1} Nodes
+                    </span>
+                  </div>
+
+                  {(team.userRole === "admin" || team.userRole === "owner") && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-10 rounded-xl px-4 text-indigo-600 hover:text-white hover:bg-indigo-600 font-black uppercase tracking-widest text-[9px] transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedTeam(team);
+                        setIsInviteOpen(true);
+                      }}
+                    >
+                      <UserPlus className="h-3.5 w-3.5 mr-2" />
+                      Sync
+                    </Button>
+                  )}
+                </div>
               </Card>
             </motion.div>
           ))}
         </AnimatePresence>
       </div>
 
-      {
-        teams?.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground mb-4">
-              No teams yet. Create your first team!
-            </p>
-            <Button onClick={() => setIsOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Create Team
-            </Button>
-          </div>
-        )
-      }
+      {teams?.length === 0 && (
+        <div className="text-center py-32 bg-white/30 dark:bg-slate-900/30 backdrop-blur-xl rounded-[3rem] border-2 border-dashed border-indigo-500/10">
+          <Users className="h-20 w-20 text-slate-300 mx-auto mb-8 floating" />
+          <h3 className="text-2xl font-black uppercase tracking-tight mb-4">Neural Collective Empty</h3>
+          <p className="text-slate-500 font-bold max-w-md mx-auto mb-10 text-sm">No collaborative groups detected. Initialize your first collective to synchronize your workforce.</p>
+          <Button onClick={() => setIsOpen(true)} className="rounded-2xl h-14 px-10 shadow-xl bg-indigo-600 font-black uppercase tracking-widest text-[10px]">
+            <Plus className="h-4 w-4 mr-2" />
+            Initialize Collective
+          </Button>
+        </div>
+      )}
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Create New Team</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Team Name</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-indigo-500/20 rounded-[2.5rem] selection:bg-indigo-500/30 shadow-2xl">
+          <div className="p-10 space-y-8">
+            <div className="space-y-2">
+              <h2 className="text-3xl font-black uppercase tracking-tighter">Initialize Collective</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Configure new team synchronization parameters</p>
             </div>
-            <div>
-              <Label htmlFor="description">Description</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={createMutation.isPending}>
-                {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Create"}
-              </Button>
-            </div>
-          </form>
+            <form onSubmit={handleSubmit} className="space-y-8">
+              <div className="space-y-4">
+                <Label htmlFor="name" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Collective Identifier</Label>
+                <Input
+                  id="name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  placeholder="e.g. ALPHA SQUADRON"
+                  className="h-14 bg-white/50 dark:bg-slate-900/50 border-none rounded-2xl font-black text-lg focus-visible:ring-2 focus-visible:ring-indigo-500/20 uppercase tracking-tight"
+                />
+              </div>
+              <div className="space-y-4">
+                <Label htmlFor="description" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Mission Directive</Label>
+                <Textarea
+                  id="description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Define collective objectives..."
+                  className="min-h-[140px] bg-white/50 dark:bg-slate-900/50 border-none rounded-[2rem] font-bold text-sm focus-visible:ring-2 focus-visible:ring-indigo-500/20 p-6 leading-relaxed"
+                />
+              </div>
+              <div className="flex justify-end gap-4 pt-4">
+                <Button type="button" variant="ghost" onClick={() => setIsOpen(false)} className="h-14 rounded-2xl px-8 font-black uppercase tracking-widest text-[10px]">Decline</Button>
+                <Button type="submit" disabled={createMutation.isPending} className="h-14 rounded-2xl px-10 bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/20 font-black uppercase tracking-widest text-[10px]">
+                  {createMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Authorize"}
+                </Button>
+              </div>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
 
       <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Invite to {selectedTeam?.name}</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleInviteSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email Address</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="colleague@example.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                required
-              />
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-indigo-500/20 rounded-[2.5rem] selection:bg-indigo-500/30 shadow-2xl">
+          <div className="p-10 space-y-8">
+            <div className="space-y-2">
+              <h2 className="text-3xl font-black uppercase tracking-tighter">Synchronize Node</h2>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Transmit invite to {selectedTeam?.name}</p>
             </div>
-            <div>
-              <Label htmlFor="role">Role</Label>
-              <select
-                id="role"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value)}
-              >
-                <option value="member">Member</option>
-                <option value="admin">Admin</option>
-              </select>
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setIsInviteOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={inviteMutation.isPending}>
-                {inviteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send Invite"}
-              </Button>
-            </div>
-          </form>
+            <form onSubmit={handleInviteSubmit} className="space-y-8">
+              <div className="space-y-4">
+                <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Node Address (Email)</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="node@neural.link"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  required
+                  className="h-14 bg-white/50 dark:bg-slate-900/50 border-none rounded-2xl font-black text-lg focus-visible:ring-2 focus-visible:ring-indigo-500/20 tracking-tight"
+                />
+              </div>
+              <div className="space-y-4">
+                <Label htmlFor="role" className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Access Tier</Label>
+                <select
+                  id="role"
+                  className="flex h-14 w-full rounded-2xl border-none bg-white/50 dark:bg-slate-900/50 px-6 py-2 text-sm font-black uppercase tracking-widest focus-visible:ring-2 focus-visible:ring-indigo-500/20"
+                  value={inviteRole}
+                  onChange={(e) => setInviteRole(e.target.value)}
+                >
+                  <option value="member">Standard Node</option>
+                  <option value="admin">Admin Overseer</option>
+                </select>
+              </div>
+              <div className="flex justify-end gap-4 pt-4">
+                <Button type="button" variant="ghost" onClick={() => setIsInviteOpen(false)} className="h-14 rounded-2xl px-8 font-black uppercase tracking-widest text-[10px]">Abort</Button>
+                <Button type="submit" disabled={inviteMutation.isPending} className="h-14 rounded-2xl px-10 bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/20 font-black uppercase tracking-widest text-[10px]">
+                  {inviteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Transmit"}
+                </Button>
+              </div>
+            </form>
+          </div>
         </DialogContent>
       </Dialog>
-    </div >
+    </div>
   );
 }
 

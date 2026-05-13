@@ -293,75 +293,67 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-hidden relative">
+        <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-hidden relative selection:bg-indigo-500/30">
             {/* Header */}
-            <div className="border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl z-20">
-                <div className="h-20 flex items-center justify-between px-8">
-                    <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-xl shadow-indigo-500/20 group relative overflow-hidden">
-                            <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <Sparkles className="w-6 h-6 group-hover:rotate-12 transition-transform duration-500" />
+            <div className="border-b border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl z-40 relative">
+                <div className="h-24 flex items-center justify-between px-10">
+                    <div className="flex items-center gap-6">
+                        <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/40 group relative overflow-hidden neural-glow cursor-pointer transition-transform duration-500 hover:scale-105 active:scale-95">
+                            <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Sparkles className="w-7 h-7 group-hover:rotate-12 transition-transform duration-500 floating" />
                         </div>
-                        <div>
-                            <h2 className="text-base font-black text-slate-900 dark:text-white uppercase tracking-widest leading-tight">Nova Intelligence</h2>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-                                <p className="text-[10px] font-bold text-emerald-500 uppercase tracking-widest">Neural Link Synchronized</p>
+                        <div className="space-y-1">
+                            <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-[0.3em] leading-tight">Nova Intelligence</h2>
+                            <div className="flex items-center gap-2.5">
+                                <div className="flex items-center">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
+                                </div>
+                                <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] opacity-90">Neural Link Active</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <div className="hidden md:flex items-center bg-slate-100 dark:bg-slate-800 rounded-xl p-1">
+                    <div className="flex items-center gap-6">
+                        <div className="hidden md:flex items-center bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl p-1.5 border border-slate-200/50 dark:border-slate-700/50">
                             <Button 
                                 variant={selectedProjectId === "all" ? "secondary" : "ghost"} 
                                 size="sm" 
                                 onClick={() => setSelectedProjectId("all")}
-                                className="h-8 rounded-lg text-[10px] font-black uppercase tracking-widest"
+                                className="h-9 px-5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
                             >
-                                <Layout className="w-3 h-3 mr-1.5" />
-                                Global
+                                <Layout className="w-3.5 h-3.5 mr-2" />
+                                Global Architecture
                             </Button>
                         </div>
-                        <Button variant="ghost" size="sm" className="rounded-xl font-bold text-[10px] uppercase tracking-widest text-slate-400 hover:text-indigo-500 transition-all">
-                            <Copy className="w-3.5 h-3.5 mr-2" />
-                            Export
+                        <Button variant="ghost" size="sm" className="h-10 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/5 transition-all">
+                            <Copy className="w-4 h-4 mr-2" />
+                            Protocol Export
                         </Button>
                     </div>
                 </div>
 
                 {/* Multi-Mode Tabs */}
-                <div className="px-8 pb-3">
+                <div className="px-10 pb-4">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="bg-slate-100 dark:bg-slate-800/50 p-1 rounded-xl h-12">
-                            <TabsTrigger value="chat" className="rounded-lg px-6 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
-                                <MessageSquare className="w-3.5 h-3.5 mr-2" />
-                                Chat
-                            </TabsTrigger>
-                            <TabsTrigger value="tasks" className="rounded-lg px-6 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
-                                <ListTodo className="w-3.5 h-3.5 mr-2" />
-                                Tasks
-                            </TabsTrigger>
-                            <TabsTrigger value="docs" className="rounded-lg px-6 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
-                                <FileText className="w-3.5 h-3.5 mr-2" />
-                                Docs
-                            </TabsTrigger>
-                            <TabsTrigger value="sprint" className="rounded-lg px-6 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
-                                <SprintIcon className="w-3.5 h-3.5 mr-2" />
-                                Sprint
-                            </TabsTrigger>
-                            <TabsTrigger value="reports" className="rounded-lg px-6 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
-                                <BarChart3 className="w-3.5 h-3.5 mr-2" />
-                                Reports
-                            </TabsTrigger>
-                            <TabsTrigger value="analytics" className="rounded-lg px-6 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
-                                <PieChart className="w-3.5 h-3.5 mr-2" />
-                                Analytics
-                            </TabsTrigger>
-                            <TabsTrigger value="automations" className="rounded-lg px-6 text-[10px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-900 data-[state=active]:shadow-sm">
-                                <Settings2 className="w-3.5 h-3.5 mr-2" />
-                                Automations
-                            </TabsTrigger>
+                        <TabsList className="bg-slate-100/50 dark:bg-slate-900/50 p-1.5 rounded-2xl h-14 border border-slate-200/50 dark:border-slate-800/50">
+                            {[
+                                { value: "chat", icon: MessageSquare, label: "Neural Chat" },
+                                { value: "tasks", icon: ListTodo, label: "Task OS" },
+                                { value: "docs", icon: FileText, label: "Knowledge" },
+                                { value: "sprint", icon: SprintIcon, label: "Execution" },
+                                { value: "reports", icon: BarChart3, label: "Diagnostics" },
+                                { value: "analytics", icon: PieChart, label: "Intelligence" },
+                                { value: "automations", icon: Settings2, label: "Synthetics" },
+                            ].map((tab) => (
+                                <TabsTrigger 
+                                    key={tab.value}
+                                    value={tab.value} 
+                                    className="rounded-xl px-6 text-[9px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-2xl data-[state=active]:shadow-indigo-500/10 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 transition-all duration-300"
+                                >
+                                    <tab.icon className="w-3.5 h-3.5 mr-2" />
+                                    {tab.label}
+                                </TabsTrigger>
+                            ))}
                         </TabsList>
                     </Tabs>
                 </div>
@@ -369,31 +361,36 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
                 <TabsContent value="chat" className="flex-1 flex flex-col min-h-0 m-0 data-[state=active]:flex relative">
-                    <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-10 flex flex-col space-y-12 scrollbar-hide">
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-12 flex flex-col space-y-16 scrollbar-hide">
                         {messages.length === 0 && !isLoading ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-10 py-20">
-                                <div className="relative">
-                                    <div className="absolute inset-0 bg-indigo-500 blur-[60px] opacity-20 rounded-full animate-pulse" />
-                                    <div className="w-24 h-24 rounded-[2.5rem] bg-slate-100 dark:bg-slate-900 flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 relative z-10 group">
-                                        <Sparkles className="w-12 h-12 text-slate-300 dark:text-slate-700 group-hover:text-indigo-500 transition-colors duration-500" />
+                            <div className="flex-1 flex flex-col items-center justify-center text-center max-w-3xl mx-auto space-y-12 py-20">
+                                <div className="relative group cursor-pointer">
+                                    <div className="absolute inset-0 bg-indigo-500 blur-[80px] opacity-20 rounded-full animate-pulse group-hover:opacity-40 transition-opacity duration-1000" />
+                                    <div className="w-32 h-32 rounded-[3rem] bg-white dark:bg-slate-900 flex items-center justify-center border border-slate-200/50 dark:border-slate-800/50 relative z-10 shadow-2xl transition-all duration-700 group-hover:scale-110 group-hover:rotate-6">
+                                        <Sparkles className="w-16 h-16 text-slate-200 dark:text-slate-800 group-hover:text-indigo-500 transition-colors duration-700 floating" />
                                     </div>
                                 </div>
                                 <div className="space-y-6">
-                                    <h3 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
-                                        How can Nova assist <br/> your project <span className="text-indigo-600">today?</span>
+                                    <h3 className="text-6xl font-black text-slate-900 dark:text-white tracking-tighter leading-[1.1]">
+                                        Architect your project <br/> with <span className="text-indigo-600 neural-glow px-4 py-1 rounded-2xl bg-indigo-600/5">Nova</span>
                                     </h3>
-                                    <p className="text-xl font-medium text-slate-500 leading-relaxed max-w-lg mx-auto">
-                                        The advanced Task OS is ready. Architect projects, automate workflows, or extract deep insights instantly.
+                                    <p className="text-xl font-medium text-slate-500 leading-relaxed max-w-xl mx-auto opacity-80">
+                                        The next-generation Task OS is online. Design workflows, automate execution, and synthesize deep workspace data.
                                     </p>
                                 </div>
-                                <div className="flex flex-wrap justify-center gap-3">
-                                    {["Plan a sprint", "Analyze team velocity", "Generate technical docs"].map((suggestion) => (
+                                <div className="flex flex-wrap justify-center gap-4">
+                                    {[
+                                        { label: "Initialize Sprint", icon: Target },
+                                        { label: "Audit Backlog", icon: ListTodo },
+                                        { label: "Generate Blueprint", icon: BookOpen }
+                                    ].map((suggestion) => (
                                         <button 
-                                            key={suggestion}
-                                            onClick={() => setInput(suggestion)}
-                                            className="px-6 py-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:border-indigo-500 hover:text-indigo-500 transition-all shadow-sm"
+                                            key={suggestion.label}
+                                            onClick={() => setInput(suggestion.label)}
+                                            className="group px-8 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-indigo-500 hover:text-indigo-500 transition-all shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 flex items-center gap-3"
                                         >
-                                            {suggestion}
+                                            <suggestion.icon className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
+                                            {suggestion.label}
                                         </button>
                                     ))}
                                 </div>
@@ -401,61 +398,63 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                         ) : (
                             messages.map((m) => (
                                 <div key={m.id} className={cn(
-                                    "flex gap-6 max-w-5xl mx-auto group animate-in fade-in slide-in-from-bottom-4 duration-500",
+                                    "flex gap-8 max-w-5xl mx-auto group animate-in fade-in slide-in-from-bottom-8 duration-700",
                                     m.role === "user" ? "flex-row-reverse" : "flex-row"
                                 )}>
                                     <div className={cn(
-                                        "w-12 h-12 rounded-2xl flex-shrink-0 flex items-center justify-center shadow-2xl transition-transform duration-500 group-hover:scale-110",
+                                        "w-14 h-14 rounded-2xl flex-shrink-0 flex items-center justify-center shadow-2xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3",
                                         m.role === "user" 
-                                            ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400" 
-                                            : "bg-indigo-600 text-white shadow-indigo-500/20"
+                                            ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700" 
+                                            : "bg-indigo-600 text-white shadow-indigo-500/30 neural-glow"
                                     )}>
-                                        {m.role === "user" ? <User className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
+                                        {m.role === "user" ? <User className="w-7 h-7" /> : <Sparkles className="w-7 h-7 floating" />}
                                     </div>
                                     <div className={cn(
-                                        "flex flex-col gap-3",
-                                        m.role === "user" ? "items-end max-w-[80%]" : "items-start max-w-[85%]"
+                                        "flex flex-col gap-4",
+                                        m.role === "user" ? "items-end max-w-[75%]" : "items-start max-w-[85%]"
                                     )}>
                                         <div className={cn(
-                                            "p-8 rounded-[2.5rem] text-sm font-medium leading-relaxed shadow-sm border transition-all duration-300",
+                                            "p-10 rounded-[2.5rem] text-[15px] font-medium leading-relaxed shadow-sm border transition-all duration-500 relative group/bubble",
                                             m.role === "user" 
                                                 ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-tr-none" 
-                                                : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white rounded-tl-none group-hover:shadow-xl group-hover:shadow-indigo-500/5 group-hover:border-indigo-500/20"
+                                                : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white rounded-tl-none group-hover:shadow-2xl group-hover:shadow-indigo-500/10 group-hover:border-indigo-500/30"
                                         )}>
                                             {m.content === "thinking..." ? (
-                                                <div className="flex items-center gap-2 py-1">
-                                                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                                    <div className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce" />
-                                                    <span className="text-xs font-black uppercase tracking-widest text-slate-400 ml-2">Nova is thinking...</span>
+                                                <div className="flex items-center gap-3 py-2">
+                                                    <div className="flex gap-1.5">
+                                                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" />
+                                                    </div>
+                                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500/60 ml-4">Neural Synthesis In Progress</span>
                                                 </div>
                                             ) : (
-                                                <div className="prose dark:prose-invert prose-sm max-w-none prose-headings:font-black prose-headings:tracking-tighter prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:p-0 prose-pre:rounded-2xl">
+                                                <div className="prose dark:prose-invert prose-sm max-w-none prose-headings:font-black prose-headings:tracking-tighter prose-headings:uppercase prose-headings:text-[11px] prose-headings:tracking-[0.2em] prose-headings:text-slate-400 prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:p-0 prose-pre:rounded-3xl prose-pre:border prose-pre:border-white/5">
                                                     <ReactMarkdown 
                                                         remarkPlugins={[remarkGfm]}
                                                         components={{
                                                             table: ({ children }) => (
-                                                                <div className="my-6 overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-                                                                    <table className="w-full border-collapse bg-white dark:bg-slate-900 text-left text-sm text-slate-500 dark:text-slate-400">
+                                                                <div className="my-8 overflow-hidden rounded-3xl border border-slate-200/60 dark:border-slate-800/60 shadow-2xl shadow-slate-200/20 dark:shadow-none">
+                                                                    <table className="w-full border-collapse bg-white dark:bg-slate-950 text-left text-sm">
                                                                         {children}
                                                                     </table>
                                                                 </div>
                                                             ),
-                                                            thead: ({ children }) => <thead className="bg-slate-50 dark:bg-slate-800/50">{children}</thead>,
-                                                            th: ({ children }) => <th className="px-6 py-4 font-black uppercase tracking-widest text-[10px] text-slate-900 dark:text-white">{children}</th>,
-                                                            td: ({ children }) => <td className="px-6 py-4 border-t border-slate-100 dark:border-slate-800">{children}</td>,
+                                                            thead: ({ children }) => <thead className="bg-slate-50 dark:bg-slate-900/50">{children}</thead>,
+                                                            th: ({ children }) => <th className="px-8 py-5 font-black uppercase tracking-[0.2em] text-[10px] text-slate-500">{children}</th>,
+                                                            td: ({ children }) => <td className="px-8 py-5 border-t border-slate-100 dark:border-slate-900 text-slate-600 dark:text-slate-400 font-bold">{children}</td>,
                                                             code: ({ node, inline, className, children, ...props }: any) => {
                                                                 const match = /language-(\w+)/.exec(className || "");
                                                                 return !inline && match ? (
-                                                                    <div className="relative group/code my-6">
-                                                                        <div className="absolute right-4 top-4 opacity-0 group-hover/code:opacity-100 transition-opacity z-10">
+                                                                    <div className="relative group/code my-8">
+                                                                        <div className="absolute right-6 top-6 opacity-0 group-hover/code:opacity-100 transition-all duration-500 z-10 translate-y-2 group-hover/code:translate-y-0">
                                                                             <Button 
                                                                                 variant="secondary" 
                                                                                 size="icon" 
-                                                                                className="h-8 w-8 rounded-lg bg-white/10 hover:bg-white/20 backdrop-blur-md text-white border-white/10"
+                                                                                className="h-10 w-10 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-xl text-white border border-white/10 shadow-2xl"
                                                                                 onClick={() => {
                                                                                     navigator.clipboard.writeText(String(children).replace(/\n$/, ""));
-                                                                                    toast.success("Code copied!");
+                                                                                    toast.success("Intelligence Copied");
                                                                                 }}
                                                                             >
                                                                                 <Copy className="h-4 w-4" />
@@ -465,14 +464,14 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                                                             style={syntaxStyle}
                                                                             language={match[1]}
                                                                             PreTag="div"
-                                                                            className="rounded-2xl !bg-slate-950 !p-6 !m-0 border border-white/5 shadow-2xl"
+                                                                            className="rounded-3xl !bg-slate-950 !p-8 !m-0 border border-white/5 shadow-2xl font-mono text-[13px] leading-relaxed"
                                                                             {...props}
                                                                         >
                                                                             {String(children).replace(/\n$/, "")}
                                                                         </SyntaxHighlighter>
                                                                     </div>
                                                                 ) : (
-                                                                    <code className="bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded-md font-bold text-indigo-600 dark:text-indigo-400" {...props}>
+                                                                    <code className="bg-indigo-500/10 dark:bg-indigo-500/20 px-2 py-0.5 rounded-lg font-black text-indigo-600 dark:text-indigo-400 text-[12px]" {...props}>
                                                                         {children}
                                                                     </code>
                                                                 )
@@ -485,45 +484,27 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                             )}
 
                                             {m.role === "assistant" && m.content.length > 50 && (
-                                                <div className="mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        onClick={() => convertToTask(m.content)}
-                                                        className="h-9 px-4 rounded-xl border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest hover:border-emerald-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-500/10 transition-all flex items-center gap-2"
-                                                    >
-                                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                                        Convert to Task
-                                                    </Button>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        onClick={() => setInput(`/breakdown ${m.content.substring(0, 100)}...`)}
-                                                        className="h-9 px-4 rounded-xl border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest hover:border-blue-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-500/10 transition-all flex items-center gap-2"
-                                                    >
-                                                        <ListTodo className="w-3.5 h-3.5" />
-                                                        Breakdown
-                                                    </Button>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        onClick={() => setInput(`Estimate time for: ${m.content.substring(0, 100)}...`)}
-                                                        className="h-9 px-4 rounded-xl border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest hover:border-amber-500 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-all flex items-center gap-2"
-                                                    >
-                                                        <RefreshCw className="w-3.5 h-3.5" />
-                                                        Estimate
-                                                    </Button>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        onClick={() => {
-                                                            setInput(`/share Save and share this conversation with the workspace.`);
-                                                        }}
-                                                        className="h-9 px-4 rounded-xl border-slate-200 dark:border-slate-700 text-[10px] font-black uppercase tracking-widest hover:border-purple-500 hover:text-purple-500 hover:bg-purple-50 dark:hover:bg-purple-500/10 transition-all flex items-center gap-2"
-                                                    >
-                                                        <Send className="w-3.5 h-3.5" />
-                                                        Share Thread
-                                                    </Button>
+                                                <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800/60 flex flex-wrap gap-3 opacity-0 group-hover/bubble:opacity-100 transition-all duration-500 translate-y-2 group-hover/bubble:translate-y-0">
+                                                    {[
+                                                        { label: "Task", icon: CheckCircle2, color: "emerald", action: () => convertToTask(m.content) },
+                                                        { label: "Deconstruct", icon: ListTodo, color: "blue", action: () => setInput(`/breakdown ${m.content.substring(0, 100)}...`) },
+                                                        { label: "Estimate", icon: RefreshCw, color: "amber", action: () => setInput(`Estimate time for: ${m.content.substring(0, 100)}...`) },
+                                                        { label: "Broadcast", icon: Send, color: "purple", action: () => setInput(`/share Thread synthesis for workspace.`) },
+                                                    ].map((tool) => (
+                                                        <Button 
+                                                            key={tool.label}
+                                                            variant="outline" 
+                                                            size="sm" 
+                                                            onClick={tool.action}
+                                                            className={cn(
+                                                                "h-10 px-5 rounded-2xl border-slate-200 dark:border-slate-800 text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500 flex items-center gap-2.5",
+                                                                `hover:border-${tool.color}-500 hover:text-${tool.color}-500 hover:bg-${tool.color}-500/5`
+                                                            )}
+                                                        >
+                                                            <tool.icon className="w-3.5 h-3.5" />
+                                                            {tool.label}
+                                                        </Button>
+                                                    ))}
                                                 </div>
                                             )}
                                         </div>
@@ -532,109 +513,108 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                             ))
                         )}
                         {isLoading && messages[messages.length-1]?.role !== "assistant" && (
-                            <div className="flex gap-6 max-w-5xl mx-auto animate-pulse">
-                                <div className="w-12 h-12 rounded-2xl bg-indigo-600 text-white flex items-center justify-center shadow-lg shadow-indigo-500/20">
-                                    <Loader2 className="w-6 h-6 animate-spin" />
+                            <div className="flex gap-8 max-w-5xl mx-auto animate-pulse">
+                                <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 text-white flex items-center justify-center border border-indigo-500/20">
+                                    <Loader2 className="w-7 h-7 animate-spin text-indigo-500" />
                                 </div>
-                                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-8 rounded-[2.5rem] rounded-tl-none flex items-center gap-3">
+                                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-10 rounded-[2.5rem] rounded-tl-none flex items-center gap-3">
                                     <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
                                     <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
                                     <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" />
                                 </div>
                             </div>
                         )}
-                        <div className="h-40 flex-shrink-0" /> {/* Spacer for input box */}
+                        <div className="h-48 flex-shrink-0" />
                     </div>
 
-                    <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-slate-50 dark:from-slate-950 via-slate-50/90 dark:via-slate-950/90 to-transparent z-30">
-                        <div className="max-w-4xl mx-auto flex flex-col gap-4">
+                    <div className="absolute bottom-0 left-0 right-0 p-10 bg-gradient-to-t from-slate-50 dark:from-slate-950 via-slate-50/95 dark:via-slate-950/95 to-transparent z-50">
+                        <div className="max-w-4xl mx-auto flex flex-col gap-6">
                             <div className="relative group">
-                                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-[2.2rem] blur opacity-10 group-focus-within:opacity-30 transition-opacity duration-500" />
-                                <textarea 
-                                    value={input}
-                                    onChange={(e) => setInput(e.target.value)}
-                                    onKeyDown={(e) => {
-                                        if (e.key === "Enter" && !e.shiftKey) {
-                                            e.preventDefault();
-                                            handleSend();
-                                        }
-                                    }}
-                                    placeholder="Ask Nova to build something brilliant..."
-                                    rows={1}
-                                    className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] px-10 py-6 pr-20 text-base font-medium focus:outline-none focus:ring-0 focus:border-indigo-500 transition-all resize-none overflow-hidden min-h-[72px] relative z-10 shadow-2xl shadow-slate-200/50 dark:shadow-none placeholder:text-slate-400 placeholder:font-bold"
-                                />
-                                <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20">
-                                    <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
-                                        <Paperclip className="w-5 h-5" />
+                                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 rounded-[2.5rem] blur-2xl opacity-10 group-focus-within:opacity-30 transition-opacity duration-1000 animate-pulse" />
+                                <div className="relative z-10">
+                                    <textarea 
+                                        value={input}
+                                        onChange={(e) => setInput(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" && !e.shiftKey) {
+                                                e.preventDefault();
+                                                handleSend();
+                                            }
+                                        }}
+                                        placeholder="Architect your next brilliant move..."
+                                        rows={1}
+                                        className="w-full bg-white dark:bg-slate-900/80 border-2 border-slate-200 dark:border-slate-800 rounded-[2.2rem] px-12 py-8 pr-24 text-base font-bold focus:outline-none focus:ring-0 focus:border-indigo-500/50 transition-all resize-none overflow-hidden min-h-[84px] shadow-2xl shadow-indigo-500/5 dark:shadow-none placeholder:text-slate-400 placeholder:font-black placeholder:uppercase placeholder:tracking-[0.2em] placeholder:text-[10px] backdrop-blur-xl"
+                                    />
+                                    <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20">
+                                        <Button size="icon" variant="ghost" className="h-12 w-12 rounded-2xl text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/5 transition-all">
+                                            <Paperclip className="w-5 h-5" />
+                                        </Button>
+                                    </div>
+                                    <Button 
+                                        onClick={handleSend}
+                                        disabled={!input.trim() || isLoading}
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-14 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-500/40 transition-all active:scale-90 flex items-center justify-center group overflow-hidden"
+                                    >
+                                        <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+                                        {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-500" />}
                                     </Button>
                                 </div>
-                                <Button 
-                                    onClick={handleSend}
-                                    disabled={!input.trim() || isLoading}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/30 transition-all active:scale-95 flex items-center justify-center group"
-                                >
-                                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />}
-                                </Button>
                             </div>
                             
-                            <div className="flex items-center justify-between px-6">
-                                <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                                    <div className="flex items-center gap-1.5 hover:text-indigo-500 cursor-pointer transition-colors">
-                                        <Sparkles className="w-3 h-3" />
-                                        GPT-4o Vision
+                            <div className="flex items-center justify-between px-10">
+                                <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
+                                    <div className="flex items-center gap-2.5 hover:text-indigo-500 cursor-pointer transition-all duration-500 hover:scale-105 group">
+                                        <Sparkles className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
+                                        Nova GPT-4o
                                     </div>
-                                    <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-                                    <div className="flex items-center gap-1.5 hover:text-indigo-500 cursor-pointer transition-colors">
-                                        <CheckCircle2 className="w-3 h-3" />
-                                        Task OS Engine
+                                    <span className="w-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800" />
+                                    <div className="flex items-center gap-2.5 hover:text-indigo-500 cursor-pointer transition-all duration-500 hover:scale-105 group">
+                                        <CheckCircle2 className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
+                                        Task Engine V2
                                     </div>
                                 </div>
-                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 opacity-60">
-                                    Shift + Enter for new line
-                                </p>
+                                <div className="flex items-center gap-3 opacity-40 hover:opacity-100 transition-opacity duration-500">
+                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Command Palette</span>
+                                    <div className="flex items-center gap-1">
+                                        <kbd className="px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-500 font-bold text-[9px]">CMD</kbd>
+                                        <kbd className="px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-500 font-bold text-[9px]">K</kbd>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </TabsContent>
 
                 {["tasks", "docs", "sprint", "reports", "analytics", "automations"].map(tab => (
-                    <TabsContent key={tab} value={tab} className="flex-1 flex flex-col items-center justify-center text-center p-8 m-0 data-[state=active]:flex">
-                        <div className="max-w-md space-y-6">
-                            <div className="w-20 h-20 rounded-[2rem] bg-slate-100 dark:bg-slate-900 flex items-center justify-center mx-auto border-2 border-dashed border-slate-200 dark:border-slate-800">
-                                {tab === "sprint" ? <SprintIcon className="w-10 h-10 text-indigo-500" /> : <Sparkles className="w-10 h-10 text-slate-300 dark:text-slate-700" />}
+                    <TabsContent key={tab} value={tab} className="flex-1 flex flex-col items-center justify-center text-center p-12 m-0 data-[state=active]:flex relative overflow-hidden">
+                        <div className="absolute inset-0 bg-indigo-500/5 blur-[120px] opacity-20 pointer-events-none" />
+                        <div className="max-w-xl space-y-10 relative z-10">
+                            <div className="w-28 h-28 rounded-[3rem] bg-white dark:bg-slate-900 flex items-center justify-center mx-auto border border-slate-200 dark:border-slate-800 shadow-2xl relative group">
+                                <div className="absolute inset-0 bg-indigo-500 blur-2xl opacity-10 group-hover:opacity-20 transition-opacity" />
+                                {tab === "sprint" ? <SprintIcon className="w-14 h-14 text-indigo-500 floating" /> : <Sparkles className="w-14 h-14 text-slate-200 dark:text-slate-800 floating" />}
                             </div>
-                            <h3 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Nova {tab.charAt(0).toUpperCase() + tab.slice(1)} Mode</h3>
-                            <p className="text-sm font-medium text-slate-500 leading-relaxed">
-                                {tab === "sprint" 
-                                    ? "Generate deep-dive reports, velocity charts, and bottleneck analysis for your current sprint."
-                                    : `Nova is currently calibrating her intelligence for ${tab} mode.`
-                                }
-                            </p>
-                            <div className="flex flex-col gap-2">
-                                {tab === "sprint" && (
-                                    <Button 
-                                        onClick={() => {
-                                            setActiveTab("chat");
-                                            setInput("/report Generate a comprehensive status report for the current sprint.");
-                                        }}
-                                        className="rounded-xl font-black uppercase tracking-widest text-[10px] bg-indigo-600 hover:bg-indigo-700 text-white h-12"
-                                    >
-                                        Generate Neural Report
-                                    </Button>
-                                )}
-                                {tab === "automations" && (
-                                    <Button 
-                                        onClick={() => {
-                                            setActiveTab("chat");
-                                            setInput("Create an automation that...");
-                                        }}
-                                        className="rounded-xl font-black uppercase tracking-widest text-[10px] bg-purple-600 hover:bg-purple-700 text-white h-12"
-                                    >
-                                        Architect Automation
-                                    </Button>
-                                )}
-                                <Button variant="outline" onClick={() => setActiveTab("chat")} className="rounded-xl font-black uppercase tracking-widest text-[10px] h-12">
-                                    Back to Neural Chat
+                            <div className="space-y-4">
+                                <h3 className="text-4xl font-black text-slate-900 dark:text-white uppercase tracking-tighter">Nova {tab} Core</h3>
+                                <p className="text-lg font-medium text-slate-500 leading-relaxed max-w-sm mx-auto opacity-80">
+                                    {tab === "sprint" 
+                                        ? "Generate high-fidelity velocity reports and bottleneck diagnostics for active cycles."
+                                        : `Nova is currently synthesizing the intelligence modules for ${tab} mode.`
+                                    }
+                                </p>
+                            </div>
+                            <div className="flex flex-col gap-3">
+                                <Button 
+                                    onClick={() => {
+                                        setActiveTab("chat");
+                                        const prompt = tab === "sprint" ? "/report Generate sprint diagnostics" : `/activate ${tab} module`;
+                                        setInput(prompt);
+                                    }}
+                                    className="h-16 rounded-2xl font-black uppercase tracking-[0.2em] text-[11px] bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-500/30 transition-all hover:scale-105 active:scale-95"
+                                >
+                                    Activate Intelligence
+                                </Button>
+                                <Button variant="ghost" onClick={() => setActiveTab("chat")} className="h-14 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] text-slate-400 hover:text-indigo-500 transition-all">
+                                    Return to Neural Mainframe
                                 </Button>
                             </div>
                         </div>

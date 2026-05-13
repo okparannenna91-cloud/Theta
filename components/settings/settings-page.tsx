@@ -109,290 +109,313 @@ export default function SettingsPage() {
   if (!mounted) return null;
 
   return (
-    <MotionWrapper className="p-4 sm:p-10 lg:p-12 max-w-5xl mx-auto relative">
-      <div className="absolute top-0 right-0 -z-10 w-[600px] h-[600px] bg-primary/5 blur-[120px] rounded-full pointer-events-none" />
+    <div className="min-h-screen bg-white dark:bg-slate-950 relative selection:bg-indigo-500/30 overflow-x-hidden">
+      {/* Neural Mesh Background */}
+      <div className="absolute top-0 right-0 -z-10 w-[800px] h-[800px] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none animate-pulse" />
+      <div className="absolute bottom-0 left-0 -z-10 w-[600px] h-[600px] bg-purple-600/5 blur-[100px] rounded-full pointer-events-none" />
 
-      <div className="mb-10 lg:mb-12">
-        <h1 className="text-4xl sm:text-5xl font-black tracking-tight mb-3 text-gradient">Settings</h1>
-        <p className="text-lg text-muted-foreground font-medium max-w-2xl">
-          Personalize your Theta experience and manage your security settings.
-        </p>
-      </div>
+      <MotionWrapper className="p-8 sm:p-12 lg:p-20 max-w-6xl mx-auto relative z-10">
+        <div className="mb-20">
+          <h1 className="text-6xl sm:text-7xl font-black tracking-tighter mb-6 uppercase leading-none">
+            Interface <span className="text-indigo-600">Config</span>
+          </h1>
+          <div className="flex items-center gap-4">
+            <div className="h-1 w-20 bg-indigo-600 rounded-full" />
+            <p className="text-xs font-black text-slate-400 uppercase tracking-[0.4em]">
+              Personalize your Neural experience and calibrate system parameters.
+            </p>
+          </div>
+        </div>
 
-      <div className="space-y-12 pb-20">
-        {/* Appearance Section */}
-        <FadeIn delay={0.1}>
-          <section className="space-y-6">
-            <div className="flex items-center gap-3 px-1">
-              <div className="p-2 bg-primary/10 rounded-xl">
-                <Palette className="h-6 w-6 text-primary" />
+        <div className="space-y-24 pb-40">
+          {/* Appearance Section */}
+          <FadeIn delay={0.1}>
+            <section className="space-y-10">
+              <div className="flex items-center gap-6 px-1">
+                <div className="h-14 w-14 rounded-2xl bg-indigo-600/5 flex items-center justify-center border border-indigo-500/10 shadow-2xl shadow-indigo-500/10">
+                  <Palette className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black uppercase tracking-tighter">Visual Synthesis</h2>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Calibrate interface aesthetics</p>
+                </div>
               </div>
-              <h2 className="text-2xl font-black tracking-tight">Appearance</h2>
-            </div>
-            <Card className="glass-card border-none overflow-hidden">
-              <CardHeader className="pb-8">
-                <CardTitle className="text-xl font-black tracking-tight">Interface Theme</CardTitle>
-                <CardDescription className="font-medium text-sm">
-                  Choose your favorite theme for the application.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-10">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                  {[
-                    { id: "light", icon: Sun, label: "Light" },
-                    { id: "dark", icon: Moon, label: "Dark" },
-                    { id: "system", icon: Laptop, label: "System" },
-                  ].map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => handleThemeChange(t.id)}
-                      className={`relative flex flex-col items-center gap-4 p-8 rounded-3xl border-2 transition-all duration-500 group ${theme === t.id
-                        ? "border-primary bg-primary/5 shadow-2xl shadow-primary/10"
-                        : "border-secondary hover:border-primary/30 hover:bg-white/40 dark:hover:bg-slate-800/40"
-                        }`}
-                    >
-                      {theme === t.id && (
-                        <motion.div
-                          layoutId="theme-active"
-                          className="absolute top-3 right-3 h-6 w-6 rounded-full bg-primary flex items-center justify-center shadow-lg"
-                        >
-                          <Check className="h-3.5 w-3.5 text-white stroke-[3px]" />
-                        </motion.div>
-                      )}
-                      <t.icon className={`h-8 w-8 transition-transform duration-500 group-hover:scale-110 ${theme === t.id ? "text-primary" : "text-muted-foreground"}`} />
-                      <span className={`text-xs font-black uppercase tracking-[0.2em] ${theme === t.id ? "text-primary" : "text-muted-foreground"}`}>
-                        {t.label}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex items-center justify-between p-6 glass rounded-2xl border-white/10">
-                  <div className="space-y-1">
-                    <Label className="text-lg font-black tracking-tight">Compact Mode</Label>
-                    <p className="text-sm text-muted-foreground font-medium">Show more information on your screen at once.</p>
+              
+              <div className="glass-card border-none rounded-[3rem] overflow-hidden bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl p-10 sm:p-12">
+                <div className="space-y-12">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-8">
+                    {[
+                      { id: "light", icon: Sun, label: "Photon (Light)" },
+                      { id: "dark", icon: Moon, label: "Umbra (Dark)" },
+                      { id: "system", icon: Laptop, label: "Sync (System)" },
+                    ].map((t) => (
+                      <button
+                        key={t.id}
+                        onClick={() => handleThemeChange(t.id)}
+                        className={`relative flex flex-col items-center gap-6 p-12 rounded-[2.5rem] border-2 transition-all duration-700 group ${theme === t.id
+                          ? "border-indigo-600 bg-white dark:bg-slate-900 shadow-[0_20px_50px_rgba(79,70,229,0.15)] scale-105"
+                          : "border-indigo-500/5 hover:border-indigo-600/30 bg-white/40 dark:bg-slate-900/40"
+                          }`}
+                      >
+                        {theme === t.id && (
+                          <motion.div
+                            layoutId="theme-active"
+                            className="absolute top-4 right-4 h-8 w-8 rounded-full bg-indigo-600 flex items-center justify-center shadow-2xl neural-glow"
+                          >
+                            <Check className="h-4 w-4 text-white stroke-[3px]" />
+                          </motion.div>
+                        )}
+                        <t.icon className={`h-10 w-10 transition-all duration-700 group-hover:scale-125 ${theme === t.id ? "text-indigo-600" : "text-slate-400"}`} />
+                        <span className={`text-[10px] font-black uppercase tracking-[0.3em] ${theme === t.id ? "text-indigo-600" : "text-slate-400"}`}>
+                          {t.label}
+                        </span>
+                      </button>
+                    ))}
                   </div>
-                   <Switch
-                    checked={compactMode}
-                    onCheckedChange={(val) => {
-                       setCompactMode(val);
-                       handlePreferenceChange("compactMode", val);
-                    }}
-                    className="data-[state=checked]:bg-primary"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-        </FadeIn>
 
-        {/* Notifications Section */}
-        <FadeIn delay={0.2}>
-          <section className="space-y-6">
-            <div className="flex items-center gap-3 px-1">
-              <div className="p-2 bg-amber-500/10 rounded-xl">
-                <Bell className="h-6 w-6 text-amber-500" />
+                  <div className="flex items-center justify-between p-10 bg-white/40 dark:bg-slate-900/40 rounded-[2.5rem] border border-indigo-500/5 transition-all hover:bg-white/60 dark:hover:bg-slate-900/60 shadow-sm">
+                    <div className="space-y-2">
+                      <Label className="text-xl font-black uppercase tracking-tighter">Information Density</Label>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-md">Activate High-Precision compact mode for professional workflows.</p>
+                    </div>
+                     <Switch
+                      checked={compactMode}
+                      onCheckedChange={(val) => {
+                         setCompactMode(val);
+                         handlePreferenceChange("compactMode", val);
+                      }}
+                      className="h-8 w-14 data-[state=checked]:bg-indigo-600"
+                    />
+                  </div>
+                </div>
               </div>
-              <h2 className="text-2xl font-black tracking-tight">Notifications</h2>
-            </div>
-            <Card className="glass-card border-none">
-              <CardContent className="p-0">
-                <div className="flex items-center justify-between p-8">
-                  <div className="space-y-1">
-                    <Label className="text-lg font-black tracking-tight">Email Notifications</Label>
-                    <p className="text-sm text-muted-foreground font-medium">Receive high-priority updates about project milestones.</p>
-                  </div>
-                   <Switch
-                    checked={emailNotifications}
-                    onCheckedChange={(val) => {
-                        setEmailNotifications(val);
-                        handlePreferenceChange("emailNotifications", val);
-                    }}
-                    className="data-[state=checked]:bg-primary"
-                  />
-                </div>
-                <div className="flex items-center justify-between p-8 border-t border-white/5 bg-white/10 dark:bg-slate-900/10">
-                  <div className="space-y-1">
-                    <Label className="text-lg font-black tracking-tight">Desktop Push Notifications</Label>
-                    <p className="text-sm text-muted-foreground font-medium">Get instant alerts directly on your computer.</p>
-                  </div>
-                   <Switch
-                    checked={pushNotifications}
-                    onCheckedChange={(val) => {
-                        setPushNotifications(val);
-                        handlePreferenceChange("pushNotifications", val);
-                    }}
-                    className="data-[state=checked]:bg-primary"
-                  />
-                </div>
-              </CardContent>
-            </Card>
-          </section>
-        </FadeIn>
+            </section>
+          </FadeIn>
 
-        {/* Account & Security Section */}
-        <FadeIn delay={0.3}>
-          <section className="space-y-6">
-            <div className="flex items-center gap-3 px-1">
-              <div className="p-2 bg-emerald-500/10 rounded-xl">
-                <Shield className="h-6 w-6 text-emerald-500" />
+          {/* Notifications Section */}
+          <FadeIn delay={0.2}>
+            <section className="space-y-10">
+              <div className="flex items-center gap-6 px-1">
+                <div className="h-14 w-14 rounded-2xl bg-amber-500/5 flex items-center justify-center border border-amber-500/10 shadow-2xl shadow-amber-500/10">
+                  <Bell className="h-6 w-6 text-amber-500" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black uppercase tracking-tighter">Transmission Protocol</h2>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Configure signal distribution</p>
+                </div>
               </div>
-              <h2 className="text-2xl font-black tracking-tight">Account & Security</h2>
-            </div>
-            <Card className="glass-card border-none">
-              <CardContent className="p-8 space-y-8">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                  <div className="space-y-2">
-                    <Label className="text-lg font-black tracking-tight">Two-Factor Authentication</Label>
-                    <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-600 font-black uppercase tracking-widest text-[9px] border-none ml-2">
-                      Secured High
-                    </Badge>
-                    <p className="text-sm text-muted-foreground font-medium">Extra security for your account with secondary validation.</p>
+              
+              <div className="glass-card border-none rounded-[3rem] overflow-hidden bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl">
+                <div className="flex flex-col">
+                  <div className="flex items-center justify-between p-12 hover:bg-white/40 dark:hover:bg-slate-900/40 transition-all duration-500">
+                    <div className="space-y-2">
+                      <Label className="text-xl font-black uppercase tracking-tighter">Neural Stream Alerts</Label>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-md">Receive high-priority updates directly to your neural link (Email).</p>
+                    </div>
+                     <Switch
+                      checked={emailNotifications}
+                      onCheckedChange={(val) => {
+                          setEmailNotifications(val);
+                          handlePreferenceChange("emailNotifications", val);
+                      }}
+                      className="h-8 w-14 data-[state=checked]:bg-indigo-600"
+                    />
+                  </div>
+                  <div className="flex items-center justify-between p-12 border-t border-indigo-500/5 bg-indigo-500/[0.02] hover:bg-white/40 dark:hover:bg-slate-900/40 transition-all duration-500">
+                    <div className="space-y-2">
+                      <Label className="text-xl font-black uppercase tracking-tighter">Direct Node Pings</Label>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-md">Get instant desktop alerts for real-time synchronization updates.</p>
+                    </div>
+                     <Switch
+                      checked={pushNotifications}
+                      onCheckedChange={(val) => {
+                          setPushNotifications(val);
+                          handlePreferenceChange("pushNotifications", val);
+                      }}
+                      className="h-8 w-14 data-[state=checked]:bg-indigo-600"
+                    />
+                  </div>
+                </div>
+              </div>
+            </section>
+          </FadeIn>
+
+          {/* Account & Security Section */}
+          <FadeIn delay={0.3}>
+            <section className="space-y-10">
+              <div className="flex items-center gap-6 px-1">
+                <div className="h-14 w-14 rounded-2xl bg-emerald-500/5 flex items-center justify-center border border-emerald-500/10 shadow-2xl shadow-emerald-500/10">
+                  <Shield className="h-6 w-6 text-emerald-500" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black uppercase tracking-tighter">Identity Encryption</h2>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">Secure your neural credentials</p>
+                </div>
+              </div>
+
+              <div className="glass-card border-none rounded-[3rem] bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl p-12 space-y-12">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+                  <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                      <Label className="text-2xl font-black uppercase tracking-tighter">Biometric Authentication</Label>
+                      <Badge variant="secondary" className="bg-emerald-500 text-white font-black uppercase tracking-widest text-[8px] border-none px-3 py-1 shadow-lg shadow-emerald-500/20">
+                        SECURED ALPHA
+                      </Badge>
+                    </div>
+                    <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-xl">Advanced 2FA encryption layer for high-security node access control.</p>
                   </div>
                    <Button 
                     variant="outline" 
-                    className="rounded-xl border-primary/20 text-primary font-black uppercase tracking-widest text-xs h-11 px-8 hover:bg-primary hover:text-white transition-all duration-300"
+                    className="h-16 px-10 rounded-2xl border-indigo-600/20 text-indigo-600 font-black uppercase tracking-[0.2em] text-[10px] hover:bg-indigo-600 hover:text-white transition-all duration-500 active:scale-95 shadow-xl shadow-indigo-600/5"
                     onClick={() => window.location.href = "/profile"}
                   >
-                    Manage Security
+                    Calibrate Security
                   </Button>
                 </div>
 
-                <div className="pt-8 border-t border-white/5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                    <div className="space-y-1">
-                      <Label className="text-lg font-black tracking-tight">Legal Info</Label>
-                      <p className="text-sm text-muted-foreground font-medium">Review our privacy standards and platform terms.</p>
+                <div className="pt-12 border-t border-indigo-500/5">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+                    <div className="space-y-2">
+                      <Label className="text-xl font-black uppercase tracking-tighter">Protocol Archives</Label>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed">Review our synchronization standards and platform operational terms.</p>
                     </div>
-                    <div className="flex gap-4">
+                    <div className="flex gap-6">
                        <Button 
                         variant="ghost" 
-                        className="rounded-xl font-black uppercase tracking-widest text-[10px] h-10 px-4 hover:bg-primary/10 hover:text-primary transition-all"
+                        className="h-14 px-8 rounded-2xl font-black uppercase tracking-[0.2em] text-[9px] hover:bg-indigo-600/5 hover:text-indigo-600 transition-all"
                         onClick={() => window.open("/privacy", "_blank")}
                       >
-                        Privacy
+                        Privacy Shield
                       </Button>
                       <Button 
                         variant="ghost" 
-                        className="rounded-xl font-black uppercase tracking-widest text-[10px] h-10 px-4 hover:bg-primary/10 hover:text-primary transition-all"
+                        className="h-14 px-8 rounded-2xl font-black uppercase tracking-[0.2em] text-[9px] hover:bg-indigo-600/5 hover:text-indigo-600 transition-all"
                         onClick={() => window.open("/terms", "_blank")}
                       >
-                        Terms
+                        Terms of Service
                       </Button>
                     </div>
                   </div>
                 </div>
 
-                <div className="p-8 bg-rose-500/5 dark:bg-rose-500/10 rounded-3xl border border-rose-500/20">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6">
-                    <div className="space-y-1 text-foreground">
-                      <Label className="text-lg font-black tracking-tight text-rose-500">Danger Zone</Label>
-                      <p className="text-sm text-muted-foreground font-medium">Irreversible removal of all your data and access info.</p>
+                <div className="p-12 bg-rose-500/5 dark:bg-rose-500/10 rounded-[3rem] border border-rose-500/20 group hover:bg-rose-500/[0.07] transition-all duration-700">
+                  <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-10">
+                    <div className="space-y-4">
+                      <Label className="text-2xl font-black uppercase tracking-tighter text-rose-500">Purge Directive</Label>
+                      <p className="text-xs text-slate-400 font-bold uppercase tracking-widest leading-relaxed max-w-xl">Initiate immediate and irreversible removal of all neural nodes and synchronization data.</p>
                     </div>
                      <Button 
                       variant="destructive" 
-                      className="rounded-xl font-black uppercase tracking-widest text-xs h-11 px-8 shadow-lg shadow-rose-500/20"
+                      className="h-16 px-12 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl shadow-rose-500/20 active:scale-95 transition-all"
                       onClick={handleDeleteAccount}
                     >
-                      Delete Account
+                      Initialize Purge
                     </Button>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </section>
-        </FadeIn>
-
-        {/* Integrations Section */}
-        <FadeIn delay={0.4}>
-          <section className="space-y-6">
-            <div className="flex items-center gap-3 px-1">
-              <div className="p-2 bg-blue-500/10 rounded-xl">
-                <ExternalLink className="h-6 w-6 text-blue-500" />
               </div>
-              <h2 className="text-2xl font-black tracking-tight">Integrations</h2>
-            </div>
+            </section>
+          </FadeIn>
 
-            <IntegrationDashboard />
-          </section>
-        </FadeIn>
-
-        {/* Enterprise & API Section */}
-        <FadeIn delay={0.5}>
-          <section className="space-y-6">
-            <div className="flex items-center gap-3 px-1">
-              <div className="p-2 bg-indigo-500/10 rounded-xl">
-                <Code className="h-6 w-6 text-indigo-500" />
+          {/* Integrations Section */}
+          <FadeIn delay={0.4}>
+            <section className="space-y-10">
+              <div className="flex items-center gap-6 px-1">
+                <div className="h-14 w-14 rounded-2xl bg-indigo-600/5 flex items-center justify-center border border-indigo-500/10 shadow-2xl shadow-indigo-500/10">
+                  <ExternalLink className="h-6 w-6 text-indigo-600" />
+                </div>
+                <div>
+                  <h2 className="text-3xl font-black uppercase tracking-tighter">Node Bridges</h2>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">External synchronization links</p>
+                </div>
               </div>
-              <div className="flex items-center gap-3">
-                <h2 className="text-2xl font-black tracking-tight">Enterprise & API</h2>
-                <Badge variant="outline" className="bg-indigo-500/10 text-indigo-600 font-bold border-none text-[9px] px-2 py-0.5">
-                   Admin Only
-                </Badge>
-              </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* White Labeling */}
-              <Card className="glass-card border-none hover:shadow-xl transition-all duration-500 group overflow-hidden">
-                <CardHeader className="pb-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 bg-purple-500/10 rounded-xl">
-                      <Globe className="h-5 w-5 text-purple-500" />
-                    </div>
-                    {["free", "growth", "pro"].includes(currentPlan) && <Lock className="h-4 w-4 text-muted-foreground/50" />}
+              <IntegrationDashboard />
+            </section>
+          </FadeIn>
+
+          {/* Enterprise & API Section */}
+          <FadeIn delay={0.5}>
+            <section className="space-y-10">
+              <div className="flex items-center gap-6 px-1">
+                <div className="h-14 w-14 rounded-2xl bg-purple-500/5 flex items-center justify-center border border-purple-500/10 shadow-2xl shadow-purple-500/10">
+                  <Code className="h-6 w-6 text-purple-600" />
+                </div>
+                <div className="flex items-center gap-6">
+                  <div>
+                    <h2 className="text-3xl font-black uppercase tracking-tighter">Core API Matrix</h2>
+                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em]">High-level system access</p>
                   </div>
-                  <CardTitle className="text-lg font-black tracking-tight">White Labeling</CardTitle>
-                  <CardDescription className="text-xs font-medium">Remove Theta branding and use your own domain and logo.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                   <Button 
-                      variant="outline" 
-                      className="w-full rounded-xl border-dashed font-black uppercase tracking-widest text-[10px] h-10 group-hover:border-purple-500/50 transition-all"
-                      onClick={() => showUpgradePrompt("white_label")}
-                    >
-                      {["free", "growth", "pro"].includes(currentPlan) ? (
-                        <>Unlock on Theta Plus <Sparkles className="ml-2 h-3 w-3" /></>
-                      ) : "Configure Branding"}
-                   </Button>
-                </CardContent>
-              </Card>
+                  <Badge variant="outline" className="bg-purple-600 text-white font-black border-none text-[8px] px-3 py-1 shadow-lg shadow-purple-600/20 uppercase tracking-widest">
+                     SYSTEM ROOT
+                  </Badge>
+                </div>
+              </div>
 
-              {/* API Access */}
-              <Card className="glass-card border-none hover:shadow-xl transition-all duration-500 group overflow-hidden">
-                <CardHeader className="pb-4">
-                   <div className="flex items-center justify-between mb-2">
-                    <div className="p-2 bg-emerald-500/10 rounded-xl">
-                      <Zap className="h-5 w-5 text-emerald-500" />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
+                {/* White Labeling */}
+                <Card className="glass-card border-none rounded-[3rem] hover:shadow-[0_40px_100px_rgba(139,92,246,0.1)] transition-all duration-700 group overflow-hidden bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl p-10">
+                  <div className="space-y-8">
+                    <div className="flex items-center justify-between">
+                      <div className="h-16 w-16 rounded-2xl bg-purple-600/5 flex items-center justify-center border border-purple-500/10 transition-all group-hover:scale-110">
+                        <Globe className="h-7 w-7 text-purple-600" />
+                      </div>
+                      {["free", "growth", "pro"].includes(currentPlan) && <Lock className="h-5 w-5 text-slate-400/30" />}
                     </div>
-                    {["free", "growth"].includes(currentPlan) && <Lock className="h-4 w-4 text-muted-foreground/50" />}
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-black uppercase tracking-tighter">Branding Cloak</h3>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Remove system signatures and deploy your own visual identity across the matrix.</p>
+                    </div>
+                     <Button 
+                        variant="outline" 
+                        className="w-full h-14 rounded-2xl border-dashed border-purple-600/30 font-black uppercase tracking-[0.2em] text-[9px] group-hover:bg-purple-600 group-hover:text-white transition-all duration-500 group-hover:border-transparent group-hover:scale-[1.02]"
+                        onClick={() => showUpgradePrompt("white_label")}
+                      >
+                        {["free", "growth", "pro"].includes(currentPlan) ? (
+                          <div className="flex items-center gap-3">Authorize on Plus <Sparkles className="h-3 w-3 animate-pulse" /></div>
+                        ) : "Execute Branding"}
+                     </Button>
                   </div>
-                  <CardTitle className="text-lg font-black tracking-tight">Developer API</CardTitle>
-                  <CardDescription className="text-xs font-medium">Programmatic access to your workspace data and automations.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                   <Button 
-                      variant="outline" 
-                      className="w-full rounded-xl border-dashed font-black uppercase tracking-widest text-[10px] h-10 group-hover:border-emerald-500/50 transition-all"
-                      onClick={() => showUpgradePrompt("api_access")}
-                   >
-                      {["free", "growth"].includes(currentPlan) ? (
-                        <>Unlock on Pro <Sparkles className="ml-2 h-3 w-3" /></>
-                      ) : "Generate API Key"}
-                   </Button>
-                </CardContent>
-              </Card>
-            </div>
-          </section>
-        </FadeIn>
+                </Card>
 
-         <div className="flex justify-end gap-4 pt-10">
-          <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest self-center mr-4 pt-1">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 mr-2" />
-            Everything up to date
-          </p>
+                {/* API Access */}
+                <Card className="glass-card border-none rounded-[3rem] hover:shadow-[0_40px_100px_rgba(16,185,129,0.1)] transition-all duration-700 group overflow-hidden bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl p-10">
+                  <div className="space-y-8">
+                    <div className="flex items-center justify-between">
+                      <div className="h-16 w-16 rounded-2xl bg-emerald-500/5 flex items-center justify-center border border-emerald-500/10 transition-all group-hover:scale-110">
+                        <Zap className="h-7 w-7 text-emerald-500" />
+                      </div>
+                      {["free", "growth"].includes(currentPlan) && <Lock className="h-5 w-5 text-slate-400/30" />}
+                    </div>
+                    <div className="space-y-2">
+                      <h3 className="text-2xl font-black uppercase tracking-tighter">Automation Port</h3>
+                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest leading-relaxed">Programmatic access for high-speed synchronization and external bot integration.</p>
+                    </div>
+                     <Button 
+                        variant="outline" 
+                        className="w-full h-14 rounded-2xl border-dashed border-emerald-500/30 font-black uppercase tracking-[0.2em] text-[9px] group-hover:bg-emerald-500 group-hover:text-white transition-all duration-500 group-hover:border-transparent group-hover:scale-[1.02]"
+                        onClick={() => showUpgradePrompt("api_access")}
+                     >
+                        {["free", "growth"].includes(currentPlan) ? (
+                          <div className="flex items-center gap-3">Authorize on Pro <Sparkles className="h-3 w-3 animate-pulse" /></div>
+                        ) : "Generate Signal Key"}
+                     </Button>
+                  </div>
+                </Card>
+              </div>
+            </section>
+          </FadeIn>
+
+           <div className="flex justify-center pt-20">
+             <div className="flex items-center gap-4 bg-slate-100/50 dark:bg-slate-900/50 px-8 py-3 rounded-full border border-indigo-500/5 shadow-sm">
+                <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <p className="text-[9px] text-slate-500 font-black uppercase tracking-[0.3em]">
+                  Interface synchronized with neural grid v4.0.2
+                </p>
+             </div>
+           </div>
         </div>
-      </div>
-    </MotionWrapper>
+      </MotionWrapper>
+    </div>
   );
 }

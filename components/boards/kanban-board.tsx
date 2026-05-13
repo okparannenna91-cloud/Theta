@@ -706,19 +706,23 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   };
 
   return (
-    <div className="p-4 sm:p-6 lg:p-8 h-full bg-slate-50/30 dark:bg-slate-950/30 overflow-hidden flex flex-col">
+    <div className="h-full bg-white dark:bg-slate-950 relative selection:bg-indigo-500/30 flex flex-col">
+      {/* Neural Mesh Background */}
+      <div className="absolute top-0 right-0 -z-10 w-[800px] h-[800px] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none animate-pulse" />
+      <div className="absolute bottom-0 left-0 -z-10 w-[600px] h-[600px] bg-purple-600/5 blur-[100px] rounded-full pointer-events-none" />
+
       {/* Board Header */}
-      <div className="flex flex-col gap-6 mb-8">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" size="icon" onClick={onBack} className="rounded-full hover:bg-white dark:hover:bg-slate-900 shadow-sm border">
-              <ArrowLeft className="h-4 w-4" />
+      <div className="p-8 sm:p-12 border-b border-indigo-500/10 bg-white/40 dark:bg-slate-950/40 backdrop-blur-2xl z-40">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-10">
+          <div className="flex items-center gap-8">
+            <Button variant="ghost" size="icon" onClick={onBack} className="h-14 w-14 rounded-2xl hover:bg-indigo-600 hover:text-white transition-all duration-500 bg-white dark:bg-slate-900 border border-indigo-500/10 shadow-2xl shadow-indigo-500/10 group">
+              <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
             </Button>
-            <div>
-              <div className="flex items-center gap-2">
+            <div className="space-y-2">
+              <div className="flex items-center gap-4">
                 {isEditingHeader ? (
                   <Input
-                    className="text-2xl font-black h-9 w-64"
+                    className="text-4xl font-black h-12 w-80 bg-transparent border-none p-0 focus-visible:ring-0 uppercase tracking-tighter"
                     value={editedName}
                     onChange={(e) => setEditedName(e.target.value)}
                     onBlur={() => updateBoardMutation.mutate({ name: editedName })}
@@ -727,7 +731,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                   />
                 ) : (
                   <h1
-                    className="text-2xl font-black tracking-tight text-slate-900 dark:text-white cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-800 rounded px-1 -ml-1 transition-colors"
+                    className="text-4xl sm:text-5xl font-black tracking-tighter text-slate-900 dark:text-white cursor-pointer hover:text-indigo-600 transition-colors uppercase leading-none"
                     onClick={() => setIsEditingHeader(true)}
                   >
                     {board?.name}
@@ -736,124 +740,96 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn("h-8 w-8", board?.isFavorite ? "text-amber-400" : "text-slate-400")}
+                  className={cn("h-10 w-10 rounded-xl", board?.isFavorite ? "text-amber-400" : "text-slate-300")}
                   onClick={toggleFavorite}
                 >
-                  <Star className={cn("h-4 w-4", board?.isFavorite && "fill-current")} />
+                  <Star className={cn("h-5 w-5", board?.isFavorite && "fill-current")} />
                 </Button>
-                <Badge variant="secondary" className="bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-none font-bold">
-                  {board?.project?.name}
-                </Badge>
               </div>
               <div className="flex items-center gap-4">
-                <p className="text-sm text-muted-foreground font-medium">Visual workflow management</p>
-                <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-slate-400">
-                  {board?.visibility === "private" ? <Lock className="h-3 w-3" /> : <UsersIcon className="h-3 w-3" />}
-                  <span>{board?.visibility}</span>
-                </div>
-                
-                {/* Presence Avatars */}
-                {presenceUsers.length > 0 && (
-                  <div className="flex items-center -space-x-2 ml-4">
-                    {presenceUsers.map((user: any) => (
-                      <div 
-                        key={user.id} 
-                        className="h-6 w-6 rounded-full border-2 border-slate-50 dark:border-slate-950 bg-slate-200 shadow-sm overflow-hidden"
-                        title={user.name}
-                      >
-                         {/* eslint-disable-next-line @next/next/no-img-element */}
-                         <img src={user.avatar} className="h-full w-full object-cover" alt={user.name} />
-                      </div>
-                    ))}
-                    <div className="h-6 w-6 rounded-full border-2 border-slate-50 dark:border-slate-950 bg-emerald-500 flex items-center justify-center text-[8px] text-white font-bold" title="Live">
-                       LIVE
-                    </div>
+                <div className="h-1 w-12 bg-indigo-600 rounded-full" />
+                <div className="flex items-center gap-4 text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">
+                  <p>Workflow Grid</p>
+                  <div className="flex items-center gap-1">
+                    {board?.visibility === "private" ? <Lock className="h-3 w-3" /> : <UsersIcon className="h-3 w-3" />}
+                    <span>{board?.visibility} Access</span>
                   </div>
-                )}
+                  {presenceUsers.length > 0 && (
+                    <div className="flex items-center -space-x-2 ml-4">
+                      {presenceUsers.map((user: any) => (
+                        <div 
+                          key={user.id} 
+                          className="h-8 w-8 rounded-full border-2 border-white dark:border-slate-950 bg-slate-100 shadow-xl overflow-hidden transition-all hover:scale-110 hover:z-10"
+                          title={user.name}
+                        >
+                           <img src={user.avatar} className="h-full w-full object-cover" alt={user.name} />
+                        </div>
+                      ))}
+                      <div className="h-8 w-8 rounded-full border-2 border-white dark:border-slate-950 bg-indigo-600 flex items-center justify-center text-[8px] text-white font-black z-20 shadow-xl">
+                         LIVE
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <div className="bg-slate-100 dark:bg-slate-900 p-1 rounded-xl flex items-center shadow-sm border">
+
+          <div className="flex items-center gap-6">
+            <div className="bg-slate-100/50 dark:bg-slate-900/50 p-2 rounded-[1.5rem] border border-indigo-500/5 flex items-center shadow-sm">
               {[
-                { id: "kanban", icon: LayoutGrid, label: "Kanban" },
-                { id: "list", icon: ListIcon, label: "List" },
-                { id: "calendar", icon: Calendar, label: "Calendar" },
-                { id: "timeline", icon: GanttChartIcon, label: "Timeline" },
+                { id: "kanban", icon: LayoutGrid, label: "Neural Matrix" },
+                { id: "list", icon: ListIcon, label: "Stream View" },
+                { id: "calendar", icon: Calendar, label: "Chronos" },
+                { id: "timeline", icon: GanttChartIcon, label: "Linear Progression" },
               ].map((view) => (
                 <Button
                   key={view.id}
-                  variant={currentView === view.id ? "secondary" : "ghost"}
+                  variant="ghost"
                   size="sm"
                   className={cn(
-                    "text-xs font-bold gap-2 rounded-lg",
-                    currentView === view.id ? "bg-white dark:bg-slate-800 shadow-sm text-indigo-600 dark:text-indigo-400" : "text-slate-500"
+                    "h-12 px-6 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500 whitespace-nowrap",
+                    currentView === view.id 
+                      ? "bg-indigo-600 text-white shadow-2xl shadow-indigo-500/40 scale-105" 
+                      : "text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-800"
                   )}
                   onClick={() => setCurrentView(view.id)}
                 >
-                  <view.icon className="h-3.5 w-3.5" />
+                  <view.icon className={cn("h-4 w-4 mr-3", currentView === view.id ? "animate-pulse" : "")} />
                   <span className="hidden md:inline">{view.label}</span>
                 </Button>
               ))}
             </div>
-            <Button
-              className="bg-indigo-600 hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 font-bold transition-all active:scale-95 ml-2"
-              onClick={() => setIsEditingBoard(true)}
-            >
-              <Settings className="h-4 w-4 mr-2" />
-              Board Settings
-            </Button>
-          </div>
-        </div>
-
-        {/* Filter Bar */}
-        <div className="flex flex-col md:flex-row gap-4 p-2 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-            <Input
-              placeholder="Search tasks..."
-              className="pl-10 h-10 bg-transparent border-none focus-visible:ring-0 shadow-none"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Select value={filterPriority} onValueChange={setFilterPriority}>
-              <SelectTrigger className="w-32 h-10 bg-transparent border-slate-200 dark:border-slate-800 rounded-xl">
-                <SelectValue placeholder="Priority" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Priorities</SelectItem>
-                <SelectItem value="high">High</SelectItem>
-                <SelectItem value="medium">Medium</SelectItem>
-                <SelectItem value="low">Low</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filterTag} onValueChange={setFilterTag}>
-              <SelectTrigger className="w-32 h-10 bg-transparent border-slate-200 dark:border-slate-800 rounded-xl">
-                <SelectValue placeholder="Tags" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Tags</SelectItem>
-                {allTags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id}>
-                    {tag.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1" />
+            
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl border border-indigo-500/10 hover:bg-indigo-600 hover:text-white transition-all duration-500">
+                  <Settings className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56 bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-indigo-500/20 rounded-2xl p-2 shadow-2xl">
+                <DropdownMenuItem className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 cursor-pointer" onClick={() => setIsEditingBoard(true)}>
+                  <Edit2 className="h-4 w-4 mr-3" /> Board Config
+                </DropdownMenuItem>
+                <DropdownMenuItem className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 text-red-500 cursor-pointer" onClick={() => {
+                   showConfirm({
+                     title: "Purge Interface?",
+                     description: "This will permanently delete this board and all synchronization nodes within it.",
+                     actionLabel: "Purge Interface",
+                     destructive: true,
+                     onAction: () => deleteBoardMutation.mutate()
+                   });
+                }}>
+                  <Trash2 className="h-4 w-4 mr-3" /> Purge Interface
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
 
             <Button
-              variant="outline"
-              size="icon"
-              className="h-10 w-10 rounded-xl bg-transparent border-slate-200 dark:border-slate-800"
+              className="h-14 px-10 rounded-2xl bg-indigo-600 hover:bg-indigo-700 shadow-2xl shadow-indigo-500/20 font-black uppercase tracking-[0.2em] text-[10px] transition-all active:scale-95"
               onClick={() => {
-                setSearchQuery("");
-                setFilterPriority("all");
-                setFilterTag("all");
+                setTargetColumnId(columns[0]?.id);
+                setIsTaskDialogOpen(true);
               }}
             >
               <RefreshCcw className="h-4 w-4 text-slate-400" />
