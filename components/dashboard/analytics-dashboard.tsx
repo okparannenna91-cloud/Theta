@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Skeleton } from "@/components/ui/skeleton";
 import { TrendingUp, Users, CheckCircle2, LayoutGrid } from "lucide-react";
 import { MotionWrapper, FadeIn } from "@/components/common/motion-wrapper";
+import { cn } from "@/lib/utils";
 
 const COLORS = ["#4f46e5", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899"];
 
