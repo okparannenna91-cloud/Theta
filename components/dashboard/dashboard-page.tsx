@@ -241,7 +241,7 @@ export default function DashboardPage() {
                     borderRadius: "20px",
                     border: "1px solid rgba(99, 102, 241, 0.2)",
                     boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)",
-                    backdropBlur: "12px",
+                    backdropFilter: "blur(12px)",
                     padding: "16px",
                   }}
                   itemStyle={{
