@@ -68,13 +68,16 @@ export function NotificationPanel({ notifications: rawNotifications, onRefresh, 
                     </div>
                 ) : (
                     <div className="divide-y">
-                        {notifications.map((notification) => (
-                            <NotificationItem
-                                key={notification.id}
-                                notification={notification}
-                                onRefresh={onRefresh}
-                            />
-                        ))}
+                        {notifications.map((notification) => {
+                            if (!notification || !notification.id) return null;
+                            return (
+                                <NotificationItem
+                                    key={notification.id}
+                                    notification={notification}
+                                    onRefresh={onRefresh}
+                                />
+                            );
+                        })}
                     </div>
                 )}
             </ScrollArea>

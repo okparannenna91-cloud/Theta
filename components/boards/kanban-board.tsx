@@ -136,11 +136,15 @@ async function deleteColumn(columnId: string) {
 }
 
 async function updateColumnOrders(columns: any[]) {
-  const res = await fetch(`/api/boards/${columns[0].boardId}/columns/reorder`, {
+  if (!columns || columns.length === 0) return;
+  const boardId = columns[0].boardId;
+  if (!boardId) return;
+
+  const res = await fetch(`/api/boards/${boardId}/columns/reorder`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ 
-      columnOrders: columns.map((c, i) => ({ id: c.id, order: i * 10 })) 
+      columnOrders: columns.filter(c => c && c.id).map((c, i) => ({ id: c.id, order: i * 10 })) 
     }),
   });
   if (!res.ok) throw new Error("Failed to update column order");
@@ -371,6 +375,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     }).catch(() => {});
     
     channel.presence.subscribe("enter", (member) => {
+      if (!member?.data?.id) return;
       setPresenceUsers(prev => {
         if (prev.find(u => u.id === member.data.id)) return prev;
         return [...prev, member.data];
@@ -378,6 +383,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     });
     
     channel.presence.subscribe("leave", (member) => {
+      if (!member?.data?.id) return;
       setPresenceUsers(prev => prev.filter(u => u.id !== member.data.id));
     });
 
@@ -868,11 +874,12 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
             )}
             
             <SortableContext 
-              items={columns.map((c: any) => c.id)} 
+              items={columns.filter(c => c && c.id).map((c: any) => c.id)} 
               strategy={horizontalListSortingStrategy}
             >
               {columns.map((column: any) => {
-                const columnTasks = filteredTasks.filter((t: any) => t.columnId === column.id);
+                if (!column || !column.id) return null;
+                const columnTasks = filteredTasks.filter((t: any) => t && t.columnId === column.id);
                 return (
                   <SortableColumn key={column.id} column={column}>
                     <Card className="bg-slate-100/80 dark:bg-slate-900/80 border-none shadow-none h-full flex flex-col rounded-2xl overflow-hidden overflow-y-auto outline-1 outline-slate-200 dark:outline-slate-800 outline">
@@ -921,24 +928,27 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                       <div className="p-3 gap-3 flex flex-col flex-1 pb-20">
                         <SortableContext
                           id={column.id}
-                          items={columnTasks.map((t: any) => t.id)}
+                          items={columnTasks.filter(t => t && t.id).map((t: any) => t.id)}
                           strategy={verticalListSortingStrategy}
                         >
-                          {columnTasks.map((task: any) => (
-                            <SortableTask
-                              key={task.id}
-                              task={task}
-                              isSelected={selectedTaskIds.includes(task.id)}
-                              onSelect={(checked) => {
-                                setSelectedTaskIds(prev => 
-                                  checked 
-                                    ? [...prev, task.id] 
-                                    : prev.filter(id => id !== task.id)
-                                );
-                              }}
-                              onClick={() => setSelectedTask(task)}
-                            />
-                          ))}
+                          {columnTasks.map((task: any) => {
+                            if (!task || !task.id) return null;
+                            return (
+                              <SortableTask
+                                key={task.id}
+                                task={task}
+                                isSelected={selectedTaskIds.includes(task.id)}
+                                onSelect={(checked) => {
+                                  setSelectedTaskIds(prev => 
+                                    checked 
+                                      ? [...prev, task.id] 
+                                      : prev.filter(id => id !== task.id)
+                                  );
+                                }}
+                                onClick={() => setSelectedTask(task)}
+                              />
+                            );
+                          })}
                         </SortableContext>
 
                         {isTaskDialogOpen && targetColumnId === column.id ? (
@@ -1081,9 +1091,11 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               </tr>
             </thead>
             <tbody>
-              {filteredTasks.map((task: any) => (
-                <tr
-                  key={task.id}
+              {filteredTasks.map((task: any) => {
+                if (!task || !task.id) return null;
+                return (
+                  <tr
+                    key={task.id}
                   className="border-b hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group"
                   onClick={() => setSelectedTask(task)}
                 >
@@ -1124,7 +1136,8 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                     </div>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
               {filteredTasks.length === 0 && (
                 <tr>
                   <td colSpan={5} className="py-20 text-center text-muted-foreground italic">
@@ -1382,15 +1395,18 @@ function BoardCalendar({ tasks, onSelectTask }: { tasks: any[]; onSelectTask: (t
                 {format(day, "d")}
               </span>
               <div className="space-y-1">
-                {dayTasks.map(task => (
-                  <div
-                    key={task.id}
-                    className="text-[9px] font-bold p-1 rounded-md bg-white dark:bg-slate-800 border-l-2 border-indigo-500 shadow-sm truncate cursor-pointer hover:scale-105 transition-transform"
-                    onClick={() => onSelectTask(task)}
-                  >
-                    {task.title}
-                  </div>
-                ))}
+                {dayTasks.map(task => {
+                  if (!task || !task.id) return null;
+                  return (
+                    <div
+                      key={task.id}
+                      className="text-[9px] font-bold p-1 rounded-md bg-white dark:bg-slate-800 border-l-2 border-indigo-500 shadow-sm truncate cursor-pointer hover:scale-105 transition-transform"
+                      onClick={() => onSelectTask(task)}
+                    >
+                      {task.title}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           );
@@ -1425,6 +1441,7 @@ function BoardTimeline({ tasks, onSelectTask }: { tasks: any[]; onSelectTask: (t
 
         <div className="flex-1">
           {tasksWithDates.map((task) => {
+            if (!task || !task.id) return null;
             const taskStart = new Date(task.createdAt);
             const taskEnd = new Date(task.dueDate);
             const startOffset = Math.max(0, differenceInDays(taskStart, startDate));

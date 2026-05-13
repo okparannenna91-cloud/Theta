@@ -99,20 +99,58 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
                          
                          <div className="grid grid-cols-1 gap-6">
                              {/* Handle new multi-team structure */}
-                             {project.projectTeams?.map((pt: any) => (
-                                 <Card key={pt.id} className="rounded-3xl border-slate-200/50 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/50 overflow-hidden">
-                                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
-                                         <div className="flex items-center gap-3">
-                                             <p className="text-lg font-black uppercase tracking-tight">{pt.team.name}</p>
-                                             <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 border-none">
-                                                 {pt.role?.replace("_", " ") || "Viewer"}
-                                             </Badge>
+                             {project.projectTeams?.map((pt: any) => {
+                                 if (!pt || !pt.id || !pt.team) return null;
+                                 return (
+                                     <Card key={pt.id} className="rounded-[2.5rem] border-slate-200/50 dark:border-slate-800/50 bg-slate-50/50 dark:bg-slate-900/50 overflow-hidden">
+                                         <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
+                                             <div className="flex items-center gap-3">
+                                                 <p className="text-lg font-black uppercase tracking-tight">{pt.team.name}</p>
+                                                 <Badge variant="secondary" className="text-[9px] font-black uppercase tracking-widest bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 border-none">
+                                                     {pt.role?.replace("_", " ") || "Viewer"}
+                                                 </Badge>
+                                             </div>
+                                             <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{pt.team.members?.length || 0} Members</p>
                                          </div>
-                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{pt.team.members?.length || 0} Members</p>
+                                         <div className="p-6">
+                                             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                                 {pt.team.members?.slice(0, 6).map((member: any) => {
+                                                     if (!member || !member.id || !member.user) return null;
+                                                     return (
+                                                         <div key={member.id} className="group flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200/30 dark:border-slate-800/30 shadow-sm hover:border-indigo-500/50 transition-all">
+                                                              <Avatar className="h-8 w-8 ring-2 ring-white dark:ring-slate-950">
+                                                                  <AvatarImage src={member.user?.imageUrl} />
+                                                                  <AvatarFallback>{member.user?.name?.[0]}</AvatarFallback>
+                                                              </Avatar>
+                                                              <div className="flex-1 min-w-0">
+                                                                  <p className="text-xs font-bold truncate">{member.user?.name}</p>
+                                                                  <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">{member.role}</p>
+                                                              </div>
+                                                         </div>
+                                                     );
+                                                 })}
+                                                 {(pt.team.members?.length || 0) > 6 && (
+                                                     <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700">
+                                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">+{(pt.team.members?.length || 0) - 6} More</p>
+                                                     </div>
+                                                 )}
+                                             </div>
+                                         </div>
+                                     </Card>
+                                 );
+                             })}
+
+                             {/* Fallback for legacy single team structure */}
+                             {(!project.projectTeams || (Array.isArray(project.projectTeams) && project.projectTeams.length === 0)) && project.team && (
+                                 <Card className="rounded-3xl border-slate-200/50 dark:border-slate-800/50 overflow-hidden">
+                                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
+                                         <p className="text-lg font-black uppercase tracking-tight">{project.team.name}</p>
+                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{project.team.members?.length || 0} Members</p>
                                      </div>
-                                     <div className="p-6">
-                                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                             {pt.team.members?.slice(0, 6).map((member: any) => (
+                                     <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+                                         {project.team.members?.map((member: any) => {
+                                             if (!member || !member.id || !member.user) return null;
+                                             return (
                                                  <div key={member.id} className="group flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200/30 dark:border-slate-800/30 shadow-sm hover:border-indigo-500/50 transition-all">
                                                       <Avatar className="h-8 w-8 ring-2 ring-white dark:ring-slate-950">
                                                           <AvatarImage src={member.user?.imageUrl} />
@@ -123,37 +161,8 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
                                                           <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">{member.role}</p>
                                                       </div>
                                                  </div>
-                                             ))}
-                                             {(pt.team.members?.length || 0) > 6 && (
-                                                 <div className="flex items-center justify-center p-3 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-dashed border-slate-200 dark:border-slate-700">
-                                                     <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">+{(pt.team.members?.length || 0) - 6} More</p>
-                                                 </div>
-                                             )}
-                                         </div>
-                                     </div>
-                                 </Card>
-                             ))}
-
-                             {/* Fallback for legacy single team structure */}
-                             {(!project.projectTeams || (Array.isArray(project.projectTeams) && project.projectTeams.length === 0)) && project.team && (
-                                 <Card className="rounded-3xl border-slate-200/50 dark:border-slate-800/50 overflow-hidden">
-                                     <div className="p-6 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-white dark:bg-slate-900">
-                                         <p className="text-lg font-black uppercase tracking-tight">{project.team.name}</p>
-                                         <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{project.team.members?.length || 0} Members</p>
-                                     </div>
-                                     <div className="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                                         {project.team.members?.map((member: any) => (
-                                             <div key={member.id} className="group flex items-center gap-3 p-3 rounded-2xl bg-white dark:bg-slate-950 border border-slate-200/30 dark:border-slate-800/30 shadow-sm hover:border-indigo-500/50 transition-all">
-                                                  <Avatar className="h-8 w-8 ring-2 ring-white dark:ring-slate-950">
-                                                      <AvatarImage src={member.user?.imageUrl} />
-                                                      <AvatarFallback>{member.user?.name?.[0]}</AvatarFallback>
-                                                  </Avatar>
-                                                  <div className="flex-1 min-w-0">
-                                                      <p className="text-xs font-bold truncate">{member.user?.name}</p>
-                                                      <p className="text-[9px] text-muted-foreground uppercase tracking-wider font-medium">{member.role}</p>
-                                                  </div>
-                                             </div>
-                                         ))}
+                                             );
+                                         })}
                                      </div>
                                  </Card>
                              )}
