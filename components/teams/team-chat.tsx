@@ -256,7 +256,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             console.error("[Chat] Ably setup error:", error);
             setIsLoading(false);
         }
-    }, [teamId, user?.id, user?.fullName, user?.firstName, user?.imageUrl, workspaceId, markAsRead, fetchMessages]);
+    }, [teamId, user?.id, user?.fullName, user?.firstName, user?.imageUrl, fetchMessages]);
 
     // Fetch messages independently on mount/teamId change
     useEffect(() => {

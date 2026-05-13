@@ -35,13 +35,6 @@ Projects: ${JSON.stringify(projects)}
 Based on the title, recommend the most likely Project ID and Priority (low, medium, high, urgent). 
 If none of the projects fit, return "no-project".`;
 
-        const { object } = await generateText({
-            model: openrouter("openai/gpt-4o-mini"),
-            system: "You are a task management assistant. Recommend metadata for a new task.",
-            prompt: prompt,
-            // We want a structured response
-        });
-
         // Use a simpler approach for now since I can't easily do experimental_generateObject without knowing the exact version
         // I'll just use generateText and parse or similar
         const responseText = (await generateText({
@@ -51,7 +44,7 @@ If none of the projects fit, return "no-project".`;
         })).text;
 
         try {
-            const result = JSON.parse(responseText.match(/\{.*\}/s)?.[0] || "{}");
+            const result = JSON.parse(responseText.match(/\{[\s\S]*\}/)?.[0] || "{}");
             return NextResponse.json(result);
         } catch (e) {
             return NextResponse.json({ priority: "medium", projectId: "no-project" });

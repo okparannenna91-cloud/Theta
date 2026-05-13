@@ -245,7 +245,7 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                     
                     const automation = await db.automation.create({
                         data: {
-                            name, trigger, action, config, workspaceId, active: true
+                            name, trigger, action, actionValue: JSON.stringify(config), workspaceId, active: true
                         }
                     });
 
@@ -291,7 +291,7 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                     const db = getPrismaClient(workspaceId);
                     
                     const doc = await db.document.create({
-                        data: { title, content, workspaceId }
+                        data: { title, content, workspaceId, userId: user.id }
                     });
 
                     return { success: true, message: `Document "**${title}**" created.`, id: doc.id };
@@ -395,9 +395,9 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
-                    const conversation = await db.aIConversation.create({
+                    const conversation = await db.aiConversation.create({
                         data: {
-                            title, workspaceId, messages: {
+                            title, workspaceId, userId: user.id, messages: {
                                 create: messages
                             }
                         }
@@ -415,7 +415,7 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
-                    await db.aIConversation.update({
+                    await db.aiConversation.update({
                         where: { id: conversationId },
                         data: { isPublic: true }
                     });
@@ -486,7 +486,6 @@ Recent Tasks: ${tasks.map((t: any) => `${t.title} (${t.status})`).join(", ") || 
                 system: systemPrompt,
                 prompt: prompt,
                 tools,
-                maxSteps: 10,
                 onFinish: async ({ text }: any) => {
                     if (text && conversationId) {
                         const { getPrismaClient } = await import("@/lib/prisma");

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList, CommandSeparator, CommandShortcut } from "@/components/ui/command";
 import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
 export function CommandPalette() {
   const [open, setOpen] = React.useState(false);
@@ -63,7 +64,7 @@ export function CommandPalette() {
                     className="mt-4 text-indigo-600 font-bold hover:text-indigo-700"
                     onClick={handleAskNova}
                 >
-                    Ask Nova: "{search}"
+                    Ask Nova: &quot;{search}&quot;
                 </Button>
             </div>
         </CommandEmpty>
@@ -72,7 +73,7 @@ export function CommandPalette() {
             <CommandGroup heading="AI Intelligence">
                 <CommandItem onSelect={handleAskNova} className="cursor-pointer">
                     <Sparkles className="mr-2 h-4 w-4 text-indigo-500" />
-                    <span>Ask Nova: <span className="font-bold text-indigo-600">"{search}"</span></span>
+                    <span>Ask Nova: <span className="font-bold text-indigo-600">&quot;{search}&quot;</span></span>
                 </CommandItem>
             </CommandGroup>
         )}

@@ -635,6 +635,5 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                     </p>
                 </div>
             </div>
-        </div>
     );
 }
