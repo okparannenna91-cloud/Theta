@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { usePopups } from "@/components/popups/popup-manager";
 import { MotionWrapper, FadeIn } from "@/components/common/motion-wrapper";
