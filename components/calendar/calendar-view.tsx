@@ -557,7 +557,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                     </form>
                 </DialogContent>
             </Dialog>
-        </div>
+        </MotionWrapper>
     );
 }
 
