@@ -15,7 +15,8 @@ import {
   isToday, 
   parseISO,
   addDays,
-  differenceInMinutes
+  differenceInMinutes,
+  isSameMonth
 } from "date-fns";
 import { 
   ChevronLeft, 
@@ -33,11 +34,12 @@ import {
   AlertCircle,
   CheckCircle2,
   Sparkles,
-  Zap
+  Zap,
+  Bell
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -46,6 +48,7 @@ import {
   DndContext, 
   DragOverlay, 
   closestCenter, 
+  closestCorners,
   KeyboardSensor, 
   PointerSensor, 
   useSensor, 
@@ -293,7 +296,8 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
     const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
 
     const getEventsForDay = (day: Date) => {
-        return (events as CalendarEvent[])?.filter((event: CalendarEvent) => isSameDay(parseISO(event.start), day)) || [];
+        const eventList = (events as CalendarEvent[]) || [];
+        return eventList.filter((event: CalendarEvent) => isSameDay(parseISO(event.start), day));
     };
 
     return (
