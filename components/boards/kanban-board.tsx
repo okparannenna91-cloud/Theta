@@ -144,7 +144,7 @@ async function updateColumnOrders(columns: any[]) {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ 
-      columnOrders: columns.filter(c => c && c.id).map((c, i) => ({ id: c.id, order: i * 10 })) 
+      columnOrders: columns.filter((c: any) => c && c.id).map((c: any, i: number) => ({ id: c.id, order: i * 10 })) 
     }),
   });
   if (!res.ok) throw new Error("Failed to update column order");
@@ -874,7 +874,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
             )}
             
             <SortableContext 
-              items={columns.filter(c => c && c.id).map((c: any) => c.id)} 
+              items={columns.filter((c: any) => c && c.id).map((c: any) => c.id)} 
               strategy={horizontalListSortingStrategy}
             >
               {columns.map((column: any) => {
@@ -928,7 +928,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                       <div className="p-3 gap-3 flex flex-col flex-1 pb-20">
                         <SortableContext
                           id={column.id}
-                          items={columnTasks.filter(t => t && t.id).map((t: any) => t.id)}
+                          items={columnTasks.filter((t: any) => t && t.id).map((t: any) => t.id)}
                           strategy={verticalListSortingStrategy}
                         >
                           {columnTasks.map((task: any) => {
@@ -1359,7 +1359,7 @@ function BoardCalendar({ tasks, onSelectTask }: { tasks: any[]; onSelectTask: (t
   const endDate = endOfWeek(monthEnd);
   const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
 
-  const tasksWithDates = tasks.filter(t => t.dueDate);
+  const tasksWithDates = tasks.filter((t: any) => t.dueDate);
 
   return (
     <div className="flex flex-col h-full">
@@ -1378,7 +1378,7 @@ function BoardCalendar({ tasks, onSelectTask }: { tasks: any[]; onSelectTask: (t
       </div>
       <div className="grid grid-cols-7 flex-1 overflow-auto">
         {calendarDays.map((day, i) => {
-          const dayTasks = tasksWithDates.filter(t => isSameDay(new Date(t.dueDate), day));
+          const dayTasks = tasksWithDates.filter((t: any) => isSameDay(new Date(t.dueDate), day));
           return (
             <div
               key={i}
