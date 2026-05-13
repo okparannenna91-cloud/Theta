@@ -424,37 +424,5 @@ export default function ProjectsPage() {
         </DialogContent>
       </Dialog>
     </div>
-
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Create New Project</DialogTitle>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label>Cover Image</Label>
-              <div className="mt-2">
-                <ImageUpload value={coverImage} onChange={setCoverImage} onRemove={() => setCoverImage("")} />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="name">Project Name</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="e.g. Website Redesign" />
-            </div>
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="description">Description</Label>
-                <AiGenerator onGenerate={(text) => setDescription(text)} initialPrompt={`Description for a project named "${name}"`} title="Generate Description" />
-              </div>
-              <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe your project goals..." className="min-h-[100px]" />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={createMutation.isPending}>Create</Button>
-            </div>
-          </form>
-        </DialogContent>
-      </Dialog>
-    </div>
   );
 }

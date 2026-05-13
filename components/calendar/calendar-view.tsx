@@ -1,5 +1,78 @@
+"use client";
+
+import { useState, useMemo } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { 
+  format, 
+  addMonths, 
+  subMonths, 
+  startOfMonth, 
+  endOfMonth, 
+  startOfWeek, 
+  endOfWeek, 
+  eachDayOfInterval, 
+  isSameDay, 
+  isToday, 
+  parseISO,
+  addDays,
+  differenceInMinutes
+} from "date-fns";
+import { 
+  ChevronLeft, 
+  ChevronRight, 
+  Plus, 
+  Search, 
+  Filter, 
+  MoreHorizontal, 
+  Calendar as CalendarIcon,
+  Clock,
+  MapPin,
+  Users,
+  Tag,
+  Repeat,
+  AlertCircle,
+  CheckCircle2,
+  Sparkles,
+  Zap
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
+import { 
+  DndContext, 
+  DragOverlay, 
+  closestCenter, 
+  KeyboardSensor, 
+  PointerSensor, 
+  useSensor, 
+  useSensors,
+  useDraggable,
+  useDroppable
+} from "@dnd-kit/core";
+import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { toast } from "sonner";
+import { motion, AnimatePresence } from "framer-motion";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { usePopups } from "@/components/popups/popup-manager";
 import { MotionWrapper, FadeIn } from "@/components/common/motion-wrapper";
 import { cn } from "@/lib/utils";
+
+interface CalendarEvent {
+    id: string;
+    title: string;
+    description?: string;
+    start: string;
+    end: string;
+    allDay: boolean;
+    color?: string;
+    type: string;
+    recurrence?: string;
+    teamId?: string;
+}
 
 function DraggableEvent({ event }: { event: CalendarEvent }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
