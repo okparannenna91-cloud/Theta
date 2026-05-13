@@ -28,6 +28,7 @@ import { format, isPast } from "date-fns";
 
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
+import { cn } from "@/lib/utils";
 
 export default function ProjectsPage() {
   const [isOpen, setIsOpen] = useState(false);

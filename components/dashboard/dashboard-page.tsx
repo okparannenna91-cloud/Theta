@@ -11,6 +11,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { formatDistanceToNow } from "date-fns";
 
 import { useWorkspace } from "@/hooks/use-workspace";
+import { cn } from "@/lib/utils";
 
 async function fetchDashboardData(workspaceId: string | null) {
   const url = workspaceId ? `/api/dashboard?workspaceId=${workspaceId}` : "/api/dashboard";
