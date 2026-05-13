@@ -366,6 +366,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                     </Tabs>
                 </div>
             </div>
+
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
                 <TabsContent value="chat" className="flex-1 flex flex-col min-h-0 m-0 data-[state=active]:flex relative">
                     <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-10 flex flex-col space-y-12 scrollbar-hide">
@@ -562,35 +563,36 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                     rows={1}
                                     className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] px-10 py-6 pr-20 text-base font-medium focus:outline-none focus:ring-0 focus:border-indigo-500 transition-all resize-none overflow-hidden min-h-[72px] relative z-10 shadow-2xl shadow-slate-200/50 dark:shadow-none placeholder:text-slate-400 placeholder:font-bold"
                                 />
-                            <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20">
-                                <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
-                                    <Paperclip className="w-5 h-5" />
+                                <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20">
+                                    <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
+                                        <Paperclip className="w-5 h-5" />
+                                    </Button>
+                                </div>
+                                <Button 
+                                    onClick={handleSend}
+                                    disabled={!input.trim() || isLoading}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/30 transition-all active:scale-95 flex items-center justify-center group"
+                                >
+                                    {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />}
                                 </Button>
                             </div>
-                            <Button 
-                                onClick={handleSend}
-                                disabled={!input.trim() || isLoading}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/30 transition-all active:scale-95 flex items-center justify-center group"
-                            >
-                                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />}
-                            </Button>
-                        </div>
-                        
-                        <div className="flex items-center justify-between px-6">
-                            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                                <div className="flex items-center gap-1.5 hover:text-indigo-500 cursor-pointer transition-colors">
-                                    <Sparkles className="w-3 h-3" />
-                                    GPT-4o Vision
+                            
+                            <div className="flex items-center justify-between px-6">
+                                <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                                    <div className="flex items-center gap-1.5 hover:text-indigo-500 cursor-pointer transition-colors">
+                                        <Sparkles className="w-3 h-3" />
+                                        GPT-4o Vision
+                                    </div>
+                                    <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                                    <div className="flex items-center gap-1.5 hover:text-indigo-500 cursor-pointer transition-colors">
+                                        <CheckCircle2 className="w-3 h-3" />
+                                        Task OS Engine
+                                    </div>
                                 </div>
-                                <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
-                                <div className="flex items-center gap-1.5 hover:text-indigo-500 cursor-pointer transition-colors">
-                                    <CheckCircle2 className="w-3 h-3" />
-                                    Task OS Engine
-                                </div>
+                                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 opacity-60">
+                                    Shift + Enter for new line
+                                </p>
                             </div>
-                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 opacity-60">
-                                Shift + Enter for new line
-                            </p>
                         </div>
                     </div>
                 </TabsContent>
@@ -640,7 +642,5 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                 ))}
             </Tabs>
         </div>
-    );
-}
     );
 }
