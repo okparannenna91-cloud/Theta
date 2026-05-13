@@ -46,7 +46,7 @@ export default function NovaPage() {
     }
 
     return (
-        <div className="flex-1 flex h-full overflow-hidden">
+        <div className="flex h-[calc(100vh-9.5rem)] w-[calc(100%+4rem)] -ml-8 -mt-2 overflow-hidden border-t border-slate-200 dark:border-slate-800">
             <NovaSidebar 
                 activeConversationId={activeConversationId}
                 onSelectConversation={setActiveConversationId}

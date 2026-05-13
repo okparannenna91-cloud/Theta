@@ -368,9 +368,9 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
             </div>
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
                 <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden m-0 data-[state=active]:flex">
-                    <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-12">
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 flex flex-col space-y-12">
                         {messages.length === 0 && !isLoading ? (
-                            <div className="h-full flex flex-col items-center justify-center text-center max-w-xl mx-auto space-y-8">
+                            <div className="flex-1 flex flex-col items-center justify-center text-center max-w-xl mx-auto space-y-8 py-10">
                                 <div className="relative">
                                     <div className="absolute inset-0 bg-indigo-500 blur-[60px] opacity-20 rounded-full animate-pulse" />
                                     <div className="w-24 h-24 rounded-[2.5rem] bg-slate-100 dark:bg-slate-900 flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 relative z-10 group">
