@@ -293,7 +293,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-white dark:bg-slate-950">
+        <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-hidden relative">
             {/* Header */}
             <div className="border-b border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl z-20">
                 <div className="h-20 flex items-center justify-between px-8">
@@ -366,21 +366,23 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                     </Tabs>
                 </div>
             </div>
-            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
-                <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden m-0 data-[state=active]:flex">
-                    <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 flex flex-col space-y-12">
+            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+                <TabsContent value="chat" className="flex-1 flex flex-col min-h-0 m-0 data-[state=active]:flex relative">
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-10 flex flex-col space-y-12 scrollbar-hide">
                         {messages.length === 0 && !isLoading ? (
-                            <div className="flex-1 flex flex-col items-center justify-center text-center max-w-xl mx-auto space-y-8 py-10">
+                            <div className="flex-1 flex flex-col items-center justify-center text-center max-w-2xl mx-auto space-y-10 py-20">
                                 <div className="relative">
                                     <div className="absolute inset-0 bg-indigo-500 blur-[60px] opacity-20 rounded-full animate-pulse" />
                                     <div className="w-24 h-24 rounded-[2.5rem] bg-slate-100 dark:bg-slate-900 flex items-center justify-center border-2 border-dashed border-slate-200 dark:border-slate-800 relative z-10 group">
                                         <Sparkles className="w-12 h-12 text-slate-300 dark:text-slate-700 group-hover:text-indigo-500 transition-colors duration-500" />
                                     </div>
                                 </div>
-                                <div className="space-y-4">
-                                    <h3 className="text-4xl font-black text-slate-900 dark:text-white tracking-tighter">How can Nova assist your project today?</h3>
-                                    <p className="text-lg font-medium text-slate-500 leading-relaxed max-w-md mx-auto">
-                                        I can help you architect complex projects, automate repetitive tasks, or extract deep insights from your workspace data.
+                                <div className="space-y-6">
+                                    <h3 className="text-5xl font-black text-slate-900 dark:text-white tracking-tight leading-tight">
+                                        How can Nova assist <br/> your project <span className="text-indigo-600">today?</span>
+                                    </h3>
+                                    <p className="text-xl font-medium text-slate-500 leading-relaxed max-w-lg mx-auto">
+                                        The advanced Task OS is ready. Architect projects, automate workflows, or extract deep insights instantly.
                                     </p>
                                 </div>
                                 <div className="flex flex-wrap justify-center gap-3">
@@ -540,24 +542,26 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                 </div>
                             </div>
                         )}
+                        <div className="h-40 flex-shrink-0" /> {/* Spacer for input box */}
                     </div>
 
-                    <div className="p-10 bg-gradient-to-t from-white dark:from-slate-950 via-white/80 dark:via-slate-950/80 to-transparent">
-                        <div className="max-w-4xl mx-auto relative group">
-                            <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-[2.2rem] blur opacity-10 group-focus-within:opacity-30 transition-opacity duration-500" />
-                            <textarea 
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => {
-                                    if (e.key === "Enter" && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSend();
-                                    }
-                                }}
-                                placeholder="Ask Nova to build something brilliant..."
-                                rows={1}
-                                className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] px-10 py-6 pr-20 text-base font-medium focus:outline-none focus:ring-0 focus:border-indigo-500 transition-all resize-none overflow-hidden min-h-[72px] relative z-10 shadow-2xl shadow-slate-200/50 dark:shadow-none placeholder:text-slate-400 placeholder:font-bold"
-                            />
+                    <div className="absolute bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-slate-50 dark:from-slate-950 via-slate-50/90 dark:via-slate-950/90 to-transparent z-30">
+                        <div className="max-w-4xl mx-auto flex flex-col gap-4">
+                            <div className="relative group">
+                                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 to-purple-500 rounded-[2.2rem] blur opacity-10 group-focus-within:opacity-30 transition-opacity duration-500" />
+                                <textarea 
+                                    value={input}
+                                    onChange={(e) => setInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter" && !e.shiftKey) {
+                                            e.preventDefault();
+                                            handleSend();
+                                        }
+                                    }}
+                                    placeholder="Ask Nova to build something brilliant..."
+                                    rows={1}
+                                    className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 rounded-[2rem] px-10 py-6 pr-20 text-base font-medium focus:outline-none focus:ring-0 focus:border-indigo-500 transition-all resize-none overflow-hidden min-h-[72px] relative z-10 shadow-2xl shadow-slate-200/50 dark:shadow-none placeholder:text-slate-400 placeholder:font-bold"
+                                />
                             <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20">
                                 <Button size="icon" variant="ghost" className="h-10 w-10 rounded-xl text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-500/10">
                                     <Paperclip className="w-5 h-5" />
@@ -566,10 +570,27 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                             <Button 
                                 onClick={handleSend}
                                 disabled={!input.trim() || isLoading}
-                                className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-14 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-xl shadow-indigo-500/40 transition-all active:scale-90 flex items-center justify-center group"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 z-20 w-12 h-12 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-500/30 transition-all active:scale-95 flex items-center justify-center group"
                             >
-                                {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />}
+                                {isLoading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />}
                             </Button>
+                        </div>
+                        
+                        <div className="flex items-center justify-between px-6">
+                            <div className="flex items-center gap-4 text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400">
+                                <div className="flex items-center gap-1.5 hover:text-indigo-500 cursor-pointer transition-colors">
+                                    <Sparkles className="w-3 h-3" />
+                                    GPT-4o Vision
+                                </div>
+                                <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
+                                <div className="flex items-center gap-1.5 hover:text-indigo-500 cursor-pointer transition-colors">
+                                    <CheckCircle2 className="w-3 h-3" />
+                                    Task OS Engine
+                                </div>
+                            </div>
+                            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-slate-400 opacity-60">
+                                Shift + Enter for new line
+                            </p>
                         </div>
                     </div>
                 </TabsContent>
@@ -618,22 +639,8 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                     </TabsContent>
                 ))}
             </Tabs>
-                <div className="max-w-4xl mx-auto flex items-center justify-between mt-6 px-4">
-                    <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">
-                        <div className="flex items-center gap-1.5 hover:text-indigo-500 cursor-pointer transition-colors">
-                            <Sparkles className="w-3 h-3" />
-                            GPT-4o Vision
-                        </div>
-                        <span className="w-1 h-1 rounded-full bg-slate-300" />
-                        <div className="flex items-center gap-1.5 hover:text-indigo-500 cursor-pointer transition-colors">
-                            <CheckCircle2 className="w-3 h-3" />
-                            Task Extractor
-                        </div>
-                    </div>
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 opacity-60">
-                        Shift + Enter for new line
-                    </p>
-                </div>
-            </div>
+        </div>
+    );
+}
     );
 }
