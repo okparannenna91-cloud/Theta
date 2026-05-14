@@ -3,12 +3,12 @@
 import { useState, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-    Dialog,
-    DialogContent,
-    DialogHeader,
-    DialogTitle,
-    DialogFooter,
-} from "@/components/ui/dialog";
+    Sheet,
+    SheetContent,
+    SheetHeader,
+    SheetTitle,
+    SheetFooter,
+} from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -168,33 +168,41 @@ Last Description: ${description}`,
     if (!task) return null;
 
     return (
-        <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <DialogContent className="max-w-5xl max-h-[95vh] overflow-hidden p-0 border-none bg-transparent selection:bg-indigo-500/30">
-                <div className="flex flex-col lg:flex-row h-full w-full glass-card border-none rounded-[3rem] overflow-hidden bg-white/80 dark:bg-slate-950/80 backdrop-blur-3xl shadow-[0_50px_100px_rgba(0,0,0,0.3)]">
-                    {/* Main Content */}
-                    <div className="flex-1 p-10 sm:p-16 space-y-12 overflow-y-auto no-scrollbar">
-                        <div className="space-y-10">
-                            <div className="flex items-center justify-between gap-6">
-                                <div className="flex items-center gap-6">
-                                    <div className="h-12 w-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-2xl shadow-indigo-600/20 neural-glow">
-                                        <Layout className="h-6 w-6 text-white" />
-                                    </div>
-                                    <div className="space-y-1">
-                                        <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-400">Node Synchronization</span>
-                                        <div className="flex items-center gap-3">
-                                            <div className="h-1 w-8 bg-indigo-600 rounded-full" />
-                                            <span className="text-[9px] text-slate-500 font-black uppercase tracking-[0.2em]">
-                                                Last Active {format(new Date(task.updatedAt), "HH:mm:ss")}
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <Button variant="ghost" size="icon" onClick={onClose} className="h-12 w-12 rounded-2xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-all">
-                                    <X className="h-6 w-6" />
-                                </Button>
-                            </div>
+        <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
+            <SheetContent side="right" className="fixed left-auto right-0 top-0 translate-x-0 translate-y-0 h-[100dvh] w-full sm:w-[95vw] md:w-[85vw] lg:w-[1100px] sm:max-w-none p-0 border-l border-indigo-500/10 bg-white/95 dark:bg-slate-950/95 backdrop-blur-3xl shadow-2xl rounded-none sm:rounded-l-[2rem] overflow-hidden flex flex-col selection:bg-indigo-500/30">
+                {/* Top Bar (Breadcrumbs & Actions) */}
+                <div className="h-16 border-b border-indigo-500/5 px-6 sm:px-8 flex items-center justify-between shrink-0 bg-white/50 dark:bg-slate-950/50 backdrop-blur-md sticky top-0 z-20">
+                    <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-slate-400">
+                        <span className="hover:text-indigo-600 transition-colors cursor-pointer">Workspace</span>
+                        <span>/</span>
+                        <span className="hover:text-indigo-600 transition-colors cursor-pointer">Task Node</span>
+                        <span>/</span>
+                        <span className="text-slate-900 dark:text-white truncate max-w-[150px] sm:max-w-[300px]">
+                            {task.title || "Unidentified"}
+                        </span>
+                    </div>
 
-                            <div className="space-y-4">
+                    <div className="flex items-center gap-4">
+                        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest">
+                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Synchronized
+                        </div>
+                        <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="h-8 w-8 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-500/10 transition-colors">
+                            <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                            <X className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+
+                {/* Main Content Area (70/30 Split) */}
+                <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
+                    <div className="flex flex-col lg:flex-row min-h-full">
+                        {/* Left Column (70%) */}
+                        <div className="flex-1 p-8 sm:p-12 lg:p-16 space-y-12 lg:border-r border-indigo-500/5">
+                            {/* Title & Description */}
+                            <div className="space-y-8">
                                 <Input
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
@@ -202,324 +210,263 @@ Last Description: ${description}`,
                                     className="text-4xl sm:text-5xl font-black bg-transparent border-none p-0 focus-visible:ring-0 placeholder:text-slate-200 h-auto uppercase tracking-tighter leading-none"
                                     placeholder="NODE IDENTIFIER..."
                                 />
-                            </div>
-
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-4 text-slate-400">
-                                    <AlignLeft className="h-4 w-4" />
-                                    <span className="text-[10px] font-black uppercase tracking-[0.3em]">Operational Context</span>
-                                </div>
                                 <Textarea
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                     onBlur={() => handleUpdate("description", description)}
-                                    className="min-h-[180px] bg-slate-100/50 dark:bg-slate-900/50 border-none rounded-[2rem] p-10 text-base font-bold resize-none focus-visible:ring-2 focus-visible:ring-indigo-500/20 leading-relaxed placeholder:text-slate-400"
+                                    className="min-h-[120px] bg-transparent border border-transparent hover:border-indigo-500/10 focus-visible:border-indigo-500/20 focus-visible:bg-slate-50/50 dark:focus-visible:bg-slate-900/50 rounded-2xl p-6 text-base font-bold resize-y focus-visible:ring-0 leading-relaxed placeholder:text-slate-400 transition-all"
                                     placeholder="Define the scope of this operational node..."
                                 />
                             </div>
-                        </div>
 
-                        <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent" />
-
-                        {/* Subtasks */}
-                        <div className="space-y-8">
-                            <div className="flex items-center gap-4">
-                                <Sparkles className="h-4 w-4 text-indigo-600" />
-                                <h3 className="text-xl font-black uppercase tracking-tighter">Sub-Process Integration</h3>
+                            {/* Subtasks */}
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3">
+                                    <Sparkles className="h-4 w-4 text-indigo-600" />
+                                    <h3 className="text-lg font-black uppercase tracking-tighter">Sub-Process Integration</h3>
+                                </div>
+                                <TaskSubtasks taskId={task.id} />
                             </div>
-                            <TaskSubtasks taskId={task.id} />
-                        </div>
 
-                        {/* Attachments */}
-                        <div className="space-y-8">
-                            <div className="flex items-center gap-4">
-                                <Palette className="h-4 w-4 text-indigo-600" />
-                                <h3 className="text-xl font-black uppercase tracking-tighter">Data Artifacts</h3>
+                            {/* Attachments */}
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3">
+                                    <Palette className="h-4 w-4 text-indigo-600" />
+                                    <h3 className="text-lg font-black uppercase tracking-tighter">Data Artifacts</h3>
+                                </div>
+                                <TaskAttachments taskId={task.id} workspaceId={workspaceId} attachments={task.attachments || []} />
                             </div>
-                            <TaskAttachments taskId={task.id} workspaceId={workspaceId} attachments={task.attachments || []} />
-                        </div>
 
-                        <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-indigo-500/10 to-transparent" />
+                            <hr className="border-indigo-500/10 my-8" />
 
-                        {/* Comments */}
-                        <div className="space-y-8">
-                            <div className="flex items-center gap-4">
-                                <Type className="h-4 w-4 text-indigo-600" />
-                                <h3 className="text-xl font-black uppercase tracking-tighter">Stream Dialogue</h3>
+                            {/* Comments */}
+                            <div className="space-y-6">
+                                <div className="flex items-center gap-3">
+                                    <Type className="h-4 w-4 text-indigo-600" />
+                                    <h3 className="text-lg font-black uppercase tracking-tighter">Stream Dialogue</h3>
+                                </div>
+                                <TaskComments taskId={task.id} workspaceId={workspaceId} />
                             </div>
-                            <TaskComments taskId={task.id} workspaceId={workspaceId} />
-                        </div>
 
-                        {/* Activity */}
-                        <div className="space-y-8">
-                            <div className="flex items-center gap-4">
-                                <Clock className="h-4 w-4 text-indigo-600" />
-                                <h3 className="text-xl font-black uppercase tracking-tighter">Event Logs</h3>
+                            {/* Activity */}
+                            <div className="space-y-6 pt-12 opacity-50 hover:opacity-100 transition-opacity">
+                                <div className="flex items-center gap-3">
+                                    <Clock className="h-4 w-4 text-indigo-600" />
+                                    <h3 className="text-lg font-black uppercase tracking-tighter">Event Logs</h3>
+                                </div>
+                                <TaskActivity taskId={task.id} workspaceId={workspaceId} />
                             </div>
-                            <TaskActivity taskId={task.id} workspaceId={workspaceId} />
                         </div>
-                    </div>
 
-                    {/* Sidebar */}
-                    <div className="w-full lg:w-[380px] p-10 sm:p-12 space-y-10 bg-slate-50/50 dark:bg-slate-950/50 backdrop-blur-2xl border-l border-indigo-500/10 overflow-y-auto no-scrollbar">
-                        <div className="space-y-8">
-                            <TimeTracker taskId={task.id} />
-
-                            <div className="space-y-4">
-                                <Button
-                                    variant="outline"
-                                    className="w-full h-16 justify-start gap-5 bg-indigo-600 text-white hover:bg-indigo-700 border-none font-black uppercase tracking-[0.2em] text-[10px] rounded-2xl shadow-xl shadow-indigo-600/20 transition-all active:scale-95 group"
-                                    onClick={handleAISummary}
-                                    disabled={isSummarizing}
-                                >
-                                    <div className="h-8 w-8 rounded-xl bg-white/20 flex items-center justify-center group-hover:scale-110 transition-transform">
-                                        {isSummarizing ? (
-                                            <Spinner className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            <Sparkles className="h-4 w-4" />
-                                        )}
+                        {/* Right Column (30%) */}
+                        <div className="w-full lg:w-[320px] xl:w-[360px] shrink-0 p-8 sm:p-10 bg-slate-50/30 dark:bg-slate-950/30">
+                            <div className="sticky top-8 space-y-10">
+                                {/* Core Metadata */}
+                                <div className="space-y-6">
+                                    <div className="space-y-3">
+                                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Process Status</Label>
+                                        <Select value={status} onValueChange={(val: string) => { setStatus(val); handleUpdate("status", val); }}>
+                                            <SelectTrigger className="w-full h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:border-indigo-500/30 transition-colors">
+                                                <SelectValue placeholder="Status" />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-indigo-500/20 rounded-2xl p-2">
+                                                {statuses.map((s: any) => (
+                                                    <SelectItem key={s.id} value={s.id} className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 cursor-pointer">{s.name}</SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
-                                    {isSummarizing ? "Synthesizing..." : "Nova Intelligence"}
-                                </Button>
 
-                                <Button
-                                    variant="outline"
-                                    className="w-full h-14 justify-start gap-4 bg-white/50 dark:bg-slate-900/50 hover:bg-rose-600 hover:text-white text-rose-600 border-none font-black uppercase tracking-[0.2em] text-[9px] rounded-2xl transition-all duration-500 active:scale-95"
-                                    onClick={async () => {
-                                        setIsSummarizing(true);
-                                        try {
-                                            const res = await fetch("/api/ai", {
-                                                method: "POST",
-                                                headers: { "Content-Type": "application/json" },
-                                                body: JSON.stringify({
-                                                    prompt: `/risks Analyze potential risks for this task: ${title}`,
-                                                    workspaceId,
-                                                }),
-                                            });
-                                            const data = await res.json();
-                                            setSummary(data.text);
-                                        } finally {
-                                            setIsSummarizing(false);
-                                        }
-                                    }}
-                                    disabled={isSummarizing}
-                                >
-                                    <AlertCircle className="h-4 w-4" />
-                                    Risk Matrix Analysis
-                                </Button>
+                                    <div className="space-y-3">
+                                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Priority Level</Label>
+                                        <Select value={priority} onValueChange={(val: string) => { setPriority(val); handleUpdate("priority", val); }}>
+                                            <SelectTrigger className="w-full h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:border-indigo-500/30 transition-colors">
+                                                <SelectValue placeholder="Priority" />
+                                            </SelectTrigger>
+                                            <SelectContent className="bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-indigo-500/20 rounded-2xl p-2">
+                                                <SelectItem value="low" className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 cursor-pointer text-emerald-500">STANDARD</SelectItem>
+                                                <SelectItem value="medium" className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 cursor-pointer text-amber-500">ELEVATED</SelectItem>
+                                                <SelectItem value="high" className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 cursor-pointer text-red-500">CRITICAL</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
 
-                                <AnimatePresence>
-                                    {summary && (
-                                        <motion.div 
-                                            initial={{ opacity: 0, scale: 0.95 }}
-                                            animate={{ opacity: 1, scale: 1 }}
-                                            exit={{ opacity: 0, scale: 0.95 }}
-                                            className="p-8 bg-indigo-600 text-white rounded-[2rem] border-none shadow-2xl neural-glow relative overflow-hidden"
-                                        >
-                                            <div className="absolute top-0 right-0 p-4">
-                                                <button onClick={() => setSummary(null)} className="text-white/40 hover:text-white transition-colors">
-                                                    <X className="h-4 w-4" />
-                                                </button>
-                                            </div>
-                                            <div className="flex items-center gap-3 mb-4">
-                                                <div className="h-8 w-8 rounded-lg bg-white/20 flex items-center justify-center">
-                                                    <Sparkles className="h-4 w-4" />
+                                    <div className="space-y-3">
+                                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Deadline Vector</Label>
+                                        <Popover>
+                                            <PopoverTrigger asChild>
+                                                <Button variant="outline" className={cn("w-full h-11 justify-start text-left font-black text-[10px] uppercase tracking-widest bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:border-indigo-500/30 transition-colors", !dueDate && "text-slate-400")}>
+                                                    <CalendarIcon className="mr-3 h-4 w-4 text-indigo-600" />
+                                                    {dueDate ? format(dueDate, "PPP") : <span>Initialize Date</span>}
+                                                </Button>
+                                            </PopoverTrigger>
+                                            <PopoverContent className="w-auto p-6 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-indigo-500/20 rounded-3xl shadow-2xl" align="start">
+                                                <div className="flex flex-col gap-4">
+                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Chronos</Label>
+                                                    <input
+                                                        type="date"
+                                                        className="w-full h-12 px-5 bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20"
+                                                        value={dueDate ? format(dueDate, "yyyy-MM-dd") : ""}
+                                                        onChange={(e) => {
+                                                            const date = e.target.value ? new Date(e.target.value) : undefined;
+                                                            setDueDate(date);
+                                                            handleUpdate("dueDate", date?.toISOString());
+                                                        }}
+                                                    />
                                                 </div>
-                                                <span className="text-[10px] font-black uppercase tracking-[0.3em]">Neural Insights</span>
-                                            </div>
-                                            <p className="text-sm font-bold leading-relaxed italic opacity-90">
-                                                &quot;{summary}&quot;
-                                            </p>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>
-                            </div>
-
-                            <div className="space-y-6 bg-white/30 dark:bg-slate-900/30 p-8 rounded-[2.5rem] border border-indigo-500/5">
-                                <div className="space-y-3">
-                                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Process Status</Label>
-                                    <Select
-                                        value={status}
-                                        onValueChange={(val: string) => {
-                                            setStatus(val);
-                                            handleUpdate("status", val);
-                                        }}
-                                    >
-                                        <SelectTrigger className="w-full h-12 bg-white/50 dark:bg-slate-950/50 border-none rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm">
-                                            <SelectValue placeholder="Status" />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-indigo-500/20 rounded-2xl p-2">
-                                            {statuses.map((s: any) => (
-                                                <SelectItem key={s.id} value={s.id} className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3">{s.name}</SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Operational Priority</Label>
-                                    <Select
-                                        value={priority}
-                                        onValueChange={(val: string) => {
-                                            setPriority(val);
-                                            handleUpdate("priority", val);
-                                        }}
-                                    >
-                                        <SelectTrigger className="w-full h-12 bg-white/50 dark:bg-slate-950/50 border-none rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm">
-                                            <SelectValue placeholder="Priority" />
-                                        </SelectTrigger>
-                                        <SelectContent className="bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-indigo-500/20 rounded-2xl p-2">
-                                            <SelectItem value="low" className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 text-emerald-500">STANDARD</SelectItem>
-                                            <SelectItem value="medium" className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 text-amber-500">ELEVATED</SelectItem>
-                                            <SelectItem value="high" className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 text-red-500">CRITICAL</SelectItem>
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-
-                                <div className="space-y-3">
-                                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Deadline Vector</Label>
-                                    <Popover>
-                                        <PopoverTrigger asChild>
-                                            <Button
-                                                variant="outline"
-                                                className={cn(
-                                                    "w-full h-12 justify-start text-left font-black text-[10px] uppercase tracking-widest bg-white/50 dark:bg-slate-950/50 border-none rounded-xl shadow-sm",
-                                                    !dueDate && "text-slate-400"
-                                                )}
-                                            >
-                                                <CalendarIcon className="mr-3 h-4 w-4 text-indigo-600" />
-                                                {dueDate ? format(dueDate, "PPP") : <span>Initialize Date</span>}
-                                            </Button>
-                                        </PopoverTrigger>
-                                        <PopoverContent className="w-auto p-6 bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl border-indigo-500/20 rounded-3xl shadow-2xl" align="start">
-                                            <div className="flex flex-col gap-4">
-                                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Chronos</Label>
-                                                <input
-                                                    type="date"
-                                                    className="w-full h-12 px-5 bg-white/50 dark:bg-slate-900/50 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20"
-                                                    value={dueDate ? format(dueDate, "yyyy-MM-dd") : ""}
-                                                    onChange={(e) => {
-                                                        const date = e.target.value ? new Date(e.target.value) : undefined;
-                                                        setDueDate(date);
-                                                        handleUpdate("dueDate", date?.toISOString());
-                                                    }}
-                                                />
-                                            </div>
-                                        </PopoverContent>
-                                    </Popover>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-5">
-                                    <div className="space-y-3">
-                                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Estimate (h)</Label>
-                                        <Input
-                                            type="number"
-                                            value={estimatedHours}
-                                            onChange={(e) => {
-                                                const val = parseInt(e.target.value) || 0;
-                                                setEstimatedHours(val);
-                                                handleUpdate("estimatedHours", val);
-                                            }}
-                                            className="h-12 bg-white/50 dark:bg-slate-950/50 border-none rounded-xl text-xs font-black shadow-sm text-center"
-                                        />
+                                            </PopoverContent>
+                                        </Popover>
                                     </div>
-                                    <div className="space-y-3">
-                                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Completion (%)</Label>
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            value={progress}
-                                            onChange={(e) => {
-                                                const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
-                                                setProgress(val);
-                                                handleUpdate("progress", val);
-                                            }}
-                                            className="h-12 bg-white/50 dark:bg-slate-950/50 border-none rounded-xl text-xs font-black shadow-sm text-center"
-                                        />
-                                    </div>
-                                </div>
 
-                                <div className="space-y-3">
-                                    <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Visual Signature</Label>
-                                    <div className="grid grid-cols-5 gap-3">
-                                        {["", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b", "#0f172a", "#4f46e5"].map((c) => (
-                                            <button
-                                                key={c}
-                                                onClick={() => {
-                                                    setColor(c);
-                                                    handleUpdate("color", c);
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-3">
+                                            <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Est. (h)</Label>
+                                            <Input
+                                                type="number"
+                                                value={estimatedHours}
+                                                onChange={(e) => {
+                                                    const val = parseInt(e.target.value) || 0;
+                                                    setEstimatedHours(val);
+                                                    handleUpdate("estimatedHours", val);
                                                 }}
-                                                className={cn(
-                                                    "h-8 w-8 rounded-full border border-white/10 transition-all duration-500",
-                                                    color === c ? "ring-4 ring-indigo-500/20 scale-125 z-10 shadow-xl" : "hover:scale-110",
-                                                    !c && "bg-slate-200 dark:bg-slate-800"
-                                                )}
-                                                style={c ? { backgroundColor: c } : {}}
+                                                className="h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-black shadow-sm text-center hover:border-indigo-500/30 transition-colors"
                                             />
-                                        ))}
+                                        </div>
+                                        <div className="space-y-3">
+                                            <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Done (%)</Label>
+                                            <Input
+                                                type="number"
+                                                min="0"
+                                                max="100"
+                                                value={progress}
+                                                onChange={(e) => {
+                                                    const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
+                                                    setProgress(val);
+                                                    handleUpdate("progress", val);
+                                                }}
+                                                className="h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-black shadow-sm text-center hover:border-indigo-500/30 transition-colors"
+                                            />
+                                        </div>
                                     </div>
+                                    
+                                    <div className="space-y-3">
+                                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Visual Signature</Label>
+                                        <div className="flex flex-wrap gap-2">
+                                            {["", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b", "#0f172a", "#4f46e5"].map((c) => (
+                                                <button
+                                                    key={c}
+                                                    onClick={() => {
+                                                        setColor(c);
+                                                        handleUpdate("color", c);
+                                                    }}
+                                                    className={cn(
+                                                        "h-6 w-6 rounded-full border border-slate-200 dark:border-slate-800 transition-all duration-300",
+                                                        color === c ? "ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-950 scale-110 shadow-md" : "hover:scale-110",
+                                                        !c && "bg-slate-100 dark:bg-slate-800"
+                                                    )}
+                                                    style={c ? { backgroundColor: c } : {}}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <TagSelector
+                                        taskId={task.id}
+                                        workspaceId={workspaceId}
+                                        currentTagIds={task.tagIds || []}
+                                    />
                                 </div>
 
-                                <TagSelector
-                                    taskId={task.id}
-                                    workspaceId={workspaceId}
-                                    currentTagIds={task.tagIds || []}
-                                />
-                            </div>
-
-                            <div className="space-y-4 pt-4">
-                                {!showDeleteConfirm ? (
+                                {/* Advanced Utilities */}
+                                <div className="space-y-4 pt-6 border-t border-indigo-500/10">
+                                    <TimeTracker taskId={task.id} />
+                                    
                                     <Button
-                                        variant="ghost"
-                                        className="w-full h-14 justify-start gap-4 text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 hover:text-rose-600 hover:bg-rose-500/5 rounded-2xl transition-all duration-500"
-                                        onClick={() => setShowDeleteConfirm(true)}
+                                        variant="outline"
+                                        className="w-full h-12 justify-start gap-3 bg-indigo-600/5 hover:bg-indigo-600 border-none hover:text-white text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-widest text-[10px] rounded-xl transition-all group"
+                                        onClick={handleAISummary}
+                                        disabled={isSummarizing}
                                     >
-                                        <Trash2 className="h-4 w-4" />
-                                        Terminate Node
+                                        {isSummarizing ? <Spinner className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 group-hover:scale-110 transition-transform" />}
+                                        {isSummarizing ? "Synthesizing..." : "Nova Intelligence"}
                                     </Button>
-                                ) : (
-                                    <motion.div 
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        className="p-8 bg-rose-500/10 border border-rose-500/20 rounded-[2rem] space-y-6"
+
+                                    <Button
+                                        variant="outline"
+                                        className="w-full h-12 justify-start gap-3 bg-rose-500/5 hover:bg-rose-500 border-none hover:text-white text-rose-600 dark:text-rose-400 font-black uppercase tracking-widest text-[10px] rounded-xl transition-all group"
+                                        onClick={async () => {
+                                            setIsSummarizing(true);
+                                            try {
+                                                const res = await fetch("/api/ai", {
+                                                    method: "POST",
+                                                    headers: { "Content-Type": "application/json" },
+                                                    body: JSON.stringify({
+                                                        prompt: `/risks Analyze potential risks for this task: ${title}`,
+                                                        workspaceId,
+                                                    }),
+                                                });
+                                                const data = await res.json();
+                                                setSummary(data.text);
+                                            } finally {
+                                                setIsSummarizing(false);
+                                            }
+                                        }}
+                                        disabled={isSummarizing}
                                     >
-                                        <div className="flex items-center gap-3 text-rose-600">
-                                            <AlertCircle className="h-5 w-5" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Authorize Termination?</span>
+                                        <AlertCircle className="h-4 w-4 group-hover:scale-110 transition-transform" />
+                                        Risk Analysis
+                                    </Button>
+
+                                    <AnimatePresence>
+                                        {summary && (
+                                            <motion.div 
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: "auto" }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="p-5 mt-4 bg-indigo-600 text-white rounded-2xl relative shadow-lg">
+                                                    <button onClick={() => setSummary(null)} className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors">
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <Sparkles className="h-3.5 w-3.5" />
+                                                        <span className="text-[9px] font-black uppercase tracking-widest">Neural Insights</span>
+                                                    </div>
+                                                    <p className="text-xs font-medium leading-relaxed opacity-90">
+                                                        {summary}
+                                                    </p>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+                                
+                                {showDeleteConfirm && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        className="p-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl space-y-4"
+                                    >
+                                        <div className="flex items-center gap-2 text-rose-600">
+                                            <AlertCircle className="h-4 w-4" />
+                                            <span className="text-[10px] font-black uppercase tracking-widest">Confirm Deletion?</span>
                                         </div>
-                                        <div className="flex gap-3">
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                className="flex-1 h-12 rounded-xl text-[9px] font-black uppercase tracking-widest"
-                                                onClick={() => setShowDeleteConfirm(false)}
-                                            >
-                                                Decline
+                                        <div className="flex gap-2">
+                                            <Button size="sm" variant="ghost" className="flex-1 h-9 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-600" onClick={() => setShowDeleteConfirm(false)}>
+                                                Cancel
                                             </Button>
-                                            <Button
-                                                size="sm"
-                                                className="flex-1 h-12 rounded-xl text-[9px] font-black uppercase tracking-widest bg-rose-600 hover:bg-rose-700 text-white shadow-xl shadow-rose-600/20"
-                                                onClick={() => deleteMutation.mutate()}
-                                                disabled={deleteMutation.isPending}
-                                            >
-                                                {deleteMutation.isPending ? "..." : "Terminate"}
+                                            <Button size="sm" className="flex-1 h-9 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-600 hover:bg-rose-700 text-white" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
+                                                {deleteMutation.isPending ? "..." : "Delete"}
                                             </Button>
                                         </div>
                                     </motion.div>
                                 )}
                             </div>
-
-                            <div className="pt-6 border-t border-indigo-500/5">
-                                <div className="flex items-center gap-3 text-slate-400">
-                                    <Clock className="h-3 w-3" />
-                                    <span className="text-[9px] font-black uppercase tracking-widest">Genesis {format(new Date(task.createdAt), "MMM d, yyyy")}</span>
-                                </div>
-                            </div>
                         </div>
                     </div>
                 </div>
-            </DialogContent>
-        </Dialog>
+            </SheetContent>
+        </Sheet>
     );
 }
