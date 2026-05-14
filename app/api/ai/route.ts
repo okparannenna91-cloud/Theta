@@ -629,7 +629,7 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     });
 
                     if (childTaskTitles && childTaskTitles.length > 0) {
-                        await Promise.all(childTaskTitles.map(t => 
+                        await Promise.all(childTaskTitles.map((t: string) => 
                             db.task.create({
                                 data: { 
                                     title: t, parentId: epic.id, workspaceId, 
@@ -938,7 +938,7 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     return {
                         proposal: {
                             module: moduleName,
-                            schema: features.map(f => ({ field: f, type: "String" })),
+                            schema: features.map((f: string) => ({ field: f, type: "String" })),
                             ui: ["Table View", "Detail Sidebar", "Create Modal"]
                         },
                         note: "This structure can be implemented in the next phase using the App Builder tool."
@@ -956,7 +956,7 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     const db = getPrismaClient(workspaceId);
                     const members = await db.workspaceMember.findMany({ where: { workspaceId } });
                     
-                    await Promise.all(members.map(m => 
+                    await Promise.all(members.map((m: any) => 
                         db.notification.create({
                             data: {
                                 title: `Announcement: ${title}`,
@@ -1038,7 +1038,7 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     await db.document.create({
                         data: { 
                             title: `GOAL: ${title}`, 
-                            content: `## Goal Definition\nTarget Date: ${targetDate || 'N/A'}\n\n### Key Results\n${metrics?.map(m => `- [ ] ${m}`).join('\n') || 'None'}`,
+                            content: `## Goal Definition\nTarget Date: ${targetDate || 'N/A'}\n\n### Key Results\n${metrics?.map((m: string) => `- [ ] ${m}`).join('\n') || 'None'}`,
                             workspaceId, userId: user.id 
                         }
                     });
@@ -1057,7 +1057,7 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                         orderBy: { createdAt: 'desc' } 
                     });
                     return { 
-                        history: history.map(h => ({ date: h.createdAt, amount: h.amount, status: h.status })),
+                        history: history.map((h: any) => ({ date: h.createdAt, amount: h.amount, status: h.action })),
                         plan: "Enterprise Alpha"
                     };
                 }
@@ -1099,7 +1099,7 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     // Optional: Integrate with mem0 if configured
                     try {
                         const { mem0 } = await import("@/lib/mem0");
-                        await mem0.add(`User preference: ${key} = ${value}`, { user_id: user.id });
+                        await mem0.add([{ role: "user", content: `User preference: ${key} = ${value}` }], { user_id: user.id });
                     } catch (e) {}
 
                     return { success: true, message: `Remembered: **${key}**` };
