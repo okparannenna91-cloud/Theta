@@ -442,8 +442,10 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                             take: 3, include: { user: { select: { name: true } }, task: { select: { title: true } } }
                         }),
                         db.activity.findMany({
-                            where: { workspaceId, metadata: { path: "title", string_contains: query } },
-                            take: 3, select: { action: true, entityType: true, createdAt: true, metadata: true }
+                            where: { workspaceId },
+                            take: 5, 
+                            orderBy: { createdAt: 'desc' },
+                            select: { action: true, entityType: true, createdAt: true, metadata: true }
                         })
                     ]);
 
