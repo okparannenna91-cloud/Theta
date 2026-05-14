@@ -162,31 +162,6 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     return { success: true, message: `Updated board layout for **${boardId}**.` };
                 }
             },
-            create_automation: {
-                description: 'Create a background automation that triggers on workspace events.',
-                parameters: z.object({
-                    name: z.string(),
-                    trigger: z.string().describe('e.g., TASK_CREATED, PROJECT_COMPLETED'),
-                    action: z.string().describe('e.g., SEND_NOTIFICATION, LOG_ACTIVITY')
-                }),
-                execute: async ({ name, trigger, action }: any) => {
-                    const { getPrismaClient } = await import("@/lib/prisma");
-                    const db = getPrismaClient(workspaceId);
-                    const automation = await db.automation.create({
-                        data: { name, trigger, action, workspaceId, active: true }
-                    });
-                    
-                    try {
-                        const { inngest } = await import("@/lib/inngest/client");
-                        await inngest.send({
-                            name: "automation/created",
-                            data: { automationId: automation.id, workspaceId }
-                        });
-                    } catch (e) {}
-
-                    return { success: true, message: `Automation "**${name}**" created and registered with Inngest.` };
-                }
-            },
             list_projects: {
                 description: 'List all projects in the current workspace.',
                 parameters: z.object({}),
@@ -432,6 +407,14 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                             name, trigger, action, actionValue: JSON.stringify(config), workspaceId, active: true
                         }
                     });
+
+                    try {
+                        const { inngest } = await import("@/lib/inngest/client");
+                        await inngest.send({
+                            name: "automation/created",
+                            data: { automationId: automation.id, workspaceId }
+                        });
+                    } catch (e) {}
 
                     return { success: true, message: `Automation "**${name}**" has been created and activated.` };
                 }
