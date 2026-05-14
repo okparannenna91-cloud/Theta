@@ -173,7 +173,7 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const automation = await db.automation.create({
-                        data: { name, trigger, action, workspaceId, isActive: true }
+                        data: { name, trigger, action, workspaceId, active: true }
                     });
                     
                     try {
@@ -1107,8 +1107,8 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     
                     await db.aiMemory.upsert({
                         where: { userId_key: { userId: user.id, key } },
-                        update: { value },
-                        create: { userId: user.id, key, value }
+                        update: { content: value },
+                        create: { userId: user.id, key, content: value }
                     });
 
                     // Optional: Integrate with mem0 if configured
