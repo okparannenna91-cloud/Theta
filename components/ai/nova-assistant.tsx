@@ -18,15 +18,15 @@ import { Mic, Paperclip, FileIcon, Volume2, MessageSquare, History, Zap, Clipboa
 import { createAvatar } from '@dicebear/core';
 import { notionists } from '@dicebear/collection';
 
-const novaAvatar = createAvatar(notionists, {
+const novaAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(createAvatar(notionists, {
     seed: 'Aneka',
     backgroundColor: ['b6e3f4', 'c0aede', 'd1d4f9'],
-}).toDataUriSync();
+}).toString())}`;
 
-const userAvatar = createAvatar(notionists, {
+const userAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(createAvatar(notionists, {
     seed: 'Felix',
     backgroundColor: ['f1f5f9'],
-}).toDataUriSync();
+}).toString())}`;
 
 interface Message {
     role: "user" | "nova";
