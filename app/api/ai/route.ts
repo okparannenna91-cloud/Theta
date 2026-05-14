@@ -382,7 +382,7 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                 execute: async ({ email, role }: any) => {
                     if (!await checkAdmin()) return { error: "Only admins can invite members." };
                     const { createInvite } = await import("@/lib/invite");
-                    await createInvite({ email, role, workspaceId, invitedBy: user.id });
+                    await createInvite(workspaceId, email, role);
                     return { success: true, message: `Sent invitation to **${email}** as **${role}**` };
                 }
             },
@@ -1036,7 +1036,7 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                 }),
                 execute: async ({ email, projectId: pId }: any) => {
                     const { createInvite } = await import("@/lib/invite");
-                    await createInvite({ email, role: "guest", workspaceId, projectId: pId, invitedBy: user.id });
+                    await createInvite(workspaceId, email, "guest");
                     return { success: true, message: `Guest invitation sent to **${email}** for the specified project.` };
                 }
             },
