@@ -269,7 +269,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
         } finally {
             setIsTabLoading(false);
         }
-    }, [workspaceId, activeBoard]);
+    }, [workspaceId, activeBoard, selectedProjectId]);
 
     useEffect(() => {
         if (activeTab !== "chat" && workspaceId) {
@@ -1315,7 +1315,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                             <Settings2 className="w-8 h-8 text-slate-400 animate-spin" />
                                         </div>
                                         <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No automations created yet</p>
-                                        <p className="text-xs font-bold text-slate-400 max-w-xs leading-relaxed uppercase tracking-wider mx-auto">Instruct Nova in chat: "When task completed, alert Slack channel"</p>
+                                        <p className="text-xs font-bold text-slate-400 max-w-xs leading-relaxed uppercase tracking-wider mx-auto">Instruct Nova in chat: &ldquo;When task completed, alert Slack channel&rdquo;</p>
                                     </div>
                                 ) : (
                                     automationsList.map(rule => (
@@ -1361,7 +1361,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                         <div className="text-center py-10 space-y-3">
                                             <Brain className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto" />
                                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No memories stored</p>
-                                            <p className="text-[9px] font-bold text-slate-400 max-w-xs mx-auto">Ask Nova to "remember" preferences like your writing style, timezone, or naming conventions</p>
+                                            <p className="text-[9px] font-bold text-slate-400 max-w-xs mx-auto">Ask Nova to &ldquo;remember&rdquo; preferences like your writing style, timezone, or naming conventions</p>
                                         </div>
                                     ) : (
                                         memoryList.map((mem: any) => (
