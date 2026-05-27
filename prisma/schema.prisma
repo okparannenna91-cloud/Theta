@@ -44,6 +44,11 @@ model Workspace {
   documents     Document[]
   forms         Form[]
   aiConversations AiConversation[]
+  aiModelConfigs  AiModelConfig[]
+  contextSnapshots AiContextSnapshot[]
+  savedSearches   SavedSearch[]
+  meetings        Meeting[]
+  evolutionTracking EvolutionTracking[]
 
   @@map("workspaces")
 }
@@ -168,6 +173,9 @@ model User {
   preferences   UserPreference?
   aiConversations AiConversation[]
   aiMemories      AiMemory[]
+  contextSnapshots AiContextSnapshot[]
+  savedSearches   SavedSearch[]
+  meetings        Meeting[]
 
   @@map("users")
 }
@@ -614,9 +622,10 @@ model AiConversation {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  messages    AiMessage[]
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages        AiMessage[]
+  contextSnapshots AiContextSnapshot[]
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("ai_conversations")
 }
@@ -647,4 +656,136 @@ model AiMemory {
 
   @@unique([userId, key])
   @@map("ai_memories")
+}
+
+model EntityLink {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  sourceId  String   @db.ObjectId
+  targetId  String   @db.ObjectId
+  relation  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sourceId, targetId, relation])
+  @@map("entity_links")
+}
+
+model ScheduledReport {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  type        String
+  frequency   String   // daily, weekly, monthly, quarterly
+  scopeId     String
+  nextRun     DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, type, scopeId])
+  @@map("scheduled_reports")
+}
+
+// S6: AI Model Configuration — per-workspace model provider settings
+model AiModelConfig {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  provider    String   // OpenRouter, Cohere, OpenAI, Gemini
+  modelName   String   // Actual model identifier (e.g. "gpt-4o", "claude-3-opus")
+  apiKeyRef   String   // Environment variable name for the API key
+  priority    Int      @default(0) // Fallback order (0=primary)
+  isEnabled   Boolean  @default(true)
+  usageCount  Int      @default(0)
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+  @@map("ai_model_configs")
+}
+
+// S8: Context Snapshots — captures of active context for debugging and audit
+model AiContextSnapshot {
+  id              String       @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId     String       @db.ObjectId
+  userId          String       @db.ObjectId
+  conversationId  String?      @db.ObjectId
+  contextData     Json         // Full context blob at time of snapshot
+  tokenCount      Int          @default(0)
+  source          String       @default("auto") // ai_request, manual_save, auto_snapshot
+  createdAt       DateTime     @default(now())
+
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation AiConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@map("ai_context_snapshots")
+}
+
+// S13: Saved Searches — persisted search queries for quick access
+model SavedSearch {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  name        String
+  query       String
+  domain      String   @default("GLOBAL") // PROJECTS, TASKS, DOCUMENTS, etc.
+  searchType  String   @default("KEYWORD") // KEYWORD, SEMANTIC, CONTEXTUAL, QUESTION_ANSWERING
+  filters     Json?    // Advanced filter criteria
+  isPinned    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_searches")
+}
+
+// S15: Meetings — dedicated model with full agenda, decisions, action items
+model Meeting {
+  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId             String    @db.ObjectId
+  userId                  String    @db.ObjectId
+  title                   String
+  description             String?
+  topic                   String?
+  status                  String    @default("scheduled") // scheduled, live, completed, cancelled
+  phase                   String    @default("PRE_MEETING") // PRE_MEETING, LIVE_MEETING, POST_MEETING
+  startedAt               DateTime?
+  endedAt                 DateTime?
+  summary                 String?
+  agendaItems             Json?     // string[]
+  decisions               Json?     // string[]
+  actionItems             Json?     // {title, assignee?, priority}[]
+  participants            Json?     // string[]
+  followUpRecommendations Json?     // string[]
+  decisionLog             Json?     // string[]
+  contextQuestions        Json?     // string[]
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("meetings")
+}
+
+// S20: Evolution Tracking — per-workspace feature adoption and stage progression
+model EvolutionTracking {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  stage       String   // ASSISTANT, OPERATOR, MANAGER, COORDINATOR, WORKFORCE
+  featureKey  String   // e.g. "task_creation", "project_health", "multi_agent"
+  isEnabled   Boolean  @default(false)
+  enabledAt   DateTime?
+  disabledAt  DateTime?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, featureKey])
+  @@map("evolution_tracking")
 }

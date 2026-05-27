@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
+
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
@@ -70,7 +71,7 @@ export function CalendarView({ tasks }: CalendarViewProps) {
                     editable={false} /* Future iteration: allow drag and drop dates */
                     selectable={false}
                     dayMaxEvents={3} // Limit number of events rendering on a single day
-                    eventClick={(info) => {
+                    eventClick={(info: any) => {
                         // Future iteration: Open Task details modal
                         console.log("Clicked Task: ", info.event.title);
                     }}

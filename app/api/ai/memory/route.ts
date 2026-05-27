@@ -63,7 +63,47 @@ export async function POST(req: Request) {
 
         return NextResponse.json(memory);
     } catch (error: any) {
-        console.error("AI Memory POST error:", error);
+      console.error("AI Memory POST error:", error);
+      return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+    }
+}
+
+export async function DELETE(req: Request) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { workspaceId, key, id } = await req.json();
+
+        if (!workspaceId) {
+            return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
+        }
+
+        const db = getPrismaClient(workspaceId);
+        let deleted;
+
+        if (id) {
+            deleted = await db.aiMemory.delete({
+                where: { id },
+            });
+        } else if (key) {
+            deleted = await db.aiMemory.delete({
+                where: {
+                    userId_key: {
+                        userId: user.id,
+                        key: key,
+                    },
+                },
+            });
+        } else {
+            return NextResponse.json({ error: "Either id or key is required to delete memory" }, { status: 400 });
+        }
+
+        return NextResponse.json({ success: true, message: "Memory deleted successfully", deleted });
+    } catch (error: any) {
+        console.error("AI Memory DELETE error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

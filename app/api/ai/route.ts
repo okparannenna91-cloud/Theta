@@ -12,17 +12,71 @@ const openaiProvider = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const NOVA_SYSTEM_PROMPT = `You are Nova, the AI Project Architect for Theta PM. 
-You are an execution system, not just a chatbot. Your goal is to help users manage their workspace, projects, and tasks with precision.
-You have access to a suite of tools to create, update, search, and analyze data. 
+// ─── In-Memory Rate Limiter (per-user, sliding window) ───────────────────────
+const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute
+const RATE_LIMIT_MAX_REQUESTS = 20;
+const rateLimitMap = new Map<string, number[]>();
 
-[CORE OPERATING PRINCIPLES]
+function isRateLimited(userId: string): boolean {
+  const now = Date.now();
+  const timestamps = rateLimitMap.get(userId) ?? [];
+  // Keep only timestamps within the current window
+  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
+  if (recent.length >= RATE_LIMIT_MAX_REQUESTS) {
+    rateLimitMap.set(userId, recent);
+    return true;
+  }
+  recent.push(now);
+  rateLimitMap.set(userId, recent);
+  return false;
+}
+
+// ─── Audit Logger ────────────────────────────────────────────────────────────
+async function auditToolExecution(
+  workspaceId: string,
+  userId: string,
+  toolName: string,
+  params: Record<string, unknown>
+): Promise<void> {
+  try {
+    const { getPrismaClient } = await import("@/lib/prisma");
+    const db = getPrismaClient(workspaceId);
+    await db.activity.create({
+      data: {
+        action: "NOVA_TOOL_EXECUTION",
+        entityType: "AI_TOOL",
+        entityId: toolName,
+        workspaceId,
+        userId,
+        metadata: {
+          tool: toolName,
+          params: JSON.parse(JSON.stringify(params)),
+          timestamp: new Date().toISOString(),
+        },
+      },
+    });
+  } catch (e) {
+    console.error("[AuditLog] Failed to log tool execution:", e);
+  }
+}
+
+import { NOVA_SYSTEM_PROMPT as CORE_NOVA_SYSTEM_PROMPT } from "@/lib/nova/config";
+import { AGENT_REGISTRY } from "@/lib/nova/config";
+import { SERVICE_REGISTRY } from "@/lib/nova/config";
+
+const NOVA_SYSTEM_PROMPT = `${CORE_NOVA_SYSTEM_PROMPT}
+
+[OPERATING GUIDELINES]
 1. PRIORITIZE ACTION: Use tools immediately when a user request can be fulfilled by them.
 2. EXPLAINABILITY: Always explain *why* you are taking an action. Cite where you found information.
 3. TRANSPARENCY: If a tool execution fails or needs more info, be clear about it.
 4. PROACTIVITY: If a project seems stalled or tasks are overdue, suggest 'get_suggestions'.
 5. FORMATTING: Use bold for entity names. Use Mermaid.js syntax for diagrams (e.g. flowcharts, gantt charts) when explaining complex dependencies or workflows.
 6. REAL-TIME: You can broadcast updates via Ably for immediate UI feedback.
+
+Available Specialized Agents: ${AGENT_REGISTRY.map(a => `${a.name} (${a.purpose})`).join(", ")}.
+
+Available Infrastructure Services: ${SERVICE_REGISTRY.map(s => `${s.provider} (${s.category})`).join(", ")}.
 
 You are professional, data-driven, and proactive.`;
 
@@ -31,6 +85,14 @@ export async function POST(req: Request) {
         const user = await getCurrentUser();
         if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        // ─── Rate Limit Check ────────────────────────────────────────────
+        if (isRateLimited(user.id)) {
+            return NextResponse.json(
+                { error: "Rate limit exceeded. Please wait a moment before trying again." },
+                { status: 429 }
+            );
         }
 
         const { prompt, imageUrl, workspaceId, conversationId, projectId, context } = await req.json();
@@ -54,48 +116,47 @@ export async function POST(req: Request) {
 
         let workspaceContext = "";
         if (workspaceId) {
-            const { getPrismaClient } = await import("@/lib/prisma");
-            const db = getPrismaClient(workspaceId);
+            const { ContextSystem } = await import("@/lib/nova/context-system");
+            const { MemorySystem } = await import("@/lib/nova/memory-system");
+
+            // Integrate prioritized context aggregator
+            const activeContext = await ContextSystem.getActiveContext({
+                workspaceId,
+                userId: user.id,
+                projectId: projectId || undefined,
+            });
+
+            // Fetch memory layers (Mem0 + Upstash + Prisma)
+            const longTermMemories = await MemorySystem.getLongTerm(user.id, workspaceId);
+            const shortTermHistories = await MemorySystem.getShortTerm(conversationId || "global");
+
+            const formattedMemories = Object.entries(longTermMemories)
+                .map(([key, val]) => `- ${key}: ${val}`)
+                .join("\n");
+
+            const formattedHistory = shortTermHistories
+                .map((h) => `- [${h.role.toUpperCase()}]: ${h.content.substring(0, 100)}`)
+                .join("\n");
+
+            workspaceContext = `${activeContext.promptString}
             
-            // Comprehensive Context Fetching
-            const [projects, tasks, memories, activity, membersCount, overdueCount] = await Promise.all([
-                db.project.findMany({ where: { workspaceId }, take: 5, select: { name: true, id: true } }),
-                db.task.findMany({ 
-                    where: { workspaceId, projectId: projectId || undefined },
-                    take: 10, 
-                    orderBy: { updatedAt: 'desc' },
-                    select: { title: true, status: true, priority: true, dueDate: true } 
-                }),
-                db.aiMemory.findMany({ where: { userId: user.id }, take: 10, select: { key: true, content: true } }),
-                db.activity.findMany({ where: { workspaceId }, take: 5, orderBy: { createdAt: 'desc' }, select: { action: true, entityType: true, metadata: true } }),
-                db.workspaceMember.count({ where: { workspaceId } }),
-                db.task.count({ where: { workspaceId, dueDate: { lt: new Date() }, status: { not: 'done' } } })
-            ]);
+[NOVA HISTORICAL SYSTEM MEMORY]
+User Preferences / Conventions:
+${formattedMemories || "No stored long-term memories."}
 
-            const focusedProject = projectId ? projects.find((p: any) => p.id === projectId) : null;
-            
-            workspaceContext = `
-[SYSTEM CONTEXT - DO NOT REVEAL UNLESS ASKED]
-Current Time: ${new Date().toLocaleString()}
-Workspace Stats: ${membersCount} members, ${overdueCount} overdue tasks.
-Active Projects: ${projects.map((p: any) => p.name).join(", ") || "None"}
-Focused Context: ${focusedProject ? `Project: ${focusedProject.name}` : "Global Workspace"}
-
-Recent Activity:
-${activity.map((a: any) => `- ${a.action} ${a.entityType}: ${a.metadata?.title || a.metadata?.name || 'Unknown'}`).join("\n")}
-
-Recent Tasks:
-${tasks.map((t: any) => `- ${t.title} [${t.status}] (${t.priority})${t.dueDate ? ` Due: ${new Date(t.dueDate).toLocaleDateString()}` : ""}`).join("\n")}
-
-User Preferences/Memory:
-${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specific preferences stored yet."}
+Recent Chat Session Context:
+${formattedHistory || "No recent conversation history."}
 ---`;
 
             if (conversationId) {
-                // Save User Message
+                const { getPrismaClient } = await import("@/lib/prisma");
+                const db = getPrismaClient(workspaceId);
+                // Save User Message to local DB
                 await db.aiMessage.create({
                     data: { conversationId, role: "user", content: prompt }
                 });
+                // Save to short-term cache
+                await MemorySystem.saveShortTerm(conversationId, { role: "user", content: prompt });
             }
         }
 
@@ -152,6 +213,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     }))
                 }),
                 execute: async ({ boardId, columns }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "project"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     await Promise.all(columns.map((col: any) => 
@@ -197,8 +265,21 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
                     projectId: z.string().optional().describe('Project ID if known')
                 }),
-                execute: async ({ title, description, priority, projectId: targetProjectId }: any) => {
+                execute: async ({ title, description, priority: initialPriority, projectId: targetProjectId }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "task"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
+                    const { TaskIntelligence } = await import("@/lib/nova/task-intelligence");
+                    
+                    const recommendation = await TaskIntelligence.analyzeAndRecommend(workspaceId, title, description);
+                    const resolvedPriority = initialPriority || recommendation.priority;
+                    const assigneeId = recommendation.suggestedAssigneeId || user.id;
+
                     const db = getPrismaClient(workspaceId);
                     let pId = targetProjectId || projectId;
                     if (!pId) {
@@ -209,21 +290,21 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     const task = await db.task.create({
                         data: { 
                             title, description, 
-                            priority: priority || 'medium', 
+                            priority: resolvedPriority, 
                             status: 'todo', 
                             workspaceId, 
                             projectId: pId, 
-                            userId: user.id 
+                            userId: assigneeId
                         }
                     });
                     await db.activity.create({
                         data: { 
                             action: "CREATED", entityType: "TASK", entityId: task.id, 
                             workspaceId, userId: user.id, projectId: pId,
-                            metadata: { source: "NOVA_AI", title } 
+                            metadata: { source: "NOVA_AI", title, intelligenceReasoning: recommendation.reason } 
                         }
                     });
-                    return { success: true, message: `Created task **${title}**` };
+                    return { success: true, message: `Created task **${title}**. ${recommendation.reason}` };
                 }
             },
             update_task: {
@@ -236,6 +317,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     assigneeId: z.string().optional().describe('User ID to assign the task to')
                 }),
                 execute: async ({ taskId, status, priority, title, assigneeId }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "task"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const task = await db.task.update({
@@ -261,6 +349,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                 description: 'Delete a task.',
                 parameters: z.object({ taskId: z.string() }),
                 execute: async ({ taskId }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "delete",
+                        resourceType: "task"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const task = await db.task.delete({ where: { id: taskId } });
@@ -281,6 +376,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     description: z.string().optional()
                 }),
                 execute: async ({ name, description }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "project"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const project = await db.project.create({
@@ -304,6 +406,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     description: z.string().optional()
                 }),
                 execute: async ({ projectId: id, name, description }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "project"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const project = await db.project.update({
@@ -317,7 +426,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                 description: 'Delete a project (Admin only).',
                 parameters: z.object({ projectId: z.string() }),
                 execute: async ({ projectId: id }: any) => {
-                    if (!await checkAdmin()) return { error: "Only admins can delete projects." };
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "delete",
+                        resourceType: "project"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     await db.project.delete({ where: { id } });
@@ -330,7 +445,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     name: z.string().optional(),
                 }),
                 execute: async ({ name }: any) => {
-                    if (!await checkAdmin()) return { error: "Only admins can update workspace settings." };
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "admin",
+                        resourceType: "workspace"
+                    });
                     const { prisma } = await import("@/lib/prisma");
                     await prisma.workspace.update({
                         where: { id: workspaceId },
@@ -355,7 +476,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     role: z.enum(['admin', 'member']).default('member')
                 }),
                 execute: async ({ email, role }: any) => {
-                    if (!await checkAdmin()) return { error: "Only admins can invite members." };
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "admin",
+                        resourceType: "member"
+                    });
                     const { createInvite } = await import("@/lib/invite");
                     await createInvite(workspaceId, email, role);
                     return { success: true, message: `Sent invitation to **${email}** as **${role}**` };
@@ -368,6 +495,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     subtasks: z.array(z.string()).describe('List of subtask titles')
                 }),
                 execute: async ({ taskId, subtasks: subtaskTitles }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "task"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
@@ -399,6 +533,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     config: z.record(z.any()).describe('Configuration for the automation')
                 }),
                 execute: async ({ name, trigger, action, config }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "admin",
+                        resourceType: "workspace"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
@@ -425,20 +566,24 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     query: z.string().describe('The search query or keyword')
                 }),
                 execute: async ({ query }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({ userId: user.id, workspaceId, action: "read", resourceType: "workspace" });
+                    await auditToolExecution(workspaceId, user.id, "search_workspace", { query });
+
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
                     const [tasks, docs, comments, activities] = await Promise.all([
                         db.task.findMany({
-                            where: { workspaceId, OR: [{ title: { contains: query, mode: 'insensitive' } }, { description: { contains: query, mode: 'insensitive' } }] },
+                            where: { workspaceId, OR: [{ title: { contains: query } }, { description: { contains: query } }] },
                             take: 5, select: { id: true, title: true, status: true }
                         }),
                         db.document.findMany({
-                            where: { workspaceId, OR: [{ title: { contains: query, mode: 'insensitive' } }, { content: { contains: query, mode: 'insensitive' } }] },
+                            where: { workspaceId, OR: [{ title: { contains: query } }, { content: { contains: query } }] },
                             take: 5, select: { id: true, title: true }
                         }),
                         db.comment.findMany({
-                            where: { task: { workspaceId }, content: { contains: query, mode: 'insensitive' } },
+                            where: { task: { workspaceId }, content: { contains: query } },
                             take: 3, include: { user: { select: { name: true } }, task: { select: { title: true } } }
                         }),
                         db.activity.findMany({
@@ -480,14 +625,64 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     content: z.string().describe('The markdown content of the document')
                 }),
                 execute: async ({ title, content }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "document"
+                    });
+                    await auditToolExecution(workspaceId, user.id, "create_document", { title });
+
                     const { getPrismaClient } = await import("@/lib/prisma");
+                    const { DocumentIntelligence } = await import("@/lib/nova/document-intelligence");
+                    const analysis = DocumentIntelligence.analyze(title, content);
+
                     const db = getPrismaClient(workspaceId);
-                    
                     const doc = await db.document.create({
-                        data: { title, content, workspaceId, userId: user.id }
+                        data: { title, content, workspaceId, userId: user.id, tags: analysis.suggestedLinks }
                     });
 
-                    return { success: true, message: `Document "**${title}**" created.`, id: doc.id };
+                    // Auto-generate extracted tasks if any
+                    let createdTasksCount = 0;
+                    if (analysis.extractedTasks.length > 0) {
+                        const firstProject = await db.project.findFirst({ where: { workspaceId } });
+                        if (firstProject) {
+                            await Promise.all(analysis.extractedTasks.map(async (taskTitle) => {
+                                await db.task.create({
+                                    data: {
+                                        title: taskTitle,
+                                        description: `Auto-extracted from document: ${title}`,
+                                        priority: "medium",
+                                        status: "todo",
+                                        workspaceId,
+                                        projectId: firstProject.id,
+                                        userId: user.id
+                                    }
+                                });
+                            }));
+                            createdTasksCount = analysis.extractedTasks.length;
+                        }
+                    }
+
+                    // Auto-create entity links
+                    if (analysis.decisions.length > 0) {
+                        for (const dec of analysis.decisions) {
+                            await db.entityLink.create({
+                                data: {
+                                    sourceId: doc.id,
+                                    targetId: doc.id,
+                                    relation: `DECISION: ${dec.substring(0, 50)}`
+                                }
+                            }).catch(() => {});
+                        }
+                    }
+
+                    return { 
+                        success: true, 
+                        message: `Document "**${title}**" created. Categorized as **${analysis.documentType}**. Auto-generated **${createdTasksCount}** tasks based on Document Intelligence extraction.`, 
+                        id: doc.id 
+                    };
                 }
             },
             read_document: {
@@ -496,6 +691,10 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     id: z.string().describe('The ID of the document to read')
                 }),
                 execute: async ({ id }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({ userId: user.id, workspaceId, action: "read", resourceType: "document" });
+                    await auditToolExecution(workspaceId, user.id, "read_document", { id });
+
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
@@ -510,6 +709,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                 description: 'Delete a document from the knowledge base.',
                 parameters: z.object({ id: z.string() }),
                 execute: async ({ id }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "delete",
+                        resourceType: "document"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     await db.document.delete({ where: { id } });
@@ -548,6 +754,10 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     userId: z.string().describe('The ID of the user to generate the report for')
                 }),
                 execute: async ({ userId }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({ userId: user.id, workspaceId, action: "read", resourceType: "workspace" });
+                    await auditToolExecution(workspaceId, user.id, "generate_standup", { userId });
+
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
@@ -571,6 +781,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     description: z.string().optional()
                 }),
                 execute: async ({ taskId, durationSeconds: duration, description }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "task"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     await db.timeLog.create({
@@ -586,6 +803,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     hours: z.number()
                 }),
                 execute: async ({ taskId, hours }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "task"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     await db.task.update({
@@ -603,6 +827,18 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     type: z.enum(['FS', 'SS', 'FF', 'SF']).default('FS')
                 }),
                 execute: async ({ taskId, predecessorId, type }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "task"
+                    });
+                    const { TaskIntelligence } = await import("@/lib/nova/task-intelligence");
+                    const hasCycle = await TaskIntelligence.hasDependencyCycle(workspaceId, taskId, predecessorId);
+                    if (hasCycle) {
+                        return { error: "Dependency creation failed: Circular dependency path detected." };
+                    }
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     await db.taskDependency.create({
@@ -618,6 +854,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     childTaskTitles: z.array(z.string()).optional()
                 }),
                 execute: async ({ title, childTaskTitles }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "task"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
@@ -668,6 +911,10 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                 description: 'Generate a personalized daily operations brief for the user.',
                 parameters: z.object({}),
                 execute: async () => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({ userId: user.id, workspaceId, action: "read", resourceType: "workspace" });
+                    await auditToolExecution(workspaceId, user.id, "generate_daily_brief", {});
+
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
@@ -694,6 +941,10 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     projectId: z.string().optional()
                 }),
                 execute: async ({ topic, projectId: pId }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({ userId: user.id, workspaceId, action: "read", resourceType: "project" });
+                    await auditToolExecution(workspaceId, user.id, "generate_meeting_prep", { topic, projectId: pId });
+
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
@@ -719,29 +970,16 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     projectId: z.string().describe('The ID of the project to analyze')
                 }),
                 execute: async ({ projectId: pId }: any) => {
-                    const { getPrismaClient } = await import("@/lib/prisma");
-                    const db = getPrismaClient(workspaceId);
-                    
-                    const [tasks, activities, members] = await Promise.all([
-                        db.task.findMany({ where: { projectId: pId } }),
-                        db.activity.findMany({ where: { projectId: pId }, take: 10, orderBy: { createdAt: 'desc' } }),
-                        db.workspaceMember.count({ where: { workspaceId } })
-                    ]);
-
-                    const overdue = tasks.filter(t => t.dueDate && t.dueDate < new Date() && t.status !== 'done').length;
-                    const completionRate = tasks.length > 0 ? (tasks.filter(t => t.status === 'done').length / tasks.length) * 100 : 100;
-                    
-                    return { 
-                        healthScore: Math.round(completionRate - (overdue * 10)),
-                        metrics: { 
-                            totalTasks: tasks.length,
-                            overdue, 
-                            completionRate: `${Math.round(completionRate)}%`,
-                            velocity: activities.length > 5 ? "HIGH" : "STABLE"
-                        },
-                        status: overdue > 2 ? "AT_RISK" : "HEALTHY",
-                        trend: activities.length > 8 ? "UPWARD" : "NEUTRAL"
-                    };
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "read",
+                        resourceType: "project"
+                    });
+                    const { ProjectIntelligence } = await import("@/lib/nova/project-intelligence");
+                    const health = await ProjectIntelligence.analyzeHealth(workspaceId, pId);
+                    return health;
                 }
             },
             create_approval_request: {
@@ -752,6 +990,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     note: z.string().optional()
                 }),
                 execute: async ({ entityId, approverId, note }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "task"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
@@ -780,6 +1025,10 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     }))
                 }),
                 execute: async ({ title, messages }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({ userId: user.id, workspaceId, action: "write", resourceType: "workspace" });
+                    await auditToolExecution(workspaceId, user.id, "save_conversation", { title });
+
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
@@ -806,6 +1055,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     }))
                 }),
                 execute: async ({ title, description, fields }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "admin",
+                        resourceType: "workspace"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const form = await db.form.create({
@@ -826,6 +1082,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     endDate: z.string().optional()
                 }),
                 execute: async ({ projectId: pId, name, startDate, endDate }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "project"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const board = await db.board.create({
@@ -853,6 +1116,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     interval: z.enum(['daily', 'weekly', 'monthly', 'quarterly'])
                 }),
                 execute: async ({ taskId, interval }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "task"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     await db.task.update({
@@ -869,6 +1139,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     fields: z.record(z.any()).describe('Key-value pairs of custom fields')
                 }),
                 execute: async ({ taskId, fields }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "task"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const task = await db.task.findUnique({ where: { id: taskId } });
@@ -918,6 +1195,10 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     formId: z.string()
                 }),
                 execute: async ({ formId }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({ userId: user.id, workspaceId, action: "read", resourceType: "workspace" });
+                    await auditToolExecution(workspaceId, user.id, "get_form_responses", { formId });
+
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const responses = await db.formResponse.findMany({ 
@@ -952,6 +1233,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     message: z.string()
                 }),
                 execute: async ({ title, message }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "admin",
+                        resourceType: "workspace"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const members = await db.workspaceMember.findMany({ where: { workspaceId } });
@@ -989,6 +1277,10 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                 description: 'Generate a downloadable JSON export of the current workspace data.',
                 parameters: z.object({}),
                 execute: async () => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({ userId: user.id, workspaceId, action: "admin", resourceType: "workspace" });
+                    await auditToolExecution(workspaceId, user.id, "export_workspace_data", {});
+
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const [tasks, projects] = await Promise.all([
@@ -1020,6 +1312,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     projectId: z.string()
                 }),
                 execute: async ({ email, projectId: pId }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "admin",
+                        resourceType: "member"
+                    });
                     const { createInvite } = await import("@/lib/invite");
                     await createInvite(workspaceId, email, "guest");
                     return { success: true, message: `Guest invitation sent to **${email}** for the specified project.` };
@@ -1033,6 +1332,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     metrics: z.array(z.string()).optional()
                 }),
                 execute: async ({ title, targetDate, metrics }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "document"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     await db.document.create({
@@ -1049,6 +1355,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                 description: 'Retrieve the recent billing and subscription history for the workspace.',
                 parameters: z.object({}),
                 execute: async () => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "read",
+                        resourceType: "billing"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     const history = await db.billingLog.findMany({ 
@@ -1087,6 +1400,13 @@ ${memories.map((m: any) => `- ${m.key}: ${m.content}`).join("\n") || "No specifi
                     value: z.string()
                 }),
                 execute: async ({ key, value }: any) => {
+                    const { SecurityGuard } = await import("@/lib/nova/security-guard");
+                    await SecurityGuard.enforce({
+                        userId: user.id,
+                        workspaceId,
+                        action: "write",
+                        resourceType: "workspace"
+                    });
                     const { getPrismaClient } = await import("@/lib/prisma");
                     const db = getPrismaClient(workspaceId);
                     
