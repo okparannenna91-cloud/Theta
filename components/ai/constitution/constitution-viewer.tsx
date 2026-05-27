@@ -72,7 +72,7 @@ export function ConstitutionViewer() {
   }
 
   return (
-    <div className="flex h-[calc(100vh-9.5rem)] w-[calc(100%+4rem)] -ml-8 -mt-2 overflow-hidden">
+    <div className="flex flex-1 overflow-hidden">
       {/* Sidebar */}
       <div className="w-72 border-r border-slate-800 bg-slate-950/50 flex flex-col shrink-0">
         <div className="p-4 border-b border-slate-800 space-y-3">

@@ -645,8 +645,8 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
             </div>
 
             <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
-                <TabsContent value="chat" className="flex-1 flex flex-col min-h-0 m-0 data-[state=active]:flex relative">
-                    <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-12 flex flex-col space-y-16 scrollbar-hide">
+                <TabsContent value="chat" className="flex-1 flex flex-col min-h-0 m-0 data-[state=active]:flex">
+                    <div ref={scrollRef} className="flex-1 overflow-y-auto px-8 py-12 flex flex-col space-y-16 scrollbar-hide pb-48">
                         {messages.length === 0 && !isLoading ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-center max-w-3xl mx-auto space-y-12 py-20">
                                 <div className="relative group cursor-pointer">
@@ -809,10 +809,9 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                 </div>
                             </div>
                         )}
-                        <div className="h-48 flex-shrink-0" />
                     </div>
 
-                    <div className="absolute bottom-0 left-0 right-0 p-10 bg-gradient-to-t from-slate-50 dark:from-slate-950 via-slate-50/95 dark:via-slate-950/95 to-transparent z-50">
+                    <div className="px-10 pb-10 pt-4 bg-gradient-to-t from-slate-50 dark:from-slate-950 via-slate-50/95 dark:via-slate-950/95 to-transparent">
                         <div className="max-w-4xl mx-auto flex flex-col gap-6">
                             <div className="relative group">
                                 <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 rounded-[2.5rem] blur-2xl opacity-10 group-focus-within:opacity-30 transition-opacity duration-1000 animate-pulse" />
