@@ -16,7 +16,7 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
-        className="fixed inset-0 bg-black/50"
+        className="fixed inset-0 bg-[var(--backdrop-color)]"
         onClick={() => onOpenChange?.(false)}
       />
       <div className="relative z-50">{children}</div>
@@ -31,7 +31,7 @@ const DialogContent = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200 rounded-lg mx-4 max-h-[90vh] overflow-y-auto",
+      "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-[var(--ui-border-color)] bg-[var(--primary-background-color)] p-6 shadow-[var(--box-shadow-large)] duration-200 rounded-[var(--border-radius-medium)] mx-4 max-h-[90vh] overflow-y-auto",
       className
     )}
     {...props}
@@ -40,7 +40,7 @@ const DialogContent = React.forwardRef<
     {onClose && (
       <button
         onClick={onClose}
-        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:ring-offset-2 disabled:pointer-events-none"
       >
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
@@ -71,7 +71,7 @@ const DialogTitle = React.forwardRef<
   <h2
     ref={ref}
     className={cn(
-      "text-lg font-semibold leading-none tracking-tight",
+      "text-lg font-semibold leading-none tracking-tight text-foreground",
       className
     )}
     {...props}
@@ -85,7 +85,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-muted-foreground", className)}
+    className={cn("text-sm text-[var(--secondary-text-color)]", className)}
     {...props}
   />
 ))
@@ -105,19 +105,12 @@ const DialogFooter = ({
 )
 DialogFooter.displayName = "DialogFooter"
 
-/**
- * DialogTrigger — wraps a child element to toggle the parent Dialog open.
- * Usage: wrap in <Dialog> and use onOpenChange to control open state.
- */
 interface DialogTriggerProps {
   asChild?: boolean;
   children: React.ReactElement;
 }
 
 const DialogTrigger = ({ asChild, children }: DialogTriggerProps) => {
-  // DialogTrigger is a passthrough; actual open logic is via parent Dialog's onOpenChange.
-  // In our custom Dialog, the open state is managed externally, so DialogTrigger
-  // simply renders the child unchanged (the onClick is wired by the parent scope).
   return children;
 };
 DialogTrigger.displayName = "DialogTrigger";

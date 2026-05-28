@@ -45,7 +45,7 @@ export function UsageMeter({ label, current, max, percentage, warning, unit = ""
             </div>
             {!isUnlimited && (
                 <>
-                    <Progress value={percentage} className="h-2" indicatorClassName={getColor()} />
+                    <Progress value={percentage} className="h-2" barClassName={getColor()} />
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                         <span>{percentage}% used</span>
                         {warning === "warning" && (

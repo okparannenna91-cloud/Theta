@@ -1,13 +1,15 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Figtree, Poppins } from "next/font/google";
 import "./globals.css";
+import "@vibe/core/tokens";
 import { ClerkProvider } from "@clerk/nextjs";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AblyProvider } from "@/components/providers/ably-provider";
 import { Toaster } from "sonner";
 
-const inter = Inter({ subsets: ["latin"] });
+const figtree = Figtree({ subsets: ["latin"], variable: "--font-family" });
+const poppins = Poppins({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"], variable: "--title-font-family" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://thetapm.site"),
@@ -102,12 +104,13 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={inter.className}>
+        <body className={`${figtree.variable} ${poppins.variable}`}>
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"
             enableSystem={false}
             disableTransitionOnChange
+            storageKey="vibe-theme"
           >
             <QueryProvider>
               <AblyProvider>

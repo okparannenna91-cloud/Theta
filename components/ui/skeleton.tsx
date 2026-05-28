@@ -1,16 +1,24 @@
-import { cn } from "@/lib/utils"
+"use client"
 
-function Skeleton({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
+import * as React from "react"
+import { Skeleton as VibeSkeleton } from "@vibe/core"
+
+interface SkeletonProps {
+  className?: string
+  variant?: "circle" | "rectangle" | "text"
+  width?: number
+  height?: number
+}
+
+const Skeleton = ({ className, variant = "text", width, height }: SkeletonProps) => {
   return (
-    <div
-      className={cn("animate-pulse rounded-md bg-muted", className)}
-      {...props}
+    <VibeSkeleton
+      type={variant}
+      width={width}
+      height={height}
+      wrapperClassName={className}
     />
   )
 }
 
 export { Skeleton }
-
