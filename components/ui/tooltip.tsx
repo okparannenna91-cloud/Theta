@@ -27,7 +27,7 @@ const Tooltip = ({ children, content, className }: TooltipProps) => {
     timeoutRef.current = setTimeout(() => setOpen(false), 100)
   }
 
-  const extractedContent = content || React.useMemo(() => {
+  const memoizedContent = React.useMemo(() => {
     let tooltipContent: React.ReactNode = null
     React.Children.forEach(children, (child) => {
       if (React.isValidElement(child) && child.type === TooltipContent) {
@@ -36,6 +36,8 @@ const Tooltip = ({ children, content, className }: TooltipProps) => {
     })
     return tooltipContent
   }, [children])
+
+  const extractedContent = content || memoizedContent
 
   return (
     <TooltipContext.Provider value={{ content: extractedContent }}>

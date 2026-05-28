@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import { cn } from "@/lib/utils"
 
 interface AvatarProps extends React.HTMLAttributes<HTMLDivElement> {
@@ -15,7 +16,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     return (
       <div ref={ref} className={cn("relative flex shrink-0 overflow-hidden rounded-full", className)} {...props}>
         {src ? (
-          <img src={src} alt={alt} className="aspect-square h-full w-full" />
+          <Image src={src} alt={alt || ""} fill className="object-cover" />
         ) : fallback ? (
           <AvatarFallback>{fallback}</AvatarFallback>
         ) : null}
@@ -26,8 +27,9 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
 Avatar.displayName = "Avatar"
 
 const AvatarImage = React.forwardRef<HTMLImageElement, React.ImgHTMLAttributes<HTMLImageElement>>(
-  ({ className, ...props }, ref) => (
-    <img ref={ref} className={cn("aspect-square h-full w-full", className)} {...props} />
+  ({ className, alt, ...props }, ref) => (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img ref={ref} className={cn("aspect-square h-full w-full", className)} alt={alt || ""} {...props} />
   )
 )
 AvatarImage.displayName = "AvatarImage"
