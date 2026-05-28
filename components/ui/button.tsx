@@ -36,7 +36,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant = "default", size = "default", asChild, ...props }, ref) => {
+  ({ className, variant = "default", size = "default", asChild, children, ...props }, ref) => {
     return (
       <VibeButton
         ref={ref}
@@ -45,7 +45,9 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         size={sizeToSize[size]}
         className={cn(className)}
         {...props}
-      />
+      >
+        {children}
+      </VibeButton>
     )
   }
 )
