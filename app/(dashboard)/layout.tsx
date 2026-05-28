@@ -18,12 +18,12 @@ export default function DashboardLayout({
       <OnboardingWrapper>
         <div className="flex h-screen relative">
           <Sidebar />
-          <div className="flex-1 flex flex-col h-screen overflow-hidden">
-            <header className="h-16 border-b flex items-center justify-between px-8 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 z-30">
+          <div className="flex-1 flex flex-col h-screen overflow-hidden bg-background">
+            <header className="h-14 border-b flex items-center justify-between px-6 bg-background z-30">
               <div className="flex items-center gap-4">
                 <CommandSearch />
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <AppsDropdown />
                 <NotificationBell />
                 <LanguageSwitcher />
