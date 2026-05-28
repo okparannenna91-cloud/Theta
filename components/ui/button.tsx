@@ -44,7 +44,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         color={variantToColor[variant] as any}
         size={sizeToSize[size]}
         className={cn(className)}
-        {...props}
+        {...(props as any)}
       >
         {children}
       </VibeButton>
