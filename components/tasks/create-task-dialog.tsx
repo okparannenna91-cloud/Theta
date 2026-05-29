@@ -13,6 +13,7 @@ import { AiGenerator } from "@/components/ai/ai-generator";
 import { Sparkles } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
+import { toast } from "sonner";
 
 interface CreateTaskDialogProps {
   isOpen: boolean;
@@ -78,8 +79,8 @@ export function CreateTaskDialog({
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      queryClient.invalidateQueries({ queryKey: ["timeline-tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["timeline-tasks", activeWorkspaceId] });
       onOpenChange(false);
       setTitle("");
       setDescription("");
@@ -87,10 +88,10 @@ export function CreateTaskDialog({
       setPriority("medium");
       setProjectId(defaultProjectId);
       setCoverImage("");
-      import("sonner").then(({ toast }) => toast.success("Task created successfully"));
+      toast.success("Task created successfully");
     },
     onError: (error: any) => {
-      import("sonner").then(({ toast }) => toast.error(error.message || "Failed to create task"));
+      toast.error(error.message || "Failed to create task");
     },
   });
 
@@ -108,7 +109,7 @@ export function CreateTaskDialog({
       description,
       status,
       priority,
-      projectId: projectId || undefined,
+      projectId: projectId && projectId !== "no-project" ? projectId : undefined,
       coverImage,
     });
   };
@@ -148,13 +149,14 @@ export function CreateTaskDialog({
                     if (!title) return;
                     const res = await fetch("/api/ai/recommend", {
                         method: "POST",
+                        headers: { "Content-Type": "application/json" },
                         body: JSON.stringify({ title, workspaceId: activeWorkspaceId })
                     });
                     if (res.ok) {
                         const data = await res.json();
                         if (data.priority) setPriority(data.priority);
                         if (data.projectId && data.projectId !== "no-project") setProjectId(data.projectId);
-                        import("sonner").then(({ toast }) => toast.success("Nova recommended priority and project!"));
+                        toast.success("Nova recommended priority and project!");
                     }
                 }}
                 className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-500 hover:text-indigo-600 transition-colors"

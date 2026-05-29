@@ -10,6 +10,11 @@ const columnSchema = z.object({
     order: z.number().optional(),
     wipLimit: z.number().nullable().optional(),
     color: z.string().nullable().optional(),
+    columnType: z.string().optional(),
+    settings: z.any().optional(),
+    width: z.number().optional(),
+    visible: z.boolean().optional(),
+    pinned: z.boolean().optional(),
 });
 
 export async function PATCH(
@@ -62,6 +67,11 @@ export async function PATCH(
                 ...(data.order !== undefined && { order: data.order }),
                 ...(data.wipLimit !== undefined && { wipLimit: data.wipLimit }),
                 ...(data.color !== undefined && { color: data.color }),
+                ...(data.columnType !== undefined && { columnType: data.columnType }),
+                ...(data.settings !== undefined && { settings: data.settings }),
+                ...(data.width !== undefined && { width: data.width }),
+                ...(data.visible !== undefined && { visible: data.visible }),
+                ...(data.pinned !== undefined && { pinned: data.pinned }),
             },
         });
         

@@ -8,16 +8,15 @@ import { useAblyContext } from "@/components/providers/ably-provider";
 /**
  * Hook to subscribe to Ably channels using the global client from AblyProvider
  */
-export function useAbly(channelName: string, eventName: string, callback: (message: any) => void) {
+export function useAbly(channelName: string | null, eventName: string, callback: (message: any) => void) {
     const { user } = useUser();
     const ablyClient = useAblyContext();
 
     useEffect(() => {
-        if (!user || !ablyClient) return;
+        if (!user || !ablyClient || !channelName) return;
 
         const channel = ablyClient.channels.get(channelName);
 
-        // Subscribe to event
         channel.subscribe(eventName, (message) => {
             callback(message.data);
         });

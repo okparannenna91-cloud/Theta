@@ -35,7 +35,23 @@ import {
   CheckCircle2,
   XCircle,
   Clock,
-  MessageSquare
+  MessageSquare,
+  BarChart3,
+  LayoutDashboard,
+  MapPin,
+  FileText,
+  Images,
+  BookOpen,
+  Users,
+  Grid3X3,
+  Zap,
+  Link2,
+  Shield,
+  BrainCircuit,
+  Puzzle,
+  Code,
+  Beaker,
+  Globe
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -81,6 +97,25 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import TableView from "@/components/boards/table-view";
+import ChartView from "@/components/boards/chart-view";
+import BoardDashboardView from "@/components/boards/board-dashboard-view";
+import WorkloadView from "@/components/boards/workload-view";
+import MapView from "@/components/boards/map-view";
+import FormView from "@/components/boards/form-view";
+import FilesView from "@/components/boards/files-view";
+import GalleryView from "@/components/boards/gallery-view";
+import DocsView from "@/components/boards/docs-view";
+import AutomationPanel from "@/components/boards/automation-panel";
+import BoardRelationshipsPanel from "@/components/boards/board-relationships-panel";
+import CollaborationPanel from "@/components/boards/collaboration-panel";
+import PermissionsPanel from "@/components/boards/permissions-panel";
+import AIFeaturesPanel from "@/components/boards/ai-features-panel";
+import IntegrationsPanel from "@/components/boards/integrations-panel";
+import DeveloperPanel from "@/components/boards/developer-panel";
+import AdvancedFeaturesPanel from "@/components/boards/advanced-features-panel";
+import FilterSortBar from "@/components/boards/filter-sort-bar";
+import type { FilterConfig, SortConfig, ColumnVisibility, SavedView } from "@/components/boards/filter-sort-bar";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useAbly } from "@/hooks/use-ably";
@@ -340,15 +375,19 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const [targetColumnId, setTargetColumnId] = useState<string | null>(null);
 
   // New features state
-  const [currentView, setCurrentView] = useState("kanban"); // kanban, list, calendar, timeline
+  const [currentView, setCurrentView] = useState("kanban"); // kanban, list, calendar, timeline, table, chart, dashboard, workload, map, form, files, gallery, docs, automations, relationships, collaboration, permissions, ai
   const [searchQuery, setSearchQuery] = useState("");
-  const [filterPriority, setFilterPriority] = useState<string>("all");
-  const [filterTag, setFilterTag] = useState<string>("all");
   const [isEditingHeader, setIsEditingHeader] = useState(false);
   const [editedName, setEditedName] = useState("");
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [presenceUsers, setPresenceUsers] = useState<any[]>([]);
   const [activeColumn, setActiveColumn] = useState<any>(null);
+
+  // Filter & Sort state
+  const [filterConfig, setFilterConfig] = useState<FilterConfig>({});
+  const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
+  const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({});
+  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
 
   const { user } = useUser();
   const boardChannel = getBoardChannel(activeWorkspaceId || "", boardId);
@@ -569,7 +608,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["board", boardId] });
       setEditingColumn(null);
-      import("sonner").then(({ toast }) => toast.success("Column updated"));
+      toast.success("Column updated");
     },
   });
 
@@ -607,13 +646,37 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   // Filter tasks
   const filteredTasks = tasks.filter((task: any) => {
     const matchesSearch =
-      task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      !searchQuery || task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPriority =
-      filterPriority === "all" || task.priority === filterPriority;
+      !filterConfig.priority || filterConfig.priority === "all" || task.priority === filterConfig.priority;
     const matchesTag =
-      filterTag === "all" || task.tags?.some((t: any) => t.id === filterTag);
-    return matchesSearch && matchesPriority && matchesTag;
+      !filterConfig.tagIds || filterConfig.tagIds.length === 0 ||
+      task.tags?.some((t: any) => t.tagId ? filterConfig.tagIds?.includes(t.tagId) : filterConfig.tagIds?.includes(t.id));
+    const matchesStatus =
+      !filterConfig.status || filterConfig.status === "all" || task.status === filterConfig.status;
+    return matchesSearch && matchesPriority && matchesTag && matchesStatus;
+  });
+
+  // Sort tasks
+  const sortedTasks = [...filteredTasks].sort((a: any, b: any) => {
+    if (!sortConfig) return 0;
+    const dir = sortConfig.direction === "asc" ? 1 : -1;
+    switch (sortConfig.field) {
+      case "title": return dir * (a.title || "").localeCompare(b.title || "");
+      case "priority": {
+        const pMap: Record<string, number> = { high: 3, medium: 2, low: 1 };
+        return dir * ((pMap[a.priority] || 0) - (pMap[b.priority] || 0));
+      }
+      case "dueDate": {
+        const da = a.dueDate ? new Date(a.dueDate).getTime() : 0;
+        const db = b.dueDate ? new Date(b.dueDate).getTime() : 0;
+        return dir * (da - db);
+      }
+      case "status": return dir * ((a.status || "").localeCompare(b.status || ""));
+      case "createdAt": return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      default: return 0;
+    }
   });
 
   const handleDragStart = (event: any) => {
@@ -785,27 +848,52 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
           <div className="flex items-center gap-6">
             <div className="bg-slate-100/50 dark:bg-slate-900/50 p-2 rounded-[1.5rem] border border-indigo-500/5 flex items-center shadow-sm">
               {[
-                { id: "kanban", icon: LayoutGrid, label: "Neural Matrix" },
-                { id: "list", icon: ListIcon, label: "Stream View" },
-                { id: "calendar", icon: Calendar, label: "Chronos" },
-                { id: "timeline", icon: GanttChartIcon, label: "Linear Progression" },
-              ].map((view) => (
-                <Button
-                  key={view.id}
-                  variant="ghost"
-                  size="sm"
-                  className={cn(
-                    "h-12 px-6 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500 whitespace-nowrap",
-                    currentView === view.id 
-                      ? "bg-indigo-600 text-white shadow-2xl shadow-indigo-500/40 scale-105" 
-                      : "text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-800"
-                  )}
-                  onClick={() => setCurrentView(view.id)}
-                >
-                  <view.icon className={cn("h-4 w-4 mr-3", currentView === view.id ? "animate-pulse" : "")} />
-                  <span className="hidden md:inline">{view.label}</span>
-                </Button>
-              ))}
+                { id: "kanban", icon: LayoutGrid, label: "Kanban" },
+                { id: "table", icon: Grid3X3, label: "Table" },
+                { id: "list", icon: ListIcon, label: "List" },
+                { id: "calendar", icon: Calendar, label: "Calendar" },
+                { id: "timeline", icon: GanttChartIcon, label: "Timeline" },
+                { id: "chart", icon: BarChart3, label: "Chart" },
+                { id: "dashboard", icon: LayoutDashboard, label: "Dashboard" },
+                { id: "workload", icon: Users, label: "Workload" },
+                { id: "map", icon: MapPin, label: "Map" },
+                { id: "form", icon: FileText, label: "Form" },
+                { id: "files", icon: Images, label: "Files" },
+                { id: "gallery", icon: Images, label: "Gallery" },
+                { id: "docs", icon: BookOpen, label: "Docs" },
+                { id: "separator", icon: null, label: "|" },
+                { id: "automations", icon: Zap, label: "Automate" },
+                { id: "relationships", icon: Link2, label: "Connect" },
+                { id: "collaboration", icon: Users, label: "Team" },
+                { id: "permissions", icon: Shield, label: "Security" },
+                { id: "ai", icon: BrainCircuit, label: "AI" },
+                { id: "integrations", icon: Puzzle, label: "Integrate" },
+                { id: "developer", icon: Code, label: "Develop" },
+                { id: "advanced", icon: Beaker, label: "Advanced" },
+              ].map((view) => {
+                if (view.id === "separator") {
+                  return (
+                    <span key="sep" className="h-6 w-px bg-slate-200 dark:bg-slate-700 mx-1" />
+                  );
+                }
+                return (
+                  <Button
+                    key={view.id}
+                    variant="ghost"
+                    size="sm"
+                    className={cn(
+                      "h-8 px-3 rounded-xl text-[8px] font-black uppercase tracking-[0.15em] transition-all duration-300 whitespace-nowrap",
+                      currentView === view.id 
+                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 scale-105" 
+                        : "text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-800"
+                    )}
+                    onClick={() => setCurrentView(view.id)}
+                  >
+                    {view.icon && <view.icon className={cn("h-3 w-3 mr-1.5", currentView === view.id ? "animate-pulse" : "")} />}
+                    <span className="hidden xl:inline">{view.label}</span>
+                  </Button>
+                );
+              })}
             </div>
             
             <DropdownMenu>
@@ -839,11 +927,48 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                 setIsTaskDialogOpen(true);
               }}
             >
-              <RefreshCcw className="h-4 w-4 text-slate-400" />
+              <Plus className="h-4 w-4 text-white" />
             </Button>
           </div>
         </div>
       </div>
+
+      {/* Filter & Sort Bar */}
+      {!["automations", "relationships", "collaboration", "permissions", "ai", "integrations", "developer", "advanced", "dashboard"].includes(currentView) && (
+        <FilterSortBar
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          filterConfig={filterConfig}
+          onFilterChange={setFilterConfig}
+          sortConfig={sortConfig}
+          onSortChange={setSortConfig}
+          columns={columns}
+          columnVisibility={columnVisibility}
+          onColumnVisibilityChange={setColumnVisibility}
+          allTags={allTags}
+          savedViews={savedViews}
+          onSaveView={(name) => {
+            const newView: SavedView = {
+              id: `view-${Date.now()}`,
+              name,
+              filterConfig,
+              sortConfig,
+              columnVisibility,
+            };
+            setSavedViews(prev => [...prev, newView]);
+          }}
+          onLoadView={(view) => {
+            setFilterConfig(view.filterConfig);
+            setSortConfig(view.sortConfig);
+            setColumnVisibility(view.columnVisibility);
+          }}
+          onDeleteView={(id) => {
+            setSavedViews(prev => prev.filter(v => v.id !== id));
+          }}
+          totalTasks={tasks.length}
+          filteredCount={sortedTasks.length}
+        />
+      )}
 
       {currentView === "kanban" && (
         <DndContext
@@ -1091,7 +1216,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               </tr>
             </thead>
             <tbody>
-              {filteredTasks.map((task: any) => {
+              {sortedTasks.map((task: any) => {
                 if (!task || !task.id) return null;
                 return (
                   <tr
@@ -1138,7 +1263,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                 </tr>
                 );
               })}
-              {filteredTasks.length === 0 && (
+              {sortedTasks.length === 0 && (
                 <tr>
                   <td colSpan={5} className="py-20 text-center text-muted-foreground italic">
                     No tasks found matching your filters.
@@ -1152,13 +1277,122 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
       {currentView === "calendar" && (
         <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
-          <BoardCalendar tasks={filteredTasks} onSelectTask={setSelectedTask} />
+          <BoardCalendar tasks={sortedTasks} onSelectTask={setSelectedTask} />
         </div>
       )}
 
       {currentView === "timeline" && (
         <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
-          <BoardTimeline tasks={filteredTasks} onSelectTask={setSelectedTask} />
+          <BoardTimeline tasks={sortedTasks} onSelectTask={setSelectedTask} />
+        </div>
+      )}
+
+      {currentView === "table" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <TableView
+            boardId={boardId}
+            tasks={sortedTasks}
+            columns={columns}
+            groups={[]}
+            onSelectTask={setSelectedTask}
+            workspaceId={activeWorkspaceId || ""}
+          />
+        </div>
+      )}
+
+      {currentView === "chart" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <ChartView tasks={sortedTasks} columns={columns} onSelectTask={setSelectedTask} />
+        </div>
+      )}
+
+      {currentView === "dashboard" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <BoardDashboardView tasks={sortedTasks} columns={columns} workspaceId={activeWorkspaceId || ""} />
+        </div>
+      )}
+
+      {currentView === "workload" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <WorkloadView tasks={sortedTasks} workspaceId={activeWorkspaceId || ""} />
+        </div>
+      )}
+
+      {currentView === "map" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <MapView tasks={sortedTasks} columns={columns} />
+        </div>
+      )}
+
+      {currentView === "form" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <FormView workspaceId={activeWorkspaceId || ""} />
+        </div>
+      )}
+
+      {currentView === "files" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <FilesView tasks={sortedTasks} workspaceId={activeWorkspaceId || ""} />
+        </div>
+      )}
+
+      {currentView === "gallery" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <GalleryView tasks={sortedTasks} columns={columns} onSelectTask={setSelectedTask} />
+        </div>
+      )}
+
+      {currentView === "docs" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <DocsView workspaceId={activeWorkspaceId || ""} />
+        </div>
+      )}
+
+      {currentView === "automations" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <AutomationPanel workspaceId={activeWorkspaceId || ""} boardId={boardId} />
+        </div>
+      )}
+
+      {currentView === "relationships" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <BoardRelationshipsPanel workspaceId={activeWorkspaceId || ""} boardId={boardId} />
+        </div>
+      )}
+
+      {currentView === "permissions" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <PermissionsPanel workspaceId={activeWorkspaceId || ""} boardId={boardId} />
+        </div>
+      )}
+
+      {currentView === "ai" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <AIFeaturesPanel workspaceId={activeWorkspaceId || ""} boardId={boardId} />
+        </div>
+      )}
+
+      {currentView === "collaboration" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <CollaborationPanel workspaceId={activeWorkspaceId || ""} boardId={boardId} />
+        </div>
+      )}
+
+      {currentView === "integrations" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <IntegrationsPanel workspaceId={activeWorkspaceId || ""} boardId={boardId} />
+        </div>
+      )}
+
+      {currentView === "developer" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <DeveloperPanel workspaceId={activeWorkspaceId || ""} boardId={boardId} />
+        </div>
+      )}
+
+      {currentView === "advanced" && (
+        <div className="flex-1 overflow-hidden bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+          <AdvancedFeaturesPanel workspaceId={activeWorkspaceId || ""} boardId={boardId} />
         </div>
       )}
 
@@ -1268,7 +1502,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                   </SelectItem>
                   <SelectItem value="public">
                     <div className="flex items-center gap-2">
-                      <RefreshCcw className="h-4 w-4" />
+                      <Globe className="h-4 w-4" />
                       <span>Public</span>
                     </div>
                   </SelectItem>

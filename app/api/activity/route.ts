@@ -13,6 +13,7 @@ export async function GET(req: Request) {
     const projectId = searchParams.get("projectId");
     const userId = searchParams.get("userId");
     const entityType = searchParams.get("entityType");
+    const entityId = searchParams.get("entityId");
     const search = searchParams.get("search");
     const skip = parseInt(searchParams.get("skip") || "0");
     const take = parseInt(searchParams.get("take") || "20");
@@ -40,6 +41,7 @@ export async function GET(req: Request) {
     if (projectId) where.projectId = projectId;
     if (userId) where.userId = userId;
     if (entityType) where.entityType = entityType;
+    if (entityId) where.entityId = entityId;
     if (search) {
       where.OR = [
         { action: { contains: search, mode: "insensitive" } },

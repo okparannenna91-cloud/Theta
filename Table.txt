@@ -1,0 +1,359 @@
+Core Structure of a Theta Table
+
+A Theta table is built from:
+
+Boards → the main workspace/table
+Groups → sections inside the table
+Items → rows/tasks/records
+Columns → fields/data types
+Subitems → nested tasks under a row
+Views → different visual formats of the same data
+1. Rows / Items Features ✅
+
+Each row (called an “Item”) can contain:
+
+Task/project/client name
+Assignees
+Status
+Dates
+Files
+Notes
+Automations
+Dependencies
+Custom fields
+AI-generated content
+
+Capabilities:
+
+Drag & drop reorder
+Duplicate items
+Archive/delete
+Bulk edit
+Mention teammates
+Activity logs
+Updates/comments
+Attach files
+Time tracking
+Linked records
+Nested subitems
+2. Column Types (VERY IMPORTANT) ✅
+
+Theta tables are powerful because of their column system.
+
+Essential Columns
+Status
+People
+Timeline
+Date
+Numbers
+Text
+Connect Boards
+Mirror
+Priority
+Tags
+Utility Columns
+Checkbox
+Link
+Email
+Phone
+Files
+Location
+Country
+World Clock
+Rating
+Vote
+Dropdown
+Auto-number
+Advanced Columns
+Formula
+Dependencies
+Progress tracking
+Time tracking
+Button
+Week
+Color picker
+AI Columns
+AI summaries
+AI text generation
+AI sentiment detection
+AI label assignment
+AI extraction from files
+AI prioritization
+AI writing assistance
+AI translation
+Combo Columns
+Timeline + Status
+Timeline + Numbers
+Date + Status
+
+3. Views (Different Ways to See the Same Table) ✅
+
+The same table can become many interfaces.
+
+Main Views
+Table View
+
+Default spreadsheet-style interface.
+
+Kanban View
+
+Cards organized by status.
+
+Calendar View
+
+Tasks/events on calendar dates.
+
+Timeline View
+
+Project timeline/Gantt-like planning.
+
+Gantt View
+
+Advanced project scheduling.
+
+Chart View
+
+Analytics/charts.
+
+Dashboard View
+
+Widgets + KPIs.
+
+Workload View
+
+Team capacity management.
+
+Map View
+
+Location-based visualization.
+
+Form View
+
+Turn table into data collection forms.
+
+Files View
+
+All uploaded files in one place.
+
+Gallery View
+
+Visual/card-style browsing.
+
+Docs View
+
+Embedded collaborative documents.
+
+4. Automations ✅
+
+One of Theta biggest features.
+
+Examples:
+
+Trigger-Based Automation ✅
+When status changes → notify someone
+When due date arrives → create item
+When task completed → move group
+When item created → assign owner
+Cross-Board Automation ✅
+Sync data between boards
+Create tasks automatically
+Connect CRM + projects
+Time-Based Automation ✅
+Recurring tasks
+Deadline reminders
+Scheduled updates
+Approval Automation ✅
+Status-based approvals
+Review workflows
+AI Automation ✅
+Auto-summarize
+Auto-prioritize
+AI-generated updates
+5. Board Relationships ✅
+Connect Boards ✅
+
+Link records between tables.
+
+Example:
+
+Clients board ↔ Projects board
+Projects ↔ Tasks
+Sales ↔ CRM
+Mirror Columns ✅
+
+Display data from another board.
+
+Example:
+
+Show client email from CRM board inside project board.
+Dependencies ✅
+
+Task relationships:
+
+Blocked by
+Depends on
+Sequential workflows
+
+6. Collaboration Features ✅
+Comments/updates per item
+Team mentions
+Notifications
+Activity history
+File sharing
+Live collaboration
+Permission control
+Guest access
+Shareable boards
+WorkForms
+Team docs
+7. Dashboard Features ✅
+
+Dashboards combine data from multiple tables. ✅
+
+Widgets include:
+
+Battery widget ✅
+Chart widget ✅
+Numbers widget ✅
+Timeline widget ✅
+Calendar widget ✅
+Workload widget ✅
+Table widget ✅
+Map widget ✅
+Formula widget ✅
+
+Useful for:
+
+Executive reporting
+KPI tracking
+Agency dashboards
+SaaS analytics
+Team monitoring
+8. Filtering & Sorting ✅
+
+You can:
+
+Filter by assignee ✅
+Filter by status ✅
+Filter by date ✅
+Save custom views ✅
+Advanced logic filtering ✅
+Hide/show columns ✅
+Sort ascending/descending ✅
+Search globally ✅
+9. Permissions & Security ✅
+Board permissions ✅
+Column permissions ✅
+Item-level permissions ✅
+Workspace permissions ✅
+Admin roles ✅
+Viewer roles ✅
+Guest users ✅
+Shareable links ✅
+10. AI Features ✅
+
+Modern Theta tables now include AI deeply integrated. ✅
+
+Capabilities:
+
+AI writing ✅
+AI summaries ✅
+AI extraction ✅
+AI label suggestions ✅
+AI prioritization ✅
+AI translation ✅
+AI sentiment analysis ✅
+11. Integration Features ✅
+
+Theta tables integrate with: ✅
+
+Slack ✅
+GitHub ✅
+WooCommerce ✅
+BitBucket ✅
+Asana ✅
+Other (Trello, Figma, Canva) ✅
+12. Developer/API Features ✅
+
+Advanced users can: ✅
+
+Use GraphQL API ✅
+Build custom apps ✅
+Create custom widgets ✅
+Build marketplace apps ✅
+Use webhooks ✅
+Build integrations ✅
+Create custom column views ✅
+
+13. Hidden Advanced Features Most People Miss ✅
+Saved Views ✅
+
+Different teams can use different table layouts.
+
+Managed Columns ✅
+
+Reusable structured columns.
+
+Column Pinning ✅
+
+Freeze important columns.
+
+Column Templates (Build First 5) ✅
+
+Reuse configurations.
+
+Formula Logic ✅
+
+Spreadsheet-like calculations.
+
+Board Templates (Build First 5) ✅
+
+Reusable workflow systems.
+
+Subitems + Rollups ✅
+
+Nested project tracking.
+
+Automations Across Multiple Boards ✅
+
+Enterprise-style workflows.
+
+Dashboards Across Workspaces ✅
+
+Centralized management.
+
+14. Limitations People Often Complain About ✅
+
+From community discussions: ✅
+
+Common complaints: ✅
+
+Formula columns are limited ✅
+Mirror columns don't work everywhere ✅
+Large boards can become messy ✅
+Column grouping is limited ✅
+Some automations require workarounds ✅
+Advanced features locked behind higher plans ✅
+API complexity limits ✅
+Multi-level subitems limitations ✅
+15. What Makes Theta Tables Powerful ✅
+
+The real strength is that it combines: ✅
+
+Spreadsheet ✅
+Database ✅
+Automation engine ✅
+Collaboration system ✅
+Dashboard builder ✅
+Workflow management ✅
+CRM structure ✅
+AI assistant ✅
+
+
+
+And honestly, for your Theta SaaS, understanding this table architecture is one of the most important parts because the table becomes:
+
+the database UI,
+workflow engine,
+collaboration center,
+and automation layer all at once.

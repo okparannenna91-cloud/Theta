@@ -37,8 +37,8 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["board"] });
-            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
             toast.success("Attachments updated");
         },
     });
@@ -116,14 +116,14 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
                         </div>
 
                         <div className="flex items-center gap-1 mt-3 pt-3 border-t border-slate-50 dark:border-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                                size="icon"
-                                variant="ghost"
-                                className="h-7 w-7 text-muted-foreground hover:text-indigo-600"
-                                onClick={() => window.open(attachment.url, "_blank")}
+                            <a
+                                href={attachment.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center justify-center h-7 w-7 text-muted-foreground hover:text-indigo-600 rounded-md hover:bg-accent transition-colors"
                             >
                                 <ExternalLink className="h-3.5 w-3.5" />
-                            </Button>
+                            </a>
                             <Button
                                 size="icon"
                                 variant="ghost"

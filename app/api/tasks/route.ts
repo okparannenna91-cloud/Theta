@@ -193,7 +193,7 @@ export async function POST(req: Request) {
         statusId: statusRecord?.id, // Link to custom status
         priority: data.priority,
         workspaceId: data.workspaceId as string,
-        projectId: data.projectId,
+        projectId: data.projectId as string,
         userId: user.id as string,
         boardId: data.boardId,
         columnId: data.columnId,

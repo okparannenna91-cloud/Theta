@@ -64,7 +64,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [color, setColor] = useState(task?.color || "");
 
-    const taskChannel = getTaskChannel(workspaceId, task.id);
+    const taskChannel = task?.id ? getTaskChannel(workspaceId, task.id) : null;
 
     useAbly(taskChannel, "task:updated", (updatedTask) => {
         if (updatedTask.id === task.id) {
@@ -98,7 +98,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             setDependencyIds(task.dependencyIds || []);
             setColor(task.color || "");
         }
-    }, [task]);
+    }, [task?.id]);
 
     const updateMutation = useMutation({
         mutationFn: async (data: any) => {
@@ -111,8 +111,8 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["board"] });
-            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
             toast.success("Task updated");
         },
     });
@@ -130,8 +130,8 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["board"] });
-            queryClient.invalidateQueries({ queryKey: ["tasks"] });
+            queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
             toast.success("Task deleted");
             onClose();
         },

@@ -18,6 +18,7 @@ import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
+import { toast } from "sonner";
 
 async function fetchTasks(workspaceId: string | null) {
   const url = workspaceId ? `/api/tasks?workspaceId=${workspaceId}` : "/api/tasks";
@@ -102,10 +103,10 @@ export default function TasksPage() {
       setPriority("medium");
       setProjectId("");
       setCoverImage("");
-      import("sonner").then(({ toast }) => toast.success("Task created successfully"));
+      toast.success("Task created successfully");
     },
     onError: (error: any) => {
-      import("sonner").then(({ toast }) => toast.error(error.message || "Failed to create task"));
+      toast.error(error.message || "Failed to create task");
     },
   });
 
@@ -126,7 +127,7 @@ export default function TasksPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectId || !activeWorkspaceId) return;
+    if (!activeWorkspaceId) return;
 
     // Proactive Task Limit Check
     if (taskLimits.max !== -1 && taskLimits.current >= taskLimits.max) {
@@ -139,7 +140,7 @@ export default function TasksPage() {
       description,
       status,
       priority,
-      projectId,
+      projectId: projectId || undefined,
       coverImage,
     });
   };

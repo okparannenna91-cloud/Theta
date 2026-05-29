@@ -98,8 +98,8 @@ export function TagSelector({ taskId, workspaceId, currentTagIds }: TagSelectorP
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["tasks", taskId] });
-            queryClient.invalidateQueries({ queryKey: ["kanban-board"] }); // Refresh boards if open
+            queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["kanban-board"] });
         },
     });
 

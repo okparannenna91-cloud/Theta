@@ -60,14 +60,14 @@ export async function GET(
         },
         groups: {
           orderBy: { order: "asc" },
-        } as any,
+        },
         project: {
           select: {
             id: true,
             name: true,
           },
         },
-      },
+      } as any,
     });
 
     if (!board) {

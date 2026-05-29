@@ -24,6 +24,14 @@ const updateSchema = z.object({
   schedulingMode: z.string().optional(),
   baselineStartDate: z.string().optional(),
   baselineDueDate: z.string().optional(),
+  fieldValues: z.any().optional(),
+  location: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  link: z.string().optional(),
+  rating: z.number().optional(),
+  vote: z.number().optional(),
+  timeSpent: z.number().optional(),
 });
 
 export async function PATCH(

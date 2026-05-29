@@ -274,6 +274,16 @@ model Task {
   
   attachments   Json?    @db.Json
 
+  fieldValues   Json?    @db.Json // Dynamic field values for column types - stored as key-value pairs {columnId: value}
+  location     String?
+  email        String?
+  phone        String?
+  link         String?
+  rating       Int?
+  vote         Int?
+  progress     Int?
+  timeSpent    Int?       // in seconds
+
   @@map("tasks")
 }
 
@@ -364,6 +374,22 @@ model TimeLog {
   @@map("time_logs")
 }
 
+model Groups {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  boardId     String   @db.ObjectId
+  order       Int      @default(0)
+  color       String?
+  collapsed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  board     Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  fieldOverrides Json? @db.Json // Override column settings per group
+
+  @@map("groups")
+}
+
 model Board {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   name        String
@@ -380,6 +406,7 @@ model Board {
   project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
   columns   Column[]
   tasks     Task[]
+  groups    Groups[]
 
   @@map("boards")
 }
@@ -391,6 +418,11 @@ model Column {
   order     Int      @default(0)
   wipLimit  Int?
   color     String?
+  columnType String  @default("text") // text, number, date, status, people, timeline, connectBoard, mirror, priority, tags, checkbox, link, email, phone, files, location, country, worldClock, rating, vote, dropdown, autoNumber, formula, dependencies, progress, timeTracking, button, week, colorPicker, aiSummary, aiText, aiSentiment, aiLabel, aiExtraction, aiPrioritization, aiWriting, aiTranslation, combo
+  settings   Json?   @db.Json           // Column-specific configuration (options, formulas, etc.)
+  width      Int?    @default(200)       // Column width in px
+  visible    Boolean @default(true)      // Hide/show column
+  pinned     Boolean @default(false)     // Freeze column
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

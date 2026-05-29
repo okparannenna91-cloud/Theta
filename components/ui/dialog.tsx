@@ -11,15 +11,83 @@ interface DialogProps {
 }
 
 const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
+  const dialogRef = React.useRef<HTMLDivElement>(null)
+  const previousActiveElement = React.useRef<HTMLElement | null>(null)
+
+  React.useEffect(() => {
+    if (open) {
+      previousActiveElement.current = document.activeElement as HTMLElement
+      dialogRef.current?.focus()
+    } else {
+      previousActiveElement.current?.focus()
+    }
+  }, [open])
+
+  React.useEffect(() => {
+    if (!open) return
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.stopPropagation()
+        onOpenChange?.(false)
+      }
+      if (e.key === "Tab") {
+        const dialog = dialogRef.current
+        if (!dialog) return
+        const focusable = dialog.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        )
+        if (focusable.length === 0) return
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault()
+            last.focus()
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault()
+            first.focus()
+          }
+        }
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown)
+    return () => document.removeEventListener("keydown", handleKeyDown)
+  }, [open, onOpenChange])
+
+  React.useEffect(() => {
+    if (open) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+    return () => {
+      document.body.style.overflow = ""
+    }
+  }, [open])
+
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center"
+      role="dialog"
+      aria-modal="true"
+    >
       <div
         className="fixed inset-0 bg-[var(--backdrop-color)]"
         onClick={() => onOpenChange?.(false)}
       />
-      <div className="relative z-50">{children}</div>
+      <div
+        ref={dialogRef}
+        tabIndex={-1}
+        className="relative z-50 outline-none"
+      >
+        {children}
+      </div>
     </div>
   )
 }
@@ -30,6 +98,7 @@ const DialogContent = React.forwardRef<
 >(({ className, children, onClose, ...props }, ref) => (
   <div
     ref={ref}
+    role="document"
     className={cn(
       "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-[var(--ui-border-color)] bg-[var(--primary-background-color)] p-6 shadow-[var(--box-shadow-large)] duration-200 rounded-[var(--border-radius-medium)] mx-4 max-h-[90vh] overflow-y-auto",
       className
