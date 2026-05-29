@@ -7,7 +7,7 @@ if (!apiKey) {
 }
 
 export const cohere = new CohereClient({
-    token: apiKey || "dummy_key",
+    token: apiKey!,
 });
 
 /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
     Sparkles, 
@@ -24,34 +24,42 @@ interface AIScheduleAssistantProps {
 export default function AIScheduleAssistant({ tasks, onApplySuggestion }: AIScheduleAssistantProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
+    const [suggestions, setSuggestions] = useState<{ id: number; type: string; title: string; description: string; impact: string; icon: any }[]>([]);
 
-    // Heuristic-based suggestions (Mock AI analysis)
-    const suggestions = [
-        {
-            id: 1,
-            type: "optimization",
-            title: "Shorten Critical Path",
-            description: "The task 'UI/UX Design' is on the critical path. Adding one more designer could shorten this by 3 days.",
-            impact: "High",
-            icon: Zap
-        },
-        {
-            id: 2,
-            type: "risk",
-            title: "Resource Overload",
-            description: "Sarah is assigned to 4 concurrent tasks next week. Consider reassigning 'Documentation' to Mark.",
-            impact: "Medium",
-            icon: AlertCircle
-        },
-        {
-            id: 3,
-            type: "efficiency",
-            title: "Parallel Execution",
-            description: "Backend API and Frontend integration can start simultaneously if you use mock data.",
-            impact: "Low",
-            icon: Lightbulb
+    useEffect(() => {
+        if (isOpen && suggestions.length === 0) {
+            generateSuggestions();
         }
-    ];
+    }, [isOpen]);
+
+    const generateSuggestions = async () => {
+        setIsAnalyzing(true);
+        try {
+            const res = await fetch("/api/ai", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    prompt: `Analyze this project schedule with ${tasks.length} tasks and suggest 3 optimizations for timeline, resource allocation, and parallel execution. Format as JSON array with objects containing: type (optimization/risk/efficiency), title, description, impact (High/Medium/Low).`,
+                    workspaceId: "",
+                }),
+            });
+            if (!res.ok) throw new Error("AI analysis failed");
+            const data = await res.json();
+            const parsed = JSON.parse(data.text);
+            setSuggestions(parsed.map((s: any, i: number) => ({
+                id: i + 1,
+                type: s.type,
+                title: s.title,
+                description: s.description,
+                impact: s.impact,
+                icon: s.type === "risk" ? AlertCircle : s.type === "efficiency" ? Lightbulb : Zap,
+            })));
+        } catch {
+            setSuggestions([]);
+        } finally {
+            setIsAnalyzing(false);
+        }
+    };
 
     return (
         <div className="fixed bottom-20 right-8 z-50 flex flex-col items-end gap-4">
@@ -81,8 +89,8 @@ export default function AIScheduleAssistant({ tasks, onApplySuggestion }: AISche
                         <div className="p-6 space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
                             <div className="flex items-center justify-between">
                                 <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Smart Suggestions</span>
-                                <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black uppercase tracking-widest hover:text-primary">
-                                    Refresh
+                                <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black uppercase tracking-widest hover:text-primary" onClick={generateSuggestions} disabled={isAnalyzing}>
+                                    {isAnalyzing ? "Analyzing..." : "Refresh"}
                                 </Button>
                             </div>
 
@@ -115,8 +123,8 @@ export default function AIScheduleAssistant({ tasks, onApplySuggestion }: AISche
 
                         {/* AI Footer */}
                         <div className="p-4 bg-secondary/20 border-t border-white/5">
-                            <Button className="w-full rounded-2xl h-11 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20">
-                                <Sparkles className="h-3.5 w-3.5 mr-2" /> Optimize Timeline
+                            <Button className="w-full rounded-2xl h-11 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20" onClick={generateSuggestions} disabled={isAnalyzing}>
+                                <Sparkles className="h-3.5 w-3.5 mr-2" /> {isAnalyzing ? "Analyzing..." : "Optimize Timeline"}
                             </Button>
                         </div>
                     </motion.div>

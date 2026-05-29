@@ -120,7 +120,7 @@ export default function ActivityPage() {
     }, [activities]);
 
     const handleExport = () => {
-        // Mock export functionality
+        // Export activity log as CSV
         const csvContent = "Date,User,Action,Entity,Project\n" + 
             activities.map(a => `${format(new Date(a.createdAt), 'yyyy-MM-dd HH:mm')},${a.user?.name},${a.action},${a.entityType},${a.project?.name || 'N/A'}`).join("\n");
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });

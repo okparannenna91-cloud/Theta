@@ -94,8 +94,17 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
     const promptText = toolPrompts[toolId] || `Process the board data and provide insights.`;
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      setResult(generateMockResult(toolId, tasks.length, { todoTasks, inProgressTasks, completedTasks, highPriority }));
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: promptText,
+          workspaceId,
+        }),
+      });
+      if (!res.ok) throw new Error("AI request failed");
+      const data = await res.json();
+      setResult(data.text);
     } catch (err: any) {
       toast.error("AI request failed");
     } finally {
@@ -110,8 +119,17 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
     setActiveTool("custom");
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      setResult(`Based on your request: "${prompt}"\n\nI've analyzed the board with ${tasks.length} tasks across ${columns.length} columns. Here are my findings:\n\n1. **Task Overview**: ${todoTasks} pending, ${inProgressTasks} active, ${completedTasks} completed\n2. **Priority Distribution**: ${highPriority} high priority items need attention\n3. **Recommendation**: Focus on completing high-priority items and clearing overdue tasks. Consider reassigning blocked items.`);
+      const res = await fetch("/api/ai", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: prompt,
+          workspaceId,
+        }),
+      });
+      if (!res.ok) throw new Error("AI request failed");
+      const data = await res.json();
+      setResult(data.text);
     } catch {
       toast.error("AI request failed");
     } finally {
@@ -294,26 +312,3 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
   );
 }
 
-function generateMockResult(toolId: string, taskCount: number, counts: { todoTasks: number; inProgressTasks: number; completedTasks: number; highPriority: number }) {
-  const { todoTasks, inProgressTasks, completedTasks, highPriority } = counts;
-  switch (toolId) {
-    case "summarize":
-      return `# Board Summary\n\n**Overview**: ${taskCount} total tasks across the board.\n- **To Do**: ${todoTasks} tasks remaining\n- **In Progress**: ${inProgressTasks} actively being worked on\n- **Completed**: ${completedTasks} tasks finished\n- **High Priority**: ${highPriority} items requiring immediate attention\n\n**Health**: ${completedTasks > todoTasks ? "Good progress — more tasks completed than remaining." : "Needs focus — consider reducing WIP and clearing blockers."}`;
-    case "write":
-      return `# Weekly Status Update\n\n**Project**: Board Workspace\n**Period**: This Week\n\n**Progress**:\n- Completed ${completedTasks} tasks this period\n- ${inProgressTasks} tasks in active development\n- ${todoTasks} tasks in backlog\n\n**Blockers**: ${highPriority > 0 ? `${highPriority} high-priority items need resolution` : "No major blockers identified"}\n\n**Next Steps**: Continue focus on high-priority deliverables and clear remaining to-do items.`;
-    case "extract":
-      return `# Extracted Data\n\n**Entities Found**:\n- **Tasks**: ${taskCount} total\n- **Dates**: ${counts.todoTasks + counts.inProgressTasks} active date-sensitive items\n- **Assignees**: Distributed across team members\n\n**Key Fields**: status, priority, due date, assignee, tags`;
-    case "labels":
-      return `# Suggested Labels\n\nBased on task content analysis:\n\n1. **"needs-review"** — ${Math.ceil(inProgressTasks * 0.6)} tasks awaiting review\n2. **"blocked"** — ${Math.ceil(todoTasks * 0.2)} tasks potentially blocked\n3. **"quick-win"** — ${Math.ceil(todoTasks * 0.3)} tasks that can be completed quickly\n4. **"documentation"** — Tasks with descriptions needing updates\n5. **"high-impact"** — High priority tasks that drive progress`;
-    case "prioritize":
-      return `# Priority Analysis\n\n**Current Distribution**:\n- High: ${highPriority}\n- Medium: ${Math.ceil((taskCount - highPriority) * 0.5)}\n- Low: ${Math.floor((taskCount - highPriority) * 0.5)}\n\n**Suggestions**:\n1. Tasks with approaching due dates should be elevated to High\n2. Completed tasks can be deprioritized or archived\n3. Blocked items should remain High until unblocked`;
-    case "translate":
-      return `# Translation Ready\n\nTask content analyzed for translation. ${taskCount} tasks processed.\n\nSupported languages: English, Spanish, French, German, Japanese, Chinese\n\nSelect a target language to begin translation.`;
-    case "sentiment":
-      return `# Sentiment Analysis\n\n**Overall Sentiment**: Neutral to Positive\n\n- **Positive Signals**: ${completedTasks} tasks completed, steady progress\n- **Areas of Concern**: ${highPriority} high-priority items, ${todoTasks} pending tasks\n- **Recommendation**: Address high-priority items to maintain team morale and momentum`;
-    case "generate":
-      return `# Generated Task Suggestions\n\nBased on board analysis, consider creating:\n\n1. **"Sprint Retrospective"** — Review completed tasks and gather feedback\n2. **"Backlog Grooming Session"** — Prioritize and refine ${todoTasks} pending items\n3. **"Performance Review"** — ${completedTasks > 5 ? "Assess completed work quality" : "Wait for more completed tasks"}\n4. **"Dependency Resolution"** — Address cross-task blockers\n5. **"Documentation Update"** — Keep project docs current`;
-    default:
-      return `# AI Analysis Complete\n\nI've analyzed the board with ${taskCount} tasks. ${completedTasks} completed, ${inProgressTasks} in progress, ${todoTasks} pending.`;
-  }
-}

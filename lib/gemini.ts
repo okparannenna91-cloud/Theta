@@ -6,7 +6,7 @@ if (!apiKey) {
     console.warn("GEMINI_API_KEY is not defined in environment variables. Boots AI will not function.");
 }
 
-const genAI = new GoogleGenerativeAI(apiKey || "dummy_key");
+const genAI = new GoogleGenerativeAI(apiKey!);
 
 // Using gemini-1.5-flash which is the standard model for project management tasks.
 export const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });

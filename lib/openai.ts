@@ -7,7 +7,7 @@ if (!apiKey) {
 }
 
 export const openai = new OpenAI({
-    apiKey: apiKey || "dummy_key",
+    apiKey: apiKey!,
 });
 
 /**

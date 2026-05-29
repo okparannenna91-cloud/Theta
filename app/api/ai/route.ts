@@ -1299,8 +1299,15 @@ ${formattedHistory || "No recent conversation history."}
                     return {
                         templates: [
                             { id: "SaaS_Launch", name: "SaaS Launch Kit", category: "Marketing" },
-                            { id: "Agile_Dev", name: "Agile Software Dev", category: "Engineering" },
-                            { id: "Client_Onboarding", name: "Client Success Portal", category: "Sales" }
+                            { id: "Agile_Dev", name: "Agile Software Development", category: "Engineering" },
+                            { id: "Client_Onboarding", name: "Client Success Portal", category: "Sales" },
+                            { id: "Product_Launch", name: "Product Launch Roadmap", category: "Marketing" },
+                            { id: "Sprint_Sprint", name: "Two-Week Sprint Board", category: "Engineering" },
+                            { id: "Content_Calendar", name: "Content Marketing Calendar", category: "Marketing" },
+                            { id: "Bug_Tracker", name: "Bug Tracking & QA", category: "Engineering" },
+                            { id: "HR_Onboarding", name: "HR Employee Onboarding", category: "HR" },
+                            { id: "Design_Review", name: "Design Review & Approval", category: "Design" },
+                            { id: "Event_Planning", name: "Event Planning Timeline", category: "Operations" }
                         ]
                     };
                 }

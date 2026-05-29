@@ -55,8 +55,8 @@ export const BILLING_PLANS: BillingPlan[] = [
     mode: "subscription",
     description: "For small growing teams",
     paystackPlanCodes: {
-      monthly: "PLN_growth_dynamic",
-      annual: "PLN_growth_annual_dynamic",
+      monthly: "PLN_growth_monthly",
+      annual: "PLN_growth_annual",
     },
     features: [
       "Up to 15 users",
@@ -82,8 +82,8 @@ export const BILLING_PLANS: BillingPlan[] = [
     mode: "subscription",
     description: "For professional teams",
     paystackPlanCodes: {
-      monthly: "PLN_pro_dynamic",
-      annual: "PLN_pro_annual_dynamic",
+      monthly: "PLN_pro_monthly",
+      annual: "PLN_pro_annual",
     },
     features: [
       "Up to 50 users",
@@ -110,8 +110,8 @@ export const BILLING_PLANS: BillingPlan[] = [
     mode: "subscription",
     description: "For enterprise-grade teams",
     paystackPlanCodes: {
-      monthly: "PLN_plus_dynamic",
-      annual: "PLN_plus_annual_dynamic",
+      monthly: "PLN_plus_monthly",
+      annual: "PLN_plus_annual",
     },
     features: [
       "Unlimited users",

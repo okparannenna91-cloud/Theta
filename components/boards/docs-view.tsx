@@ -33,13 +33,7 @@ interface DocItem {
 
 export default function DocsView({ workspaceId }: DocsViewProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const [docs, setDocs] = useState<DocItem[]>([
-    { id: "1", title: "Project Requirements", emoji: "📋", isPinned: true, isPublic: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: "2", title: "Sprint Planning Notes", emoji: "📝", isPinned: true, isPublic: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: "3", title: "API Documentation", emoji: "🔧", isPinned: false, isPublic: true, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: "4", title: "Team Onboarding Guide", emoji: "🚀", isPinned: false, isPublic: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-    { id: "5", title: "Meeting Notes - Q1 Review", emoji: "📊", isPinned: false, isPublic: false, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
-  ]);
+  const [docs, setDocs] = useState<DocItem[]>([]);
 
   const filtered = docs.filter(d =>
     !searchQuery || d.title.toLowerCase().includes(searchQuery.toLowerCase())

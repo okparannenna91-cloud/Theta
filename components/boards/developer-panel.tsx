@@ -66,7 +66,7 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
 }`);
 
   const [webhooks, setWebhooks] = useState<{ id: string; url: string; events: string[]; active: boolean }[]>([
-    { id: "wh-1", url: "https://hooks.example.com/theta", events: ["task.created", "task.updated"], active: true },
+    { id: "wh-1", url: "https://api.thetaplatform.com/webhooks/task-events", events: ["task.created", "task.updated"], active: true },
   ]);
 
   const [columnViews, setColumnViews] = useState<string[]>([]);
@@ -223,8 +223,8 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
                   </Button>
                 </div>
                 {[
-                  { name: "Production", key: "theta_prod_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", lastUsed: "2 hours ago", scopes: "read, write" },
-                  { name: "Development", key: "theta_dev_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", lastUsed: "Never", scopes: "read" },
+                  { name: "Production", key: "theta_prod_2kL9mR7nP4qW8xJ1vB5cF3hT6yA0sDg", lastUsed: "2 hours ago", scopes: "read, write" },
+                  { name: "Development", key: "theta_dev_8fG2hJ5kL1pQ3wE7rT9yU0iO4nM6bVc", lastUsed: "Never", scopes: "read" },
                 ].map((apiKey) => (
                   <div key={apiKey.name} className="p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                     <div className="flex items-center justify-between mb-2">
