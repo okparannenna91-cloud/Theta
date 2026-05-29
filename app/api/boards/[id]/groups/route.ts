@@ -1,20 +1,17 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { findAcrossShards } from "@/lib/prisma";
-import { Board } from "@prisma/client";
 import { z } from "zod";
 import { publishToChannel, getBoardChannel } from "@/lib/ably";
 
-const columnSchema = z.object({
+const groupSchema = z.object({
     name: z.string().min(1),
     order: z.number().default(0),
-    columnType: z.string().default("text"),
-    settings: z.any().optional(),
-    width: z.number().optional(),
     color: z.string().optional(),
+    collapsed: z.boolean().default(false),
 });
 
-export async function POST(
+export async function GET(
     req: Request,
     { params }: { params: { id: string } }
 ) {
@@ -24,16 +21,11 @@ export async function POST(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const body = await req.json();
-        const data = columnSchema.parse(body);
-
         const { data: board, db } = await findAcrossShards<any>("board", { id: params.id });
-
         if (!board) {
             return NextResponse.json({ error: "Board not found" }, { status: 404 });
         }
 
-        // Verify workspace access (Workspace records are on Shard 1 / primary)
         const { prisma } = await import("@/lib/prisma");
         const membership = await prisma.workspaceMember.findUnique({
             where: {
@@ -48,28 +40,72 @@ export async function POST(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        const column = await (db.column.create as any)({
+        const groups = await (db as any).groups.findMany({
+            where: { boardId: params.id },
+            orderBy: { order: "asc" },
+        });
+
+        return NextResponse.json(groups);
+    } catch (error) {
+        console.error("Get groups error:", error);
+        return NextResponse.json(
+            { error: "Internal server error" },
+            { status: 500 }
+        );
+    }
+}
+
+export async function POST(
+    req: Request,
+    { params }: { params: { id: string } }
+) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const body = await req.json();
+        const data = groupSchema.parse(body);
+
+        const { data: board, db } = await findAcrossShards<any>("board", { id: params.id });
+        if (!board) {
+            return NextResponse.json({ error: "Board not found" }, { status: 404 });
+        }
+
+        const { prisma } = await import("@/lib/prisma");
+        const membership = await prisma.workspaceMember.findUnique({
+            where: {
+                workspaceId_userId: {
+                    workspaceId: board.workspaceId,
+                    userId: user.id
+                }
+            }
+        });
+
+        if (!membership) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        const group = await (db as any).groups.create({
             data: {
                 name: data.name,
                 order: data.order,
-                columnType: data.columnType,
-                settings: data.settings || undefined,
-                width: data.width || 200,
                 color: data.color,
+                collapsed: data.collapsed,
                 boardId: params.id,
             },
         });
 
-        // Notify via Ably
         const boardChannel = getBoardChannel(board.workspaceId, params.id);
-        await publishToChannel(boardChannel, "column:created", column);
+        await publishToChannel(boardChannel, "group:created", group);
 
-        return NextResponse.json(column);
+        return NextResponse.json(group);
     } catch (error) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: error.errors }, { status: 400 });
         }
-        console.error("Create column error:", error);
+        console.error("Create group error:", error);
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }

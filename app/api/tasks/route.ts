@@ -11,7 +11,7 @@ const taskSchema = z.object({
   status: z.string().default("todo"),
   priority: z.string().default("medium"),
   workspaceId: z.string(),
-  projectId: z.string(),
+  projectId: z.string().optional(),
   boardId: z.string().optional(),
   columnId: z.string().optional(),
   dueDate: z.string().optional(),
@@ -151,19 +151,21 @@ export async function POST(req: Request) {
         }
     });
 
-    // Verify project belongs to workspace and user has access
-    const project = await db.project.findFirst({
-      where: {
-        id: data.projectId as string,
-        workspaceId: data.workspaceId as string,
-      },
-    });
+    // Verify project belongs to workspace if provided
+    if (data.projectId) {
+      const project = await db.project.findFirst({
+        where: {
+          id: data.projectId,
+          workspaceId: data.workspaceId,
+        },
+      });
 
-    if (!project) {
-      return NextResponse.json(
-        { error: "Project not found in workspace" },
-        { status: 404 }
-      );
+      if (!project) {
+        return NextResponse.json(
+          { error: "Project not found in workspace" },
+          { status: 404 }
+        );
+      }
     }
 
     // Check plan limits strictly
@@ -191,7 +193,7 @@ export async function POST(req: Request) {
         statusId: statusRecord?.id, // Link to custom status
         priority: data.priority,
         workspaceId: data.workspaceId as string,
-        projectId: data.projectId as string,
+        projectId: data.projectId,
         userId: user.id as string,
         boardId: data.boardId,
         columnId: data.columnId,
@@ -263,7 +265,7 @@ export async function POST(req: Request) {
       user.id,
       "task_assigned", // Using task_assigned as a generic "new task" type for now
       "New Task Created",
-      `${user.name || "A member"} created a new task: ${task.title} in ${task.project.name}`,
+      `${user.name || "A member"} created a new task: ${task.title}${(task as any).project?.name ? ` in ${(task as any).project.name}` : ""}`,
       { taskId: task.id, projectId: task.projectId }
     );
 
@@ -271,7 +273,7 @@ export async function POST(req: Request) {
     const { notifyWorkspace } = await import("@/lib/integrations/slack");
     await notifyWorkspace(
       data.workspaceId,
-      `New task created: *${task.title}* in project *${task.project.name}*`,
+      `New task created: *${task.title}*${(task as any).project?.name ? ` in project *${(task as any).project.name}*` : ""}`,
       "Task Created"
     );
 

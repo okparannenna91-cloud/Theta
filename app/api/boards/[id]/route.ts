@@ -49,8 +49,18 @@ export async function GET(
                 name: true,
               },
             },
+            subtasks: {
+              orderBy: { order: "asc" },
+            },
+            tags: true,
+            _count: {
+              select: { comments: true },
+            },
           },
         },
+        groups: {
+          orderBy: { order: "asc" },
+        } as any,
         project: {
           select: {
             id: true,

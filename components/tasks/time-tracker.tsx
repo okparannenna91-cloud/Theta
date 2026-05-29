@@ -11,14 +11,36 @@ interface TimeTrackerProps {
 }
 
 export function TimeTracker({ taskId, onTimeLogged }: TimeTrackerProps) {
-    const [isActive, setIsActive] = useState(false);
-    const [seconds, setSeconds] = useState(0);
+    const storageKey = `timer_${taskId}`;
+    const [isActive, setIsActive] = useState(() => {
+        if (typeof window === "undefined") return false;
+        const saved = sessionStorage.getItem(storageKey);
+        if (!saved) return false;
+        try {
+            const parsed = JSON.parse(saved);
+            return parsed.isActive || false;
+        } catch { return false; }
+    });
+    const [seconds, setSeconds] = useState(() => {
+        if (typeof window === "undefined") return 0;
+        const saved = sessionStorage.getItem(storageKey);
+        if (!saved) return 0;
+        try {
+            const parsed = JSON.parse(saved);
+            if (parsed.isActive && parsed.startedAt) {
+                const elapsed = Math.floor((Date.now() - parsed.startedAt) / 1000) + (parsed.seconds || 0);
+                return Math.max(0, elapsed);
+            }
+            return parsed.seconds || 0;
+        } catch { return 0; }
+    });
+    const startedAtRef = useRef<number | null>(null);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
 
     useEffect(() => {
         if (isActive) {
             timerRef.current = setInterval(() => {
-                setSeconds((prev) => prev + 1);
+                setSeconds((prev: number) => prev + 1);
             }, 1000);
         } else {
             if (timerRef.current) clearInterval(timerRef.current);
@@ -28,6 +50,13 @@ export function TimeTracker({ taskId, onTimeLogged }: TimeTrackerProps) {
             if (timerRef.current) clearInterval(timerRef.current);
         };
     }, [isActive]);
+
+    useEffect(() => {
+        const data = { isActive, seconds, startedAt: startedAtRef.current };
+        try {
+            sessionStorage.setItem(storageKey, JSON.stringify(data));
+        } catch { /* ignore quota errors */ }
+    }, [isActive, seconds, storageKey]);
 
     const formatTime = (totalSeconds: number) => {
         const hrs = Math.floor(totalSeconds / 3600);
@@ -39,12 +68,18 @@ export function TimeTracker({ taskId, onTimeLogged }: TimeTrackerProps) {
     };
 
     const handleToggle = () => {
+        if (!isActive) {
+            startedAtRef.current = Date.now();
+        } else {
+            startedAtRef.current = null;
+        }
         setIsActive(!isActive);
     };
 
     const handleReset = () => {
         setIsActive(false);
         setSeconds(0);
+        startedAtRef.current = null;
     };
 
     const handleSave = async () => {
@@ -62,6 +97,8 @@ export function TimeTracker({ taskId, onTimeLogged }: TimeTrackerProps) {
             toast.success("Time log saved");
             setSeconds(0);
             setIsActive(false);
+            startedAtRef.current = null;
+            try { sessionStorage.removeItem(storageKey); } catch { /* ignore */ }
             if (onTimeLogged) onTimeLogged();
         } catch (error) {
             toast.error("Failed to save time log");
