@@ -351,7 +351,7 @@ export default function TableView({
               <div className="py-20 flex flex-col items-center justify-center text-slate-400">
                 <ListChecks className="h-12 w-12 mb-4 opacity-30" />
                 <p className="text-sm font-medium">This table is empty</p>
-                <p className="text-xs mt-1">Click "Add Item" to create your first row</p>
+                <p className="text-xs mt-1">Click &ldquo;Add Item&rdquo; to create your first row</p>
               </div>
             ) : (
               rootTasks.map(task => renderRow(task))
