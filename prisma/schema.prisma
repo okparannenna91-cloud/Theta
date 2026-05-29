@@ -281,7 +281,6 @@ model Task {
   link         String?
   rating       Int?
   vote         Int?
-  progress     Int?
   timeSpent    Int?       // in seconds
 
   @@map("tasks")
