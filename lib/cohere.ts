@@ -1,0 +1,32 @@
+import { CohereClient } from "cohere-ai";
+
+const apiKey = process.env.COHERE_API_KEY;
+
+if (!apiKey) {
+    console.warn("COHERE_API_KEY is not defined in environment variables. Cohere AI fallback will not function.");
+}
+
+export const cohere = new CohereClient({
+    token: apiKey!,
+});
+
+/**
+ * Generate a response using Cohere AI
+ */
+export async function generateWithCohere(prompt: string, systemPrompt?: string) {
+    if (!apiKey) {
+        throw new Error("Cohere API key missing");
+    }
+
+    const response = await cohere.chat({
+        message: prompt,
+        preamble: systemPrompt,
+        model: "command-a-03-2025", // Latest flagship model
+    });
+
+    if (!response || !response.text) {
+        throw new Error("Empty response from Cohere");
+    }
+
+    return response.text;
+}

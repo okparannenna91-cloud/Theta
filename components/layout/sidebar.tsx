@@ -1,0 +1,162 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import Image from "next/image";
+import { cn } from "@/lib/utils";
+import {
+  LayoutDashboard,
+  FolderKanban,
+  CheckSquare,
+  Columns,
+  Users,
+  Bell,
+  Activity,
+  CreditCard,
+  Settings,
+  User,
+  Menu,
+  X,
+  Calendar,
+  TrendingUp,
+  Building2,
+  LayoutList,
+  Puzzle,
+  BarChart3,
+  GanttChartSquare,
+  Sparkles,
+  ChevronDown,
+} from "lucide-react";
+import { UserButton } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { useI18n } from "@/lib/i18n";
+
+export function Sidebar() {
+  const pathname = usePathname();
+  const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { t } = useI18n();
+  const { workspaces, activeWorkspaceId, switchWorkspace } = useWorkspace();
+  const { user } = useUser();
+
+  const navigation = [
+    { name: t("dashboard"), href: "/dashboard", icon: LayoutDashboard },
+    { name: "Nova AI", href: "/nova", icon: Sparkles },
+    { name: t("workspaces"), href: "/workspaces", icon: Building2 },
+    { name: t("portfolio"), href: "/portfolio", icon: FolderKanban },
+    { name: t("projects"), href: "/projects", icon: LayoutList },
+    { name: t("tasks"), href: "/tasks", icon: CheckSquare },
+    { name: t("calendar"), href: "/calendar", icon: Calendar },
+    { name: t("boards"), href: "/boards", icon: Columns },
+    { name: t("teams"), href: "/teams", icon: Users },
+    { name: t("notifications"), href: "/notifications", icon: Bell },
+    { name: t("analytics"), href: "/analytics", icon: TrendingUp },
+    { name: "Apps", href: "/apps", icon: Puzzle },
+    { name: "Gantt Chart", href: "/gantt", icon: BarChart3 },
+    { name: "Timeline", href: "/timeline", icon: GanttChartSquare },
+    { name: t("activity"), href: "/activity", icon: Activity },
+    { name: t("billing"), href: "/billing", icon: CreditCard },
+    { name: t("settings"), href: "/settings", icon: Settings },
+  ];
+
+  const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId);
+
+  return (
+    <>
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b h-14 flex items-center justify-between px-4">
+        <Link href="/dashboard" className="flex items-center gap-2">
+          <Image src="/Logo.png" alt="Theta Logo" width={22} height={22} className="rounded" />
+          <span className="text-lg font-semibold text-foreground">Theta</span>
+        </Link>
+        <div className="flex items-center gap-2">
+          <UserButton />
+          <button
+            onClick={() => setIsMobileOpen(!isMobileOpen)}
+            className="p-2 rounded-md hover:bg-secondary"
+            aria-label="Toggle menu"
+          >
+            {isMobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </button>
+        </div>
+      </div>
+
+      {isMobileOpen && (
+        <div
+          className="lg:hidden fixed inset-0 bg-black/50 z-40"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
+
+      <div
+        className={cn(
+          "fixed lg:static inset-y-0 left-0 z-50 flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out",
+          "lg:translate-x-0",
+          isMobileOpen ? "translate-x-0" : "-translate-x-full"
+        )}
+      >
+        <div className="flex h-14 items-center px-5 border-b border-sidebar-border">
+          <Link href="/dashboard" className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0 bg-primary/20 flex items-center justify-center">
+              <Image src="/Logo.png" alt="Theta Logo" width={20} height={20} className="object-cover" />
+            </div>
+            <span className="text-base font-semibold text-sidebar-foreground">Theta</span>
+          </Link>
+        </div>
+
+        <div className="px-3 py-3 border-b border-sidebar-border">
+          <button className="flex items-center justify-between w-full px-3 py-2 rounded-md hover:bg-white/5 transition-colors text-sm text-sidebar-foreground">
+            <span className="truncate font-medium">
+              {activeWorkspace?.name || "Select workspace"}
+            </span>
+            <ChevronDown className="h-4 w-4 text-sidebar-muted flex-shrink-0" />
+          </button>
+        </div>
+
+        <nav className="flex-1 overflow-y-auto py-2 px-2">
+          <div className="space-y-0.5">
+            {navigation.map((item) => {
+              const isActive = pathname === item.href;
+              return (
+                <Link
+                  key={item.name}
+                  href={item.href}
+                  onClick={() => setIsMobileOpen(false)}
+                  className={cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
+                    isActive
+                      ? "bg-primary/20 text-primary-foreground font-medium"
+                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-white/5"
+                  )}
+                >
+                  <item.icon className={cn(
+                    "h-4 w-4 flex-shrink-0",
+                    isActive ? "text-primary-foreground" : "text-sidebar-muted"
+                  )} />
+                  <span>{item.name}</span>
+                </Link>
+              );
+            })}
+          </div>
+        </nav>
+
+        <div className="p-3 border-t border-sidebar-border">
+          <Link
+            href="/profile"
+            className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-white/5 transition-colors"
+          >
+            <UserButton afterSignOutUrl="/" />
+            <div className="flex flex-col min-w-0">
+              <span className="text-sm font-medium text-sidebar-foreground truncate">
+                {user?.fullName || "Profile"}
+              </span>
+              <span className="text-xs text-sidebar-muted truncate">
+                {t("profile")}
+              </span>
+            </div>
+          </Link>
+        </div>
+      </div>
+    </>
+  );
+}

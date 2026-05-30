@@ -1,0 +1,822 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("MONGODB_URI")
+}
+
+model Workspace {
+  id              String   @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  slug            String   @unique
+  plan            String   @default("free") // free, growth, pro, theta_plus
+  billingInterval String?  // monthly, annual
+  paystackCustomerId   String?
+  paystackAuthCode     String?
+  subscriptionId       String?
+  billingProvider      String?  // paystack, ivno
+  ivnoOrderId          String?   @unique
+  billingStatus        String   @default("active") // active, past_due, canceled, deactivated
+  billingEmail         String?
+  nextBillingDate      DateTime?
+  currency             String?  @default("USD")
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  billingLogs   BillingLog[]
+
+  members       WorkspaceMember[]
+  projects      Project[]
+  tasks         Task[]
+  boards        Board[]
+  teams         Team[]
+  notifications Notification[]
+  activities    Activity[]
+  chatMessages  ChatMessage[]
+  invites       Invite[]
+  integrations  Integration[]
+  calendarEvents CalendarEvent[]
+  tags           Tag[]
+  statuses       Status[]
+  automations    Automation[]
+  documents     Document[]
+  forms         Form[]
+  aiConversations AiConversation[]
+  aiModelConfigs  AiModelConfig[]
+  contextSnapshots AiContextSnapshot[]
+  savedSearches   SavedSearch[]
+  meetings        Meeting[]
+  evolutionTracking EvolutionTracking[]
+
+  @@map("workspaces")
+}
+
+model Form {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  fields      Json     // Array of form field definitions
+  isPublic    Boolean  @default(false)
+  slug        String   @unique
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  responses FormResponse[]
+
+  @@map("forms")
+}
+
+model FormResponse {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  formId    String   @db.ObjectId
+  data      Json
+  createdAt DateTime @default(now())
+
+  form Form @relation(fields: [formId], references: [id], onDelete: Cascade)
+
+  @@map("form_responses")
+}
+
+model Document {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  content     String?  // HTML or JSON content (TipTap)
+  emoji       String?  @default("📄")
+  coverImage  String?
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  projectId   String?  @db.ObjectId // For project-specific docs
+  parentId    String?  @db.ObjectId // For nested pages
+  
+  status      String   @default("PUBLISHED") // DRAFT, PUBLISHED, ARCHIVED
+  visibility  String   @default("INTERNAL")  // PRIVATE, INTERNAL, PUBLIC
+  tags        String[]
+  isTemplate  Boolean  @default(false)
+  views       Int      @default(0)
+  lastEditedById String? @db.ObjectId
+
+  isPublic    Boolean  @default(false)
+  isPinned    Boolean  @default(false)
+  archived    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  parent    Document? @relation("DocumentHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children  Document[] @relation("DocumentHierarchy")
+  comments  Comment[]
+
+  @@map("documents")
+}
+
+model Automation {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  trigger     String   // e.g. TASK_STATUS_UPDATED, TASK_CREATED
+  condition   String?  // e.g. JSON string of conditions
+  action      String   // e.g. SET_PRIORITY, SET_ASSIGNEE, SEND_NOTIFICATION
+  actionValue String?
+  workspaceId String   @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("automations")
+}
+
+
+
+model WorkspaceMember {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  role        String   @default("member") // owner, admin, member
+  status      String?  @default("active") // active, inactive, pending
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@map("workspace_members")
+}
+
+model User {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  clerkId   String   @unique
+  email     String
+  name      String?
+  imageUrl  String?
+  lastActiveAt DateTime? @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspaces    WorkspaceMember[]
+  projects      Project[]
+  tasks         Task[]
+  teams         TeamMember[]
+  notifications Notification[]
+  activities    Activity[]
+  chatMessages  ChatMessage[]
+  calendarEvents CalendarEvent[]
+  comments      Comment[]
+  timeLogs      TimeLog[]
+  documents     Document[]
+  preferences   UserPreference?
+  aiConversations AiConversation[]
+  aiMemories      AiMemory[]
+  contextSnapshots AiContextSnapshot[]
+  savedSearches   SavedSearch[]
+  meetings        Meeting[]
+
+  @@map("users")
+}
+
+model Project {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  color       String?
+  coverImage  String?
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  teamId      String?  @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team         Team?        @relation(fields: [teamId], references: [id])
+  tasks        Task[]
+  boards       Board[]
+  teamMembers  TeamMember[]
+  projectTeams ProjectTeam[]
+  chatMessages ChatMessage[]
+  documents    Document[]
+  activities   Activity[]
+
+  @@map("projects")
+}
+
+model ProjectTeam {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId   String   @db.ObjectId
+  teamId      String   @db.ObjectId
+  role        String   @default("viewer") // full_access, editor, viewer, custom
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  team        Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, teamId])
+  @@map("project_teams")
+}
+
+model Task {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  status      String    @default("todo")
+  priority    String    @default("medium")
+  dueDate     DateTime?
+  coverImage  String?
+  workspaceId String    @db.ObjectId
+  projectId   String    @db.ObjectId
+  userId      String    @db.ObjectId
+  boardId     String?   @db.ObjectId
+  columnId    String?   @db.ObjectId
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  board     Board?    @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  subtasks  Subtask[]
+  comments  Comment[]
+  tagIds    String[]  @db.ObjectId
+  tags      Tag[]     @relation("TaskTags", fields: [tagIds], references: [id])
+  
+  statusId     String?   @db.ObjectId
+  customStatus Status?   @relation(fields: [statusId], references: [id])
+  completedAt  DateTime? @db.Date
+  
+  estimatedHours Int?
+  progress       Int       @default(0)
+  
+  startDate      DateTime?
+  isMilestone    Boolean   @default(false)
+  color          String?
+  
+  parentId       String?   @db.ObjectId
+  parent         Task?     @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  children       Task[]    @relation("TaskHierarchy")
+  isSummary      Boolean   @default(false)
+  
+  timeLogs       TimeLog[]
+  
+  predecessors  TaskDependency[] @relation("TaskPredecessors")
+  successors    TaskDependency[] @relation("TaskSuccessors")
+  
+  schedulingMode String   @default("auto") // auto, manual
+  baselineStartDate DateTime?
+  baselineDueDate   DateTime?
+  
+  attachments   Json?    @db.Json
+
+  fieldValues   Json?    @db.Json // Dynamic field values for column types - stored as key-value pairs {columnId: value}
+  location     String?
+  email        String?
+  phone        String?
+  link         String?
+  rating       Int?
+  vote         Int?
+  timeSpent    Int?       // in seconds
+
+  @@map("tasks")
+}
+
+model TaskDependency {
+  id             String @id @default(auto()) @map("_id") @db.ObjectId
+  taskId         String @db.ObjectId
+  predecessorId  String @db.ObjectId
+  type           String @default("FS") // FS, SS, FF, SF
+  lag            Int    @default(0)    // Lag in seconds/hours? Let's use minutes or hours.
+  
+  task           Task   @relation("TaskPredecessors", fields: [taskId], references: [id], onDelete: Cascade)
+  predecessor    Task   @relation("TaskSuccessors", fields: [predecessorId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, predecessorId])
+  @@map("task_dependencies")
+}
+
+model Subtask {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  completed Boolean  @default(false)
+  taskId    String   @db.ObjectId
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subtasks")
+}
+
+model Comment {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  content   String
+  userId    String   @db.ObjectId
+  taskId    String?  @db.ObjectId
+  documentId String? @db.ObjectId
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  document  Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  attachments Json?    @db.Json
+
+  @@map("comments")
+}
+
+model Tag {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  color       String?   @default("#4f46e5")
+  workspaceId String    @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  taskIds     String[]  @db.ObjectId
+  tasks       Task[]    @relation("TaskTags", fields: [taskIds], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@unique([workspaceId, name])
+  @@map("tags")
+}
+
+model Status {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  color       String?   @default("#4f46e5")
+  order       Int       @default(0)
+  workspaceId String    @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([workspaceId, name])
+  @@map("statuses")
+}
+
+model TimeLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  duration    Int      // in seconds
+  description String?
+  userId      String   @db.ObjectId
+  taskId      String   @db.ObjectId
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@map("time_logs")
+}
+
+model Groups {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  boardId     String   @db.ObjectId
+  order       Int      @default(0)
+  color       String?
+  collapsed   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  board     Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  fieldOverrides Json? @db.Json // Override column settings per group
+
+  @@map("groups")
+}
+
+model Board {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  icon        String?
+  isFavorite  Boolean  @default(false)
+  visibility  String   @default("private") // private, team, public
+  workspaceId String   @db.ObjectId
+  projectId   String   @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  columns   Column[]
+  tasks     Task[]
+  groups    Groups[]
+
+  @@map("boards")
+}
+
+model Column {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  name      String
+  boardId   String   @db.ObjectId
+  order     Int      @default(0)
+  wipLimit  Int?
+  color     String?
+  columnType String  @default("text") // text, number, date, status, people, timeline, connectBoard, mirror, priority, tags, checkbox, link, email, phone, files, location, country, worldClock, rating, vote, dropdown, autoNumber, formula, dependencies, progress, timeTracking, button, week, colorPicker, aiSummary, aiText, aiSentiment, aiLabel, aiExtraction, aiPrioritization, aiWriting, aiTranslation, combo
+  settings   Json?   @db.Json           // Column-specific configuration (options, formulas, etc.)
+  width      Int?    @default(200)       // Column width in px
+  visible    Boolean @default(true)      // Hide/show column
+  pinned     Boolean @default(false)     // Freeze column
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  @@map("columns")
+}
+
+
+model Team {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  description String?
+  workspaceId String   @db.ObjectId
+  status      String   @default("active") // active, archived
+  defaultRole String   @default("member") // owner, admin, member, guest
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  members   TeamMember[]
+  projects  Project[]
+  projectTeams ProjectTeam[]
+  chatMessages ChatMessage[]
+  calendarEvents CalendarEvent[]
+  invites   Invite[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  teamId    String   @db.ObjectId
+  userId    String   @db.ObjectId
+  projectId String?  @db.ObjectId
+  role      String   @default("member")
+  lastReadAt DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  team    Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project Project? @relation(fields: [projectId], references: [id])
+
+  @@unique([teamId, userId])
+  @@map("team_members")
+}
+
+model Notification {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  message     String
+  type        String
+  read        Boolean  @default(false)
+  archived    Boolean  @default(false)
+  pinned      Boolean  @default(false)
+  priority    String   @default("medium") // low, medium, high
+  metadata    Json?    @db.Json
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model Activity {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  action      String
+  entityType  String
+  entityId    String
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  projectId   String?  @db.ObjectId
+  metadata    Json?    @db.Json
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  @@map("activities")
+}
+
+model CalendarEvent {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  start       DateTime
+  end         DateTime
+  allDay      Boolean  @default(false)
+  color       String?  @default("#4f46e5")
+  type        String   @default("event") // event, task, meeting
+  recurrence  String?  @default("none") // none, daily, weekly, monthly, yearly
+  
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  teamId      String?  @db.ObjectId
+  
+  reminders   Json?    @db.Json // Array of reminder times: [15, 60, 1440] (minutes)
+  metadata    Json?    @db.Json
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  team      Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("calendar_events")
+}
+
+model ChatMessage {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  content     String
+  workspaceId String   @db.ObjectId
+  projectId   String?  @db.ObjectId
+  teamId      String?  @db.ObjectId
+  userId      String   @db.ObjectId
+  attachment  Json?    @db.Json
+  
+  isPinned    Boolean  @default(false)
+  isEdited    Boolean  @default(false)
+  deletedAt   DateTime?
+  
+  replyToId   String?  @db.ObjectId
+  replyTo     ChatMessage? @relation("ChatReplies", fields: [replyToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies     ChatMessage[] @relation("ChatReplies")
+
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  team      Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("chat_messages")
+}
+
+model Invite {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  email       String
+  token       String    @unique
+  role        String    @default("member")
+  workspaceId String    @db.ObjectId
+  teamId      String?   @db.ObjectId
+  status      String    @default("pending") // pending, revoked, expired
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  team      Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@map("invites")
+}
+
+model Integration {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  type        String?  // slack, calendar (Optional/Legacy)
+  provider    String?  // github, bitbucket, asana, trello, woocommerce
+  workspaceId String   @db.ObjectId
+  config      Json?    @db.Json
+  accessToken String?
+  refreshToken String?
+  expiresAt   DateTime?
+  metadata    Json?    @db.Json
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("integrations")
+}
+
+model UserPreference {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId            String   @unique @db.ObjectId
+  theme             String   @default("dark")
+  dismissedPopups   Json?    @db.Json
+  onboardingComplete Boolean @default(false)
+  compactMode       Boolean  @default(false)
+  emailNotifications Boolean @default(true)
+  pushNotifications  Boolean @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_preferences")
+}
+
+model Subscription {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @unique
+  status    String   // active, inactive
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("subscriptions")
+}
+
+model BillingLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  action      String   // payment_success, payment_failed, subscription_updated, etc.
+  provider    String   // paystack, ivno
+  amount      Float?
+  currency    String?
+  metadata    Json?    @db.Json
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("billing_logs")
+}
+
+model AiConversation {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String?  @default("New Conversation")
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  isPinned    Boolean  @default(false)
+  isArchived  Boolean  @default(false)
+  isPublic    Boolean  @default(false)
+  lastMessageAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  messages        AiMessage[]
+  contextSnapshots AiContextSnapshot[]
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  conversationId String   @db.ObjectId
+  role           String   // user, assistant, system
+  content        String
+  metadata       Json?    // For actions, file refs, etc.
+  createdAt      DateTime @default(now())
+
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("ai_messages")
+}
+
+model AiMemory {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  workspaceId String?  @db.ObjectId
+  key         String   // e.g., "writing_style", "preferred_tone"
+  content     String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@map("ai_memories")
+}
+
+model EntityLink {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  sourceId  String   @db.ObjectId
+  targetId  String   @db.ObjectId
+  relation  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sourceId, targetId, relation])
+  @@map("entity_links")
+}
+
+model ScheduledReport {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  type        String
+  frequency   String   // daily, weekly, monthly, quarterly
+  scopeId     String
+  nextRun     DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, type, scopeId])
+  @@map("scheduled_reports")
+}
+
+// S6: AI Model Configuration — per-workspace model provider settings
+model AiModelConfig {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  provider    String   // OpenRouter, Cohere, OpenAI, Gemini
+  modelName   String   // Actual model identifier (e.g. "gpt-4o", "claude-3-opus")
+  apiKeyRef   String   // Environment variable name for the API key
+  priority    Int      @default(0) // Fallback order (0=primary)
+  isEnabled   Boolean  @default(true)
+  usageCount  Int      @default(0)
+  lastUsedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, provider])
+  @@map("ai_model_configs")
+}
+
+// S8: Context Snapshots — captures of active context for debugging and audit
+model AiContextSnapshot {
+  id              String       @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId     String       @db.ObjectId
+  userId          String       @db.ObjectId
+  conversationId  String?      @db.ObjectId
+  contextData     Json         // Full context blob at time of snapshot
+  tokenCount      Int          @default(0)
+  source          String       @default("auto") // ai_request, manual_save, auto_snapshot
+  createdAt       DateTime     @default(now())
+
+  workspace    Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation AiConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+
+  @@map("ai_context_snapshots")
+}
+
+// S13: Saved Searches — persisted search queries for quick access
+model SavedSearch {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  userId      String   @db.ObjectId
+  name        String
+  query       String
+  domain      String   @default("GLOBAL") // PROJECTS, TASKS, DOCUMENTS, etc.
+  searchType  String   @default("KEYWORD") // KEYWORD, SEMANTIC, CONTEXTUAL, QUESTION_ANSWERING
+  filters     Json?    // Advanced filter criteria
+  isPinned    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("saved_searches")
+}
+
+// S15: Meetings — dedicated model with full agenda, decisions, action items
+model Meeting {
+  id                      String    @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId             String    @db.ObjectId
+  userId                  String    @db.ObjectId
+  title                   String
+  description             String?
+  topic                   String?
+  status                  String    @default("scheduled") // scheduled, live, completed, cancelled
+  phase                   String    @default("PRE_MEETING") // PRE_MEETING, LIVE_MEETING, POST_MEETING
+  startedAt               DateTime?
+  endedAt                 DateTime?
+  summary                 String?
+  agendaItems             Json?     // string[]
+  decisions               Json?     // string[]
+  actionItems             Json?     // {title, assignee?, priority}[]
+  participants            Json?     // string[]
+  followUpRecommendations Json?     // string[]
+  decisionLog             Json?     // string[]
+  contextQuestions        Json?     // string[]
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("meetings")
+}
+
+// S20: Evolution Tracking — per-workspace feature adoption and stage progression
+model EvolutionTracking {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  stage       String   // ASSISTANT, OPERATOR, MANAGER, COORDINATOR, WORKFORCE
+  featureKey  String   // e.g. "task_creation", "project_health", "multi_agent"
+  isEnabled   Boolean  @default(false)
+  enabledAt   DateTime?
+  disabledAt  DateTime?
+  metadata    Json?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, featureKey])
+  @@map("evolution_tracking")
+}

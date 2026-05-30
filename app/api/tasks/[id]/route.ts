@@ -1,0 +1,367 @@
+import { NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { findAcrossShards } from "@/lib/prisma";
+import { Task } from "@prisma/client";
+import { z } from "zod";
+import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel } from "@/lib/ably";
+
+const updateSchema = z.object({
+  title: z.string().min(1).optional(),
+  description: z.string().optional(),
+  status: z.string().optional(),
+  priority: z.string().optional(),
+  projectId: z.string().optional(),
+  boardId: z.string().optional(),
+  columnId: z.string().optional(),
+  order: z.number().optional(),
+  dueDate: z.string().optional(),
+  startDate: z.string().optional(),
+  isMilestone: z.boolean().optional(),
+  color: z.string().optional(),
+  parentId: z.string().optional(),
+  isSummary: z.boolean().optional(),
+  progress: z.number().min(0).max(100).optional(),
+  schedulingMode: z.string().optional(),
+  baselineStartDate: z.string().optional(),
+  baselineDueDate: z.string().optional(),
+  fieldValues: z.any().optional(),
+  location: z.string().optional(),
+  email: z.string().optional(),
+  phone: z.string().optional(),
+  link: z.string().optional(),
+  rating: z.number().optional(),
+  vote: z.number().optional(),
+  timeSpent: z.number().optional(),
+});
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await req.json();
+    const data = updateSchema.parse(body);
+
+    const { searchParams } = new URL(req.url);
+    const workspaceId = searchParams.get("workspaceId");
+
+    let task: Task | null = null;
+    let db: any = null;
+
+    if (workspaceId) {
+        const { getPrismaClient } = await import("@/lib/prisma");
+        db = getPrismaClient(workspaceId);
+        task = await db.task.findUnique({ where: { id: params.id } });
+        
+        if (!task) {
+            // If not found on the specified shard, it might be an invalid workspaceId or moved record
+            // Fallback to searching all shards just in case
+            const searchResult = await findAcrossShards<Task>("task", { id: params.id });
+            task = searchResult.data;
+            db = searchResult.db;
+        }
+    } else {
+        const searchResult = await findAcrossShards<Task>("task", { id: params.id });
+        task = searchResult.data;
+        db = searchResult.db;
+    }
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    // Verify workspace access (Workspace records are on Shard 1 / primary)
+    const { prisma } = await import("@/lib/prisma");
+    const membership = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: task.workspaceId,
+          userId: user.id,
+        },
+      },
+    });
+
+    if (!membership) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    const updateData: any = { ...data };
+    if (data.dueDate) {
+      updateData.dueDate = new Date(data.dueDate);
+    }
+    if (data.startDate) {
+      updateData.startDate = new Date(data.startDate);
+    }
+    if (data.baselineStartDate) {
+      updateData.baselineStartDate = new Date(data.baselineStartDate);
+    }
+    if (data.baselineDueDate) {
+      updateData.baselineDueDate = new Date(data.baselineDueDate);
+    }
+
+    // Resolve statusId and handle completion logic (Analytics & State Integrity Fix)
+    if (data.status) {
+        const statusRecord = await db.status.findFirst({
+            where: { 
+                workspaceId: task.workspaceId,
+                name: { equals: data.status, mode: 'insensitive' }
+            }
+        });
+
+        if (statusRecord) {
+            updateData.statusId = statusRecord.id;
+            
+            // Completion Logic
+            const isNowCompleted = ['done', 'completed'].includes(data.status.toLowerCase());
+            const wasCompleted = ['done', 'completed'].includes(task.status.toLowerCase());
+
+            if (isNowCompleted && !wasCompleted) {
+                updateData.completedAt = new Date();
+                updateData.progress = 100;
+            } else if (!isNowCompleted && wasCompleted) {
+                updateData.completedAt = null;
+            }
+        }
+    }
+
+    const updated = await db.task.update({
+      where: { id: params.id },
+      data: updateData,
+      include: {
+        project: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    // Notify via Ably
+    const workspaceChannel = getWorkspaceChannel(updated.workspaceId);
+    await publishToChannel(workspaceChannel, "task:updated", updated);
+
+    if (updated.boardId) {
+      const boardChannel = getBoardChannel(updated.workspaceId, updated.boardId);
+      await publishToChannel(boardChannel, "task:updated", updated);
+    }
+
+    if (updated.projectId) {
+      const projectChannel = getProjectChannel(updated.workspaceId, updated.projectId);
+      await publishToChannel(projectChannel, "task:updated", updated);
+    }
+
+    // If this task has a parent, recursively update the parent's progress/duration
+    if (updated.parentId) {
+      await updateParentTask(updated.parentId, task.workspaceId, db);
+    }
+
+    // If the parentId was CHANGED, update the OLD parent too (Relationship State Fix)
+    if (data.parentId !== undefined && task.parentId && data.parentId !== task.parentId) {
+      await updateParentTask(task.parentId, task.workspaceId, db);
+    }
+
+    // Log Activity
+    const { createActivity } = await import("@/lib/activity");
+    await createActivity(
+      user.id,
+      task.workspaceId,
+      "updated",
+      "task",
+      task.id,
+      {
+        taskTitle: updated.title,
+        projectId: updated.projectId,
+        changes: Object.keys(data).reduce((acc: any, key) => {
+          if ((data as any)[key] !== (task as any)[key]) {
+            acc[key] = { old: (task as any)[key], new: (data as any)[key] };
+          }
+          return acc;
+        }, {}),
+      }
+    );
+
+    // Notify members if status changed
+    if (data.status && data.status !== task.status) {
+      const { notifyWorkspaceMembers } = await import("@/lib/notifications");
+      await notifyWorkspaceMembers(
+        task.workspaceId,
+        user.id,
+        "task_updated",
+        "Task Status Updated",
+        `${user.name || "A member"} updated status of "${updated.title}" to ${updated.status}`,
+        { taskId: updated.id, projectId: updated.projectId }
+      );
+    }
+
+    // Trigger Automations if status changed (Phase 2)
+    if (data.status && data.status !== task.status) {
+        try {
+            const { processAutomations } = await import("@/lib/automations/engine");
+            await processAutomations(task.workspaceId, "TASK_STATUS_UPDATED", {
+                taskId: updated.id,
+                projectId: updated.projectId,
+                userId: user.id
+            });
+        } catch (automationError) {
+            console.error("Failed to trigger automations on status change:", automationError);
+        }
+    }
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
+    console.error("Update task error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function DELETE(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const workspaceId = searchParams.get("workspaceId");
+
+    let task: Task | null = null;
+    let db: any = null;
+
+    if (workspaceId) {
+        const { getPrismaClient } = await import("@/lib/prisma");
+        db = getPrismaClient(workspaceId);
+        task = await db.task.findUnique({ where: { id: params.id } });
+        
+        if (!task) {
+            const searchResult = await findAcrossShards<Task>("task", { id: params.id });
+            task = searchResult.data;
+            db = searchResult.db;
+        }
+    } else {
+        const searchResult = await findAcrossShards<Task>("task", { id: params.id });
+        task = searchResult.data;
+        db = searchResult.db;
+    }
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    // Verify workspace access
+    const { prisma } = await import("@/lib/prisma");
+    const membership = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: task.workspaceId,
+          userId: user.id,
+        },
+      },
+    });
+
+    if (!membership) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // Manual Cascade: Recursively delete all child tasks (subtasks)
+    await db.task.deleteMany({
+      where: { parentId: params.id },
+    });
+
+    await db.task.delete({
+      where: { id: params.id },
+    });
+
+    // If this task had a parent, update it now (Consistency Fix)
+    if (task.parentId) {
+      await updateParentTask(task.parentId, task.workspaceId, db);
+    }
+
+    // Notify via Ably
+    const workspaceChannel = getWorkspaceChannel(task.workspaceId);
+    await publishToChannel(workspaceChannel, "task:deleted", { id: params.id });
+
+    if (task.boardId) {
+      const boardChannel = getBoardChannel(task.workspaceId, task.boardId);
+      await publishToChannel(boardChannel, "task:deleted", { id: params.id });
+    }
+
+    // Log Activity
+    const { createActivity } = await import("@/lib/activity");
+    await createActivity(
+      user.id,
+      task.workspaceId,
+      "deleted",
+      "task",
+      task.id,
+      {
+        taskTitle: task.title,
+        projectId: task.projectId,
+      }
+    );
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Delete task error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
+async function updateParentTask(parentId: string, workspaceId: string, db: any) {
+  const children = await db.task.findMany({
+    where: { parentId },
+    select: { progress: true, startDate: true, dueDate: true }
+  });
+
+  if (children.length === 0) return;
+
+  const avgProgress = Math.round(
+    children.reduce((acc: number, child: any) => acc + (child.progress || 0), 0) / children.length
+  );
+
+  let minStart = children[0].startDate;
+  let maxEnd = children[0].dueDate;
+
+  for (const child of children) {
+    if (child.startDate && (!minStart || child.startDate < minStart)) minStart = child.startDate;
+    if (child.dueDate && (!maxEnd || child.dueDate > maxEnd)) maxEnd = child.dueDate;
+  }
+
+  const updatedParent = await db.task.update({
+    where: { id: parentId },
+    data: {
+      progress: avgProgress,
+      startDate: minStart,
+      dueDate: maxEnd,
+      isSummary: true
+    }
+  });
+
+  // Notify parent update
+  const workspaceChannel = getWorkspaceChannel(workspaceId);
+  await publishToChannel(workspaceChannel, "task:updated", updatedParent);
+
+  // Recurse up the tree
+  if (updatedParent.parentId) {
+    await updateParentTask(updatedParent.parentId, workspaceId, db);
+  }
+}
+
+
