@@ -8,20 +8,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { FolderKanban, CheckSquare, Clock, AlertTriangle, TrendingUp, PieChart as PieChartIcon, Activity, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-    AreaChart, 
-    Area, 
-    XAxis, 
-    YAxis, 
-    CartesianGrid, 
-    Tooltip, 
-    ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell,
-    BarChart,
-    Bar
-} from "recharts";
+import { PostHogChart } from "@/components/analytics/posthog-chart";
 
 import { MotionWrapper, FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
 
@@ -158,52 +145,7 @@ export function PortfolioPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="h-[300px]">
-                            {analyticsData?.tasksOverTime?.length > 0 ? (
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={analyticsData.tasksOverTime}>
-                                        <defs>
-                                            <linearGradient id="colorCreated" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                            </linearGradient>
-                                            <linearGradient id="colorCompleted" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
-                                                <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                                            </linearGradient>
-                                        </defs>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
-                                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700}} dy={10} />
-                                        <YAxis hide />
-                                        <Tooltip 
-                                          contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 700}} 
-                                        />
-                                        <Area 
-                                          type="monotone" 
-                                          dataKey="created" 
-                                          name="TASKS CREATED"
-                                          stroke="#6366f1" 
-                                          strokeWidth={4}
-                                          fillOpacity={1} 
-                                          fill="url(#colorCreated)" 
-                                          animationDuration={2000}
-                                        />
-                                        <Area 
-                                          type="monotone" 
-                                          dataKey="completed" 
-                                          name="TASKS COMPLETED"
-                                          stroke="#10b981" 
-                                          strokeWidth={4}
-                                          fillOpacity={1} 
-                                          fill="url(#colorCompleted)" 
-                                          animationDuration={2000}
-                                        />
-                                    </AreaChart>
-                                </ResponsiveContainer>
-                            ) : (
-                                <div className="h-full flex items-center justify-center text-muted-foreground text-xs font-bold uppercase tracking-widest italic">
-                                    No performance data available for this period
-                                </div>
-                            )}
+                            <PostHogChart event="task_created" since="-7d" type="area" height={280} />
                         </CardContent>
                     </Card>
                 </FadeIn>
@@ -219,22 +161,7 @@ export function PortfolioPage() {
                         </CardHeader>
                         <CardContent className="flex flex-col items-center">
                             <div className="h-[220px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={projectHealth.map((p: any) => ({ name: p.name, value: p.total || 1 }))}
-                                            innerRadius={60}
-                                            outerRadius={80}
-                                            paddingAngle={8}
-                                            dataKey="value"
-                                        >
-                                            {projectHealth.map((entry: any, index: number) => (
-                                                <Cell key={`cell-${index}`} fill={["#6366f1", "#10b981", "#f59e0b", "#ef4444"][index % 4]} />
-                                            ))}
-                                        </Pie>
-                                        <Tooltip />
-                                    </PieChart>
-                                </ResponsiveContainer>
+                                <PostHogChart event="task_completed" since="-30d" type="bar" height={200} />
                             </div>
                             <div className="w-full space-y-3 mt-4 px-4">
                                 {projectHealth.slice(0, 4).map((p: any, i: number) => (

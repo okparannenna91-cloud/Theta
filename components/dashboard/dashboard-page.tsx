@@ -19,15 +19,7 @@ async function fetchDashboardData(workspaceId: string | null) {
   return res.json();
 }
 
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer
-} from "recharts";
+import { PostHogChart } from "@/components/analytics/posthog-chart";
 
 import { useI18n } from "@/lib/i18n";
 
@@ -160,52 +152,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent>
           <div className="h-[300px] w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={Array.isArray(data?.activityTrends) ? data.activityTrends : []}>
-                <defs>
-                  <linearGradient id="colorActivities" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6C5CE7" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6C5CE7" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-                <XAxis
-                  dataKey="name"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#64748b" }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 12, fill: "#64748b" }}
-                  dx={-10}
-                />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    borderRadius: "8px",
-                    border: "1px solid #e2e8f0",
-                    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                    padding: "12px",
-                  }}
-                  itemStyle={{
-                    fontSize: "12px",
-                    color: "#1a1a2e",
-                  }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="activities"
-                  stroke="#6C5CE7"
-                  strokeWidth={2}
-                  fillOpacity={1}
-                  fill="url(#colorActivities)"
-                  animationDuration={1500}
-                />
-              </AreaChart>
-            </ResponsiveContainer>
+            <PostHogChart event="task_created" since="-30d" type="area" height={280} />
           </div>
         </CardContent>
       </Card>

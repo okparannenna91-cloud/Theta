@@ -145,9 +145,11 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
                     <div className="absolute left-0 bottom-0 w-1 h-3 bg-slate-900 dark:bg-slate-200 rounded-sm" />
                     <div className="absolute right-0 bottom-0 w-1 h-3 bg-slate-900 dark:bg-slate-200 rounded-sm" />
                 </div>
-                <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/80 mb-1 px-1">
-                    {Math.round(task.progress || 0)}% AGGREGATE
-                </div>
+                {task.progress > 0 && (
+                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/80 mb-1 px-1">
+                        {Math.round(task.progress)}% AGGREGATE
+                    </div>
+                )}
             </div>
         );
     }
@@ -197,9 +199,11 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
                         )}
                     </div>
                     
-                    <span className="text-[9px] font-black opacity-40 flex-shrink-0">
-                        {Math.round(task.progress || 0)}%
-                    </span>
+                    {task.progress > 0 && (
+                        <span className="text-[9px] font-black opacity-40 flex-shrink-0">
+                            {Math.round(task.progress)}%
+                        </span>
+                    )}
                 </div>
 
                 {/* Resizing Handles */}

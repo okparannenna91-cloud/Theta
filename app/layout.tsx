@@ -6,6 +6,7 @@ import { ClerkProvider } from "@clerk/nextjs";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { AblyProvider } from "@/components/providers/ably-provider";
+import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { Toaster } from "sonner";
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-family" });
@@ -114,13 +115,15 @@ export default function RootLayout({
           >
             <QueryProvider>
               <AblyProvider>
-                <PopupProvider>
-                  <I18nProvider>
-                    <CommandPalette />
-                    {children}
-                    <Toaster richColors position="top-center" />
-                  </I18nProvider>
-                </PopupProvider>
+                <PostHogProvider>
+                  <PopupProvider>
+                    <I18nProvider>
+                      <CommandPalette />
+                      {children}
+                      <Toaster richColors position="top-center" />
+                    </I18nProvider>
+                  </PopupProvider>
+                </PostHogProvider>
               </AblyProvider>
             </QueryProvider>
           </ThemeProvider>

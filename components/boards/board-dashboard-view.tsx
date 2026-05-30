@@ -11,10 +11,7 @@ import {
   Plus, X, Battery, Hash, GanttChart, MapPin,
   Table2, FunctionSquare, UserCheck,
 } from "lucide-react";
-import {
-  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
-} from "recharts";
+import { PostHogChart } from "@/components/analytics/posthog-chart";
 
 interface BoardDashboardViewProps {
   tasks: any[];
@@ -84,16 +81,6 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
     { name: "Low", value: tasks.filter((t: any) => t.priority === "low").length },
   ];
 
-  const chartData = [
-    { name: "Mon", tasks: tasks.filter(t => new Date(t.createdAt).getDay() === 1).length || 2 },
-    { name: "Tue", tasks: tasks.filter(t => new Date(t.createdAt).getDay() === 2).length || 4 },
-    { name: "Wed", tasks: tasks.filter(t => new Date(t.createdAt).getDay() === 3).length || 5 },
-    { name: "Thu", tasks: tasks.filter(t => new Date(t.createdAt).getDay() === 4).length || 3 },
-    { name: "Fri", tasks: tasks.filter(t => new Date(t.createdAt).getDay() === 5).length || 6 },
-    { name: "Sat", tasks: tasks.filter(t => new Date(t.createdAt).getDay() === 6).length || 1 },
-    { name: "Sun", tasks: tasks.filter(t => new Date(t.createdAt).getDay() === 0).length || 2 },
-  ];
-
   const columnsWithCounts = useMemo(() => {
     return columns.map((col: any) => ({
       ...col,
@@ -135,21 +122,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
       case "chart":
         return (
           <div className="h-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={chartData}>
-                <defs>
-                  <linearGradient id="dashGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" opacity={0.5} />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#64748b" }} />
-                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: "#64748b" }} allowDecimals={false} />
-                <Tooltip />
-                <Area type="monotone" dataKey="tasks" stroke="#6366f1" strokeWidth={2} fill="url(#dashGrad)" />
-              </AreaChart>
-            </ResponsiveContainer>
+            <PostHogChart event="task_created" since="-7d" type="area" height={150} />
           </div>
         );
 
@@ -192,18 +165,8 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
       case "priority":
         return (
           <div className="h-full flex flex-col justify-center">
-            <ResponsiveContainer width="100%" height={120}>
-              <PieChart>
-                <Pie data={priorityData} cx="50%" cy="50%" innerRadius={28} outerRadius={40}
-                  paddingAngle={3} dataKey="value">
-                  {priorityData.map((_, i) => (
-                    <Cell key={i} fill={PIE_COLORS[i]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="flex justify-center gap-4 text-[8px] font-bold uppercase tracking-wider">
+            <PostHogChart event="task_completed" since="-7d" type="bar" height={100} />
+            <div className="flex justify-center gap-4 text-[8px] font-bold uppercase tracking-wider mt-2">
               {priorityData.map((p, i) => (
                 <span key={i} className="flex items-center gap-1">
                   <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i] }} />
