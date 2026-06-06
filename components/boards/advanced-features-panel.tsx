@@ -83,7 +83,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
     <div className="flex flex-col h-full">
       <div className="p-6 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2 mb-2">
-          <Beaker className="h-5 w-5 text-indigo-500" />
+          <Beaker className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-bold">Advanced Features</h3>
           <Badge variant="outline" className="text-[8px] h-5 ml-auto border-amber-200 text-amber-600">
             <Lightbulb className="h-2.5 w-2.5 mr-1" /> Hidden Gems
@@ -100,8 +100,8 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-                activeTab === tab.id ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all whitespace-nowrap",
+                activeTab === tab.id ? "bg-primary text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
               <Icon className="h-3 w-3" /> {tab.label}
@@ -128,7 +128,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
                   return (
                     <div key={col} className="flex items-center justify-between py-1.5 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
                       <div className="flex items-center gap-2">
-                        {pinned ? <Lock className="h-3 w-3 text-indigo-500" /> : <Unlock className="h-3 w-3 text-slate-300" />}
+                        {pinned ? <Lock className="h-3 w-3 text-primary" /> : <Unlock className="h-3 w-3 text-slate-300" />}
                         <span className="text-xs">{col}</span>
                       </div>
                       <Switch checked={pinned} onCheckedChange={() => togglePin(col)} className="scale-75" />
@@ -141,7 +141,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
                   onClick={() => setPinnedColumns(["Status", "Priority", "Task Name"])}>
                   <Pin className="h-3 w-3 mr-1" /> Reset Defaults
                 </Button>
-                <Button size="sm" className="h-7 text-[10px] bg-indigo-600"
+                <Button size="sm" className="h-7 text-[10px] bg-primary"
                   onClick={() => toast.success("Pinning settings saved")}>
                   <Save className="h-3 w-3 mr-1" /> Save
                 </Button>
@@ -155,7 +155,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
             <Card className="border shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Column Templates</h4>
+                  <h4 className="text-xs font-bold text-slate-500">Column Templates</h4>
                   <Button size="sm" className="h-7 text-[10px] gap-1">
                     <Save className="h-3 w-3" /> Save Current
                   </Button>
@@ -173,7 +173,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
                         className={cn(
                           "flex flex-col items-start gap-1.5 p-3 rounded-xl border text-left transition-all",
                           enabled
-                            ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
+                            ? "border-primary bg-muted dark:bg-primary/10"
                             : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
                         )}
                         style={enabled ? { borderColor: tpl.color } : {}}
@@ -199,7 +199,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
             <Card className="border shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Board Templates</h4>
+                  <h4 className="text-xs font-bold text-slate-500">Board Templates</h4>
                   <Button size="sm" className="h-7 text-[10px] gap-1">
                     <Download className="h-3 w-3" /> Import
                   </Button>
@@ -216,7 +216,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
                         className={cn(
                           "flex items-center gap-3 w-full p-3 rounded-xl border text-left transition-all",
                           selected
-                            ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
+                            ? "border-primary bg-muted dark:bg-primary/10"
                             : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
                         )}
                       >
@@ -229,13 +229,13 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
                           <span>{tpl.columns} cols</span>
                           <span>{tpl.tasks} tasks</span>
                         </div>
-                        {selected && <Check className="h-4 w-4 text-indigo-600" />}
+                        {selected && <Check className="h-4 w-4 text-primary" />}
                       </button>
                     );
                   })}
                 </div>
                 {selectedBoardTemplate && (
-                  <Button className="w-full mt-3 h-8 text-[10px] bg-indigo-600 gap-1">
+                  <Button className="w-full mt-3 h-8 text-[10px] bg-primary gap-1">
                     <Plus className="h-3 w-3" /> Create Board from Template
                   </Button>
                 )}
@@ -249,7 +249,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
             <Card className="border shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Subitem Rollups</h4>
+                  <h4 className="text-xs font-bold text-slate-500">Subitem Rollups</h4>
                   <Button size="sm" className="h-7 text-[10px] gap-1">
                     <Plus className="h-3 w-3" /> Add Rollup
                   </Button>
@@ -288,7 +288,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
                     { op: "%", desc: "Percentage", eg: "Completion %" },
                   ].map((op) => (
                     <div key={op.op} className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-900 border text-center">
-                      <span className="text-xs font-bold text-indigo-600">{op.op}</span>
+                      <span className="text-xs font-bold text-primary">{op.op}</span>
                       <p className="text-[8px] text-slate-500 mt-0.5">{op.desc}</p>
                     </div>
                   ))}
@@ -303,7 +303,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
             <Card className="border shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Formula Columns</h4>
+                  <h4 className="text-xs font-bold text-slate-500">Formula Columns</h4>
                   <Button size="sm" className="h-7 text-[10px] gap-1">
                     <Plus className="h-3 w-3" /> New Formula
                   </Button>
@@ -326,7 +326,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
                   <Button variant="outline" size="sm" className="h-7 text-[10px]">
                     <FunctionSquare className="h-3 w-3 mr-1" /> Formula Reference
                   </Button>
-                  <Button size="sm" className="h-7 text-[10px] bg-indigo-600">
+                  <Button size="sm" className="h-7 text-[10px] bg-primary">
                     <Save className="h-3 w-3 mr-1" /> Save All
                   </Button>
                 </div>
@@ -335,13 +335,13 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
 
             <Card className="border shadow-sm">
               <CardContent className="p-4">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Formula Examples</h4>
+                <h4 className="text-xs font-bold text-slate-500 mb-3">Formula Examples</h4>
                 <div className="space-y-2">
                   {FORMULA_EXAMPLES.map((ex, i) => (
                     <div key={i} className="p-3 rounded-xl border border-slate-100 dark:border-slate-800">
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[11px] font-semibold">{ex.name}</span>
-                        <Badge className="text-[8px] h-4 bg-indigo-500/10 text-indigo-600">{ex.result}</Badge>
+                        <Badge className="text-[8px] h-4 bg-primary/10 text-primary">{ex.result}</Badge>
                       </div>
                       <code className="block text-[9px] font-mono bg-slate-50 dark:bg-slate-900 px-2 py-1 rounded">{ex.formula}</code>
                       <p className="text-[9px] text-muted-foreground mt-1">{ex.desc}</p>
@@ -389,8 +389,8 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
                 </div>
                 <p className="text-[10px] text-muted-foreground">Boards that are linked via cross-board automations</p>
                 <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border">
-                  <div className="h-8 w-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
-                    <Layout className="h-4 w-4 text-indigo-500" />
+                  <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Layout className="h-4 w-4 text-primary" />
                   </div>
                   <div className="flex-1">
                     <span className="text-xs font-medium">Current Board</span>
@@ -435,7 +435,7 @@ export default function AdvancedFeaturesPanel({ workspaceId, boardId }: Advanced
                     <Switch className="scale-75" />
                   </div>
                 ))}
-                <Button size="sm" className="h-8 text-[10px] w-full gap-1 bg-indigo-600">
+                <Button size="sm" className="h-8 text-[10px] w-full gap-1 bg-primary">
                   <Plus className="h-3 w-3" /> Create Cross-Workspace Dashboard
                 </Button>
               </CardContent>

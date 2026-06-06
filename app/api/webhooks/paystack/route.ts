@@ -40,6 +40,19 @@ export async function POST(req: Request) {
                 return NextResponse.json({ received: true });
             }
 
+            // Idempotency check: skip duplicate events processed within the last minute
+            const recentLog = await prisma.billingLog.findFirst({
+                where: {
+                    workspaceId,
+                    action: "payment_success",
+                    createdAt: { gte: new Date(Date.now() - 60000) }
+                }
+            });
+            if (recentLog) {
+                console.log(`Duplicate Paystack event for workspace ${workspaceId}, skipping`);
+                return NextResponse.json({ received: true });
+            }
+
             // Extract authorization code for recurring payments
             const authCode = data.authorization?.authorization_code;
             const customerCode = data.customer?.customer_code;

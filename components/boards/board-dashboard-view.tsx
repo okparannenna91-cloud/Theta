@@ -103,7 +103,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
         return (
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 h-full">
             {[
-              { label: "Total", value: tasks.length, icon: CheckSquare, color: "text-indigo-500", bg: "bg-indigo-500/10" },
+              { label: "Total", value: tasks.length, icon: CheckSquare, color: "text-primary", bg: "bg-primary/10" },
               { label: "In Progress", value: inProgressTasks, icon: Clock, color: "text-amber-500", bg: "bg-amber-500/10" },
               { label: "Completed", value: completedTasks, icon: CheckSquare, color: "text-emerald-500", bg: "bg-emerald-500/10" },
               { label: "Overdue", value: overdueTasks, icon: AlertTriangle, color: "text-red-500", bg: "bg-red-500/10" },
@@ -113,7 +113,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
                   <stat.icon className="h-3.5 w-3.5" />
                 </div>
                 <span className="text-xl font-bold">{stat.value}</span>
-                <span className="text-[8px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">{stat.label}</span>
+                <span className="text-[8px] font-bold text-slate-500 mt-0.5">{stat.label}</span>
               </div>
             ))}
           </div>
@@ -157,7 +157,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
               </svg>
               <span className="absolute inset-0 flex items-center justify-center text-lg font-bold">{pct}%</span>
             </div>
-            <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500">Completion</p>
+            <p className="text-[9px] font-bold text-slate-500">Completion</p>
             <p className="text-[8px] text-slate-400 mt-0.5">{completedTasks}/{tasks.length} tasks</p>
           </div>
         );
@@ -166,7 +166,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
         return (
           <div className="h-full flex flex-col justify-center">
             <PostHogChart event="task_completed" since="-7d" type="bar" height={100} />
-            <div className="flex justify-center gap-4 text-[8px] font-bold uppercase tracking-wider mt-2">
+            <div className="flex justify-center gap-4 text-[8px] font-bold mt-2">
               {priorityData.map((p, i) => (
                 <span key={i} className="flex items-center gap-1">
                   <span className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: PIE_COLORS[i] }} />
@@ -182,7 +182,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
           <div className="space-y-1.5 h-full overflow-auto">
             {tasks.filter((t: any) => t.dueDate).slice(0, 5).map((t: any) => (
               <div key={t.id} className="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-900 transition-colors">
-                <div className="h-7 w-7 rounded-lg bg-indigo-500/10 flex flex-col items-center justify-center text-[7px] font-bold text-indigo-600 flex-shrink-0">
+                <div className="h-7 w-7 rounded-lg bg-primary/10 flex flex-col items-center justify-center text-[7px] font-bold text-primary flex-shrink-0">
                   <span className="text-[10px]">{new Date(t.dueDate).getDate()}</span>
                 </div>
                 <div className="min-w-0">
@@ -214,7 +214,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
             </div>
             <div className="text-center">
               <span className="text-2xl font-bold">{pct}%</span>
-              <p className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mt-0.5">Completion Energy</p>
+              <p className="text-[9px] font-bold text-slate-500 mt-0.5">Completion Energy</p>
             </div>
           </div>
         );
@@ -232,7 +232,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
             ].map((n, i) => (
               <div key={i} className="flex flex-col items-center justify-center p-2 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
                 <span className="text-lg font-bold">{n.value}</span>
-                <span className="text-[7px] font-bold uppercase tracking-widest text-slate-500 mt-0.5 text-center">{n.label}</span>
+                <span className="text-[7px] font-bold text-slate-500 mt-0.5 text-center">{n.label}</span>
               </div>
             ))}
           </div>
@@ -246,7 +246,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
                 <div className="flex flex-col items-center">
                   <div className={cn(
                     "h-3 w-3 rounded-full border-2 flex-shrink-0",
-                    new Date(t.dueDate) < new Date() ? "border-red-500 bg-red-100" : "border-indigo-500 bg-indigo-100"
+                    new Date(t.dueDate) < new Date() ? "border-red-500 bg-red-100" : "border-primary bg-primary/10"
                   )} />
                   {i < 5 && <div className="w-px h-4 bg-slate-200 dark:bg-slate-700" />}
                 </div>
@@ -305,7 +305,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
           <div className="h-full overflow-auto">
             <table className="w-full text-[9px]">
               <thead>
-                <tr className="border-b text-[8px] font-bold uppercase tracking-wider text-slate-500">
+                <tr className="border-b text-[8px] font-bold text-slate-500">
                   <th className="text-left py-1.5 px-2">Column</th>
                   <th className="text-right py-1.5 px-2">Tasks</th>
                   <th className="text-right py-1.5 px-2">Done</th>
@@ -338,7 +338,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
                   <span className="text-[9px] font-medium w-20 truncate">{w.name}</span>
                   <div className="flex-1 h-3 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden">
                     <div
-                      className="h-full rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 transition-all"
+                      className="h-full rounded-full bg-gradient-to-r from-primary to-purple-500 transition-all"
                       style={{ width: `${pctW}%` }}
                     />
                   </div>
@@ -364,7 +364,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
               key={w.type}
               variant="outline"
               size="sm"
-              className="h-7 text-[8px] font-bold uppercase tracking-widest gap-1 rounded-xl border-dashed"
+              className="h-7 text-[8px] font-bold gap-1 rounded-xl border-dashed"
               onClick={() => addWidget(w.type)}
             >
               <w.icon className="h-3 w-3" />
@@ -391,7 +391,7 @@ export default function BoardDashboardView({ tasks, columns, workspaceId }: Boar
               >
                 <Card className="h-full border shadow-sm hover:shadow-md transition-shadow">
                   <CardHeader className="p-3 pb-0 flex flex-row items-center justify-between">
-                    <CardTitle className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-500">
+                    <CardTitle className="flex items-center gap-1.5 text-[9px] font-bold text-slate-500">
                       {info?.icon && <info.icon className="h-3 w-3" />}
                       {widget.title}
                     </CardTitle>

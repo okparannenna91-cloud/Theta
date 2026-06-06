@@ -353,6 +353,10 @@ export async function enforcePlanLimit(
         case "analytics": isAllowed = limits.hasAdvancedAnalytics; break;
         case "automations": isAllowed = limits.hasCustomAutomation && (limits.maxAutomations === -1 || currentCount < limits.maxAutomations); break;
         case "api_access": isAllowed = limits.hasAPIAccess; break;
+        case "documents":
+        case "forms":
+        case "groups":
+        case "columns": isAllowed = true; break; // Tracked by separate limits, minimum enforce deactivated check
         default: break;
     }
 

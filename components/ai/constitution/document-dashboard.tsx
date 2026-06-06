@@ -3,8 +3,12 @@
 import React, { useState, useEffect } from "react";
 import {
   FileText, ArrowRight, Search, ListChecks, AlertTriangle,
-  Target, CheckCircle2, GitBranch, Info, BookOpen, FileOutput, Zap
+  Target, GitBranch, Info, BookOpen, FileOutput, Zap
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface DocumentTypeDef {
@@ -38,16 +42,16 @@ const DOC_ICONS: Record<string, React.ElementType> = {
 };
 
 const DOC_COLORS: Record<string, string> = {
-  PRD: "from-violet-500/10 to-violet-600/5 border-violet-500/20 text-violet-400",
-  TECHNICAL_SPEC: "from-cyan-500/10 to-cyan-600/5 border-cyan-500/20 text-cyan-400",
-  MEETING_NOTES: "from-amber-500/10 to-amber-600/5 border-amber-500/20 text-amber-400",
-  SOP: "from-emerald-500/10 to-emerald-600/5 border-emerald-500/20 text-emerald-400",
-  KNOWLEDGE_ARTICLE: "from-indigo-500/10 to-indigo-600/5 border-indigo-500/20 text-indigo-400",
-  PROJECT_BRIEF: "from-blue-500/10 to-blue-600/5 border-blue-500/20 text-blue-400",
-  RETROSPECTIVE: "from-rose-500/10 to-rose-600/5 border-rose-500/20 text-rose-400",
-  RESEARCH_REPORT: "from-purple-500/10 to-purple-600/5 border-purple-500/20 text-purple-400",
-  TEAM_DOCUMENTATION: "from-orange-500/10 to-orange-600/5 border-orange-500/20 text-orange-400",
-  GENERAL: "from-slate-500/10 to-slate-600/5 border-slate-500/20 text-slate-400",
+  PRD: "text-violet-500 bg-violet-500/10 border-violet-500/20",
+  TECHNICAL_SPEC: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20",
+  MEETING_NOTES: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+  SOP: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+  KNOWLEDGE_ARTICLE: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
+  PROJECT_BRIEF: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+  RETROSPECTIVE: "text-rose-500 bg-rose-500/10 border-rose-500/20",
+  RESEARCH_REPORT: "text-purple-500 bg-purple-500/10 border-purple-500/20",
+  TEAM_DOCUMENTATION: "text-orange-500 bg-orange-500/10 border-orange-500/20",
+  GENERAL: "text-muted-foreground bg-muted border-border",
 };
 
 export function DocumentDashboard() {
@@ -74,10 +78,10 @@ export function DocumentDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="space-y-4 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-violet-500/10 animate-pulse mx-auto" />
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Loading Document Intelligence</p>
+          <Skeleton className="h-10 w-10 rounded-lg mx-auto" />
+          <Skeleton className="h-4 w-48" />
         </div>
       </div>
     );
@@ -90,45 +94,40 @@ export function DocumentDashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-violet-500/20">
-            <FileText className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <FileText className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-sm font-black text-white uppercase tracking-wider">Document Intelligence</h1>
-            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Section 11 — Nova Document Capabilities</p>
+            <h1 className="text-lg font-semibold">Document Intelligence</h1>
+            <p className="text-sm text-muted-foreground">Section 11 — Nova Document Capabilities</p>
           </div>
         </div>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-          <input
-            type="text"
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
             placeholder="Search document types..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="w-48 pl-8 pr-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-lg text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-violet-500/50"
+            className="h-9 pl-9 text-xs"
           />
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {(["types", "actions", "pipeline"] as const).map(tab => (
-          <button
+          <Badge
             key={tab}
+            variant={activeTab === tab ? "default" : "outline"}
+            className="cursor-pointer text-xs rounded-md px-3 py-1 flex items-center gap-1.5"
             onClick={() => setActiveTab(tab)}
-            className={cn(
-              "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border transition-all",
-              activeTab === tab
-                ? "bg-violet-500/10 border-violet-500/30 text-violet-400"
-                : "bg-slate-900/50 border-slate-800 text-slate-500 hover:text-slate-300"
-            )}
           >
-            {tab === "types" && <FileText className="w-3 h-3 inline mr-1.5" />}
-            {tab === "actions" && <Zap className="w-3 h-3 inline mr-1.5" />}
-            {tab === "pipeline" && <ArrowRight className="w-3 h-3 inline mr-1.5" />}
+            {tab === "types" && <FileText className="w-3 h-3" />}
+            {tab === "actions" && <Zap className="w-3 h-3" />}
+            {tab === "pipeline" && <ArrowRight className="w-3 h-3" />}
             {tab}
-          </button>
+          </Badge>
         ))}
       </div>
 
@@ -136,20 +135,24 @@ export function DocumentDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredDocs.map((doc, i) => {
             const Icon = DOC_ICONS[doc.type] || FileText;
-            const colorClass = DOC_COLORS[doc.type] || "from-slate-500/10 to-slate-600/5 border-slate-500/20 text-slate-400";
+            const colorClass = DOC_COLORS[doc.type] || "text-muted-foreground bg-muted border-border";
             return (
-              <div key={i} className={cn("rounded-2xl border p-5 bg-gradient-to-br space-y-3 transition-all hover:scale-[1.02] group", colorClass)}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center">
-                    <Icon className="w-5 h-5" />
+              <Card key={i} className="border shadow-sm hover:border-primary/30 transition-colors">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center border", colorClass)}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm font-semibold">{doc.type.replace(/_/g, " ")}</CardTitle>
+                      <CardDescription className="text-xs">{doc.type}</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-black text-white uppercase tracking-wider">{doc.type.replace(/_/g, " ")}</h3>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{doc.type}</p>
-                  </div>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium">{doc.description}</p>
-              </div>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-sm">{doc.description}</CardDescription>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -158,13 +161,17 @@ export function DocumentDashboard() {
       {activeTab === "actions" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {data?.actions.map((a, i) => (
-            <div key={i} className="p-5 bg-slate-900/50 border border-slate-800 rounded-xl space-y-2 group hover:border-violet-500/20 transition-all">
-              <div className="flex items-center gap-2">
-                <Zap className="w-4 h-4 text-violet-400" />
-                <h3 className="text-xs font-black text-white uppercase tracking-wider">{a.name}</h3>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium ml-6">{a.description}</p>
-            </div>
+            <Card key={i} className="border shadow-sm hover:border-primary/30 transition-colors">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Zap className="w-4 h-4 text-primary" />
+                  <CardTitle className="text-sm font-semibold">{a.name}</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CardDescription className="text-sm">{a.description}</CardDescription>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}
@@ -174,13 +181,13 @@ export function DocumentDashboard() {
           {data?.pipeline.map((step, i) => (
             <div key={i} className="flex items-start gap-4 pb-8 last:pb-0 relative">
               <div className="flex flex-col items-center">
-                <div className="w-8 h-8 rounded-full bg-violet-500/10 border border-violet-500/30 flex items-center justify-center">
-                  <span className="text-[10px] font-black text-violet-400">{i + 1}</span>
+                <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
+                  <span className="text-xs font-semibold text-primary">{i + 1}</span>
                 </div>
-                {i < (data?.pipeline.length || 1) - 1 && <div className="w-px flex-1 bg-slate-800 mt-1" />}
+                {i < (data?.pipeline.length || 1) - 1 && <div className="w-px flex-1 bg-border mt-1" />}
               </div>
               <div className="flex-1 pt-1">
-                <p className="text-xs text-slate-300 font-medium">{step}</p>
+                <p className="text-sm text-muted-foreground">{step}</p>
               </div>
             </div>
           ))}
@@ -189,12 +196,12 @@ export function DocumentDashboard() {
 
       {data?.linkTypes && data.linkTypes.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Workspace Link Types</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground">Workspace Link Types</h3>
           <div className="flex flex-wrap gap-2">
             {data.linkTypes.map((link, i) => (
-              <span key={i} className="text-[9px] font-bold text-slate-400 px-3 py-1.5 rounded-lg bg-slate-900/50 border border-slate-800">
+              <Badge key={i} variant="outline" className="text-xs rounded-md px-3 py-1">
                 {link}
-              </span>
+              </Badge>
             ))}
           </div>
         </div>

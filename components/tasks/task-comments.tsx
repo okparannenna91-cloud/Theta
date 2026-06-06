@@ -116,7 +116,7 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
     return (
         <div className="space-y-6">
             <div className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5 text-indigo-500" />
+                <MessageSquare className="h-5 w-5 text-primary" />
                 <h3 className="text-sm font-semibold tracking-tight">Discussion</h3>
             </div>
 
@@ -179,20 +179,20 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
                                 setShowMentions(false);
                             }
                         }}
-                        className="min-h-[80px] bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 focus:border-indigo-500 rounded-2xl px-4 py-3 text-sm transition-all resize-none shadow-sm"
+                        className="min-h-[80px] bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 focus:border-primary rounded-2xl px-4 py-3 text-sm transition-all resize-none shadow-sm"
                         disabled={createCommentMutation.isPending}
                     />
 
                     {showMentions && filteredMembers?.length > 0 && (
                         <div className="absolute bottom-full left-0 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 mb-2 overflow-hidden animate-in fade-in slide-in-from-bottom-2">
                             <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mention Team Member</span>
+                                <span className="text-[10px] font-semibold text-slate-400">Mention Team Member</span>
                             </div>
                             {filteredMembers.map((member: any) => (
                                 <button
                                     key={member.id}
                                     type="button"
-                                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-left transition-colors"
+                                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-muted text-left transition-colors"
                                     onClick={() => {
                                         const parts = content.split(" ");
                                         parts.pop();

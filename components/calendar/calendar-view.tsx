@@ -58,10 +58,9 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { toast } from "sonner";
-import { motion, AnimatePresence } from "framer-motion";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
-import { MotionWrapper, FadeIn } from "@/components/common/motion-wrapper";
+import { FadeIn } from "@/components/common/motion-wrapper";
 import { cn } from "@/lib/utils";
 
 interface CalendarEvent {
@@ -94,16 +93,16 @@ function DraggableEvent({ event }: { event: CalendarEvent }) {
             {...listeners}
             {...attributes}
             className={cn(
-                "text-[9px] px-3 py-1.5 rounded-xl border border-white/20 dark:border-white/10 shadow-sm backdrop-blur-md",
-                "flex items-center gap-2 truncate hover:shadow-xl transition-all duration-300 cursor-grab active:cursor-grabbing group",
+                "text-[10px] px-3 py-1.5 rounded-lg border shadow-sm",
+                "flex items-center gap-2 truncate hover:shadow-md transition-all duration-300 cursor-grab active:cursor-grabbing group",
                 isDragging ? "opacity-50" : "opacity-100",
-                "bg-white/40 dark:bg-slate-900/40"
+                "bg-card/40"
             )}
             style={{ ...style, borderLeftColor: event.color || "#4f46e5", borderLeftWidth: "4px" }}
         >
-            {event.teamId && <Users className="h-2.5 w-2.5 text-indigo-500 group-hover:scale-110 transition-transform" />}
-            {event.recurrence !== "none" && <Repeat className="h-2.5 w-2.5 text-purple-500 group-hover:rotate-180 transition-transform duration-700" />}
-            <span className="font-black uppercase tracking-tighter truncate leading-none">{event.title}</span>
+            {event.teamId && <Users className="h-2.5 w-2.5 text-primary group-hover:scale-110 transition-transform" />}
+            {event.recurrence !== "none" && <Repeat className="h-2.5 w-2.5 text-primary group-hover:rotate-180 transition-transform duration-700" />}
+            <span className="font-semibold truncate leading-none">{event.title}</span>
         </div>
     );
 }
@@ -119,23 +118,23 @@ function DroppableDay({ day, children, onClick, isCurrentMonth, isToday, i }: an
             ref={setNodeRef}
             onClick={() => onClick(day)}
             className={cn(
-                "min-h-[140px] p-4 border-r border-b transition-all duration-500 cursor-pointer group relative overflow-hidden",
-                isCurrentMonth ? "bg-transparent" : "bg-slate-900/5 opacity-30",
-                i % 7 === 6 ? "border-r-0" : "border-white/10 dark:border-white/5",
-                isOver ? "bg-indigo-600/10 backdrop-blur-xl" : "hover:bg-indigo-600/5 backdrop-blur-sm"
+                "min-h-[140px] p-4 border-r border-b transition-all duration-300 cursor-pointer group relative overflow-hidden",
+                isCurrentMonth ? "bg-transparent" : "bg-muted/30 opacity-30",
+                i % 7 === 6 ? "border-r-0" : "border-border/50",
+                isOver ? "bg-primary/10" : "hover:bg-primary/5"
             )}
         >
             <div className="flex justify-between items-start mb-4 relative z-10">
                 <span className={cn(
-                    "text-xs font-black tracking-widest h-8 w-8 flex items-center justify-center rounded-xl transition-all duration-500",
+                    "text-xs font-semibold h-8 w-8 flex items-center justify-center rounded-lg transition-all duration-300",
                     isToday 
-                        ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/40 scale-110" 
-                        : "text-slate-400 group-hover:text-indigo-600 group-hover:scale-110"
+                        ? "bg-primary text-primary-foreground shadow-md scale-110" 
+                        : "text-muted-foreground group-hover:text-primary group-hover:scale-110"
                 )}>
                     {format(day, "d")}
                 </span>
                 {isToday && (
-                    <div className="absolute -inset-2 bg-indigo-600/20 blur-xl rounded-full animate-pulse -z-10" />
+                    <div className="absolute -inset-2 bg-primary/20 blur-xl rounded-full -z-10" />
                 )}
             </div>
             <div className="space-y-2 relative z-10">
@@ -144,7 +143,7 @@ function DroppableDay({ day, children, onClick, isCurrentMonth, isToday, i }: an
             
             {/* Background Accent */}
             <div className="absolute top-0 right-0 p-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                 <Plus className="h-4 w-4 text-indigo-500/20" />
+                 <Plus className="h-4 w-4 text-primary/20" />
             </div>
         </div>
     );
@@ -301,54 +300,50 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
     };
 
     return (
-        <MotionWrapper className="space-y-12 pb-40 relative">
-             {/* Neural Background Elements */}
-            <div className="absolute top-0 right-0 -z-10 w-[600px] h-[600px] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none animate-mesh" />
-            <div className="absolute bottom-40 left-0 -z-10 w-[500px] h-[500px] bg-purple-600/5 blur-[100px] rounded-full pointer-events-none" />
-
-            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-8">
+        <div className="space-y-8 pb-40 relative">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
                 <div>
-                    <h1 className="text-6xl sm:text-7xl font-black tracking-tighter uppercase leading-none mb-6">
-                        Temporal <span className="text-indigo-600">Grid</span>
+                    <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight leading-none mb-4">
+                        Calendar
                     </h1>
                     <div className="flex items-center gap-4">
-                        <div className="h-1 w-12 bg-indigo-600 rounded-full" />
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">
-                           Synchronization Matrix: {format(currentDate, "MMMM yyyy")}
+                        <div className="h-1 w-12 bg-primary rounded-full" />
+                        <p className="text-sm font-medium text-muted-foreground">
+                            {format(currentDate, "MMMM yyyy")}
                         </p>
                     </div>
                 </div>
 
                 <div className="flex flex-wrap items-center gap-4">
-                    <div className="flex items-center gap-2 bg-slate-100/50 dark:bg-slate-900/50 p-2 rounded-2xl border border-white/20 shadow-sm backdrop-blur-xl">
-                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
+                    <div className="flex items-center gap-2 bg-muted/50 p-2 rounded-lg border shadow-sm">
+                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-md" onClick={() => setCurrentDate(subMonths(currentDate, 1))}>
                             <ChevronLeft className="h-5 w-5" />
                         </Button>
-                        <Button variant="ghost" className="text-[10px] font-black uppercase tracking-widest px-6 h-10 rounded-xl" onClick={() => setCurrentDate(new Date())}>Today</Button>
-                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl" onClick={() => setCurrentDate(addMonths(currentDate, 1))}>
+                        <Button variant="ghost" className="text-xs font-semibold px-6 h-10 rounded-md" onClick={() => setCurrentDate(new Date())}>Today</Button>
+                        <Button variant="ghost" size="icon" className="h-10 w-10 rounded-md" onClick={() => setCurrentDate(addMonths(currentDate, 1))}>
                             <ChevronRight className="h-5 w-5" />
                         </Button>
                     </div>
 
                     <Button 
                         className={cn(
-                            "h-14 px-8 rounded-2xl font-black uppercase tracking-widest text-[11px] shadow-2xl transition-all duration-500",
-                            isLimitReached ? "bg-slate-200 dark:bg-slate-800" : "bg-indigo-600 hover:bg-indigo-700 hover:scale-105 active:scale-95"
+                            "h-11 px-6 rounded-lg font-semibold text-xs shadow-sm transition-all duration-300",
+                            isLimitReached ? "bg-muted" : "bg-primary hover:bg-primary/90 hover:scale-105 active:scale-95"
                         )}
                         onClick={() => handleDayClick(new Date())}
                     >
-                        <Plus className="h-4 w-4 mr-3" />
-                        Sync New Node
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Event
                     </Button>
                 </div>
             </div>
 
             <FadeIn delay={0.2}>
                 <DndContext sensors={sensors} collisionDetection={closestCorners} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
-                    <div className="glass-card border-none rounded-[3rem] overflow-hidden bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl shadow-2xl">
-                        <div className="grid grid-cols-7 border-b border-white/10 bg-white/40 dark:bg-slate-900/40">
+                    <div className="border shadow-sm bg-card rounded-xl overflow-hidden">
+                        <div className="grid grid-cols-7 border-b bg-muted/30">
                             {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                                <div key={day} className="py-6 text-center text-[10px] font-black uppercase tracking-[0.3em] text-slate-500">{day}</div>
+                                <div key={day} className="py-4 text-center text-xs font-semibold text-muted-foreground">{day}</div>
                             ))}
                         </div>
 
@@ -368,8 +363,8 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                                             <DraggableEvent key={event.id} event={event} />
                                         ))}
                                         {dayEvents.length > 3 && (
-                                            <div className="text-[8px] font-black uppercase tracking-widest text-slate-400 pl-2">
-                                                + {dayEvents.length - 3} Overflow
+                                            <div className="text-[10px] font-medium text-muted-foreground pl-2">
+                                                + {dayEvents.length - 3} more
                                             </div>
                                         )}
                                     </DroppableDay>
@@ -381,7 +376,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                     <DragOverlay>
                         {activeDragEvent ? (
                             <div
-                                className="text-[9px] px-3 py-2 rounded-xl border bg-white/90 dark:bg-slate-900/90 shadow-2xl backdrop-blur-xl scale-110 rotate-3 border-indigo-500 flex items-center gap-2 font-black uppercase tracking-tighter"
+                                className="text-xs px-3 py-2 rounded-lg border bg-card/90 shadow-lg scale-110 rotate-3 border-primary flex items-center gap-2 font-semibold"
                                 style={{ borderLeftColor: activeDragEvent.color || "#4f46e5", borderLeftWidth: "4px" }}
                             >
                                 <span className="truncate">{activeDragEvent.title}</span>
@@ -391,46 +386,46 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                 </DndContext>
             </FadeIn>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                 <FadeIn delay={0.4} className="lg:col-span-2">
-                    <Card className="glass-card border-none rounded-[3rem] bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl p-10 shadow-2xl overflow-hidden group">
-                        <CardHeader className="px-0 pt-0 pb-10">
-                            <div className="flex items-center gap-6">
-                                <div className="h-14 w-14 rounded-2xl bg-indigo-600/5 flex items-center justify-center border border-indigo-500/10 group-hover:scale-110 transition-transform duration-500">
-                                    <Clock className="h-6 w-6 text-indigo-600" />
+                    <Card className="border shadow-sm bg-card rounded-xl overflow-hidden group">
+                        <CardHeader className="p-6 pb-4">
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 rounded-lg bg-primary/5 flex items-center justify-center border group-hover:scale-110 transition-transform duration-500">
+                                    <Clock className="h-6 w-6 text-primary" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-2xl font-black uppercase tracking-tighter">Synchronization Queue</CardTitle>
-                                    <CardDescription className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">Pending temporal nodes</CardDescription>
+                                    <CardTitle className="text-lg font-semibold tracking-tight">Upcoming Events</CardTitle>
+                                    <CardDescription className="text-xs text-muted-foreground mt-1">Scheduled events</CardDescription>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="px-0">
+                        <CardContent className="p-6 pt-2">
                             {events && events.length > 0 ? (
-                                <div className="space-y-6">
+                                <div className="space-y-4">
                                     {(events as CalendarEvent[]).filter((e: CalendarEvent) => new Date(e.start) >= new Date()).slice(0, 5).map((event: CalendarEvent) => (
-                                        <div key={event.id} className="flex items-center justify-between p-6 rounded-[2rem] bg-white/40 dark:bg-slate-900/40 border border-white/20 hover:bg-white/60 dark:hover:bg-slate-800/60 transition-all duration-500 group/item">
-                                            <div className="flex items-center gap-8">
-                                                <div className="h-16 w-16 rounded-2xl bg-white dark:bg-slate-950 flex flex-col items-center justify-center border border-indigo-500/10 shadow-xl group-hover/item:scale-110 transition-transform">
-                                                    <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{format(parseISO(event.start), "MMM")}</span>
-                                                    <span className="text-2xl font-black tracking-tighter">{format(parseISO(event.start), "dd")}</span>
+                                        <div key={event.id} className="flex items-center justify-between p-4 rounded-lg bg-card/40 border hover:bg-muted/60 transition-all duration-300 group/item">
+                                            <div className="flex items-center gap-6">
+                                                <div className="h-14 w-14 rounded-xl bg-card flex flex-col items-center justify-center border shadow-sm group-hover/item:scale-110 transition-transform">
+                                                    <span className="text-[10px] font-semibold text-primary">{format(parseISO(event.start), "MMM")}</span>
+                                                    <span className="text-lg font-semibold">{format(parseISO(event.start), "dd")}</span>
                                                 </div>
                                                 <div className="space-y-1">
-                                                    <p className="font-black uppercase text-lg tracking-tighter">{event.title}</p>
-                                                    <div className="flex items-center gap-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                                                    <p className="font-semibold text-base">{event.title}</p>
+                                                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                                         <Clock className="h-3 w-3" />
                                                         {format(parseISO(event.start), "HH:mm")} — {format(parseISO(event.end), "HH:mm")}
                                                     </div>
                                                 </div>
                                             </div>
-                                            <Badge className="bg-indigo-600/10 text-indigo-600 border-none rounded-full px-6 py-2 text-[9px] font-black uppercase tracking-widest">{event.type}</Badge>
+                                            <Badge className="bg-primary/10 text-primary border-none rounded-full px-4 py-1 text-xs font-medium">{event.type}</Badge>
                                         </div>
                                     ))}
                                 </div>
                             ) : (
-                                <div className="text-center py-20 text-slate-400">
-                                    <CalendarIcon className="h-20 w-20 mx-auto mb-6 opacity-5 animate-pulse" />
-                                    <p className="text-[10px] font-black uppercase tracking-[0.4em]">No active nodes scheduled.</p>
+                                <div className="text-center py-16 text-muted-foreground">
+                                    <CalendarIcon className="h-16 w-16 mx-auto mb-4 opacity-5" />
+                                    <p className="text-xs font-semibold">No upcoming events.</p>
                                 </div>
                             )}
                         </CardContent>
@@ -438,48 +433,48 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                 </FadeIn>
 
                 <FadeIn delay={0.6}>
-                    <Card className="glass-card border-none rounded-[3rem] bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl p-10 shadow-2xl group h-full">
-                        <CardHeader className="px-0 pt-0 pb-10">
-                            <div className="flex items-center gap-6">
-                                <div className="h-14 w-14 rounded-2xl bg-amber-500/5 flex items-center justify-center border border-amber-500/10 group-hover:scale-110 transition-transform duration-500">
+                    <Card className="border shadow-sm bg-card rounded-xl group h-full">
+                        <CardHeader className="p-6 pb-4">
+                            <div className="flex items-center gap-4">
+                                <div className="h-12 w-12 rounded-lg bg-amber-500/5 flex items-center justify-center border border-amber-500/10 group-hover:scale-110 transition-transform duration-500">
                                     <Bell className="h-6 w-6 text-amber-500" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-2xl font-black uppercase tracking-tighter">Neural Alert</CardTitle>
-                                    <CardDescription className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">Imminent synchronization</CardDescription>
+                                    <CardTitle className="text-lg font-semibold tracking-tight">Alert</CardTitle>
+                                    <CardDescription className="text-xs text-muted-foreground mt-1">Upcoming</CardDescription>
                                 </div>
                             </div>
                         </CardHeader>
-                        <CardContent className="px-0">
-                            <div className="space-y-6">
+                        <CardContent className="p-6 pt-2">
+                            <div className="space-y-4">
                                 {events && (events as CalendarEvent[]).filter((e: CalendarEvent) => new Date(e.start) >= new Date()).length > 0 ? (
                                     (() => {
                                         const nextEvent = (events as CalendarEvent[]).filter((e: CalendarEvent) => new Date(e.start) >= new Date())
                                             .sort((a: CalendarEvent, b: CalendarEvent) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
                                         return (
-                                            <div className="p-8 rounded-[2.5rem] bg-amber-500/5 border border-amber-500/10 relative overflow-hidden group/alert">
+                                            <div className="p-6 rounded-xl bg-amber-500/5 border border-amber-500/10 relative overflow-hidden group/alert">
                                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover/alert:scale-125 transition-transform duration-700">
                                                     <Sparkles className="h-12 w-12 text-amber-500" />
                                                 </div>
-                                                <p className="text-[10px] font-black text-amber-600 uppercase tracking-[0.3em] mb-4">CRITICAL PRIORITY</p>
-                                                <p className="text-2xl font-black uppercase tracking-tighter mb-2">{nextEvent.title}</p>
-                                                <p className="text-[11px] font-bold text-slate-500 uppercase tracking-widest leading-relaxed">
-                                                    Synchronization starts {format(parseISO(nextEvent.start), "eeee 'at' HH:mm")}
+                                                <p className="text-xs font-semibold text-amber-600 mb-3">Next Up</p>
+                                                <p className="text-xl font-semibold mb-2">{nextEvent.title}</p>
+                                                <p className="text-xs text-muted-foreground leading-relaxed">
+                                                    Starts {format(parseISO(nextEvent.start), "eeee 'at' HH:mm")}
                                                 </p>
                                             </div>
                                         );
                                     })()
                                 ) : (
-                                    <div className="p-10 rounded-[2.5rem] border border-dashed border-slate-200 dark:border-slate-800 text-center">
-                                        <p className="text-[10px] font-black uppercase tracking-widest text-slate-400 leading-relaxed">System calm. No imminent nodes detected.</p>
+                                    <div className="p-8 rounded-xl border border-dashed border-border text-center">
+                                        <p className="text-xs font-semibold text-muted-foreground leading-relaxed">No upcoming events.</p>
                                     </div>
                                 )}
                                 <Button 
                                     variant="ghost" 
-                                    className="w-full h-14 rounded-2xl text-[10px] font-black uppercase tracking-widest bg-slate-100/50 dark:bg-slate-900/50 border border-white/20 hover:bg-white/40 dark:hover:bg-slate-800/40" 
-                                    onClick={() => toast.info("Neural link optimization incoming")}
+                                    className="w-full h-11 rounded-lg text-xs font-semibold bg-muted/50 border hover:bg-muted" 
+                                    onClick={() => toast.info("Calendar settings")}
                                 >
-                                    Global Preferences
+                                    Calendar Settings
                                 </Button>
                             </div>
                         </CardContent>
@@ -488,40 +483,40 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
             </div>
 
             <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
-                <DialogContent className="sm:max-w-[500px] border-none bg-white/80 dark:bg-slate-950/80 backdrop-blur-3xl rounded-[3rem] p-12 shadow-3xl">
-                    <DialogHeader className="mb-10">
-                        <DialogTitle className="text-4xl font-black uppercase tracking-tighter">
-                            {editingEvent ? "Update" : "Initialize"} <span className="text-indigo-600">Node</span>
+                <DialogContent className="sm:max-w-[500px] rounded-xl border bg-background/80 backdrop-blur-3xl p-8 shadow-2xl">
+                    <DialogHeader className="mb-8">
+                        <DialogTitle className="text-2xl font-semibold tracking-tight">
+                            {editingEvent ? "Update" : "New"} Event
                         </DialogTitle>
-                        <DialogDescription className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mt-2">
-                            {selectedDate ? format(selectedDate, "PPPP") : "Configure temporal parameters."}
+                        <DialogDescription className="text-xs text-muted-foreground mt-2">
+                            {selectedDate ? format(selectedDate, "PPPP") : "Add event details"}
                         </DialogDescription>
                     </DialogHeader>
-                    <form onSubmit={handleSubmit} className="space-y-8">
+                    <form onSubmit={handleSubmit} className="space-y-6">
                         <div className="space-y-3">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Title</Label>
+                            <Label className="text-xs font-medium text-muted-foreground ml-1">Title</Label>
                             <Input 
-                                placeholder="Sync Protocol..." 
+                                placeholder="Event title" 
                                 value={title} 
                                 onChange={(e: any) => setTitle(e.target.value)} 
                                 required 
-                                className="h-14 rounded-2xl bg-white/50 dark:bg-slate-900/50 border-white/20 text-lg font-black uppercase tracking-tighter"
+                                className="h-12 rounded-lg bg-background/50 border text-base"
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-8">
+                        <div className="grid grid-cols-2 gap-6">
                             <div className="space-y-3">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Start Phase</Label>
-                                <Input type="time" value={startTime} onChange={(e: any) => setStartTime(e.target.value)} className="h-14 rounded-2xl bg-white/50 dark:bg-slate-900/50 border-white/20 font-black" />
+                                <Label className="text-xs font-medium text-muted-foreground ml-1">Start</Label>
+                                <Input type="time" value={startTime} onChange={(e: any) => setStartTime(e.target.value)} className="h-12 rounded-lg bg-background/50 border" />
                             </div>
                             <div className="space-y-3">
-                                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">End Phase</Label>
-                                <Input type="time" value={endTime} onChange={(e: any) => setEndTime(e.target.value)} className="h-14 rounded-2xl bg-white/50 dark:bg-slate-900/50 border-white/20 font-black" />
+                                <Label className="text-xs font-medium text-muted-foreground ml-1">End</Label>
+                                <Input type="time" value={endTime} onChange={(e: any) => setEndTime(e.target.value)} className="h-12 rounded-lg bg-background/50 border" />
                             </div>
                         </div>
                         
                         <div className="space-y-3">
-                            <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Protocol Color</Label>
-                            <div className="flex gap-4 p-4 bg-slate-100/50 dark:bg-slate-900/50 rounded-2xl border border-white/20">
+                            <Label className="text-xs font-medium text-muted-foreground ml-1">Color</Label>
+                            <div className="flex gap-4 p-4 bg-muted/50 rounded-lg border">
                                 {["#4f46e5", "#f59e0b", "#10b981", "#ef4444", "#8b5cf6"].map((c) => (
                                     <button
                                         key={c}
@@ -529,7 +524,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                                         onClick={() => setEventColor(c)}
                                         className={cn(
                                             "h-8 w-8 rounded-full transition-all duration-500",
-                                            eventColor === c ? "scale-125 shadow-xl ring-4 ring-offset-2 ring-indigo-500" : "opacity-40 hover:opacity-100"
+                                            eventColor === c ? "scale-125 shadow-xl ring-4 ring-offset-2 ring-primary" : "opacity-40 hover:opacity-100"
                                         )}
                                         style={{ backgroundColor: c }}
                                     />
@@ -537,27 +532,26 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between p-6 rounded-[2rem] bg-indigo-600/5 border border-indigo-600/10">
+                        <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/10">
                             <div className="space-y-1">
-                                <p className="text-sm font-black uppercase tracking-tighter">Collective Sync</p>
-                                <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">Share with grid participants.</p>
+                                <p className="text-sm font-semibold">Team Event</p>
+                                <p className="text-xs text-muted-foreground">Share with team.</p>
                             </div>
                             <input 
                                 type="checkbox" 
                                 checked={isTeamEvent} 
                                 onChange={(e: any) => setIsTeamEvent(e.target.checked)} 
-                                className="h-6 w-6 rounded-lg border-white/20 bg-white/50 text-indigo-600 focus:ring-indigo-600 cursor-pointer" 
+                                className="h-5 w-5 rounded border-muted bg-background/50 text-primary focus:ring-primary cursor-pointer" 
                             />
                         </div>
 
                         <div className="flex items-center gap-4 pt-4">
-                            <Button type="button" variant="ghost" className="flex-1 h-16 rounded-2xl font-black uppercase tracking-widest text-[11px]" onClick={() => setIsEventDialogOpen(false)}>Cancel</Button>
-                            <Button type="submit" className="flex-[2] h-16 rounded-2xl font-black uppercase tracking-widest text-[11px] bg-indigo-600 hover:bg-indigo-700 shadow-2xl">Initialize Synchronization</Button>
+                            <Button type="button" variant="ghost" className="flex-1 h-12 rounded-lg font-medium text-sm" onClick={() => setIsEventDialogOpen(false)}>Cancel</Button>
+                            <Button type="submit" className="flex-[2] h-12 rounded-lg font-medium text-sm bg-primary hover:bg-primary/90 shadow-md">Save Event</Button>
                         </div>
                     </form>
                 </DialogContent>
             </Dialog>
-        </MotionWrapper>
+        </div>
     );
 }
-

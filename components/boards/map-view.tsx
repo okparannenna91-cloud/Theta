@@ -93,7 +93,7 @@ export default function MapView({ tasks, columns }: MapViewProps) {
                     <div
                       className={cn(
                         "h-8 w-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900",
-                        isSelected ? "ring-4 ring-indigo-500/40" : ""
+                        isSelected ? "ring-4 ring-primary/40" : ""
                       )}
                       style={{ backgroundColor: loc.color + "20" }}
                     >
@@ -123,14 +123,14 @@ export default function MapView({ tasks, columns }: MapViewProps) {
         </div>
 
         <div className="w-72 flex-shrink-0 space-y-3 overflow-y-auto">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-3">Locations</div>
+          <div className="text-[10px] font-bold text-slate-500 mb-3">Locations</div>
           {locations.map((loc, i) => (
             <div
               key={i}
               className={cn(
                 "p-3 rounded-xl border transition-all cursor-pointer",
                 selectedLocation === loc.name
-                  ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/10"
+                  ? "border-primary bg-muted/50 dark:bg-primary/10"
                   : "border-slate-200 dark:border-slate-800 hover:border-slate-300"
               )}
               onClick={() => setSelectedLocation(selectedLocation === loc.name ? null : loc.name)}

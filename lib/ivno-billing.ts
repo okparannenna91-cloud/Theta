@@ -1,6 +1,7 @@
 
 import { prisma } from "./prisma";
 import { BILLING_PLANS } from "./billing-plans";
+import { encryptSensitiveFields } from "./field-encryption";
 
 /** Lookup by planKey (e.g. "growth", "pro", "theta_plus") */
 const PLAN_BY_KEY = BILLING_PLANS.reduce<Record<string, typeof BILLING_PLANS[0]>>(
@@ -66,14 +67,14 @@ export async function handleSuccessfulIvnoPayment(
     });
 
     await prisma.billingLog.create({
-        data: {
+        data: encryptSensitiveFields("billingLog", {
             workspaceId,
             action: "payment_success",
             provider: "ivno",
             amount,
             currency,
             metadata: data,
-        },
+        }) as any,
     });
 
     console.log(`[Ivno] Payment successful — workspace: ${workspaceId}, plan: ${plan.planKey}, interval: ${interval}`);
@@ -93,14 +94,14 @@ export async function handleFailedIvnoPayment(
 
     try {
         await prisma.billingLog.create({
-            data: {
+            data: encryptSensitiveFields("billingLog", {
                 workspaceId,
                 action: "payment_failed",
                 provider: "ivno",
                 amount,
                 currency,
                 metadata: data,
-            },
+            }) as any,
         });
     } catch (err) {
         console.error("[Ivno] Failed to log payment failure:", err);

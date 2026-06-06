@@ -1,5 +1,6 @@
 import { redis } from "../redis/client";
 import { getPrismaClient } from "../prisma";
+import { logger } from "../logger";
 import { MEMORY_TIERS, MEMORY_TYPES, MEMORY_RULES, MEMORY_USER_CONTROLS, type MemoryType, type MemoryTier } from "./constitution/memory";
 
 export { type MemoryType, type MemoryTier } from "./constitution/memory";
@@ -24,7 +25,7 @@ export class MemorySystem {
       await redis.rpush(key, JSON.stringify({ ...message, timestamp: new Date().toISOString() }));
       await redis.expire(key, SHORT_TERM_TTL);
     } catch (error) {
-      console.warn("[MemorySystem] Error saving short-term memory:", error);
+      logger.warn("[MemorySystem] Error saving short-term memory:", error);
     }
   }
 
@@ -37,7 +38,7 @@ export class MemorySystem {
         return { role: parsed.role, content: parsed.content };
       });
     } catch (error) {
-      console.warn("[MemorySystem] Error retrieving short-term memory:", error);
+      logger.warn("[MemorySystem] Error retrieving short-term memory:", error);
       return [];
     }
   }
@@ -53,7 +54,7 @@ export class MemorySystem {
         update: { content, workspaceId },
       });
     } catch (error) {
-      console.warn("[MemorySystem] Database long-term memory save failed:", error);
+      logger.warn("[MemorySystem] Database long-term memory save failed:", error);
     }
 
     if (process.env.MEM0_API_KEY) {
@@ -64,22 +65,22 @@ export class MemorySystem {
           metadata: { workspaceId, key },
         });
       } catch (error) {
-        console.warn("[MemorySystem] Mem0 synchronization failed:", error);
+        logger.warn("[MemorySystem] Mem0 synchronization failed:", error);
       }
     }
   }
 
-  public static async getLongTerm(userId: string, workspaceId?: string): Promise<Record<string, string>> {
+  public static async getLongTerm(userId: string, workspaceId?: string, maxMemories: number = 50): Promise<Record<string, string>> {
     const memories: Record<string, string> = {};
 
     try {
       const db = getPrismaClient(workspaceId);
-      const records = await db.aiMemory.findMany({ where: { userId } });
+      const records = await db.aiMemory.findMany({ where: { userId }, take: maxMemories, orderBy: { updatedAt: "desc" } });
       for (const rec of records) {
         memories[rec.key] = rec.content;
       }
     } catch (error) {
-      console.warn("[MemorySystem] Error fetching long-term memories from DB:", error);
+      logger.warn("[MemorySystem] Error fetching long-term memories from DB:", error);
     }
 
     return memories;

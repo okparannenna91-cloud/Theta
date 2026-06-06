@@ -5,6 +5,9 @@ import {
   Workflow, Zap, AlertTriangle, Search, ArrowRight, Info,
   Shield, GitBranch, Play, Clock, CheckCircle2, Bell, Mail, UserPlus
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface TriggerDef {
@@ -36,15 +39,15 @@ const TRIGGER_ICONS: Record<string, React.ElementType> = {
 };
 
 const TRIGGER_COLORS: Record<string, string> = {
-  TASK_CREATED: "from-emerald-500/10 to-emerald-600/5 border-emerald-500/20 text-emerald-400",
-  TASK_COMPLETED: "from-green-500/10 to-green-600/5 border-green-500/20 text-green-400",
-  SPRINT_STARTED: "from-cyan-500/10 to-cyan-600/5 border-cyan-500/20 text-cyan-400",
-  SPRINT_COMPLETED: "from-blue-500/10 to-blue-600/5 border-blue-500/20 text-blue-400",
-  FORM_SUBMITTED: "from-amber-500/10 to-amber-600/5 border-amber-500/20 text-amber-400",
-  DOCUMENT_UPDATED: "from-violet-500/10 to-violet-600/5 border-violet-500/20 text-violet-400",
-  USER_INVITED: "from-indigo-500/10 to-indigo-600/5 border-indigo-500/20 text-indigo-400",
-  TASK_OVERDUE: "from-rose-500/10 to-rose-600/5 border-rose-500/20 text-rose-400",
-  MEMBER_ADDED: "from-pink-500/10 to-pink-600/5 border-pink-500/20 text-pink-400",
+  TASK_CREATED: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+  TASK_COMPLETED: "text-green-500 bg-green-500/10 border-green-500/20",
+  SPRINT_STARTED: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20",
+  SPRINT_COMPLETED: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+  FORM_SUBMITTED: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+  DOCUMENT_UPDATED: "text-violet-500 bg-violet-500/10 border-violet-500/20",
+  USER_INVITED: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
+  TASK_OVERDUE: "text-rose-500 bg-rose-500/10 border-rose-500/20",
+  MEMBER_ADDED: "text-pink-500 bg-pink-500/10 border-pink-500/20",
 };
 
 const ACTION_ICONS: Record<string, React.ElementType> = {
@@ -84,44 +87,40 @@ export function AutomationDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="space-y-4 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-cyan-500/10 animate-pulse mx-auto" />
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Loading Automation Intelligence</p>
+          <Skeleton className="h-10 w-10 rounded-lg mx-auto" />
+          <Skeleton className="h-4 w-56" />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-          <Workflow className="w-5 h-5 text-white" />
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Workflow className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-sm font-black text-white uppercase tracking-wider">Automation Intelligence</h1>
-          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Section 12 — Nova Automation Capabilities</p>
+          <h1 className="text-lg font-semibold">Automation Intelligence</h1>
+          <p className="text-sm text-muted-foreground">Section 12 — Nova Automation Capabilities</p>
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {(["triggers", "actions", "safety"] as const).map(tab => (
-          <button
+          <Badge
             key={tab}
+            variant={activeTab === tab ? "default" : "outline"}
+            className="cursor-pointer text-xs rounded-md px-3 py-1 flex items-center gap-1.5"
             onClick={() => setActiveTab(tab)}
-            className={cn(
-              "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border transition-all",
-              activeTab === tab
-                ? "bg-cyan-500/10 border-cyan-500/30 text-cyan-400"
-                : "bg-slate-900/50 border-slate-800 text-slate-500 hover:text-slate-300"
-            )}
           >
-            {tab === "triggers" && <Play className="w-3 h-3 inline mr-1.5" />}
-            {tab === "actions" && <Zap className="w-3 h-3 inline mr-1.5" />}
-            {tab === "safety" && <Shield className="w-3 h-3 inline mr-1.5" />}
+            {tab === "triggers" && <Play className="w-3 h-3" />}
+            {tab === "actions" && <Zap className="w-3 h-3" />}
+            {tab === "safety" && <Shield className="w-3 h-3" />}
             {tab}
-          </button>
+          </Badge>
         ))}
       </div>
 
@@ -129,27 +128,28 @@ export function AutomationDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {data?.triggers.map((t, i) => {
             const Icon = TRIGGER_ICONS[t.trigger] || Zap;
-            const colorClass = TRIGGER_COLORS[t.trigger] || "from-slate-500/10 to-slate-600/5 border-slate-500/20 text-slate-400";
+            const colorClass = TRIGGER_COLORS[t.trigger] || "text-muted-foreground bg-muted border-border";
             return (
-              <div
+              <Card
                 key={i}
                 className={cn(
-                  "rounded-2xl border p-5 bg-gradient-to-br space-y-3 transition-all hover:scale-[1.02] cursor-pointer group",
-                  colorClass,
-                  selectedTrigger === t.trigger && "ring-2 ring-cyan-500/40"
+                  "border shadow-sm hover:border-primary/30 transition-colors cursor-pointer",
+                  selectedTrigger === t.trigger && "ring-2 ring-primary/40"
                 )}
                 onClick={() => setSelectedTrigger(selectedTrigger === t.trigger ? null : t.trigger)}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center">
-                    <Icon className="w-5 h-5" />
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center border", colorClass)}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <CardTitle className="text-sm font-semibold">{t.trigger.replace(/_/g, " ")}</CardTitle>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-black text-white uppercase tracking-wider">{t.trigger.replace(/_/g, " ")}</h3>
-                  </div>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium">{t.description}</p>
-              </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">{t.description}</p>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -160,22 +160,26 @@ export function AutomationDashboard() {
           {data?.actions.map((a, i) => {
             const Icon = ACTION_ICONS[a.action] || Zap;
             return (
-              <div
+              <Card
                 key={i}
                 className={cn(
-                  "p-5 bg-slate-900/50 border border-slate-800 rounded-xl space-y-3 transition-all hover:scale-[1.02] cursor-pointer group hover:border-cyan-500/20",
-                  selectedAction === a.action && "ring-2 ring-cyan-500/40"
+                  "border shadow-sm hover:border-primary/30 transition-colors cursor-pointer",
+                  selectedAction === a.action && "ring-2 ring-primary/40"
                 )}
                 onClick={() => setSelectedAction(selectedAction === a.action ? null : a.action)}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center text-cyan-400">
-                    <Icon className="w-5 h-5" />
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-muted border border-border flex items-center justify-center text-primary">
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <CardTitle className="text-sm font-semibold">{a.action.replace(/_/g, " ")}</CardTitle>
                   </div>
-                  <h3 className="text-xs font-black text-white uppercase tracking-wider">{a.action.replace(/_/g, " ")}</h3>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium">{a.description}</p>
-              </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground">{a.description}</p>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -184,9 +188,9 @@ export function AutomationDashboard() {
       {activeTab === "safety" && (
         <div className="space-y-3">
           {data?.safetyRules.map((rule, i) => (
-            <div key={i} className="flex items-start gap-3 p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
-              <Shield className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
-              <span className="text-xs text-slate-300 font-medium">{rule}</span>
+            <div key={i} className="flex items-start gap-3 px-4 py-3 bg-muted border border-border rounded-lg">
+              <Shield className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <span className="text-sm text-foreground/80">{rule}</span>
             </div>
           ))}
         </div>

@@ -131,24 +131,24 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
 
     const getIcon = () => {
         switch (activePopup?.type) {
-            case "onboarding": return <Rocket className="w-6 h-6 text-indigo-600" />;
+            case "onboarding": return <Rocket className="w-6 h-6 text-primary" />;
             case "upgrade": return <Zap className="w-6 h-6 text-amber-600" />;
             case "trial_expiration": return <Clock className="w-6 h-6 text-orange-600" />;
             case "billing_warning": return <ShieldAlert className="w-6 h-6 text-rose-600" />;
             case "destructive": return <Trash2 className="w-6 h-6 text-rose-600" />;
-            case "ai_suggestion": return <Sparkles className="w-6 h-6 text-indigo-600" />;
+            case "ai_suggestion": return <Sparkles className="w-6 h-6 text-primary" />;
             default: return <Info className="w-6 h-6 text-blue-600" />;
         }
     };
 
     const getIconContainerClass = () => {
         switch (activePopup?.type) {
-            case "onboarding": return "bg-indigo-100";
+            case "onboarding": return "bg-muted";
             case "upgrade": return "bg-amber-100";
             case "trial_expiration": return "bg-orange-100";
             case "billing_warning":
             case "destructive": return "bg-rose-100";
-            case "ai_suggestion": return "bg-indigo-100";
+            case "ai_suggestion": return "bg-muted";
             default: return "bg-blue-100";
         }
     };
@@ -172,7 +172,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
                             animate={{ scale: 1, opacity: 1, y: 0 }}
                             exit={{ scale: 0.9, opacity: 0, y: 20 }}
-                            className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 dark:border-slate-800"
+                            className="bg-white dark:bg-slate-900 rounded-xl shadow-2xl max-w-md w-full overflow-hidden border border-slate-200 dark:border-slate-800"
                         >
                             <div className="p-10">
                                 <div className="flex justify-between items-start mb-8">
@@ -185,7 +185,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
                                 </div>
 
                                 <div className="space-y-3">
-                                    <h3 className="text-3xl font-black text-slate-900 dark:text-white leading-tight tracking-tight">
+                                    <h3 className="text-3xl font-semibold text-slate-900 dark:text-white leading-tight tracking-tight">
                                         {activePopup.title || (activePopup.type === "onboarding" ? "Welcome to Theta!" : "Action Required")}
                                     </h3>
                                     <p className="text-slate-600 dark:text-slate-400 font-bold leading-relaxed">
@@ -195,11 +195,11 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
 
                                 {activePopup.type === "onboarding" && (
                                     <div className="mt-8 space-y-4">
-                                        <div className="flex gap-4 text-sm font-black text-slate-700 dark:text-slate-300 bg-indigo-50 dark:bg-indigo-900/20 p-4 rounded-2xl border border-indigo-100 dark:border-indigo-900/30">
-                                            <Sparkles className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                                        <div className="flex gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-muted p-4 rounded-2xl border border-primary/20">
+                                            <Sparkles className="w-5 h-5 text-primary flex-shrink-0" />
                                             <span>Real-time chat and multi-tenant isolation is now live.</span>
                                         </div>
-                                        <div className="flex gap-4 text-sm font-black text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
+                                        <div className="flex gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
                                             <UserPlus className="w-5 h-5 text-slate-500 flex-shrink-0" />
                                             <span>Invite your team to get the most out of your workspace.</span>
                                         </div>
@@ -213,7 +213,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
                                             dismissPopup(activePopup.id);
                                         }} 
                                         variant="outline" 
-                                        className="h-14 rounded-2xl font-black uppercase tracking-widest text-[12px] border-2 order-2 sm:order-1 sm:flex-1"
+                                        className="h-14 rounded-2xl font-semibold text-[12px] border-2 order-2 sm:order-1 sm:flex-1"
                                     >
                                         {activePopup.type === "onboarding" ? "Skip Tour" : (activePopup.type === "destructive" ? "Cancel" : "Dismiss")}
                                     </Button>
@@ -228,7 +228,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
                                                 dismissPopup(activePopup.id);
                                             }
                                         }} 
-                                        className={`h-14 rounded-2xl font-black uppercase tracking-widest text-[12px] shadow-2xl order-1 sm:order-2 sm:flex-1 ${
+                                        className={`h-14 rounded-2xl font-semibold text-[12px] shadow-2xl order-1 sm:order-2 sm:flex-1 ${
                                             activePopup.type === "destructive" 
                                                 ? "bg-rose-600 hover:bg-rose-700 shadow-rose-500/30" 
                                                 : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/30"

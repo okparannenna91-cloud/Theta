@@ -84,7 +84,7 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
 
     const getIcon = (type: string) => {
         switch (type) {
-            case "task_assigned": return <CheckSquare className="h-4 w-4 text-indigo-500" />;
+            case "task_assigned": return <CheckSquare className="h-4 w-4 text-primary" />;
             case "team_invite": return <UserPlus className="h-4 w-4 text-emerald-500" />;
             case "project_created": return <Briefcase className="h-4 w-4 text-blue-500" />;
             case "limit_warning": return <AlertCircle className="h-4 w-4 text-amber-500" />;
@@ -99,7 +99,7 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
                 <Button variant="ghost" size="icon" className="relative group hover:bg-slate-100 dark:hover:bg-slate-800 transition-all rounded-xl">
                     <Bell className="h-5 w-5 text-muted-foreground group-hover:text-foreground transition-colors" />
                     {data && data.unreadCount > 0 && (
-                        <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] flex items-center justify-center bg-indigo-600 text-[10px] font-black text-white px-1 rounded-full border-2 border-white dark:border-slate-900 shadow-sm animate-in zoom-in">
+                        <span className="absolute -top-0.5 -right-0.5 h-4 min-w-[16px] flex items-center justify-center bg-indigo-600 text-[10px] font-semibold text-white px-1 rounded-full border-2 border-white dark:border-slate-900 shadow-sm animate-in zoom-in">
                             {data.unreadCount > 9 ? "9+" : data.unreadCount}
                         </span>
                     )}
@@ -108,14 +108,14 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
             <PopoverContent className="w-80 sm:w-96 p-0 border-none shadow-2xl rounded-2xl overflow-hidden bg-white dark:bg-slate-900" align="end" sideOffset={8}>
                 <div className="flex items-center justify-between p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-950/20">
                     <div className="flex items-center gap-2">
-                        <Inbox className="h-4 w-4 text-indigo-500" />
-                        <h3 className="font-black text-xs uppercase tracking-widest">Inbox</h3>
+                        <Inbox className="h-4 w-4 text-primary" />
+                        <h3 className="font-semibold text-xs">Inbox</h3>
                     </div>
                     {data && data.unreadCount > 0 && (
                         <Button 
                             variant="ghost" 
                             size="sm" 
-                            className="h-8 text-[10px] font-bold uppercase text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 px-2"
+                            className="h-8 text-[10px] font-bold text-primary hover:text-primary/80 hover:bg-muted px-2"
                             onClick={() => markAllReadMutation.mutate()}
                         >
                             Mark all read
@@ -126,8 +126,8 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
                 <ScrollArea className="h-[400px]">
                     {isLoading ? (
                         <div className="flex flex-col items-center justify-center h-full p-10 space-y-3 opacity-50">
-                            <Loader2 className="h-8 w-8 animate-spin text-indigo-500" />
-                            <p className="text-[10px] font-bold uppercase tracking-widest">Refreshing...</p>
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            <p className="text-[10px] font-bold">Refreshing...</p>
                         </div>
                     ) : data?.notifications.length === 0 ? (
                         <div className="flex flex-col items-center justify-center h-full p-10 text-center space-y-4">
@@ -155,7 +155,7 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
                                         </div>
                                         <div className="flex-1 min-w-0 space-y-1">
                                             <div className="flex items-center justify-between gap-2">
-                                                <p className={cn("text-xs font-black truncate", !notification.read ? "text-slate-900 dark:text-slate-100" : "text-muted-foreground")}>
+                                                <p className={cn("text-xs font-semibold truncate", !notification.read ? "text-slate-900 dark:text-slate-100" : "text-muted-foreground")}>
                                                     {notification.title}
                                                 </p>
                                                 {!notification.read && (
@@ -177,7 +177,7 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
                 </ScrollArea>
 
                 <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/20 text-center">
-                    <Button asChild variant="ghost" size="sm" className="w-full text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-indigo-600">
+                    <Button asChild variant="ghost" size="sm" className="w-full text-[10px] font-semibold text-muted-foreground hover:text-primary">
                         <Link href="/notifications">View all notifications</Link>
                     </Button>
                 </div>

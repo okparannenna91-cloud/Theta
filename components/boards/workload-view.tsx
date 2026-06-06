@@ -71,7 +71,7 @@ export default function WorkloadView({ tasks, workspaceId }: WorkloadViewProps) 
           {/* Header */}
           <div className="flex bg-slate-50 dark:bg-slate-900 border-b">
             <div className="w-48 flex-shrink-0 px-4 py-3 border-r">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Team Member</span>
+              <span className="text-[10px] font-bold text-slate-500">Team Member</span>
             </div>
             {days.map((day, i) => (
               <div key={i} className={cn(
@@ -81,14 +81,14 @@ export default function WorkloadView({ tasks, workspaceId }: WorkloadViewProps) 
                 <div className="text-[9px] font-bold uppercase text-slate-400">{format(day, "EEE")}</div>
                 <div className={cn(
                   "text-xs font-bold mt-0.5",
-                  format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") && "text-indigo-600"
+                  format(day, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd") && "text-primary"
                 )}>
                   {format(day, "d")}
                 </div>
               </div>
             ))}
             <div className="w-20 flex-shrink-0 px-3 py-3 text-center">
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Load</span>
+              <span className="text-[10px] font-bold text-slate-500">Load</span>
             </div>
           </div>
 
@@ -108,7 +108,7 @@ export default function WorkloadView({ tasks, workspaceId }: WorkloadViewProps) 
                 <div key={assignee} className="flex border-b last:border-b-0 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
                   <div className="w-48 flex-shrink-0 px-4 py-4 border-r flex items-center gap-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarFallback className="text-xs bg-indigo-500/10 text-indigo-600">
+                      <AvatarFallback className="text-xs bg-primary/10 text-primary">
                         {assignee === "unassigned" ? "?" : assignee[0]?.toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -132,7 +132,7 @@ export default function WorkloadView({ tasks, workspaceId }: WorkloadViewProps) 
                         {dayTasks.slice(0, 2).map((t, ti) => (
                           <div key={ti} className={cn(
                             "text-[9px] font-bold px-1.5 py-0.5 rounded mb-0.5 truncate",
-                            t.priority === "high" ? "bg-red-100 dark:bg-red-900/20 text-red-600" : "bg-indigo-100 dark:bg-indigo-900/20 text-indigo-600"
+                            t.priority === "high" ? "bg-red-100 dark:bg-red-900/20 text-red-600" : "bg-muted dark:bg-primary/10 text-primary"
                           )}>
                             {t.title}
                           </div>

@@ -2,9 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Lightbulb, CheckCircle2, ArrowRight, Info, Target, Zap,
-  Bot, Users, Globe, Rocket, Brain, Cpu, Eye, Shield
+  Lightbulb, CheckCircle2, Target,
+  Bot, Users, Rocket, Brain, Cpu, Shield
 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface Milestone {
@@ -30,19 +33,19 @@ const STAGE_ICONS: Record<string, React.ElementType> = {
 };
 
 const STAGE_COLORS: Record<string, string> = {
-  ASSISTANT: "from-emerald-500/10 to-emerald-600/5 border-emerald-500/20",
-  OPERATOR: "from-blue-500/10 to-blue-600/5 border-blue-500/20",
-  MANAGER: "from-violet-500/10 to-violet-600/5 border-violet-500/20",
-  COORDINATOR: "from-amber-500/10 to-amber-600/5 border-amber-500/20",
-  WORKFORCE: "from-rose-500/10 to-rose-600/5 border-rose-500/20",
+  ASSISTANT: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+  OPERATOR: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+  MANAGER: "text-violet-500 bg-violet-500/10 border-violet-500/20",
+  COORDINATOR: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+  WORKFORCE: "text-rose-500 bg-rose-500/10 border-rose-500/20",
 };
 
 const STAGE_BADGE_COLORS: Record<string, string> = {
-  ASSISTANT: "bg-emerald-500/10 text-emerald-400 border-emerald-500/30",
-  OPERATOR: "bg-blue-500/10 text-blue-400 border-blue-500/30",
-  MANAGER: "bg-violet-500/10 text-violet-400 border-violet-500/30",
-  COORDINATOR: "bg-amber-500/10 text-amber-400 border-amber-500/30",
-  WORKFORCE: "bg-rose-500/10 text-rose-400 border-rose-500/30",
+  ASSISTANT: "bg-emerald-500/10 text-emerald-500 border-emerald-500/30",
+  OPERATOR: "bg-blue-500/10 text-blue-500 border-blue-500/30",
+  MANAGER: "bg-violet-500/10 text-violet-500 border-violet-500/30",
+  COORDINATOR: "bg-amber-500/10 text-amber-500 border-amber-500/30",
+  WORKFORCE: "bg-rose-500/10 text-rose-500 border-rose-500/30",
 };
 
 export function EvolutionDashboard() {
@@ -69,10 +72,10 @@ export function EvolutionDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="space-y-4 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-purple-500/10 animate-pulse mx-auto" />
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Loading Evolution Roadmap</p>
+          <Skeleton className="h-10 w-10 rounded-lg mx-auto" />
+          <Skeleton className="h-4 w-44" />
         </div>
       </div>
     );
@@ -81,20 +84,20 @@ export function EvolutionDashboard() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
-          <Lightbulb className="w-5 h-5 text-white" />
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Lightbulb className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-sm font-black text-white uppercase tracking-wider">Evolution Roadmap</h1>
-          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Section 20 — Nova Future Evolution</p>
+          <h1 className="text-lg font-semibold">Evolution Roadmap</h1>
+          <p className="text-sm text-muted-foreground">Section 20 — Nova Future Evolution</p>
         </div>
       </div>
 
       {/* Current Stage Badge */}
-      <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-slate-900/50 border border-slate-800">
-        <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Current Stage:</span>
+      <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-muted/50 border border-border">
+        <span className="text-xs font-medium text-muted-foreground">Current Stage:</span>
         <span className={cn(
-          "text-[10px] font-black px-3 py-1 rounded-lg border uppercase tracking-wider",
+          "text-xs font-medium px-3 py-1 rounded-md border",
           STAGE_BADGE_COLORS[data?.currentStage || "ASSISTANT"]
         )}>
           {data?.currentStage || "ASSISTANT"}
@@ -105,82 +108,96 @@ export function EvolutionDashboard() {
       <div className="relative">
         {data?.milestones.map((m, i) => {
           const Icon = STAGE_ICONS[m.stage] || Bot;
-          const colorClass = STAGE_COLORS[m.stage] || "from-slate-500/10 to-slate-600/5 border-slate-500/20";
+          const colorClass = STAGE_COLORS[m.stage] || "text-muted-foreground bg-muted border-border";
           const isCurrent = m.stage === data?.currentStage;
           return (
             <div key={i} className="flex items-start gap-4 pb-8 last:pb-0 relative">
               <div className="flex flex-col items-center">
                 <div className={cn(
-                  "w-12 h-12 rounded-2xl border-2 flex items-center justify-center transition-all",
-                  isCurrent ? "bg-purple-500/20 border-purple-500 shadow-lg shadow-purple-500/20" : "bg-slate-900/80 border-slate-700"
+                  "w-10 h-10 rounded-lg border-2 flex items-center justify-center transition-colors",
+                  isCurrent ? "border-primary bg-primary/10" : "bg-card border-border"
                 )}>
-                  <Icon className={cn("w-5 h-5", isCurrent ? "text-purple-400" : "text-slate-500")} />
+                  <Icon className={cn("w-4 h-4", isCurrent ? "text-primary" : "text-muted-foreground")} />
                 </div>
                 {i < (data?.milestones.length || 1) - 1 && (
-                  <div className={cn("w-0.5 flex-1 mt-2", isCurrent ? "bg-gradient-to-b from-purple-500/50 to-slate-800" : "bg-slate-800")} />
+                  <div className={cn("w-px flex-1 mt-2", isCurrent ? "bg-primary/20" : "bg-border")} />
                 )}
               </div>
-              <div className={cn(
-                "flex-1 pt-1 rounded-2xl border p-5 bg-gradient-to-br transition-all cursor-pointer group",
-                colorClass,
-                isCurrent && "ring-2 ring-purple-500/40",
-                expandedStage === m.stage && "scale-[1.02]"
-              )}
+              <Card
+                className={cn(
+                  "flex-1 border shadow-sm hover:border-primary/30 transition-colors cursor-pointer",
+                  isCurrent && "ring-2 ring-primary/40"
+                )}
                 onClick={() => setExpandedStage(expandedStage === m.stage ? null : m.stage)}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <h3 className={cn(
-                    "text-sm font-black uppercase tracking-wider",
-                    isCurrent ? "text-purple-400" : "text-white"
-                  )}>
-                    {m.stage}
-                    {isCurrent && <span className="ml-2 text-[8px] text-purple-400 border border-purple-500/30 px-2 py-0.5 rounded-full">ACTIVE</span>}
-                  </h3>
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{m.target}</span>
-                </div>
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className={cn("text-sm font-semibold", isCurrent && "text-primary")}>
+                      {m.stage}
+                      {isCurrent && (
+                        <Badge variant="outline" className="ml-2 text-xs rounded-md px-2 py-0 h-5 text-primary border-primary/30">
+                          ACTIVE
+                        </Badge>
+                      )}
+                    </CardTitle>
+                    <CardDescription className="text-xs">{m.target}</CardDescription>
+                  </div>
+                </CardHeader>
                 {expandedStage === m.stage && (
-                  <div className="space-y-2 pt-3 border-t border-slate-800/50">
+                  <CardContent className="space-y-2 pt-2 border-t border-border">
                     {m.capabilities.map((cap, j) => (
-                      <div key={j} className="flex items-center gap-2 text-[11px] text-slate-400">
+                      <div key={j} className="flex items-center gap-2 text-sm text-muted-foreground">
                         <CheckCircle2 className="w-3 h-3 shrink-0" />
-                        <span className="font-medium">{cap}</span>
+                        <span>{cap}</span>
                       </div>
                     ))}
-                  </div>
+                  </CardContent>
                 )}
-              </div>
+              </Card>
             </div>
           );
         })}
       </div>
 
       {/* Long Term Vision */}
-      <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-xl space-y-3">
-        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Long-Term Vision</h3>
-        <p className="text-xs text-slate-300 font-medium leading-relaxed">{data?.longTermVision}</p>
-      </div>
+      <Card className="border shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs font-semibold text-muted-foreground">Long-Term Vision</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <CardDescription className="text-sm leading-relaxed">{data?.longTermVision}</CardDescription>
+        </CardContent>
+      </Card>
 
       {/* Future Principles */}
       <div className="space-y-3">
-        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Future Principles</h3>
+        <h3 className="text-xs font-semibold text-muted-foreground">Future Principles</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {data?.futurePrinciples.map((p, i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl group hover:border-purple-500/20 transition-all">
-              <Target className="w-4 h-4 text-purple-400 shrink-0" />
-              <span className="text-xs text-slate-300 font-medium">{p}</span>
-            </div>
+            <Card key={i} className="border shadow-sm hover:border-primary/30 transition-colors">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-3">
+                  <Target className="w-4 h-4 text-primary shrink-0" />
+                  <CardTitle className="text-sm font-medium text-foreground">{p}</CardTitle>
+                </div>
+              </CardHeader>
+            </Card>
           ))}
         </div>
       </div>
 
       {/* Human Control Rule */}
-      <div className="p-5 bg-rose-500/5 border border-rose-500/20 rounded-xl space-y-3">
-        <div className="flex items-center gap-2">
-          <Shield className="w-4 h-4 text-rose-400" />
-          <h3 className="text-[10px] font-black text-rose-400 uppercase tracking-[0.2em]">Human Control Rule</h3>
-        </div>
-        <p className="text-xs text-slate-300 font-medium leading-relaxed ml-6">{data?.humanControlRule}</p>
-      </div>
+      <Card className="border shadow-sm bg-rose-500/5 border-rose-500/20">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <Shield className="w-4 h-4 text-rose-500" />
+            <CardTitle className="text-xs font-semibold text-rose-500">Human Control Rule</CardTitle>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <CardDescription className="text-sm leading-relaxed">{data?.humanControlRule}</CardDescription>
+        </CardContent>
+      </Card>
     </div>
   );
 }

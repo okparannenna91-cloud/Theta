@@ -2,9 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Eye, Target, Layers, FileText, Users, Database, Clock, AlertTriangle,
-  CheckCircle2, ArrowRight, RefreshCw, Search, Zap
+  Eye, Target, CheckCircle2, RefreshCw, Zap
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface ContextSource {
@@ -50,10 +53,10 @@ export function ContextInspector() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="space-y-4 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 animate-pulse mx-auto" />
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Loading Context System</p>
+          <Skeleton className="h-10 w-10 rounded-lg mx-auto" />
+          <Skeleton className="h-4 w-44" />
         </div>
       </div>
     );
@@ -61,58 +64,60 @@ export function ContextInspector() {
 
   return (
     <div className="space-y-6 max-w-5xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-            <Eye className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <h1 className="text-sm font-black text-white uppercase tracking-wider">Context Inspector</h1>
-            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Section 8 — Context System</p>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Eye className="w-5 h-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-lg font-semibold">Context Inspector</h1>
+          <p className="text-sm text-muted-foreground">Section 8 — Context System</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
         {/* Priority Hierarchy */}
         <div className="lg:col-span-3 space-y-3">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Context Priority Hierarchy</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground">Context Priority Hierarchy</h3>
           <div className="space-y-2">
             {config?.priorityHierarchy.map((source, i) => (
-              <div
+              <Card
                 key={i}
-                onClick={() => setActiveSource(source.source)}
                 className={cn(
-                  "p-4 rounded-xl border cursor-pointer transition-all hover:scale-[1.01]",
-                  activeSource === source.source
-                    ? "bg-cyan-500/10 border-cyan-500/30"
-                    : "bg-slate-900/50 border-slate-800 hover:border-slate-700"
+                  "border shadow-sm hover:border-primary/30 transition-colors cursor-pointer",
+                  activeSource === source.source && "border-primary/30"
                 )}
+                onClick={() => setActiveSource(source.source)}
               >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2.5">
-                    <div className={cn(
-                      "w-7 h-7 rounded-lg flex items-center justify-center text-xs font-black",
-                      source.priority <= 2 ? "bg-cyan-500/20 text-cyan-400" :
-                      source.priority <= 4 ? "bg-blue-500/20 text-blue-400" :
-                      "bg-slate-700/50 text-slate-400"
-                    )}>
-                      P{source.priority}
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2.5">
+                      <div className={cn(
+                        "w-7 h-7 rounded-lg flex items-center justify-center text-xs font-semibold",
+                        source.priority <= 2 ? "text-cyan-500 bg-cyan-500/10" :
+                        source.priority <= 4 ? "text-blue-500 bg-blue-500/10" :
+                        "text-muted-foreground bg-muted"
+                      )}>
+                        P{source.priority}
+                      </div>
+                      <CardTitle className="text-sm font-semibold">{source.source.replace(/_/g, " ")}</CardTitle>
                     </div>
-                    <span className="text-sm font-black text-white uppercase tracking-wider">{source.source.replace(/_/g, " ")}</span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "text-xs rounded-md px-2 py-0 h-5",
+                        source.priority <= 2 ? "text-cyan-500 border-cyan-500/20" :
+                        source.priority <= 4 ? "text-blue-500 border-blue-500/20" :
+                        "text-muted-foreground"
+                      )}
+                    >
+                      Priority {source.priority}
+                    </Badge>
                   </div>
-                  <span className={cn(
-                    "text-[8px] font-black uppercase px-2 py-0.5 rounded",
-                    source.priority <= 2 ? "bg-cyan-500/10 text-cyan-400" :
-                    source.priority <= 4 ? "bg-blue-500/10 text-blue-400" :
-                    "bg-slate-800 text-slate-500"
-                  )}>
-                    Priority {source.priority}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 font-medium">{source.description}</p>
-              </div>
+                </CardHeader>
+                <CardContent>
+                  <CardDescription className="text-sm">{source.description}</CardDescription>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>
@@ -121,12 +126,12 @@ export function ContextInspector() {
         <div className="lg:col-span-2 space-y-6">
           {/* Context Rules */}
           <div className="space-y-3">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Context Rules</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground">Context Rules</h3>
             <div className="space-y-1.5">
               {config?.rules.map((rule, i) => (
-                <div key={i} className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-slate-900/30 border border-slate-800/80">
-                  <CheckCircle2 className="w-3 h-3 text-emerald-400 shrink-0" />
-                  <span className="text-[11px] text-slate-300 font-medium">{rule}</span>
+                <div key={i} className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-muted/50 border border-border">
+                  <CheckCircle2 className="w-3 h-3 text-emerald-500 shrink-0" />
+                  <span className="text-sm text-muted-foreground">{rule}</span>
                 </div>
               ))}
             </div>
@@ -134,12 +139,12 @@ export function ContextInspector() {
 
           {/* Window Strategy */}
           <div className="space-y-3">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Context Window Strategy</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground">Context Window Strategy</h3>
             <div className="space-y-1.5">
               {config?.windowStrategy.map((strategy, i) => (
-                <div key={i} className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl bg-slate-900/30 border border-slate-800/80">
-                  <Target className="w-3 h-3 text-cyan-400 shrink-0" />
-                  <span className="text-[11px] text-slate-300 font-medium">{strategy}</span>
+                <div key={i} className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg bg-muted/50 border border-border">
+                  <Target className="w-3 h-3 text-primary shrink-0" />
+                  <span className="text-sm text-muted-foreground">{strategy}</span>
                 </div>
               ))}
             </div>
@@ -147,35 +152,35 @@ export function ContextInspector() {
 
           {/* Simulated Context */}
           <div className="space-y-3">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Simulated Context</h3>
+            <h3 className="text-xs font-semibold text-muted-foreground">Simulated Context</h3>
             <div className="flex gap-2">
-              <input
+              <Input
                 type="text"
                 value={contextInput}
                 onChange={e => setContextInput(e.target.value)}
                 placeholder="Add context value..."
-                className="flex-1 px-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-lg text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50"
+                className="h-9 text-xs"
                 onKeyDown={e => e.key === "Enter" && handleAddContext()}
               />
               <button
                 onClick={handleAddContext}
                 disabled={!contextInput.trim()}
-                className="px-3 py-1.5 rounded-lg bg-cyan-600 text-white text-[9px] font-black uppercase tracking-wider hover:bg-cyan-500 disabled:opacity-30 transition-all"
+                className="h-9 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Add
               </button>
             </div>
             {Object.keys(simulatedContext).length === 0 ? (
-              <p className="text-[11px] text-slate-600 text-center py-4">
+              <p className="text-sm text-muted-foreground text-center py-4">
                 No simulated context loaded
               </p>
             ) : (
               <div className="space-y-1.5 max-h-40 overflow-y-auto">
                 {Object.entries(simulatedContext).map(([key, val]) => (
-                  <div key={key} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-cyan-500/5 border border-cyan-500/10">
-                    <Zap className="w-3 h-3 text-cyan-400 shrink-0" />
-                    <span className="text-[10px] font-bold text-cyan-300 shrink-0">{key}:</span>
-                    <span className="text-[10px] text-slate-400 truncate">{val}</span>
+                  <div key={key} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/5 border border-primary/10">
+                    <Zap className="w-3 h-3 text-primary shrink-0" />
+                    <span className="text-xs font-medium text-primary shrink-0">{key}:</span>
+                    <span className="text-xs text-muted-foreground truncate">{val}</span>
                   </div>
                 ))}
               </div>
@@ -183,17 +188,21 @@ export function ContextInspector() {
           </div>
 
           {/* Active Context Preview */}
-          <div className="p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10 space-y-2">
-            <div className="flex items-center gap-2">
-              <RefreshCw className="w-3.5 h-3.5 text-indigo-400" />
-              <span className="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Active Context Preview</span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-medium font-mono leading-relaxed">
-              {activeSource
-                ? `Using context source: ${activeSource.replace(/_/g, " ")} (Priority ${config?.priorityHierarchy.find(s => s.source === activeSource)?.priority || "?"})`
-                : "Click a context source to preview its details"}
-            </p>
-          </div>
+          <Card className="border shadow-sm bg-primary/5 border-primary/10">
+            <CardHeader className="pb-2">
+              <div className="flex items-center gap-2">
+                <RefreshCw className="w-3.5 h-3.5 text-primary" />
+                <CardTitle className="text-xs font-semibold text-primary">Active Context Preview</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <CardDescription className="text-sm">
+                {activeSource
+                  ? `Using context source: ${activeSource.replace(/_/g, " ")} (Priority ${config?.priorityHierarchy.find(s => s.source === activeSource)?.priority || "?"})`
+                  : "Click a context source to preview its details"}
+              </CardDescription>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { TRIGGER_DEFINITIONS, ACTION_DEFINITIONS, AUTOMATION_SAFETY_RULES, type AutomationTrigger, type AutomationAction } from "./constitution/automation-standards";
+import { STATUS_DONE, STATUS_IN_PROGRESS, STATUS_TODO } from "../constants/status";
 
 export { TRIGGER_DEFINITIONS, ACTION_DEFINITIONS, AUTOMATION_SAFETY_RULES, type AutomationTrigger, type AutomationAction } from "./constitution/automation-standards";
 
@@ -45,7 +46,7 @@ export class AutomationIntelligence {
       config.channel = "workspace-activity";
     } else if (lower.includes("status") || lower.includes("update status")) {
       action = "UPDATE_STATUS";
-      config.status = lower.includes("done") ? "done" : lower.includes("progress") ? "in_progress" : "todo";
+      config.status = lower.includes("done") ? STATUS_DONE : lower.includes("progress") ? STATUS_IN_PROGRESS : STATUS_TODO;
     } else if (lower.includes("report") || lower.includes("generate")) {
       action = "GENERATE_REPORT";
       config.type = "project";

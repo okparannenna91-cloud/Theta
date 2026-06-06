@@ -45,7 +45,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
     return (
         <div className="space-y-4 h-full overflow-y-auto pr-2">
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Project Tasks ({safeTasks.length})</h3>
+                <h3 className="text-sm font-semibold text-slate-500">Project Tasks ({safeTasks.length})</h3>
             </div>
 
             <div className="grid gap-3">
@@ -54,7 +54,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                     return (
                         <Card
                             key={task.id}
-                            className="group p-4 flex items-center gap-4 hover:border-indigo-500/50 cursor-pointer transition-all shadow-sm"
+                            className="group p-4 flex items-center gap-4 hover:border-primary/20 cursor-pointer transition-all shadow-sm"
                             onClick={() => setSelectedTask(task)}
                         >
                             <button
@@ -69,9 +69,9 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                             </button>
 
                             <div className="flex-1 min-w-0">
-                                <h4 className={cn("text-sm font-bold truncate group-hover:text-indigo-600 transition-colors", (task.status === "done" || task.status === "completed") && "line-through text-muted-foreground opacity-50")}>{task.title}</h4>
+                                <h4 className={cn("text-sm font-bold truncate group-hover:text-primary transition-colors", (task.status === "done" || task.status === "completed") && "line-through text-muted-foreground opacity-50")}>{task.title}</h4>
                                 <div className="flex items-center gap-3 mt-1">
-                                    <Badge variant="outline" className="text-[9px] uppercase font-black tracking-tighter bg-slate-50 border-none px-2">
+                                    <Badge variant="outline" className="text-[9px] font-semibold bg-muted border-none px-2">
                                         {task.priority || "Medium"}
                                     </Badge>
                                     {task.dueDate && (
@@ -82,9 +82,9 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                                     {task.progress > 0 && (
                                         <div className="flex items-center gap-2">
                                             <div className="w-16 h-1 bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
-                                                <div className="h-full bg-indigo-500" style={{ width: `${task.progress}%` }} />
+                                                <div className="h-full bg-primary" style={{ width: `${task.progress}%` }} />
                                             </div>
-                                            <span className="text-[9px] font-black text-indigo-600">{task.progress}%</span>
+                                            <span className="text-[9px] font-semibold text-primary">{task.progress}%</span>
                                         </div>
                                     )}
                                 </div>
@@ -99,7 +99,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
             </div>
 
             {safeTasks.length === 0 && (
-                <div className="py-20 flex flex-col items-center justify-center text-center bg-slate-50/50 dark:bg-slate-900/50 rounded-3xl border-2 border-dashed">
+                <div className="py-20 flex flex-col items-center justify-center text-center bg-slate-50/50 dark:bg-slate-900/50 rounded-lg border-2 border-dashed">
                     <p className="text-sm text-muted-foreground italic">No tasks assigned to this project yet.</p>
                 </div>
             )}

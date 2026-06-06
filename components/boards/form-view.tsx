@@ -74,11 +74,11 @@ export default function FormView({ workspaceId }: FormViewProps) {
         {filtered.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filtered.map((form) => (
-              <Card key={form.id} className="group border shadow-sm hover:shadow-lg hover:border-indigo-500/30 transition-all">
+              <Card key={form.id} className="group border shadow-sm hover:shadow-lg hover:border-primary/30 transition-all">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between mb-4">
-                    <div className="h-10 w-10 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                      <FileText className="h-5 w-5 text-indigo-600" />
+                    <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <FileText className="h-5 w-5 text-primary" />
                     </div>
                     <div className="flex gap-1">
                       <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100" onClick={() => setPreviewForm(form)}>
@@ -141,15 +141,15 @@ export default function FormView({ workspaceId }: FormViewProps) {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Full Name</label>
+              <label className="text-xs font-bold text-slate-500">Full Name</label>
               <Input placeholder="Enter your name" className="h-10 rounded-lg" />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Email</label>
+              <label className="text-xs font-bold text-slate-500">Email</label>
               <Input type="email" placeholder="Enter your email" className="h-10 rounded-lg" />
             </div>
             <div className="space-y-2">
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Message</label>
+              <label className="text-xs font-bold text-slate-500">Message</label>
               <textarea
                 className="w-full min-h-[100px] rounded-lg border border-input bg-transparent px-3 py-2 text-sm"
                 placeholder="Enter your message"

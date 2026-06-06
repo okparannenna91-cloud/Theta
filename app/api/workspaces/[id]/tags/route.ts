@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaClient } from "@/lib/prisma";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const tagSchema = z.object({
     name: z.string().min(1),
@@ -18,14 +19,15 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const tags = await prisma.tag.findMany({
+        const db = getPrismaClient(params.id);
+        const tags = await db.tag.findMany({
             where: { workspaceId: params.id },
             orderBy: { name: "asc" },
         });
 
         return NextResponse.json(tags);
     } catch (error) {
-        console.error("Fetch tags error:", error);
+        logger.error("Fetch tags error:", error);
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }
@@ -44,7 +46,8 @@ export async function POST(
         }
 
         // Verify workspace access
-        const membership = await prisma.workspaceMember.findUnique({
+        const db = getPrismaClient(params.id);
+        const membership = await db.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
                     workspaceId: params.id,
@@ -60,7 +63,7 @@ export async function POST(
         const body = await req.json();
         const data = tagSchema.parse(body);
 
-        const tag = await prisma.tag.create({
+        const tag = await db.tag.create({
             data: {
                 name: data.name,
                 color: data.color || "#4f46e5",
@@ -76,7 +79,7 @@ export async function POST(
         if ((error as any).code === "P2002") {
             return NextResponse.json({ error: "Tag name already exists in this workspace" }, { status: 400 });
         }
-        console.error("Create tag error:", error);
+        logger.error("Create tag error:", error);
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }

@@ -59,7 +59,7 @@ export function NovaSidebar({ activeConversationId, onSelectConversation, onNewC
             <div className="p-8 space-y-6">
                 <Button 
                     onClick={onNewChat}
-                    className="w-full h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] shadow-2xl shadow-indigo-500/20 flex items-center justify-center gap-3 group relative overflow-hidden transition-all duration-500 hover:scale-[1.02] active:scale-95"
+                    className="w-full h-14 bg-primary hover:bg-primary/90 text-white rounded-lg text-[10px] shadow-sm flex items-center justify-center gap-3 group relative overflow-hidden transition-all duration-500 hover:scale-[1.02] active:scale-95"
                 >
                     <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                     <Plus className="w-4 h-4 group-hover:rotate-90 transition-transform duration-500" />
@@ -67,14 +67,14 @@ export function NovaSidebar({ activeConversationId, onSelectConversation, onNewC
                 </Button>
 
                 <div className="relative group">
-                    <div className="absolute inset-0 bg-indigo-500/5 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-indigo-500 transition-colors z-10" />
+                    <div className="absolute inset-0 bg-primary/10 blur-xl opacity-0 group-focus-within:opacity-100 transition-opacity" />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 group-focus-within:text-primary transition-colors z-10" />
                     <input 
                         type="text"
                         placeholder="Search Intelligence..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full h-12 pl-12 pr-4 bg-white dark:bg-slate-900/50 rounded-2xl border border-slate-200 dark:border-slate-800 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all relative z-10 placeholder:text-slate-400 placeholder:uppercase placeholder:tracking-widest placeholder:text-[9px]"
+                        className="w-full h-12 pl-12 pr-4 bg-white dark:bg-slate-900/50 rounded-lg border border-slate-200 dark:border-slate-800 text-xs font-bold focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all relative z-10 placeholder:text-slate-400 placeholder:text-xs"
                     />
                 </div>
             </div>
@@ -83,7 +83,7 @@ export function NovaSidebar({ activeConversationId, onSelectConversation, onNewC
                 {pinned.length > 0 && (
                     <div className="space-y-3">
                         <div className="px-4 flex items-center justify-between">
-                            <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Pinned</h3>
+                            <h3 className="text-xs text-muted-foreground">Pinned</h3>
                             <Pin className="w-3 h-3 text-slate-300" />
                         </div>
                         <div className="space-y-1">
@@ -101,13 +101,13 @@ export function NovaSidebar({ activeConversationId, onSelectConversation, onNewC
 
                 <div className="space-y-3">
                     <div className="px-4 flex items-center justify-between">
-                        <h3 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">Recent Threads</h3>
+                        <h3 className="text-xs text-muted-foreground">Recent Threads</h3>
                         <MessageSquare className="w-3 h-3 text-slate-300" />
                     </div>
                     {loading ? (
                         <div className="space-y-3 px-4">
                             {[1, 2, 3].map(i => (
-                                <div key={i} className="h-16 bg-slate-100 dark:bg-slate-900/50 animate-pulse rounded-2xl border border-slate-200 dark:border-slate-800" />
+                                <div key={i} className="h-16 bg-slate-100 dark:bg-slate-900/50 animate-pulse rounded-lg border border-slate-200 dark:border-slate-800" />
                             ))}
                         </div>
                     ) : recent.length > 0 ? (
@@ -123,10 +123,10 @@ export function NovaSidebar({ activeConversationId, onSelectConversation, onNewC
                         </div>
                     ) : (
                         <div className="px-4 py-8 text-center space-y-3">
-                            <div className="w-12 h-12 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center mx-auto opacity-50">
+                            <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-900 flex items-center justify-center mx-auto opacity-50">
                                 <Search className="w-6 h-6 text-slate-300" />
                             </div>
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest leading-relaxed">No Intelligence <br/> Found</p>
+                            <p className="text-xs text-muted-foreground">No conversations found</p>
                         </div>
                     )}
                 </div>
@@ -135,15 +135,15 @@ export function NovaSidebar({ activeConversationId, onSelectConversation, onNewC
             <div className="p-6 mt-auto border-t border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl">
                 <Button 
                     variant="outline"
-                    className="w-full h-14 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-2xl font-black uppercase tracking-[0.2em] text-[9px] flex items-center justify-center gap-3 hover:bg-slate-50 dark:hover:bg-indigo-500/10 hover:border-indigo-500/30 transition-all duration-500 shadow-sm group"
+                    className="w-full h-14 bg-white dark:bg-slate-950 border-slate-200 dark:border-slate-800 rounded-lg text-[9px] flex items-center justify-center gap-3 hover:bg-slate-50 dark:hover:bg-primary/10 hover:border-primary/30 transition-all duration-500 shadow-sm group"
                     onClick={() => {
-                        toast.info("Neural Engine Configuration", {
-                            description: "Adjusting intelligence parameters for current session."
+                        toast.info("Configuration", {
+                            description: "Adjusting session configuration."
                         });
                     }}
                 >
-                    <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                        <BrainCircuit className="w-4 h-4 text-indigo-500" />
+                    <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <BrainCircuit className="w-4 h-4 text-primary" />
                     </div>
                     Nova Brain Settings
                 </Button>
@@ -157,26 +157,26 @@ function ChatButton({ conversation, isActive, onClick }: { conversation: Convers
         <button
             onClick={onClick}
             className={cn(
-                "w-full flex flex-col items-start p-4 rounded-2xl transition-all duration-500 group relative overflow-hidden",
+                "w-full flex flex-col items-start p-4 rounded-lg transition-all duration-500 group relative overflow-hidden",
                 isActive 
-                    ? "bg-white dark:bg-slate-900 shadow-xl shadow-indigo-500/5 border border-slate-200 dark:border-slate-800 neural-glow" 
+                    ? "bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800" 
                     : "hover:bg-white dark:hover:bg-slate-900/50 border border-transparent hover:border-slate-100 dark:hover:border-slate-800/50"
             )}
         >
             {isActive && (
-                <div className="absolute left-0 top-0 bottom-0 w-1 bg-indigo-600 shadow-[0_0_15px_rgba(79,70,229,0.5)]" />
+                <div className="absolute left-0 top-0 bottom-0 w-1 bg-primary shadow-sm" />
             )}
             <div className="flex items-center justify-between w-full mb-1.5">
                 <span className={cn(
-                    "text-[11px] font-black truncate max-w-[160px] tracking-tight uppercase",
+                    "text-[11px] font-semibold truncate max-w-[160px] tracking-tight",
                     isActive ? "text-slate-900 dark:text-white" : "text-slate-600 dark:text-slate-400 group-hover:text-slate-900 dark:group-hover:text-slate-200"
                 )}>
                     {conversation.title || "Untitled Intelligence"}
                 </span>
-                {conversation.isPinned && <Pin className="w-2.5 h-2.5 text-indigo-500 fill-indigo-500 animate-pulse" />}
+                {conversation.isPinned && <Pin className="w-2.5 h-2.5 text-primary fill-primary animate-pulse" />}
             </div>
             <div className="flex items-center gap-2">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest opacity-60">
+                <span className="text-[9px] font-bold text-slate-400 opacity-60">
                     {formatDistanceToNow(new Date(conversation.lastMessageAt), { addSuffix: true })}
                 </span>
             </div>
@@ -185,7 +185,7 @@ function ChatButton({ conversation, isActive, onClick }: { conversation: Convers
                 "absolute right-2 top-1/2 -translate-y-1/2 transition-all duration-500",
                 isActive ? "opacity-100 translate-x-0" : "opacity-0 translate-x-4 group-hover:opacity-100 group-hover:translate-x-0"
             )}>
-                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
+                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">
                     <MoreVertical className="w-3.5 h-3.5" />
                 </Button>
             </div>

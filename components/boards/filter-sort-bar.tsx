@@ -129,18 +129,18 @@ export default function FilterSortBar({
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className={cn(
             "h-8 text-[10px] font-bold gap-1.5 rounded-xl border-slate-200 dark:border-slate-700",
-            activeFilterCount > 0 && "border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30"
+            activeFilterCount > 0 && "border-primary text-primary bg-muted dark:bg-primary/10"
           )}>
             <Filter className="h-3 w-3" />
             Filters
             {activeFilterCount > 0 && (
-              <Badge className="h-4 min-w-4 px-1 text-[8px] bg-indigo-600 ml-1">{activeFilterCount}</Badge>
+              <Badge className="h-4 min-w-4 px-1 text-[8px] bg-primary ml-1">{activeFilterCount}</Badge>
             )}
           </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-72 p-4 rounded-2xl shadow-xl border-slate-200 dark:border-slate-800">
           <div className="space-y-4">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Filters</h4>
+            <h4 className="text-xs font-bold text-slate-500">Filters</h4>
 
             <div className="space-y-2">
               <label className="text-[10px] font-semibold text-slate-500">Priority</label>
@@ -176,7 +176,7 @@ export default function FilterSortBar({
                         onFilterChange({ ...filterConfig, tagIds: next });
                       }}
                       className={cn(
-                        "text-[9px] font-bold px-2 py-1 rounded-full border transition-all uppercase tracking-wider",
+                        "text-[9px] font-bold px-2 py-1 rounded-full border transition-all ",
                         isSelected
                           ? "border-current text-white"
                           : "border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300"
@@ -230,7 +230,7 @@ export default function FilterSortBar({
         <PopoverTrigger asChild>
           <Button variant="outline" size="sm" className={cn(
             "h-8 text-[10px] font-bold gap-1.5 rounded-xl border-slate-200 dark:border-slate-700",
-            sortConfig && "border-indigo-500 text-indigo-600 bg-indigo-50 dark:bg-indigo-950/30"
+            sortConfig && "border-primary text-primary bg-muted dark:bg-primary/10"
           )}>
             <ArrowUpDown className="h-3 w-3" />
             Sort
@@ -238,7 +238,7 @@ export default function FilterSortBar({
         </PopoverTrigger>
         <PopoverContent align="start" className="w-60 p-4 rounded-2xl shadow-xl">
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Sort By</h4>
+            <h4 className="text-xs font-bold text-slate-500">Sort By</h4>
             <div className="space-y-1">
               {SORT_FIELDS.map((field) => {
                 const Icon = field.icon;
@@ -261,7 +261,7 @@ export default function FilterSortBar({
                     className={cn(
                       "flex items-center justify-between w-full px-3 py-2 rounded-xl text-xs transition-colors",
                       isActive
-                        ? "bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 font-semibold"
+                        ? "bg-muted dark:bg-primary/10 text-primary font-semibold"
                         : "hover:bg-slate-50 dark:hover:bg-slate-800/50 text-slate-600"
                     )}
                   >
@@ -292,7 +292,7 @@ export default function FilterSortBar({
         </PopoverTrigger>
         <PopoverContent align="start" className="w-56 p-4 rounded-2xl shadow-xl">
           <div className="space-y-2">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2">Column Visibility</h4>
+            <h4 className="text-xs font-bold text-slate-500 mb-2">Column Visibility</h4>
             {columns.map((col) => {
               const visible = columnVisibility[col.id] !== false;
               return (
@@ -306,7 +306,7 @@ export default function FilterSortBar({
                 >
                   <span className="text-slate-600">{col.name}</span>
                   {visible ? (
-                    <Eye className="h-3.5 w-3.5 text-indigo-500" />
+                    <Eye className="h-3.5 w-3.5 text-primary" />
                   ) : (
                     <EyeOff className="h-3.5 w-3.5 text-slate-300" />
                   )}
@@ -329,7 +329,7 @@ export default function FilterSortBar({
         </PopoverTrigger>
         <PopoverContent align="start" className="w-64 p-4 rounded-2xl shadow-xl">
           <div className="space-y-3">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Save Current View</h4>
+            <h4 className="text-xs font-bold text-slate-500">Save Current View</h4>
             <div className="flex gap-2">
               <Input
                 placeholder="View name..."
@@ -366,7 +366,7 @@ export default function FilterSortBar({
         </PopoverTrigger>
         <PopoverContent align="start" className="w-64 p-4 rounded-2xl shadow-xl">
           <div className="space-y-2">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">Saved Views</h4>
+            <h4 className="text-xs font-bold text-slate-500 mb-1">Saved Views</h4>
             {savedViews.length === 0 ? (
               <p className="text-[10px] text-slate-400 italic">No saved views yet</p>
             ) : (

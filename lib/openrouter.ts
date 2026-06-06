@@ -15,7 +15,7 @@ export const openrouter = createOpenAI({
 /**
  * Generate a response using OpenRouter (Standard Fetch)
  */
-export async function generateWithOpenRouter(prompt: string, systemPrompt?: string, imageUrl?: string) {
+export async function generateWithOpenRouter(prompt: string, systemPrompt?: string, imageUrl?: string, modelName?: string) {
     const apiKey = process.env.OPENROUTER;
     if (!apiKey) {
         throw new Error("OpenRouter API key missing");
@@ -42,6 +42,8 @@ export async function generateWithOpenRouter(prompt: string, systemPrompt?: stri
         messages.push({ role: "user", content: prompt });
     }
 
+    const model = modelName || (imageUrl ? "google/gemini-flash-1.5" : "google/gemini-flash-1.5");
+
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -51,7 +53,7 @@ export async function generateWithOpenRouter(prompt: string, systemPrompt?: stri
             "X-Title": "Nova AI",
         },
         body: JSON.stringify({
-            model: imageUrl ? "google/gemini-flash-1.5" : "google/gemini-flash-1.5",
+            model,
             messages: messages,
         })
     });

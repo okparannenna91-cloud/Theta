@@ -1,0 +1,209 @@
+* THETA PLATFORM â AUDIT
+
+Overview
+Theta (package.json name: "theta") is a production-deployed AI-powered project management and team collaboration platform at https://www.thetapm.site. It is a Next.js 14 App Router application with MongoDB (4 shards) via Prisma, Clerk authentication, Ably real-time messaging, and dozens of integrations.
+
+1. CRITICAL SECURITY ISSUES
+1A. Production Secrets in .env.local (P0 â Immediate) (Done. They are all in vercel enviromental variables and are also in .gitignore)
+The .env.local file contains live production credentials for virtually every service:
+- MongoDB: 4 shard connection strings with embedded credentials (zeekthegoated_db_user, okparaezekiel287_db_user, etc.)
+- OpenAI: Live sk-proj-... API key
+- Clerk: sk_live_... secret key
+- Paystack: sk_live_... secret key
+- Cloudinary: API key + secret
+- GitHub, Bitbucket, Slack, Asana: OAuth client IDs and secrets
+- Cohere, Gemini: API keys
+- Ivno (payments): iv_live_... key
+- Resend (email): re_... API key
+- Vercel OIDC Token: Full deployment access token
+- Super Admin User ID: Single admin ID
+- Encryption Key: Hex key
+Risk: If this repository is public or accessible to unauthorized personnel, it enables full database access, AI API abuse, payment theft, email spoofing, and Vercel deployment takeover.
+Fix: Immediately rotate ALL secrets, move them to Vercel Environment Variables (remotely), and add .env.local to .gitignore (it is currently ignored but the file exists locally).
+
+1B. Rate Limiting is Ineffective (P1)(Done)
+Two systems coexist:
+- Middleware rate limiter (lib/rate-limit.ts): In-memory sliding window. On Vercel serverless, each invocation is a separate process â the counter resets on every cold start. 30 req/min/IP is virtually unenforced.
+- Redis-backed AI rate limiter: Proper but only covers the AI endpoint.
+Fix: Move the middleware rate limiter to Upstash Redis (already a dependency) or use Vercel's WAF.
+
+1C. No Database Encryption at Application Level (P2)
+Sensitive data (billing logs, form responses, user data, integration tokens) is stored as plaintext in MongoDB. The ENCRYPTION_KEY in .env.local exists but is never referenced in the codebase.
+Fix: Encrypt sensitive fields at the application layer, especially OAuth tokens and billing PII.
+
+1D. Insecure Direct Object Reference (IDOR) Risk (P1)
+Many API routes accept workspaceId from the client but rely on getPrismaClient(workspaceId) which routes to the correct shard. The verifyWorkspaceAccess() pattern is inconsistently applied. Several AI tool execution paths have missing permission checks (e.g., list_tasks, search_workspace lack SecurityGuard calls in some branches).
+
+1E. Cross-Shard Query Security (P2)
+findAcrossShards() queries all 4 shards in parallel with Promise.race timeouts. If a user provides a workspaceId from shard 1, the code still queries all shards, potentially leaking cross-tenant data on timeout races.
+
+2. CODE QUALITY & ARCHITECTURE ISSUES
+
+2A. Monolithic AI Route (P2)
+app/api/ai/route.ts is 1,484 lines with 25+ inlined tool definitions. Every tool uses dynamic await import() for dependencies, making error tracing difficult and increasing cold start latency.
+
+2B. Excessive Dynamic Imports (P2)
+Throughout the codebase, modules are imported dynamically (e.g., await import("@/lib/nova/security-guard")) even when static imports would work. This hurts tree-shaking, type safety, and debuggability.
+
+2C. Silent Catch Blocks (P2)
+Numerous catch {} / catch (e) {} blocks (in Ably publishing, activity logging, Inngest calls, Mem0 integration) swallow errors silently, making failures invisible.
+
+2D. Inconsistent Database Access Patterns (P2)
+Some files use getPrismaClient(workspaceId) (shard-aware), others use the global prisma singleton. This creates data inconsistency risks.
+
+2E. Console Logs in Production (P2)
+console.log/console.warn/console.error statements remain throughout production code paths (orchestrator fallback logging, security guard denials, audit failures).
+
+2F. Shard 4 is Dead Code (P3)
+Shard 4 is "decommissioned" and aliased to Shard 1, but the code still routes to 4 shards, wasting connections.
+
+2G. TypeScript any Abuse (P2)
+The tools object is typed as any. Tool parameters use any extensively, bypassing Zod validation on the execution side.
+
+2H. No Automated Tests Found (P2)
+No test files, test runner config, or CI pipeline detected. Critical business logic (billing, AI tool execution, permission enforcement) is untested.
+
+2I. Hardcoded Values (P3)
+- Status names like "todo", "in_progress", "done" are hardcoded instead of using the dynamic Status model.
+- Template data is hardcoded in the browse_templates tool.
+
+3. DEPENDENCY & SUPPLY CHAIN RISKS
+
+3A. @vibe/core Postinstall Hack (P2)
+scripts/fix-vibe-core.cjs runs after every npm install, suggesting the library requires runtime patching. This is fragile and may break with version bumps.
+
+3B. Large Attack Surface (P2)
+Dozens of dependencies with direct API access:
+- openai, cohere-ai, @google/generative-ai â AI providers
+- @clerk/nextjs â Auth
+- ably â Real-time messaging
+- cloudinary â File storage
+- paystack / resend / posthog â Payment, email, analytics
+- @upstash/redis â Caching/rate limiting
+- inngest â Background jobs
+Each is configured with live keys in .env.local.
+
+4. DATABASE CONCERNS
+
+4A. MongoDB Sharding Complexity (P2)
+4 shards with workspace-consistent hashing. Workspace metadata (memberships, users) lives on Shard 1 only. Cross-shard queries use Promise.race with 10-second timeout â if one shard is slow, the query may return incomplete results.
+
+4B. No Migrations Workflow (P3)
+No migration files found. Prisma with MongoDB has limited migration support; schema changes are applied manually, risking drift between environments.
+
+4C. Schema Design Issues (P3)
+- attachments field on Task is used as a JSON blob for custom fields (misnamed)
+- userId on Task refers to assignee but is not renamed to assigneeId
+- Form.fields is stored as raw JSON without validation
+
+5. BILLING & PAYMENT CONCERNS
+
+5A. Plan Enforcement Gaps (P2)
+Some creation endpoints check enforcePlanLimit() but others rely on client-side checks. The billing status "deactivated" blocks writes but the check is inconsistently applied across API routes.
+
+5B. Paystack Webhook Idempotency (P2)
+The Paystack webhook handler does not appear to implement idempotency keys, risking duplicate billing events.
+
+6. POSITIVE FINDINGS
+- Comprehensive multi-tenant architecture with proper workspace isolation via sharding.
+- Nova's Constitution is a well-designed 20-section rule system for governing AI behavior.
+- Ably real-time is deeply integrated for live collaboration.
+- SecurityGuard class provides a centralized permission enforcement mechanism for AI operations.
+- Audit logging (Activity model) captures all meaningful actions with metadata.
+- Plan-based gating is enforced at multiple levels.
+- Clerk authentication is properly implemented with middleware route protection.
+- Security headers are configured in next.config.js.
+
+NOVA AI â SEPARATE AUDIT
+Overview
+NOVA is the built-in AI assistant (codename "Nova") embedded in Theta Platform. It operates at the "OPERATOR" evolution stage and provides 25+ tools for workspace automation, task/project/document management, search, meeting prep, reporting, and more.
+
+1. CRITICAL SECURITY ISSUES
+
+1A. Prompt Injection Surface (P0)
+The system prompt includes user-controlled content:
+const systemPrompt = `${NOVA_SYSTEM_PROMPT}\n${workspaceContext}\n...`;
+Where workspaceContext includes user content from aiMessages, longTermMemories, and shortTermHistories. A user could inject instructions into their own memory data to override Nova's constitution. While the DecisionFramework blocks high-risk actions, system prompt injection through memories is unchecked.
+
+1B. Tool Permission Bypass Potential (P1)
+list_tasks and search_workspace tools call SecurityGuard.enforce({ action: "read" }) but some query paths within these tools don't scope by workspace membership explicitly beyond the guard check. A user with member role on one workspace could potentially access data if the shard routing is manipulated.
+
+1C. No Tool Call Rate Limiting Per-Tool (P2)
+The AI rate limiter counts requests (20/min) but does not limit per-tool abuse. A compromised session could call delete_task or delete_project 20 times per minute.
+
+1D. Data Export Without Audit Trail Scoping (P2)
+The export_workspace_data tool exports ALL tasks and projects but only checks admin permission. There is no granularity for partial exports or access logging beyond a single activity entry.
+
+2. DECISION FRAMEWORK LIMITATIONS
+
+2A. Naive Risk Classification (P2)
+DecisionFramework.evaluate() uses simple keyword matching:
+- Checks for "project", "workspace", "member", "user" in deletion requests
+- Checks for "billing", "subscription", "card", "plan" words
+This is trivially bypassable with synonyms or paraphrasing (e.g., "erase the current workspace initiative" instead of "delete project").
+
+2B. Inconsistent Confirmation Enforcement (P1)
+The AI route checks DecisionFramework.evaluate(prompt) and blocks requiresApproval operations. However, individual tools like delete_task and delete_project have their own SecurityGuard checks but do NOT re-check the DecisionFramework. A user could bypass the prompt-level block by crafting a multi-step request.
+
+3. MODEL ORCHESTRATION ISSUES
+
+3A. No Output Validation (P2)
+NovaOrchestrator has 4 fallback layers (OpenRouter â Cohere â OpenAI â Gemini) but no output validation. If a fallback model behaves unexpectedly, its output is returned directly. There are no content filters, hallucination checks, or output schema validators.
+
+3B. API Key Over-Exposure (P1)
+The orchestrator passes API keys in backend-to-backend calls, but if any downstream provider is compromised, the keys could be leaked via request logging.
+
+3C. Weak Model Selection Logic (P2)
+Model selection is based on simple keyword matching:
+if (complexity === "reasoning" || decision.strategy === "PATH_C_MULTISTEP") { ... }
+This does not consider actual task difficulty, token cost, or latency requirements.
+
+4. MEMORY & CONTEXT SYSTEM ISSUES
+
+4A. Memory Poisoning Risk (P2)
+The remember_preference tool stores arbitrary key-value pairs with no sanitization or size limits. A user could fill their memory with context-wasting data or malicious instructions.
+
+4B. Context Window Bloat (P2)
+The context system loads full workspace context + long-term memories + short-term histories without token budgeting. On large workspaces, this could exceed model context windows or be truncated unpredictably.
+
+4C. Mem0 Integration Failures Silent (P3)
+The Mem0 memory backend call is wrapped in a try-catch that silently fails. Users have no visibility into whether their memories are actually being stored.
+
+5. CODE & ARCHITECTURE ISSUES
+
+5A. Monolithic Tool Definitions (P2)
+All 25+ tools are defined as a single inline object in the route handler. This makes the file unmaintainable (1,484 lines), impossible to unit test, and violates single-responsibility.
+
+5B. Missing Tool Timeouts (P2)
+Tool executions have no timeout enforcement. A slow database query in search_workspace (which queries 4 collections in parallel) could hang the entire AI response.
+
+5C. No Streaming Error Recovery (P2)
+The streaming response uses streamText. If a tool throws mid-stream, the error is caught by onError but the stream is already partially sent to the client, leading to inconsistent UI state.
+
+5D. Philosophy Engine is Superficial (P3)
+PhilosophyEngine.optimizeResponse() simply strips a few boilerplate phrases and adds **OUTCOME:** prefix. It does not genuinely optimize responses for actionability.
+
+6. AGENT FRAMEWORK ISSUES
+
+6A. 8 Agents Defined But Not Implemented (P2)
+AGENT_REGISTRY defines 8 specialized agents (Sprint, Task, Reporting, Risk, Documentation, Automation, Research, Executive) but the orchestrate_agentic_workflow tool just returns a hardcoded response. Multi-agent collaboration is not actually implemented â it's a facade.
+
+6B. No Agent Handoff Logic (P2)
+The constitution defines agent collaboration rules, but there is no actual routing or handoff mechanism between agents. All requests go through a single LLM call with the constitution as context.
+
+7. POSITIVE FINDINGS
+- Constitution-based governance â A well-structured 20-section rule system that defines identity, philosophy, decision-making, security, and evolution stages.
+- Multi-model fallback â 4 provider layers ensure high availability.
+- SecurityGuard provides centralized RBAC for AI tool execution.
+- Redis-backed rate limiting for the AI endpoint prevents runaway usage.
+- Audit logging tracks all tool executions with metadata.
+- Memory system with 4 tiers (Mem0, Upstash Redis, Prisma, and conversation history) provides good persistence.
+- Evolution stage tracking shows thoughtful product roadmap (ASSISTANT â OPERATOR â MANAGER â COORDINATOR â WORKFORCE).
+- Tool diversity â 25+ tools covering tasks, projects, documents, search, meetings, reports, automations, forms, and more.
+
+Summary
+Severity	Theta Platform	NOVA AI
+P0 (Critical)	Production secrets in .env.local (all services compromised)	Prompt injection surface via user memories; no output validation
+P1 (High)	Rate limiting broken on serverless; IDOR risks; no tests	Permission bypass potential; inconsistent confirmation enforcement; API key over-exposure; no tool call limits
+P2 (Medium)	Monolithic AI route; silent catch blocks; dead shard 4; sharding complexity; inconsistent DB access; any types	Naive risk classification; no tool timeouts; agent framework is facade; memory poisoning risk; context bloat; no streaming error recovery
+P3 (Low)	Hardcoded values; No migrations; Schema naming issues	Philosophy engine is superficial; Mem0 silent failures

@@ -100,7 +100,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 className="w-full max-w-xl"
             >
-                <Card className="border-none shadow-2xl rounded-[2.5rem] overflow-hidden bg-white">
+                <Card className="border-none shadow-sm rounded-lg overflow-hidden bg-card">
                     <CardContent className="p-0">
                         {/* Progress Bar */}
                         <div className="h-2 w-full bg-slate-100 flex">

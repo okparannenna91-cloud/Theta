@@ -1,5 +1,7 @@
 import { getPrismaClient } from "../prisma";
 import { TASK_QUALITY_STANDARDS, TASK_CREATION_FLOW, TASK_INTELLIGENCE_CAPABILITIES } from "./constitution/task-standards";
+import { STATUS_DONE } from "../constants/status";
+import { logger } from "../logger";
 
 export { TASK_QUALITY_STANDARDS, TASK_CREATION_FLOW, TASK_INTELLIGENCE_CAPABILITIES } from "./constitution/task-standards";
 
@@ -51,13 +53,13 @@ export class TaskIntelligence {
       const [members, similarTasks] = await Promise.all([
         db.workspaceMember.findMany({
           where: { workspaceId, status: "active" },
-          include: { user: { include: { tasks: { where: { status: { not: "done" } } } } } },
+          include: { user: { include: { tasks: { where: { status: { not: STATUS_DONE } } } } } },
         }),
         db.task.findMany({
           where: {
             workspaceId,
             title: { contains: title.substring(0, 30) },
-            status: { not: "done" },
+            status: { not: STATUS_DONE },
           },
           select: { id: true, title: true, status: true },
           take: 3,
@@ -132,18 +134,18 @@ export class TaskIntelligence {
 
       const now = new Date();
       const daysSinceLastUpdate = Math.floor((now.getTime() - new Date(task.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
-      const isOverdue = task.dueDate ? new Date(task.dueDate) < now && task.status !== "done" : false;
+      const isOverdue = task.dueDate ? new Date(task.dueDate) < now && task.status !== STATUS_DONE : false;
       const hasBlockingDependencies = task.predecessors?.some((d: any) => d.type === "FS") ?? false;
 
       let status: TaskHealthStatus["status"] = "ON_TRACK";
       if (isOverdue) status = "OVERDUE";
-      else if (daysSinceLastUpdate > 4 && task.status !== "done") status = "STALLED";
+      else if (daysSinceLastUpdate > 4 && task.status !== STATUS_DONE) status = "STALLED";
       else if (hasBlockingDependencies) status = "BLOCKED";
       else if (daysSinceLastUpdate > 2) status = "AT_RISK";
 
       return { status, daysSinceLastUpdate, isOverdue, hasBlockingDependencies };
     } catch (error) {
-      console.warn("[TaskIntelligence] Error checking task health:", error);
+      logger.warn("[TaskIntelligence] Error checking task health:", error);
       return null;
     }
   }
@@ -158,7 +160,7 @@ export class TaskIntelligence {
         where: {
           workspaceId,
           title: { contains: title.substring(0, 40) },
-          status: { not: "done" },
+          status: { not: STATUS_DONE },
         },
         select: { id: true, title: true, status: true },
         take: 5,
@@ -176,7 +178,7 @@ export class TaskIntelligence {
         confidence,
       };
     } catch (error) {
-      console.warn("[TaskIntelligence] Error finding duplicates:", error);
+      logger.warn("[TaskIntelligence] Error finding duplicates:", error);
       return { isDuplicate: false, similarTasks: [], confidence: 0 };
     }
   }

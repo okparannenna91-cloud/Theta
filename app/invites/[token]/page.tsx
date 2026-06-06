@@ -23,12 +23,12 @@ export default async function InvitePage({ params }: { params: { token: string }
                     <div className="h-16 w-16 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mx-auto mb-6">
                         <AlertTriangle className="h-8 w-8 text-red-500" />
                     </div>
-                    <h1 className="text-2xl font-black uppercase tracking-tight mb-2">Invalid Invitation</h1>
+                    <h1 className="text-2xl font-semibold mb-2">Invalid Invitation</h1>
                     <p className="text-muted-foreground font-medium mb-8">
                         {error || "This invitation link is invalid or has expired."}
                     </p>
                     <Link href="/">
-                        <Button className="w-full rounded-full py-6 text-sm font-black uppercase tracking-widest bg-slate-900 hover:bg-slate-800">
+                        <Button className="w-full rounded-full py-6 text-sm font-semibold bg-slate-900 hover:bg-slate-800">
                             <Home className="h-4 w-4 mr-2" />
                             Return Home
                         </Button>

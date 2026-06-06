@@ -162,7 +162,7 @@ export default function CollaborationPanel({ workspaceId, boardId }: Collaborati
         <div className="flex items-center justify-between mb-2">
           <div>
             <h3 className="text-lg font-bold flex items-center gap-2">
-              <Users className="h-5 w-5 text-indigo-500" />
+              <Users className="h-5 w-5 text-primary" />
               Collaboration
             </h3>
             <p className="text-xs text-muted-foreground flex items-center gap-1">
@@ -185,8 +185,8 @@ export default function CollaborationPanel({ workspaceId, boardId }: Collaborati
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-                isActive ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all whitespace-nowrap",
+                isActive ? "bg-primary text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
               <Icon className="h-3 w-3" /> {tab.label}
@@ -352,7 +352,7 @@ export default function CollaborationPanel({ workspaceId, boardId }: Collaborati
                     return (
                       <button
                         key={p.id}
-                        className="flex flex-col items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-300 transition-all text-center"
+                        className="flex flex-col items-center gap-2 p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-primary/30 transition-all text-center"
                       >
                         <Icon className="h-4 w-4 text-slate-400" />
                         <span className="text-[10px] font-bold">{p.label}</span>
@@ -413,7 +413,7 @@ export default function CollaborationPanel({ workspaceId, boardId }: Collaborati
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">Email Address</Label>
+                <Label className="text-xs font-bold text-slate-500">Email Address</Label>
                 <Input
                   placeholder="colleague@company.com"
                   value={inviteEmail}
@@ -422,7 +422,7 @@ export default function CollaborationPanel({ workspaceId, boardId }: Collaborati
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">Role</Label>
+                <Label className="text-xs font-bold text-slate-500">Role</Label>
                 <Select value={inviteRole} onValueChange={setInviteRole}>
                   <SelectTrigger className="h-9">
                     <SelectValue />
@@ -455,8 +455,8 @@ function Switch(props: any) {
     <button
       onClick={() => setChecked(!checked)}
       className={cn(
-        "inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500",
-        checked ? "bg-indigo-600" : "bg-slate-200 dark:bg-slate-700"
+        "inline-flex h-4 w-7 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary",
+        checked ? "bg-primary" : "bg-slate-200 dark:bg-slate-700"
       )}
     >
       <span className={cn(

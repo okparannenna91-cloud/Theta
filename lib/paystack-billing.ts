@@ -3,6 +3,7 @@ import { prisma } from "./prisma";
 import { paystack } from "./paystack";
 import { BILLING_PLAN_LOOKUP, getPlanPrice } from "./billing-plans";
 import { sendEmail } from "./email";
+import { encryptSensitiveFields } from "./field-encryption";
 
 /**
  * Handle recurring charge for a workspace using Paystack
@@ -75,14 +76,14 @@ export async function handleSuccessfulPayment(workspaceId: string, amount: numbe
     });
 
     await prisma.billingLog.create({
-        data: {
+        data: encryptSensitiveFields("billingLog", {
             workspaceId,
             action: "payment_success",
             provider: "paystack",
-            amount: amount / 100, // Convert kobo to NGN
+            amount: amount / 100,
             currency,
             metadata: data
-        }
+        }) as any
     });
 
     // Send success email
@@ -98,12 +99,12 @@ export async function handleFailedPayment(workspaceId: string, action: string, d
 
     // Log the failure
     await prisma.billingLog.create({
-        data: {
+        data: encryptSensitiveFields("billingLog", {
             workspaceId,
             action,
             provider: "paystack",
             metadata: data
-        }
+        }) as any
     });
 
     // Update status to past_due

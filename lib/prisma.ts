@@ -1,9 +1,10 @@
 import { PrismaClient } from "@prisma/client";
+import { logger } from "./logger";
 
 /**
  * THETA PM - CORE DATABASE ARCHITECTURE (MULTI-SHARD SINGLETON)
  * 
- * This module manages the connection lifecycle for 4 distinct MongoDB shards.
+ * This module manages the connection lifecycle for 3 active MongoDB shards.
  * It implements a universal singleton pattern to prevent connection pool exhaustion 
  * in serverless environments (Next.js/Vercel).
  */
@@ -13,7 +14,6 @@ declare global {
     shard1?: PrismaClient;
     shard2?: PrismaClient;
     shard3?: PrismaClient;
-    shard4?: PrismaClient;
   } | undefined;
 }
 
@@ -25,7 +25,7 @@ if (!globalThis.__prismaShards) {
 
 const createClient = (shardName: string, url: string | undefined) => {
   if (!url) {
-    console.warn(`[Prisma Audit] No URI provided for ${shardName}. Shard will be disabled.`);
+    logger.warn(`No URI provided for ${shardName}. Shard will be disabled.`);
     return undefined;
   }
   
@@ -50,7 +50,7 @@ const createClient = (shardName: string, url: string | undefined) => {
     : `${sanitizedUrl}?${params.join('&')}`;
 
   const maskedUrl = finalUrl.replace(/\/\/[^:]+:[^@]+@/, '//***:***@');
-  console.log(`[Prisma Audit] Re-using/Creating ${shardName} client. URI: ${maskedUrl}`);
+  logger.debug(`Re-using/Creating ${shardName} client. URI: ${maskedUrl}`);
 
   try {
     const client = new PrismaClient({
@@ -64,12 +64,12 @@ const createClient = (shardName: string, url: string | undefined) => {
 
     // Connection Resilience: Pre-connect check (lazy in Prisma, but we log errors)
     client.$connect().catch(err => {
-      console.error(`[Prisma Audit] CRITICAL: ${shardName} failed to connect:`, err.message);
+      logger.error(`CRITICAL: ${shardName} failed to connect:`, err.message);
     });
 
     return client;
   } catch (err: any) {
-    console.error(`[Prisma Audit] FAILED to initialize ${shardName}:`, err.message);
+    logger.error(`FAILED to initialize ${shardName}:`, err.message);
     return undefined;
   }
 };
@@ -79,7 +79,6 @@ const uris = [
   process.env.MONGODB_URI_1 || process.env.MONGODB_URI,
   process.env.MONGODB_URI_2,
   process.env.MONGODB_URI_3,
-  process.env.MONGODB_URI_4
 ];
 
 // Initialize/Retrieve Shards from Global Singleton
@@ -87,15 +86,7 @@ export const prismaShard1 = globalStore.shard1 || (globalStore.shard1 = createCl
 export const prismaShard2 = globalStore.shard2 || (globalStore.shard2 = createClient("Shard 2", uris[1]) || prismaShard1);
 export const prismaShard3 = globalStore.shard3 || (globalStore.shard3 = createClient("Shard 3", uris[2]) || prismaShard1);
 
-// SHARD 4 DECOMMISSIONED: Mirroring Shard 1 to prevent hangs
 export const prismaShard4 = prismaShard1;
-
-// Update global store to reflect decommissioning
-if (globalThis.__prismaShards) {
-    globalThis.__prismaShards.shard4 = prismaShard4;
-}
-
-// Default export (Legacy support & Global collections)
 export const prisma = prismaShard1;
 
 /**
@@ -108,33 +99,60 @@ export function getPrismaClient(workspaceId?: string | null): PrismaClient {
 
   const sanitizedId = workspaceId.trim().toLowerCase();
   const hash = sanitizedId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  const shardIndex = hash % 4;
+  const shardIndex = hash % 3;
 
   switch (shardIndex) {
     case 0: return prismaShard1;
     case 1: return prismaShard2 || prismaShard1;
     case 2: return prismaShard3 || prismaShard1;
-    case 3: return prismaShard4 || prismaShard1;
     default: return prisma;
   }
 }
 
 /**
- * Searches across all shards for a specific record in PARALLEL with timeouts.
- * Optimized for serverless performance.
+ * Searches across shards for a specific record with timeouts.
+ * When workspaceId is provided, only the owning shard is queried
+ * to prevent cross-tenant data leakage.
+ * 
+ * NOTE: workspaceId should ALWAYS be provided when known.
+ * The cross-shard fallback (without workspaceId) is slower, logs a warning,
+ * and should only be used as a last resort for lookups where workspaceId
+ * is genuinely unavailable.
  */
 export async function findAcrossShards<T>(
   modelName: string,
   where: any,
-  options: { timeoutMs?: number } = {}
+  options: { timeoutMs?: number; workspaceId?: string } = {}
 ): Promise<{ data: T | null; db: PrismaClient }> {
   const timeoutMs = options.timeoutMs || 3000;
+
+  // If workspaceId is known, scope query to its shard only
+  if (options.workspaceId) {
+    const scopedClient = getPrismaClient(options.workspaceId);
+    try {
+      const record = await Promise.race([
+        // @ts-ignore
+        scopedClient[modelName].findFirst({ where }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(`Timeout (${timeoutMs}ms) on scoped shard`)), timeoutMs)
+        ),
+      ]);
+      if (record) return { data: record as T, db: scopedClient };
+    } catch (err: any) {
+      logger.warn(`Scoped shard query for ${modelName} failed: ${err.message}`);
+      return { data: null, db: scopedClient };
+    }
+    return { data: null, db: scopedClient };
+  }
+
+  // Fallback: search all shards (legacy behavior)
   const shards = [
     { client: prismaShard1, name: "Shard 1" },
     { client: prismaShard2, name: "Shard 2" },
     { client: prismaShard3, name: "Shard 3" },
-    { client: prismaShard4, name: "Shard 4" }
   ];
+
+  logger.warn(`Cross-shard fallback for ${modelName} — no workspaceId provided`);
 
   const searchInShard = async (shardObj: any) => {
     const shard = shardObj.client;
@@ -142,7 +160,7 @@ export async function findAcrossShards<T>(
     
     try {
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error("Timeout")), timeoutMs)
+        setTimeout(() => reject(new Error(`Timeout (${timeoutMs}ms) on ${shardObj.name}`)), timeoutMs)
       );
       
       // @ts-ignore
@@ -151,19 +169,15 @@ export async function findAcrossShards<T>(
       const record = await Promise.race([queryPromise, timeoutPromise]);
       if (record) return { data: record as T, db: shard as PrismaClient };
       return null;
-    } catch (e) {
-      console.warn(`[Shard Search] ${shardObj.name} search failed or timed out for ${modelName}`);
+    } catch (err: any) {
+      logger.warn(`Cross-shard query on ${shardObj.name} for ${modelName} failed: ${err.message}`);
       return null;
     }
   };
 
-  try {
-    const results = await Promise.all(shards.map(searchInShard));
-    const firstMatch = results.find(r => r !== null);
-    
-    if (firstMatch) return firstMatch;
-  } catch (err) {
-    console.error(`[Shard Search] Global search error:`, err);
+  const results = await Promise.allSettled(shards.map(searchInShard));
+  for (const r of results) {
+    if (r.status === "fulfilled" && r.value !== null) return r.value;
   }
 
   return { data: null, db: prismaShard1 };

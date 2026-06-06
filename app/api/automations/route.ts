@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaClient } from "@/lib/prisma";
 import { z } from "zod";
+import { logger } from "@/lib/logger";
 
 const automationSchema = z.object({
     name: z.string().min(1),
@@ -33,16 +34,17 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
+        const db = getPrismaClient(workspaceId);
         const [automations, count] = await Promise.all([
-            prisma.automation.findMany({
+            db.automation.findMany({
                 where: { workspaceId },
                 orderBy: { createdAt: "desc" },
             }),
-            prisma.automation.count({ where: { workspaceId } })
+            db.automation.count({ where: { workspaceId } })
         ]);
 
         const { getPlanLimits } = await import("@/lib/plan-limits");
-        const workspace = await prisma.workspace.findUnique({
+        const workspace = await db.workspace.findUnique({
             where: { id: workspaceId },
             select: { plan: true }
         });
@@ -58,7 +60,7 @@ export async function GET(req: Request) {
             }
         });
     } catch (error) {
-        console.error("Get automations error:", error);
+        logger.error("Get automations error:", error);
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }
@@ -84,15 +86,16 @@ export async function POST(req: Request) {
         }
 
         // Check plan limits strictly
+        const db = getPrismaClient(data.workspaceId);
         try {
-            const count = await prisma.automation.count({ where: { workspaceId: data.workspaceId } });
+            const count = await db.automation.count({ where: { workspaceId: data.workspaceId } });
             const { enforcePlanLimit } = await import("@/lib/plan-limits");
             await enforcePlanLimit(data.workspaceId, "automations", count);
         } catch (error: any) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
 
-        const automation = await prisma.automation.create({
+        const automation = await db.automation.create({
             data: {
                 name: data.name,
                 trigger: data.trigger,
@@ -108,7 +111,7 @@ export async function POST(req: Request) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: error.errors }, { status: 400 });
         }
-        console.error("Create automation error:", error);
+        logger.error("Create automation error:", error);
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }

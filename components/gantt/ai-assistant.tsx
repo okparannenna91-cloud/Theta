@@ -69,7 +69,7 @@ export default function AIScheduleAssistant({ tasks, onApplySuggestion }: AISche
                         initial={{ opacity: 0, y: 20, scale: 0.95 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 20, scale: 0.95 }}
-                        className="w-96 bg-background/80 backdrop-blur-3xl border border-primary/20 rounded-3xl shadow-2xl overflow-hidden flex flex-col"
+                        className="w-96 bg-background/80 backdrop-blur-3xl border border-primary/20 rounded-xl shadow-2xl overflow-hidden flex flex-col"
                     >
                         {/* AI Header */}
                         <div className="p-6 bg-gradient-to-r from-primary/20 to-purple-500/10 border-b border-primary/10 flex items-center justify-between">
@@ -78,26 +78,25 @@ export default function AIScheduleAssistant({ tasks, onApplySuggestion }: AISche
                                     <Bot className="h-4 w-4 text-white" />
                                 </div>
                                 <div>
-                                    <h3 className="text-sm font-black uppercase tracking-tight">Theta AI Agent</h3>
-                                    <p className="text-[9px] font-black uppercase tracking-widest text-primary/60">Schedule Intelligence</p>
+                                    <h3 className="text-sm font-semibold">Theta AI Agent</h3>
+                                    <p className="text-[9px] font-semibold text-primary/60">Schedule Intelligence</p>
                                 </div>
                             </div>
-                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[8px] font-black">PRO</Badge>
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/20 text-[8px] font-semibold">PRO</Badge>
                         </div>
 
                         {/* Analysis Content */}
                         <div className="p-6 space-y-4 max-h-[400px] overflow-y-auto custom-scrollbar">
                             <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Smart Suggestions</span>
-                                <Button variant="ghost" size="sm" className="h-6 text-[9px] font-black uppercase tracking-widest hover:text-primary" onClick={generateSuggestions} disabled={isAnalyzing}>
+                                <span className="text-[10px] font-semibold text-muted-foreground">Smart Suggestions</span>
+                                <Button variant="ghost" size="sm" className="h-6 text-[9px] font-semibold hover:text-primary" onClick={generateSuggestions} disabled={isAnalyzing}>
                                     {isAnalyzing ? "Analyzing..." : "Refresh"}
                                 </Button>
                             </div>
 
                             {suggestions.map((s) => (
-                                <motion.div
+                                <div
                                     key={s.id}
-                                    whileHover={{ x: 4 }}
                                     className="p-4 rounded-2xl bg-secondary/30 border border-white/5 hover:border-primary/20 transition-all cursor-pointer group"
                                 >
                                     <div className="flex gap-4">
@@ -109,7 +108,7 @@ export default function AIScheduleAssistant({ tasks, onApplySuggestion }: AISche
                                         </div>
                                         <div className="space-y-1">
                                             <div className="flex items-center justify-between gap-2">
-                                                <h4 className="text-[11px] font-black uppercase tracking-tight">{s.title}</h4>
+                                                <h4 className="text-[11px] font-semibold">{s.title}</h4>
                                                 <Badge variant="outline" className="text-[7px] py-0 h-4 border-white/10">{s.impact} Impact</Badge>
                                             </div>
                                             <p className="text-[10px] text-muted-foreground leading-relaxed">
@@ -117,13 +116,13 @@ export default function AIScheduleAssistant({ tasks, onApplySuggestion }: AISche
                                             </p>
                                         </div>
                                     </div>
-                                </motion.div>
+                                </div>
                             ))}
                         </div>
 
                         {/* AI Footer */}
                         <div className="p-4 bg-secondary/20 border-t border-white/5">
-                            <Button className="w-full rounded-2xl h-11 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20" onClick={generateSuggestions} disabled={isAnalyzing}>
+                            <Button className="w-full rounded-2xl h-11 text-[10px] font-semibold shadow-lg shadow-primary/20" onClick={generateSuggestions} disabled={isAnalyzing}>
                                 <Sparkles className="h-3.5 w-3.5 mr-2" /> {isAnalyzing ? "Analyzing..." : "Optimize Timeline"}
                             </Button>
                         </div>

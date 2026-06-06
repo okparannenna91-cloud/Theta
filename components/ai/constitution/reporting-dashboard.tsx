@@ -5,6 +5,9 @@ import {
   BarChart3, Clock, Mail, Bell, ArrowRight, Info, CheckCircle2,
   FileText, Globe, Zap, Search, BookOpen, FolderOpen, Target, Users
 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
 interface ReportTypeDef {
@@ -30,11 +33,11 @@ const REPORT_ICONS: Record<string, React.ElementType> = {
 };
 
 const REPORT_COLORS: Record<string, string> = {
-  PROJECT: "from-blue-500/10 to-blue-600/5 border-blue-500/20 text-blue-400",
-  SPRINT: "from-emerald-500/10 to-emerald-600/5 border-emerald-500/20 text-emerald-400",
-  TEAM: "from-violet-500/10 to-violet-600/5 border-violet-500/20 text-violet-400",
-  EXECUTIVE: "from-amber-500/10 to-amber-600/5 border-amber-500/20 text-amber-400",
-  CLIENT: "from-rose-500/10 to-rose-600/5 border-rose-500/20 text-rose-400",
+  PROJECT: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+  SPRINT: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+  TEAM: "text-violet-500 bg-violet-500/10 border-violet-500/20",
+  EXECUTIVE: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+  CLIENT: "text-rose-500 bg-rose-500/10 border-rose-500/20",
 };
 
 const CHANNEL_ICONS: Record<string, React.ElementType> = {
@@ -69,10 +72,10 @@ export function ReportingDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="space-y-4 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-blue-500/10 animate-pulse mx-auto" />
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Loading Reporting Intelligence</p>
+          <Skeleton className="h-10 w-10 rounded-lg mx-auto" />
+          <Skeleton className="h-4 w-40" />
         </div>
       </div>
     );
@@ -81,32 +84,28 @@ export function ReportingDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-          <BarChart3 className="w-5 h-5 text-white" />
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <BarChart3 className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-sm font-black text-white uppercase tracking-wider">Reporting Intelligence</h1>
-          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Section 16 — Nova Reporting Capabilities</p>
+          <h1 className="text-lg font-semibold">Reporting Intelligence</h1>
+          <p className="text-sm text-muted-foreground">Section 16 — Nova Reporting Capabilities</p>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {(["types", "process", "distribution"] as const).map(tab => (
-          <button
+          <Badge
             key={tab}
+            variant={activeTab === tab ? "default" : "outline"}
+            className="cursor-pointer text-xs rounded-md px-3 py-1"
             onClick={() => setActiveTab(tab)}
-            className={cn(
-              "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border transition-all",
-              activeTab === tab
-                ? "bg-blue-500/10 border-blue-500/30 text-blue-400"
-                : "bg-slate-900/50 border-slate-800 text-slate-500 hover:text-slate-300"
-            )}
           >
             {tab === "types" && <BookOpen className="w-3 h-3 inline mr-1.5" />}
             {tab === "process" && <ArrowRight className="w-3 h-3 inline mr-1.5" />}
             {tab === "distribution" && <Bell className="w-3 h-3 inline mr-1.5" />}
             {tab}
-          </button>
+          </Badge>
         ))}
       </div>
 
@@ -114,39 +113,40 @@ export function ReportingDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {data?.reportTypes.map((r, i) => {
             const Icon = REPORT_ICONS[r.type] || FileText;
-            const colorClass = REPORT_COLORS[r.type] || "from-slate-500/10 to-slate-600/5 border-slate-500/20 text-slate-400";
+            const colorClass = REPORT_COLORS[r.type] || "text-muted-foreground bg-muted border-border";
             return (
-              <div
+              <Card
                 key={i}
                 className={cn(
-                  "rounded-2xl border p-5 bg-gradient-to-br space-y-3 transition-all hover:scale-[1.02] cursor-pointer group",
-                  colorClass,
-                  expandedReport === r.type && "ring-2 ring-blue-500/40"
+                  "border shadow-sm hover:border-primary/30 transition-colors cursor-pointer",
+                  expandedReport === r.type && "ring-2 ring-primary/40"
                 )}
                 onClick={() => setExpandedReport(expandedReport === r.type ? null : r.type)}
               >
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center">
-                    <Icon className="w-5 h-5" />
+                <CardContent className="p-5 space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center border", colorClass)}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="text-sm font-semibold text-foreground">{r.type}</h3>
+                      <p className="text-xs text-muted-foreground">Report</p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-black text-white uppercase tracking-wider">{r.type}</h3>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Report</p>
-                  </div>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium">{r.description}</p>
-                {expandedReport === r.type && (
-                  <div className="space-y-2 pt-2 border-t border-slate-800/50">
-                    <span className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Contents</span>
-                    {r.contents.map((c, j) => (
-                      <div key={j} className="flex items-center gap-2 text-[11px] text-slate-400">
-                        <CheckCircle2 className="w-3 h-3 shrink-0" />
-                        <span className="font-medium">{c}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                  <p className="text-sm text-muted-foreground">{r.description}</p>
+                  {expandedReport === r.type && (
+                    <div className="space-y-2 pt-2 border-t border-border">
+                      <span className="text-xs font-medium text-muted-foreground">Contents</span>
+                      {r.contents.map((c, j) => (
+                        <div key={j} className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <CheckCircle2 className="w-3 h-3 shrink-0" />
+                          <span>{c}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -157,13 +157,13 @@ export function ReportingDashboard() {
           {data?.generationProcess.map((step, i) => (
             <div key={i} className="flex items-start gap-4 pb-8 last:pb-0 relative">
               <div className="flex flex-col items-center">
-                <div className="w-8 h-8 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center">
-                  <span className="text-[10px] font-black text-blue-400">{i + 1}</span>
+                <div className="w-8 h-8 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center">
+                  <span className="text-xs font-semibold text-primary">{i + 1}</span>
                 </div>
-                {i < (data?.generationProcess.length || 1) - 1 && <div className="w-px flex-1 bg-slate-800 mt-1" />}
+                {i < (data?.generationProcess.length || 1) - 1 && <div className="w-px flex-1 bg-border mt-1" />}
               </div>
               <div className="flex-1 pt-1">
-                <p className="text-xs text-slate-300 font-medium">{step}</p>
+                <p className="text-sm text-muted-foreground">{step}</p>
               </div>
             </div>
           ))}
@@ -174,28 +174,30 @@ export function ReportingDashboard() {
         <div className="space-y-6">
           {/* Frequencies */}
           <div className="space-y-3">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Frequencies</h3>
+            <h3 className="text-sm font-semibold text-foreground">Frequencies</h3>
             <div className="flex flex-wrap gap-2">
               {data?.frequencies.map((f, i) => (
-                <span key={i} className="text-[9px] font-bold text-slate-400 px-3 py-1.5 rounded-lg bg-slate-900/50 border border-slate-800 flex items-center gap-1.5">
+                <Badge key={i} variant="outline" className="text-xs rounded-md px-3 py-1.5 flex items-center gap-1.5">
                   <Clock className="w-3 h-3" />
                   {f}
-                </span>
+                </Badge>
               ))}
             </div>
           </div>
 
           {/* Channels */}
           <div className="space-y-3">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Distribution Channels</h3>
+            <h3 className="text-sm font-semibold text-foreground">Distribution Channels</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {data?.channels.map((ch, i) => {
                 const Icon = CHANNEL_ICONS[ch] || Bell;
                 return (
-                  <div key={i} className="flex items-center gap-3 px-4 py-3 bg-slate-900/50 border border-slate-800 rounded-xl group hover:border-blue-500/20 transition-all">
-                    <Icon className="w-4 h-4 text-blue-400 shrink-0" />
-                    <span className="text-xs text-slate-300 font-medium">{ch.replace(/_/g, " ")}</span>
-                  </div>
+                  <Card key={i} className="border shadow-sm hover:border-primary/30 transition-colors">
+                    <CardContent className="flex items-center gap-3 px-4 py-3">
+                      <Icon className="w-4 h-4 text-primary shrink-0" />
+                      <span className="text-sm text-muted-foreground">{ch.replace(/_/g, " ")}</span>
+                    </CardContent>
+                  </Card>
                 );
               })}
             </div>
@@ -203,11 +205,11 @@ export function ReportingDashboard() {
 
           {/* What Every Report Answers */}
           <div className="space-y-3">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Every Report Answers</h3>
+            <h3 className="text-sm font-semibold text-foreground">Every Report Answers</h3>
             {data?.answers.map((a, i) => (
-              <div key={i} className="flex items-center gap-3 p-3 bg-slate-900/50 border border-slate-800 rounded-xl">
-                <Info className="w-3.5 h-3.5 text-blue-400 shrink-0" />
-                <span className="text-xs text-slate-300 font-medium">{a}</span>
+              <div key={i} className="flex items-center gap-3 p-3 bg-muted border border-border rounded-lg">
+                <Info className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="text-sm text-muted-foreground">{a}</span>
               </div>
             ))}
           </div>

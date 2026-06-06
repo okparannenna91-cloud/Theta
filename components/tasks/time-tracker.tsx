@@ -110,9 +110,9 @@ export function TimeTracker({ taskId, onTimeLogged }: TimeTrackerProps) {
             <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-muted-foreground">
                     <Clock className="h-4 w-4" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Time Tracking</span>
+                    <span className="text-[10px] font-semibold">Time Tracking</span>
                 </div>
-                <div className="text-xl font-mono font-black tabular-nums text-indigo-600 dark:text-indigo-400">
+                <div className="text-xl font-mono font-semibold tabular-nums text-primary dark:text-primary/80">
                     {formatTime(seconds)}
                 </div>
             </div>

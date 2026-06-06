@@ -50,8 +50,8 @@ export default function ResourceHeatmap({ tasks, startDate, daysCount, cellWidth
                     <Users className="h-4 w-4 text-primary" />
                 </div>
                 <div>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-foreground">Team Capacity</p>
-                    <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-tighter">Aggregate Workload Heatmap</p>
+                    <p className="text-[10px] font-semibold text-foreground">Team Capacity</p>
+                    <p className="text-[9px] font-bold text-muted-foreground">Aggregate Workload Heatmap</p>
                 </div>
             </div>
 
@@ -91,7 +91,7 @@ export default function ResourceHeatmap({ tasks, startDate, daysCount, cellWidth
                                     </TooltipTrigger>
                                     <TooltipContent className="bg-slate-900 text-white border-none rounded-xl p-3 shadow-2xl">
                                         <div className="space-y-1">
-                                            <p className="text-[10px] font-black uppercase tracking-widest">Workload: {count} Tasks</p>
+                                            <p className="text-[10px] font-semibold">Workload: {count} Tasks</p>
                                             {isOverloaded && (
                                                 <p className="text-[9px] text-rose-400 font-bold flex items-center gap-1">
                                                     <AlertTriangle className="h-3 w-3" /> CRITICAL CAPACITY

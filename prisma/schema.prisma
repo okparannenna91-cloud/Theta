@@ -59,7 +59,7 @@ model Form {
   description String?
   workspaceId String   @db.ObjectId
   userId      String   @db.ObjectId
-  fields      Json     // Array of form field definitions
+  fields      Json     // Array of form field definitions. Validated at write via Zod schema (see app/api/forms/route.ts).
   isPublic    Boolean  @default(false)
   slug        String   @unique
   createdAt   DateTime @default(now())
@@ -272,8 +272,12 @@ model Task {
   baselineStartDate DateTime?
   baselineDueDate   DateTime?
   
+  // NOTE: This field stores custom field metadata (not file attachments) despite the name.
+  // File attachments use a separate Comment/Message attachment mechanism.
+  // See lib/ai-tools/index.ts:472-473 where it's used with `customFields` key.
   attachments   Json?    @db.Json
 
+  // TODO: Rename field to `assigneeId` — currently named `userId` but stores the assignee's ID.
   fieldValues   Json?    @db.Json // Dynamic field values for column types - stored as key-value pairs {columnId: value}
   location     String?
   email        String?

@@ -1,7 +1,8 @@
 
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { getPrismaClient } from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 export async function GET(req: Request) {
     try {
@@ -17,7 +18,8 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        const workspace = await prisma.workspace.findUnique({
+        const db = getPrismaClient(workspaceId);
+        const workspace = await db.workspace.findUnique({
             where: { id: workspaceId },
             select: {
                 id: true,
@@ -44,7 +46,7 @@ export async function GET(req: Request) {
             updatedAt: workspace.updatedAt
         });
     } catch (error: any) {
-        console.error("Subscription API error:", error);
+        logger.error("Subscription API error:", error);
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
     }
 }

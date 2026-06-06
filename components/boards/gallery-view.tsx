@@ -91,9 +91,9 @@ export default function GalleryView({ tasks, columns, onSelectTask }: GalleryVie
                 </div>
               )}
               {!hasCover && (
-                <div className="aspect-video bg-gradient-to-br from-indigo-500/10 to-purple-500/10 flex items-center justify-center">
+                <div className="aspect-video bg-gradient-to-br from-primary/10 to-purple-500/10 flex items-center justify-center">
                   <div className="h-12 w-12 rounded-2xl bg-white dark:bg-slate-900 shadow-sm flex items-center justify-center">
-                    <Flag className="h-6 w-6 text-indigo-500" />
+                    <Flag className="h-6 w-6 text-primary" />
                   </div>
                 </div>
               )}
@@ -101,7 +101,7 @@ export default function GalleryView({ tasks, columns, onSelectTask }: GalleryVie
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <div className={cn("flex items-center gap-1.5", cardSize === "sm" ? "flex-col items-start" : "")}>
                     <div className={cn("h-2 w-2 rounded-full", statusColor[task.status] || "bg-slate-400")} />
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">
+                    <span className="text-[10px] font-bold text-slate-500">
                       {task.status?.replace("_", " ") || "Todo"}
                     </span>
                   </div>

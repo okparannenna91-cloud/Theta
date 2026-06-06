@@ -1,7 +1,19 @@
 import { getPrismaClient } from "../prisma";
+import { logger } from "../logger";
 import { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, getContextPriority, type ContextSource } from "./constitution/context";
 
 export { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, type ContextSource } from "./constitution/context";
+
+const MAX_CONTEXT_TOKENS = 3000;
+function estimateTokens(text: string): number {
+  return Math.ceil(text.length / 4);
+}
+function truncateToBudget(text: string, budget: number): string {
+  const tokens = estimateTokens(text);
+  if (tokens <= budget) return text;
+  const ratio = budget / tokens;
+  return text.slice(0, Math.floor(text.length * ratio)) + "\n[context truncated to fit token budget]";
+}
 
 export interface ContextOptions {
   workspaceId: string;
@@ -79,6 +91,9 @@ export class ContextSystem {
       promptString += `[OPERATOR] ACTIVE USER (Priority 6):\n- Name: ${resolvedContext.user.name || "N/A"}\n- Email: ${resolvedContext.user.email}\n`;
     }
 
+    const budgetPerSection = Math.floor(MAX_CONTEXT_TOKENS / 6);
+    promptString = truncateToBudget(promptString, MAX_CONTEXT_TOKENS);
+
     return { structured: resolvedContext, promptString };
   }
 
@@ -109,7 +124,7 @@ export class ContextSystem {
       });
       return snapshot.id;
     } catch (error) {
-      console.warn("[ContextSystem] Failed to save snapshot:", error);
+      logger.warn("[ContextSystem] Failed to save snapshot:", error);
       return null;
     }
   }
@@ -131,7 +146,7 @@ export class ContextSystem {
       });
       return snapshots;
     } catch (error) {
-      console.warn("[ContextSystem] Failed to get snapshots:", error);
+      logger.warn("[ContextSystem] Failed to get snapshots:", error);
       return [];
     }
   }

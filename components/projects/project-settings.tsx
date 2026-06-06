@@ -97,53 +97,53 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
     return (
         <div className="max-w-4xl space-y-8 h-full overflow-y-auto pr-2 pb-10">
             <div className="flex items-center gap-3 mb-8">
-                 <div className="h-12 w-12 rounded-2xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 shadow-inner">
+                 <div className="h-12 w-12 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-500 shadow-sm">
                       <SettingsIcon className="h-6 w-6" />
                  </div>
                  <div>
-                     <h3 className="text-2xl font-black uppercase tracking-tight">Project Configuration</h3>
-                     <p className="text-xs font-black uppercase tracking-widest text-indigo-500 mt-1">Manage Settings & Danger Zone</p>
+                     <h3 className="text-2xl font-semibold tracking-tight">Project Configuration</h3>
+                     <p className="text-xs font-semibold text-muted-foreground mt-1">Manage Settings & Danger Zone</p>
                  </div>
             </div>
 
-            <Card className="rounded-3xl border-slate-200/60 dark:border-slate-800/60 shadow-lg overflow-hidden">
+            <Card className="rounded-xl border-slate-200/60 dark:border-slate-800/60 shadow-sm overflow-hidden">
                 <CardHeader className="bg-slate-50/50 dark:bg-slate-900/50 border-b">
-                    <CardTitle className="text-lg font-black uppercase tracking-tight">General Details</CardTitle>
-                    <CardDescription className="text-xs font-bold uppercase tracking-widest">Update the foundational identity of this project.</CardDescription>
+                    <CardTitle className="text-lg font-semibold tracking-tight">General Details</CardTitle>
+                    <CardDescription className="text-xs font-semibold">Update the foundational identity of this project.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 pt-6">
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Project Name</Label>
+                        <Label className="text-xs font-semibold text-slate-500">Project Name</Label>
                         <Input 
                             value={name} 
                             onChange={(e) => setName(e.target.value)} 
-                            className="h-12 rounded-xl font-medium"
+                            className="h-12 rounded-lg font-medium"
                             placeholder="Enter project name..."
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Description</Label>
+                        <Label className="text-xs font-semibold text-slate-500">Description</Label>
                         <Textarea 
                             value={description} 
                             onChange={(e) => setDescription(e.target.value)}
-                            className="rounded-xl min-h-[120px] resize-none font-medium"
+                            className="rounded-lg min-h-[120px] resize-none font-medium"
                             placeholder="Describe the project goals..."
                         />
                     </div>
 
                     <div className="space-y-2">
-                         <Label className="text-[10px] font-black uppercase tracking-widest text-slate-500">Brand Color</Label>
+                         <Label className="text-xs font-semibold text-slate-500">Brand Color</Label>
                          <div className="flex items-center gap-4">
                               <Input 
                                   type="color" 
                                   value={color} 
                                   onChange={(e) => setColor(e.target.value)}
-                                  className="h-12 w-20 p-1 rounded-xl cursor-pointer"
+                                  className="h-12 w-20 p-1 rounded-lg cursor-pointer"
                               />
-                              <div className="flex-1 px-4 py-3 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center gap-3">
-                                   <div className="h-6 w-6 rounded-full shadow-inner" style={{ backgroundColor: color }} />
-                                   <span className="text-sm font-bold opacity-70 uppercase">{color}</span>
+                              <div className="flex-1 px-4 py-3 rounded-lg border-2 border-dashed border-slate-200 dark:border-slate-800 flex items-center gap-3">
+                                   <div className="h-6 w-6 rounded-full shadow-sm" style={{ backgroundColor: color }} />
+                                   <span className="text-sm font-semibold opacity-70">{color}</span>
                               </div>
                          </div>
                     </div>
@@ -152,7 +152,7 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
                     <Button 
                         onClick={() => updateMutation.mutate()} 
                         disabled={updateMutation.isPending || !name}
-                        className="rounded-2xl px-8 font-black uppercase tracking-widest text-[10px] h-12 bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
+                        className="rounded-lg px-8 font-semibold h-12 bg-primary hover:bg-primary/90 shadow-sm"
                     >
                         {updateMutation.isPending ? "Saving..." : "Save Changes"}
                         {!updateMutation.isPending && <CheckCircle2 className="h-4 w-4 ml-2" />}
@@ -160,17 +160,17 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
                 </CardFooter>
             </Card>
 
-            <Card className="rounded-3xl border-red-200 dark:border-red-900/50 shadow-lg overflow-hidden bg-red-50/30 dark:bg-red-950/20">
+            <Card className="rounded-xl border-red-200 dark:border-red-900/50 shadow-sm overflow-hidden bg-red-50/30 dark:bg-red-950/20">
                 <CardHeader className="border-b border-red-100 dark:border-red-900/30">
-                    <CardTitle className="text-lg font-black uppercase tracking-tight text-red-600 flex items-center gap-2">
+                    <CardTitle className="text-lg font-semibold tracking-tight text-red-600 flex items-center gap-2">
                          <AlertTriangle className="h-5 w-5" /> Danger Zone
                     </CardTitle>
-                    <CardDescription className="text-xs font-bold uppercase tracking-widest text-red-500/70">Irreversible actions that affect the entire project lifecycle.</CardDescription>
+                    <CardDescription className="text-xs font-semibold text-red-500/70">Irreversible actions that affect the entire project lifecycle.</CardDescription>
                 </CardHeader>
                 <CardContent className="p-6">
                     <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                          <div>
-                              <h4 className="font-black text-sm uppercase">Delete Project</h4>
+                              <h4 className="font-semibold text-sm">Delete Project</h4>
                               <p className="text-xs text-muted-foreground mt-1 max-w-md font-medium">
                                   This action is permanent and will delete all tasks, boards, comments, and files associated with this project.
                               </p>
@@ -178,7 +178,7 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
                          <Button 
                              variant="destructive" 
                              onClick={handleDeleteClick}
-                             className="rounded-2xl font-black uppercase tracking-widest text-[10px] h-11"
+                             className="rounded-lg font-semibold h-11"
                          >
                              <Trash2 className="h-4 w-4 mr-2" />
                              Delete Project

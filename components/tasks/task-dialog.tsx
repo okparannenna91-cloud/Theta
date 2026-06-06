@@ -22,7 +22,7 @@ import {
 } from "@/components/ui/select";
 import { Calendar as CalendarIcon, Flag, Layout, Type, AlignLeft, Clock, Sparkles, Loader2 as Spinner, X, Trash2, Palette, AlertCircle } from "lucide-react";
 import { format } from "date-fns";
-import { motion, AnimatePresence } from "framer-motion";
+
 import { useAbly } from "@/hooks/use-ably";
 import { getTaskChannel } from "@/lib/ably";
 import {
@@ -159,7 +159,7 @@ Last Description: ${description}`,
             const data = await res.json();
             setSummary(data.text);
         } catch (error) {
-            toast.error("Nova couldn't summarize this task.");
+            toast.error("Couldn't summarize this task.");
         } finally {
             setIsSummarizing(false);
         }
@@ -169,28 +169,28 @@ Last Description: ${description}`,
 
     return (
         <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <SheetContent side="right" className="fixed left-auto right-0 top-0 translate-x-0 translate-y-0 h-[100dvh] w-full sm:w-[95vw] md:w-[85vw] lg:w-[1100px] sm:max-w-none p-0 border-l border-indigo-500/10 bg-white/95 dark:bg-slate-950/95 backdrop-blur-3xl shadow-2xl rounded-none sm:rounded-l-[2rem] overflow-hidden flex flex-col selection:bg-indigo-500/30">
+            <SheetContent side="right" className="fixed left-auto right-0 top-0 translate-x-0 translate-y-0 h-[100dvh] w-full sm:w-[95vw] md:w-[85vw] lg:w-[1100px] sm:max-w-none p-0 border-l bg-background/95 backdrop-blur-3xl shadow-2xl rounded-none sm:rounded-l-xl overflow-hidden flex flex-col">
                 {/* Top Bar (Breadcrumbs & Actions) */}
-                <div className="h-16 border-b border-indigo-500/5 px-6 sm:px-8 flex items-center justify-between shrink-0 bg-white/50 dark:bg-slate-950/50 backdrop-blur-md sticky top-0 z-20">
-                    <div className="flex items-center gap-3 text-xs font-black uppercase tracking-widest text-slate-400">
-                        <span className="hover:text-indigo-600 transition-colors cursor-pointer">Workspace</span>
+                <div className="h-16 border-b px-6 sm:px-8 flex items-center justify-between shrink-0 bg-background/50 backdrop-blur-md sticky top-0 z-20">
+                    <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
+                        <span className="hover:text-primary transition-colors cursor-pointer">Workspace</span>
                         <span>/</span>
-                        <span className="hover:text-indigo-600 transition-colors cursor-pointer">Task Node</span>
+                        <span className="hover:text-primary transition-colors cursor-pointer">Tasks</span>
                         <span>/</span>
-                        <span className="text-slate-900 dark:text-white truncate max-w-[150px] sm:max-w-[300px]">
-                            {task.title || "Unidentified"}
+                        <span className="text-foreground truncate max-w-[150px] sm:max-w-[300px]">
+                            {task.title || "Untitled"}
                         </span>
                     </div>
 
                     <div className="flex items-center gap-4">
-                        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[9px] font-black uppercase tracking-widest">
-                            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                            Synchronized
+                        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
+                            <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                            Synced
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="h-8 w-8 rounded-full text-slate-400 hover:text-rose-600 hover:bg-rose-500/10 transition-colors">
+                        <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
                             <Trash2 className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+                        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-full hover:bg-muted transition-colors">
                             <X className="h-4 w-4" />
                         </Button>
                     </div>
@@ -200,30 +200,30 @@ Last Description: ${description}`,
                 <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
                     <div className="flex flex-col lg:flex-row min-h-full">
                         {/* Left Column (70%) */}
-                        <div className="flex-1 p-8 sm:p-12 lg:p-16 space-y-12 lg:border-r border-indigo-500/5">
+                        <div className="flex-1 p-8 sm:p-12 lg:p-16 space-y-12 lg:border-r">
                             {/* Title & Description */}
                             <div className="space-y-8">
                                 <Input
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                     onBlur={() => handleUpdate("title", title)}
-                                    className="text-4xl sm:text-5xl font-black bg-transparent border-none p-0 focus-visible:ring-0 placeholder:text-slate-200 h-auto uppercase tracking-tighter leading-none"
-                                    placeholder="NODE IDENTIFIER..."
+                                    className="text-4xl sm:text-5xl font-semibold bg-transparent border-none p-0 focus-visible:ring-0 placeholder:text-muted-foreground/30 h-auto tracking-tight leading-none"
+                                    placeholder="Task title"
                                 />
                                 <Textarea
                                     value={description}
                                     onChange={(e) => setDescription(e.target.value)}
                                     onBlur={() => handleUpdate("description", description)}
-                                    className="min-h-[120px] bg-transparent border border-transparent hover:border-indigo-500/10 focus-visible:border-indigo-500/20 focus-visible:bg-slate-50/50 dark:focus-visible:bg-slate-900/50 rounded-2xl p-6 text-base font-bold resize-y focus-visible:ring-0 leading-relaxed placeholder:text-slate-400 transition-all"
-                                    placeholder="Define the scope of this operational node..."
+                                    className="min-h-[120px] bg-transparent border border-transparent hover:border-primary/10 focus-visible:border-primary/20 focus-visible:bg-muted/50 rounded-lg p-6 text-base resize-y focus-visible:ring-0 leading-relaxed placeholder:text-muted-foreground transition-all"
+                                    placeholder="Add a description..."
                                 />
                             </div>
 
                             {/* Subtasks */}
                             <div className="space-y-6">
                                 <div className="flex items-center gap-3">
-                                    <Sparkles className="h-4 w-4 text-indigo-600" />
-                                    <h3 className="text-lg font-black uppercase tracking-tighter">Sub-Process Integration</h3>
+                                    <Sparkles className="h-4 w-4 text-primary" />
+                                    <h3 className="text-lg font-semibold tracking-tight">Subtasks</h3>
                                 </div>
                                 <TaskSubtasks taskId={task.id} />
                             </div>
@@ -231,19 +231,19 @@ Last Description: ${description}`,
                             {/* Attachments */}
                             <div className="space-y-6">
                                 <div className="flex items-center gap-3">
-                                    <Palette className="h-4 w-4 text-indigo-600" />
-                                    <h3 className="text-lg font-black uppercase tracking-tighter">Data Artifacts</h3>
+                                    <Palette className="h-4 w-4 text-primary" />
+                                    <h3 className="text-lg font-semibold tracking-tight">Attachments</h3>
                                 </div>
                                 <TaskAttachments taskId={task.id} workspaceId={workspaceId} attachments={task.attachments || []} />
                             </div>
 
-                            <hr className="border-indigo-500/10 my-8" />
+                            <hr className="border-border/10 my-8" />
 
                             {/* Comments */}
                             <div className="space-y-6">
                                 <div className="flex items-center gap-3">
-                                    <Type className="h-4 w-4 text-indigo-600" />
-                                    <h3 className="text-lg font-black uppercase tracking-tighter">Stream Dialogue</h3>
+                                    <Type className="h-4 w-4 text-primary" />
+                                    <h3 className="text-lg font-semibold tracking-tight">Comments</h3>
                                 </div>
                                 <TaskComments taskId={task.id} workspaceId={workspaceId} />
                             </div>
@@ -251,61 +251,61 @@ Last Description: ${description}`,
                             {/* Activity */}
                             <div className="space-y-6 pt-12 opacity-50 hover:opacity-100 transition-opacity">
                                 <div className="flex items-center gap-3">
-                                    <Clock className="h-4 w-4 text-indigo-600" />
-                                    <h3 className="text-lg font-black uppercase tracking-tighter">Event Logs</h3>
+                                    <Clock className="h-4 w-4 text-primary" />
+                                    <h3 className="text-lg font-semibold tracking-tight">Activity</h3>
                                 </div>
                                 <TaskActivity taskId={task.id} workspaceId={workspaceId} />
                             </div>
                         </div>
 
                         {/* Right Column (30%) */}
-                        <div className="w-full lg:w-[320px] xl:w-[360px] shrink-0 p-8 sm:p-10 bg-slate-50/30 dark:bg-slate-950/30">
+                        <div className="w-full lg:w-[320px] xl:w-[360px] shrink-0 p-8 sm:p-10 bg-muted/30">
                             <div className="sticky top-8 space-y-10">
                                 {/* Core Metadata */}
                                 <div className="space-y-6">
                                     <div className="space-y-3">
-                                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Process Status</Label>
+                                        <Label className="text-xs font-medium text-muted-foreground ml-1">Status</Label>
                                         <Select value={status} onValueChange={(val: string) => { setStatus(val); handleUpdate("status", val); }}>
-                                            <SelectTrigger className="w-full h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:border-indigo-500/30 transition-colors">
+                                            <SelectTrigger className="w-full h-11 bg-background border rounded-lg text-xs shadow-sm hover:border-primary/30 transition-colors">
                                                 <SelectValue placeholder="Status" />
                                             </SelectTrigger>
-                                            <SelectContent className="bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-indigo-500/20 rounded-2xl p-2">
+                                            <SelectContent className="bg-background/95 backdrop-blur-2xl border rounded-lg p-2">
                                                 {statuses.map((s: any) => (
-                                                    <SelectItem key={s.id} value={s.id} className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 cursor-pointer">{s.name}</SelectItem>
+                                                    <SelectItem key={s.id} value={s.id} className="rounded-md text-xs p-3 cursor-pointer">{s.name}</SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
                                     </div>
 
                                     <div className="space-y-3">
-                                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Priority Level</Label>
+                                        <Label className="text-xs font-medium text-muted-foreground ml-1">Priority</Label>
                                         <Select value={priority} onValueChange={(val: string) => { setPriority(val); handleUpdate("priority", val); }}>
-                                            <SelectTrigger className="w-full h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm hover:border-indigo-500/30 transition-colors">
+                                            <SelectTrigger className="w-full h-11 bg-background border rounded-lg text-xs shadow-sm hover:border-primary/30 transition-colors">
                                                 <SelectValue placeholder="Priority" />
                                             </SelectTrigger>
-                                            <SelectContent className="bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-indigo-500/20 rounded-2xl p-2">
-                                                <SelectItem value="low" className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 cursor-pointer text-emerald-500">STANDARD</SelectItem>
-                                                <SelectItem value="medium" className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 cursor-pointer text-amber-500">ELEVATED</SelectItem>
-                                                <SelectItem value="high" className="rounded-xl font-black uppercase tracking-widest text-[9px] p-3 cursor-pointer text-red-500">CRITICAL</SelectItem>
+                                            <SelectContent className="bg-background/95 backdrop-blur-2xl border rounded-lg p-2">
+                                                <SelectItem value="low" className="rounded-md text-xs p-3 cursor-pointer text-emerald-500">Low</SelectItem>
+                                                <SelectItem value="medium" className="rounded-md text-xs p-3 cursor-pointer text-amber-500">Medium</SelectItem>
+                                                <SelectItem value="high" className="rounded-md text-xs p-3 cursor-pointer text-red-500">High</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
 
                                     <div className="space-y-3">
-                                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Deadline Vector</Label>
+                                        <Label className="text-xs font-medium text-muted-foreground ml-1">Due Date</Label>
                                         <Popover>
                                             <PopoverTrigger asChild>
-                                                <Button variant="outline" className={cn("w-full h-11 justify-start text-left font-black text-[10px] uppercase tracking-widest bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:border-indigo-500/30 transition-colors", !dueDate && "text-slate-400")}>
-                                                    <CalendarIcon className="mr-3 h-4 w-4 text-indigo-600" />
-                                                    {dueDate ? format(dueDate, "PPP") : <span>Initialize Date</span>}
+                                                <Button variant="outline" className={cn("w-full h-11 justify-start text-left font-medium text-xs bg-background border rounded-lg shadow-sm hover:border-primary/30 transition-colors", !dueDate && "text-muted-foreground")}>
+                                                    <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
+                                                    {dueDate ? format(dueDate, "PPP") : <span>Set date</span>}
                                                 </Button>
                                             </PopoverTrigger>
-                                            <PopoverContent className="w-auto p-6 bg-white/95 dark:bg-slate-950/95 backdrop-blur-2xl border-indigo-500/20 rounded-3xl shadow-2xl" align="start">
+                                            <PopoverContent className="w-auto p-6 bg-background/95 backdrop-blur-2xl border rounded-xl shadow-2xl" align="start">
                                                 <div className="flex flex-col gap-4">
-                                                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Target Chronos</Label>
-                                                    <input
+                                                    <Label className="text-xs font-medium text-muted-foreground">Date</Label>
+                                                    <Input
                                                         type="date"
-                                                        className="w-full h-12 px-5 bg-slate-50 dark:bg-slate-900 border-none rounded-xl text-xs font-bold focus:ring-2 focus:ring-indigo-500/20"
+                                                        className="w-full h-12 px-5 bg-muted border-none rounded-lg text-xs focus:ring-2 focus:ring-primary/20"
                                                         value={dueDate ? format(dueDate, "yyyy-MM-dd") : ""}
                                                         onChange={(e) => {
                                                             const date = e.target.value ? new Date(e.target.value) : undefined;
@@ -320,7 +320,7 @@ Last Description: ${description}`,
 
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-3">
-                                            <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Est. (h)</Label>
+                                            <Label className="text-xs font-medium text-muted-foreground ml-1">Est. (h)</Label>
                                             <Input
                                                 type="number"
                                                 value={estimatedHours}
@@ -329,11 +329,11 @@ Last Description: ${description}`,
                                                     setEstimatedHours(val);
                                                     handleUpdate("estimatedHours", val);
                                                 }}
-                                                className="h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-black shadow-sm text-center hover:border-indigo-500/30 transition-colors"
+                                                className="h-11 bg-background border rounded-lg text-xs shadow-sm text-center hover:border-primary/30 transition-colors"
                                             />
                                         </div>
                                         <div className="space-y-3">
-                                            <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Done (%)</Label>
+                                            <Label className="text-xs font-medium text-muted-foreground ml-1">Done (%)</Label>
                                             <Input
                                                 type="number"
                                                 min="0"
@@ -344,13 +344,13 @@ Last Description: ${description}`,
                                                     setProgress(val);
                                                     handleUpdate("progress", val);
                                                 }}
-                                                className="h-11 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl text-xs font-black shadow-sm text-center hover:border-indigo-500/30 transition-colors"
+                                                className="h-11 bg-background border rounded-lg text-xs shadow-sm text-center hover:border-primary/30 transition-colors"
                                             />
                                         </div>
                                     </div>
                                     
                                     <div className="space-y-3">
-                                        <Label className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-1">Visual Signature</Label>
+                                        <Label className="text-xs font-medium text-muted-foreground ml-1">Color</Label>
                                         <div className="flex flex-wrap gap-2">
                                             {["", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", "#ec4899", "#64748b", "#0f172a", "#4f46e5"].map((c) => (
                                                 <button
@@ -360,9 +360,9 @@ Last Description: ${description}`,
                                                         handleUpdate("color", c);
                                                     }}
                                                     className={cn(
-                                                        "h-6 w-6 rounded-full border border-slate-200 dark:border-slate-800 transition-all duration-300",
-                                                        color === c ? "ring-2 ring-indigo-500 ring-offset-2 dark:ring-offset-slate-950 scale-110 shadow-md" : "hover:scale-110",
-                                                        !c && "bg-slate-100 dark:bg-slate-800"
+                                                        "h-6 w-6 rounded-full border transition-all duration-300",
+                                                        color === c ? "ring-2 ring-primary ring-offset-2 dark:ring-offset-background scale-110 shadow-md" : "hover:scale-110",
+                                                        !c && "bg-muted"
                                                     )}
                                                     style={c ? { backgroundColor: c } : {}}
                                                 />
@@ -378,22 +378,22 @@ Last Description: ${description}`,
                                 </div>
 
                                 {/* Advanced Utilities */}
-                                <div className="space-y-4 pt-6 border-t border-indigo-500/10">
+                                <div className="space-y-4 pt-6 border-t">
                                     <TimeTracker taskId={task.id} />
                                     
                                     <Button
                                         variant="outline"
-                                        className="w-full h-12 justify-start gap-3 bg-indigo-600/5 hover:bg-indigo-600 border-none hover:text-white text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-widest text-[10px] rounded-xl transition-all group"
+                                        className="w-full h-12 justify-start gap-3 bg-primary/5 hover:bg-primary border-none hover:text-primary-foreground text-primary font-semibold text-xs rounded-lg transition-all group"
                                         onClick={handleAISummary}
                                         disabled={isSummarizing}
                                     >
                                         {isSummarizing ? <Spinner className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 group-hover:scale-110 transition-transform" />}
-                                        {isSummarizing ? "Synthesizing..." : "Nova Intelligence"}
+                                        {isSummarizing ? "Summarizing..." : "AI Summary"}
                                     </Button>
 
                                     <Button
                                         variant="outline"
-                                        className="w-full h-12 justify-start gap-3 bg-rose-500/5 hover:bg-rose-500 border-none hover:text-white text-rose-600 dark:text-rose-400 font-black uppercase tracking-widest text-[10px] rounded-xl transition-all group"
+                                        className="w-full h-12 justify-start gap-3 bg-destructive/5 hover:bg-destructive border-none hover:text-destructive-foreground text-destructive font-semibold text-xs rounded-lg transition-all group"
                                         onClick={async () => {
                                             setIsSummarizing(true);
                                             try {
@@ -417,50 +417,39 @@ Last Description: ${description}`,
                                         Risk Analysis
                                     </Button>
 
-                                    <AnimatePresence>
-                                        {summary && (
-                                            <motion.div 
-                                                initial={{ opacity: 0, height: 0 }}
-                                                animate={{ opacity: 1, height: "auto" }}
-                                                exit={{ opacity: 0, height: 0 }}
-                                                className="overflow-hidden"
-                                            >
-                                                <div className="p-5 mt-4 bg-indigo-600 text-white rounded-2xl relative shadow-lg">
-                                                    <button onClick={() => setSummary(null)} className="absolute top-4 right-4 text-white/50 hover:text-white transition-colors">
-                                                        <X className="h-4 w-4" />
-                                                    </button>
-                                                    <div className="flex items-center gap-2 mb-3">
-                                                        <Sparkles className="h-3.5 w-3.5" />
-                                                        <span className="text-[9px] font-black uppercase tracking-widest">Neural Insights</span>
-                                                    </div>
-                                                    <p className="text-xs font-medium leading-relaxed opacity-90">
-                                                        {summary}
-                                                    </p>
+                                    {summary && (
+                                        <div className="overflow-hidden">
+                                            <div className="p-5 mt-4 bg-primary/10 text-foreground rounded-lg relative">
+                                                <button onClick={() => setSummary(null)} className="absolute top-4 right-4 text-muted-foreground/50 hover:text-foreground transition-colors">
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <Sparkles className="h-3.5 w-3.5 text-primary" />
+                                                    <span className="text-xs font-semibold text-primary">Insights</span>
                                                 </div>
-                                            </motion.div>
-                                        )}
-                                    </AnimatePresence>
+                                                <p className="text-xs leading-relaxed text-muted-foreground">
+                                                    {summary}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 
                                 {showDeleteConfirm && (
-                                    <motion.div 
-                                        initial={{ opacity: 0, y: 10 }}
-                                        animate={{ opacity: 1, y: 0 }}
-                                        className="p-5 bg-rose-500/10 border border-rose-500/20 rounded-2xl space-y-4"
-                                    >
-                                        <div className="flex items-center gap-2 text-rose-600">
+                                    <div className="p-5 bg-destructive/10 border border-destructive/20 rounded-lg space-y-4">
+                                        <div className="flex items-center gap-2 text-destructive">
                                             <AlertCircle className="h-4 w-4" />
-                                            <span className="text-[10px] font-black uppercase tracking-widest">Confirm Deletion?</span>
+                                            <span className="text-xs font-semibold">Delete task?</span>
                                         </div>
                                         <div className="flex gap-2">
-                                            <Button size="sm" variant="ghost" className="flex-1 h-9 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-rose-500/10 hover:text-rose-600" onClick={() => setShowDeleteConfirm(false)}>
+                                            <Button size="sm" variant="ghost" className="flex-1 h-9 rounded-md hover:bg-destructive/10 hover:text-destructive" onClick={() => setShowDeleteConfirm(false)}>
                                                 Cancel
                                             </Button>
-                                            <Button size="sm" className="flex-1 h-9 rounded-lg text-[9px] font-black uppercase tracking-widest bg-rose-600 hover:bg-rose-700 text-white" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
+                                            <Button size="sm" className="flex-1 h-9 rounded-md bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
                                                 {deleteMutation.isPending ? "..." : "Delete"}
                                             </Button>
                                         </div>
-                                    </motion.div>
+                                    </div>
                                 )}
                             </div>
                         </div>

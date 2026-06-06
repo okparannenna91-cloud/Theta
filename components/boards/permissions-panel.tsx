@@ -144,8 +144,8 @@ export default function PermissionsPanel({ workspaceId, boardId }: PermissionsPa
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-                activeTab === tab.id ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all whitespace-nowrap",
+                activeTab === tab.id ? "bg-primary text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
               <Icon className="h-3 w-3" /> {tab.label}
@@ -221,7 +221,7 @@ export default function PermissionsPanel({ workspaceId, boardId }: PermissionsPa
               </CardContent>
             </Card>
 
-            <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 px-1">Member Roles</h4>
+            <h4 className="text-xs font-bold text-slate-500 px-1">Member Roles</h4>
             {memberList.map((member: any) => {
               const roleBadge = ROLE_BADGES[member.role] || ROLE_BADGES.viewer;
               return (
@@ -237,7 +237,7 @@ export default function PermissionsPanel({ workspaceId, boardId }: PermissionsPa
                           <p className="text-[9px] text-muted-foreground">{member.email}</p>
                         </div>
                       </div>
-                      <Badge className={cn("text-[8px] font-bold uppercase tracking-wider border", roleBadge.color)}>
+                      <Badge className={cn("text-[8px] font-bold border", roleBadge.color)}>
                         {roleBadge.label}
                       </Badge>
                     </div>
@@ -292,7 +292,7 @@ export default function PermissionsPanel({ workspaceId, boardId }: PermissionsPa
                       return (
                         <div key={col.columnId} className="flex items-center justify-between py-2 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
                           <div className="flex items-center gap-2">
-                            <div className="h-2 w-2 rounded-full bg-indigo-500" />
+                            <div className="h-2 w-2 rounded-full bg-primary" />
                             <span className="text-xs font-medium">{col.columnName}</span>
                             <Badge variant="outline" className="text-[7px] px-1.5 h-4">{col.columnType}</Badge>
                           </div>

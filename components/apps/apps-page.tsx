@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { RefreshCw, Trash2, CheckCircle2, Plus, Link2, Search, Zap, ArrowRight, Circle } from "lucide-react";
+import { RefreshCw, Trash2, CheckCircle2, Plus, Link2, Search, Zap, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -118,20 +117,16 @@ export default function AppsPage() {
                 : statusFilter === "connected" ? connected : !connected;
             return matchSearch && matchCat && matchStatus;
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [searchQuery, activeCategory, statusFilter, integrations]);
 
     const connectedApps = PROVIDERS.filter(p => isConnected(p.id));
 
     const handleConnect = (provider: any) => {
         if (!activeWorkspaceId) return;
-
-        // Check plan limits before opening connection
         if (!limits.hasAccess || (limits.max !== -1 && limits.current >= limits.max)) {
             showUpgradePrompt("integrations");
             return;
         }
-
         if (provider.linkOnly || ["trello","woocommerce","slack"].includes(provider.id)) {
             setSelectedProvider(provider);
             setManualInputs({});
@@ -145,13 +140,10 @@ export default function AppsPage() {
 
     const handleManualSubmit = async () => {
         if (!activeWorkspaceId || !selectedProvider) return;
-
-        // Check plan limits before manual submit
         if (!limits.hasAccess || (limits.max !== -1 && limits.current >= limits.max)) {
             showUpgradePrompt("integrations");
             return;
         }
-
         try {
             const res = await fetch(`/api/integrations/${selectedProvider.id}/connect`, {
                 method: "POST", headers: { "Content-Type": "application/json" },
@@ -185,187 +177,148 @@ export default function AppsPage() {
     const openDetail = (provider: any) => { setSelectedProvider(provider); setIsDetailOpen(true); };
 
     return (
-        <div className="p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto space-y-10 pb-20">
+        <div className="pb-10">
+            <div className="mb-8">
+                <h1 className="text-2xl font-semibold text-foreground">Apps & Integrations</h1>
+                <p className="text-sm text-muted-foreground mt-1">
+                    Connect your tools to supercharge your workflow
+                </p>
+            </div>
 
-            {/* Header */}
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-                className="flex flex-col sm:flex-row items-start sm:items-end justify-between gap-6">
-                <div>
-                    <div className="flex items-center gap-3 mb-2">
-                        <div className="h-12 w-12 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
-                            <Zap className="h-6 w-6 text-white" />
-                        </div>
-                        <h1 className="text-4xl font-black uppercase tracking-tight">Apps & Integrations</h1>
-                    </div>
-                    <p className="text-muted-foreground font-medium mt-1">Connect your tools to supercharge your workflow.</p>
-                </div>
-                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest px-4 py-2 rounded-full border bg-white dark:bg-slate-900 shadow-sm">
-                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                    {connectedApps.length} Connected
-                </div>
-            </motion.div>
-
-            {/* Connected Apps Bar */}
             {connectedApps.length > 0 && (
-                <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                    className="p-5 rounded-3xl bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/20 border border-indigo-100 dark:border-indigo-900/30">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-indigo-600 mb-3">Active Connections</p>
-                    <div className="flex items-center gap-3 flex-wrap">
+                <div className="mb-6 p-4 rounded-lg border bg-muted/30">
+                    <p className="text-xs font-medium text-foreground mb-3 flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                        {connectedApps.length} Connected
+                    </p>
+                    <div className="flex items-center gap-2 flex-wrap">
                         {connectedApps.map(p => {
                             const L = p.Logo;
                             return (
                                 <button key={p.id} onClick={() => openDetail(p)}
-                                    className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-white dark:bg-slate-900 border border-indigo-200 dark:border-indigo-800 shadow-sm hover:scale-105 transition-transform">
+                                    className="flex items-center gap-2 px-3 py-1.5 rounded-md border bg-background hover:border-primary/30 transition-colors text-xs">
                                     <L size={16} />
-                                    <span className="text-xs font-bold">{p.name}</span>
-                                    <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                    <span className="font-medium">{p.name}</span>
                                 </button>
                             );
                         })}
                     </div>
-                </motion.div>
+                </div>
             )}
 
-            {/* Search + Filters */}
-            <div className="flex flex-col sm:flex-row gap-4">
-                <div className="relative flex-1 max-w-sm">
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+                <div className="relative flex-1 max-w-xs">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search apps..." className="pl-9 rounded-xl bg-white dark:bg-slate-900 border-slate-200/50 shadow-sm"
+                    <Input placeholder="Search apps..." className="pl-9 h-10"
                         value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
                 </div>
-                <div className="flex items-center gap-2 overflow-x-auto pb-1">
+                <div className="flex items-center gap-2 flex-wrap">
                     {(["all","connected","not_connected"] as const).map(s => (
                         <button key={s} onClick={() => setStatusFilter(s)}
-                            className={cn("px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all",
-                                statusFilter === s ? "bg-indigo-600 text-white shadow-lg shadow-indigo-500/30" : "bg-white dark:bg-slate-900 border text-muted-foreground hover:border-indigo-300")}>
+                            className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                                statusFilter === s ? "bg-primary text-primary-foreground" : "border bg-background text-muted-foreground hover:border-primary/30")}>
                             {s === "not_connected" ? "Not Connected" : s === "connected" ? "Connected" : "All Apps"}
                         </button>
                     ))}
                 </div>
             </div>
 
-            {/* Category Pills */}
-            <div className="flex gap-2 overflow-x-auto pb-1 -mt-6">
+            <div className="flex gap-2 flex-wrap mb-6">
                 {CATEGORIES.map(cat => (
                     <button key={cat} onClick={() => setActiveCategory(cat)}
-                        className={cn("px-4 py-2 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all",
-                            activeCategory === cat ? "bg-slate-900 text-white dark:bg-white dark:text-slate-900 shadow-md" : "bg-white dark:bg-slate-900 border text-muted-foreground hover:border-slate-400")}>
+                        className={cn("px-3 py-1.5 rounded-md text-xs font-medium transition-colors",
+                            activeCategory === cat ? "bg-primary text-primary-foreground" : "border bg-background text-muted-foreground hover:border-primary/30")}>
                         {cat}
                     </button>
                 ))}
             </div>
 
-            {/* App Grid */}
             {isLoading ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {[1,2,3,4,5,6,7,8].map(i => <Skeleton key={i} className="h-56 rounded-3xl" />)}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {[1,2,3,4,5,6,7,8].map(i => <Skeleton key={i} className="h-48 rounded-lg" />)}
                 </div>
             ) : filteredProviders.length === 0 ? (
-                <div className="py-24 flex flex-col items-center justify-center text-center bg-slate-50 dark:bg-slate-900/50 rounded-[3rem] border-2 border-dashed">
-                    <Zap className="h-12 w-12 text-slate-300 mb-4" />
-                    <h3 className="text-lg font-black uppercase tracking-tight mb-2">No Apps Found</h3>
-                    <p className="text-muted-foreground font-medium">Try adjusting your search or filters.</p>
+                <div className="text-center py-16 border rounded-lg">
+                    <Zap className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">No apps found. Try adjusting your search or filters.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    <AnimatePresence>
-                        {filteredProviders.map((provider, i) => {
-                            const connected = isConnected(provider.id);
-                            const Logo = provider.Logo;
-                            return (
-                                <motion.div key={provider.id}
-                                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                                    exit={{ opacity: 0, scale: 0.95 }} transition={{ delay: i * 0.04 }}>
-                                    <Card onClick={() => openDetail(provider)}
-                                        className="group cursor-pointer hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-slate-200/50 dark:border-slate-800/50 rounded-3xl overflow-hidden relative bg-white dark:bg-slate-900">
-                                        {/* Status dot */}
-                                        <div className={cn("absolute top-4 right-4 h-2.5 w-2.5 rounded-full",
-                                            connected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-slate-200 dark:bg-slate-700")} />
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                    {filteredProviders.map((provider) => {
+                        const connected = isConnected(provider.id);
+                        const Logo = provider.Logo;
+                        return (
+                            <Card key={provider.id}
+                                onClick={() => openDetail(provider)}
+                                className="border shadow-sm hover:border-primary/30 transition-colors cursor-pointer">
+                                <CardContent className="p-4">
+                                    <div className="flex items-start justify-between mb-3">
+                                        <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", provider.bg)}>
+                                            <Logo size={20} className={provider.iconColor} />
+                                        </div>
                                         {provider.badge && (
-                                            <div className="absolute top-4 left-4">
-                                                <Badge className={cn("text-[9px] font-black uppercase tracking-widest px-2 border-none",
-                                                    provider.badge === "New" ? "bg-emerald-500 text-white" : "bg-indigo-600 text-white")}>
-                                                    {provider.badge}
-                                                </Badge>
-                                            </div>
+                                            <Badge variant="secondary" className="text-xs rounded-md px-2 h-5">
+                                                {provider.badge}
+                                            </Badge>
                                         )}
-                                        <CardContent className="p-6 pt-10">
-                                            {/* Real logo */}
-                                            <div className={cn("h-14 w-14 rounded-2xl flex items-center justify-center mb-4 shadow-lg transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3", provider.bg)}>
-                                                <Logo size={32} className={provider.iconColor} />
-                                            </div>
-                                            <h3 className="text-lg font-black tracking-tight mb-1">{provider.name}</h3>
-                                            <p className="text-xs text-muted-foreground leading-relaxed line-clamp-2 mb-4">{provider.description}</p>
-                                            <div className="flex items-center justify-between">
-                                                <Badge variant={connected ? "default" : "secondary"}
-                                                    className={cn("text-[9px] font-black uppercase tracking-widest rounded-full px-3 border-none",
-                                                        connected ? "bg-emerald-500/10 text-emerald-600" : "")}>
-                                                    {connected ? "Connected" : provider.category}
-                                                </Badge>
-                                                <span className="text-[10px] font-black uppercase tracking-widest text-indigo-600 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    {connected ? "Manage" : "Connect"} <ArrowRight className="h-3 w-3" />
-                                                </span>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </motion.div>
-                            );
-                        })}
-                    </AnimatePresence>
+                                    </div>
+                                    <h3 className="text-sm font-medium text-foreground mb-1">{provider.name}</h3>
+                                    <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{provider.description}</p>
+                                    <div className="flex items-center justify-between">
+                                        <Badge variant={connected ? "default" : "outline"} className="text-xs rounded-md px-2 h-5">
+                                            {connected ? "Connected" : provider.category}
+                                        </Badge>
+                                        <span className="text-xs text-primary flex items-center gap-1">
+                                            {connected ? "Manage" : "Connect"} <ArrowRight className="h-3 w-3" />
+                                        </span>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        );
+                    })}
                 </div>
             )}
 
-            {/* App Detail Modal */}
             <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                <DialogContent className="max-w-md rounded-3xl border-none shadow-2xl p-0 overflow-hidden">
+                <DialogContent className="sm:max-w-md">
                     {selectedProvider && (() => {
                         const connected = isConnected(selectedProvider.id);
                         const Logo = selectedProvider.Logo;
                         return (
                             <>
-                                <div className={cn("p-8", selectedProvider.bg)}>
-                                    <div className="flex items-center gap-4">
-                                        <div className="h-16 w-16 rounded-2xl bg-white/20 backdrop-blur flex items-center justify-center shadow-xl">
-                                            <Logo size={36} />
+                                <DialogHeader>
+                                    <DialogTitle className="flex items-center gap-3">
+                                        <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center", selectedProvider.bg)}>
+                                            <Logo size={20} className={selectedProvider.iconColor} />
                                         </div>
-                                        <div>
-                                            <h2 className="text-2xl font-black text-white">{selectedProvider.name}</h2>
-                                            <p className="text-white/70 text-xs font-bold uppercase tracking-widest">{selectedProvider.category}</p>
-                                        </div>
-                                    </div>
+                                        {selectedProvider.name}
+                                    </DialogTitle>
+                                </DialogHeader>
+                                <p className="text-sm text-muted-foreground">{selectedProvider.description}</p>
+                                <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/30">
+                                    <div className={cn("h-2 w-2 rounded-full", connected ? "bg-emerald-500" : "bg-muted-foreground")} />
+                                    <span className="text-sm font-medium">
+                                        {connected ? "Connected" : "Not Connected"}
+                                    </span>
                                 </div>
-                                <div className="p-6 space-y-5">
-                                    <p className="text-sm text-muted-foreground leading-relaxed">{selectedProvider.description}</p>
-                                    <div className="flex items-center gap-3 p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/50">
-                                        <div className={cn("h-3 w-3 rounded-full", connected ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]" : "bg-slate-400")} />
-                                        <span className="text-sm font-black uppercase tracking-widest">
-                                            {connected ? "Connected & Active" : "Not Connected"}
-                                        </span>
-                                        {connected && getRecord(selectedProvider.id)?.updatedAt && (
-                                            <span className="text-[10px] text-muted-foreground ml-auto">
-                                                Since {new Date(getRecord(selectedProvider.id)!.updatedAt).toLocaleDateString()}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex gap-3">
-                                        {connected ? (
-                                            <>
-                                                {selectedProvider.canSync && (
-                                                    <Button onClick={() => handleSync(selectedProvider)} variant="outline" className="flex-1 rounded-2xl font-black uppercase tracking-widest" disabled={isSyncing === selectedProvider.id}>
-                                                        <RefreshCw className={cn("h-4 w-4 mr-2", isSyncing === selectedProvider.id && "animate-spin")} />
-                                                        {isSyncing === selectedProvider.id ? "Syncing..." : "Sync"}
-                                                    </Button>
-                                                )}
-                                                <Button onClick={() => handleDisconnect(selectedProvider)} variant="destructive" className="flex-1 rounded-2xl font-black uppercase tracking-widest">
-                                                    <Trash2 className="h-4 w-4 mr-2" />Disconnect
+                                <div className="flex gap-3">
+                                    {connected ? (
+                                        <>
+                                            {selectedProvider.canSync && (
+                                                <Button onClick={() => handleSync(selectedProvider)} variant="outline" className="flex-1" disabled={isSyncing === selectedProvider.id}>
+                                                    <RefreshCw className={cn("h-4 w-4 mr-2", isSyncing === selectedProvider.id && "animate-spin")} />
+                                                    {isSyncing === selectedProvider.id ? "Syncing..." : "Sync"}
                                                 </Button>
-                                            </>
-                                        ) : (
-                                            <Button onClick={() => handleConnect(selectedProvider)} className="flex-1 rounded-2xl font-black uppercase tracking-widest bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500">
-                                                <Link2 className="h-4 w-4 mr-2" />Connect {selectedProvider.name}
+                                            )}
+                                            <Button onClick={() => handleDisconnect(selectedProvider)} variant="destructive" className="flex-1">
+                                                <Trash2 className="h-4 w-4 mr-2" />Disconnect
                                             </Button>
-                                        )}
-                                    </div>
+                                        </>
+                                    ) : (
+                                        <Button onClick={() => handleConnect(selectedProvider)} className="flex-1">
+                                            <Link2 className="h-4 w-4 mr-2" />Connect
+                                        </Button>
+                                    )}
                                 </div>
                             </>
                         );
@@ -373,47 +326,46 @@ export default function AppsPage() {
                 </DialogContent>
             </Dialog>
 
-            {/* Manual Config Modal */}
             <Dialog open={isManualOpen} onOpenChange={setIsManualOpen}>
-                <DialogContent className="max-w-sm rounded-3xl">
+                <DialogContent className="sm:max-w-sm">
                     <DialogHeader>
-                        <DialogTitle className="font-black uppercase tracking-tight flex items-center gap-2">
-                            {selectedProvider && <selectedProvider.Logo size={20} />}
+                        <DialogTitle className="flex items-center gap-2">
+                            {selectedProvider && <selectedProvider.Logo size={18} />}
                             Connect {selectedProvider?.name}
                         </DialogTitle>
                         <DialogDescription>Enter your credentials to complete the connection.</DialogDescription>
                     </DialogHeader>
                     <div className="space-y-4">
                         {selectedProvider?.id === "figma" && <>
-                            <Label className="text-xs font-black uppercase tracking-widest">Figma File URL</Label>
-                            <Input placeholder="https://www.figma.com/file/..." value={manualInputs.figmaUrl || ""} onChange={e => setManualInputs({ figmaUrl: e.target.value })} className="rounded-xl" />
+                            <Label>Figma File URL</Label>
+                            <Input placeholder="https://www.figma.com/file/..." value={manualInputs.figmaUrl || ""} onChange={e => setManualInputs({ figmaUrl: e.target.value })} />
                         </>}
                         {selectedProvider?.id === "canva" && <>
-                            <Label className="text-xs font-black uppercase tracking-widest">Canva Share URL</Label>
-                            <Input placeholder="https://www.canva.com/design/..." value={manualInputs.canvaUrl || ""} onChange={e => setManualInputs({ canvaUrl: e.target.value })} className="rounded-xl" />
+                            <Label>Canva Share URL</Label>
+                            <Input placeholder="https://www.canva.com/design/..." value={manualInputs.canvaUrl || ""} onChange={e => setManualInputs({ canvaUrl: e.target.value })} />
                         </>}
                         {selectedProvider?.id === "slack" && <>
-                            <Label className="text-xs font-black uppercase tracking-widest">Slack Webhook URL</Label>
-                            <Input placeholder="https://hooks.slack.com/services/..." value={manualInputs.webhookUrl || ""} onChange={e => setManualInputs({ webhookUrl: e.target.value })} className="rounded-xl" />
+                            <Label>Slack Webhook URL</Label>
+                            <Input placeholder="https://hooks.slack.com/services/..." value={manualInputs.webhookUrl || ""} onChange={e => setManualInputs({ webhookUrl: e.target.value })} />
                         </>}
                         {selectedProvider?.id === "trello" && <>
-                            <Label className="text-xs font-black uppercase tracking-widest">Trello API Key</Label>
-                            <Input placeholder="Your API key..." value={manualInputs.apiKey || ""} onChange={e => setManualInputs({ ...manualInputs, apiKey: e.target.value })} className="rounded-xl" />
-                            <Label className="text-xs font-black uppercase tracking-widest">Access Token</Label>
-                            <Input placeholder="Your token..." value={manualInputs.token || ""} onChange={e => setManualInputs({ ...manualInputs, token: e.target.value })} className="rounded-xl" />
+                            <Label>Trello API Key</Label>
+                            <Input placeholder="Your API key..." value={manualInputs.apiKey || ""} onChange={e => setManualInputs({ ...manualInputs, apiKey: e.target.value })} />
+                            <Label>Access Token</Label>
+                            <Input placeholder="Your token..." value={manualInputs.token || ""} onChange={e => setManualInputs({ ...manualInputs, token: e.target.value })} />
                         </>}
                         {selectedProvider?.id === "woocommerce" && <>
-                            <Label className="text-xs font-black uppercase tracking-widest">Store URL</Label>
-                            <Input placeholder="https://mystore.com" value={manualInputs.storeUrl || ""} onChange={e => setManualInputs({ ...manualInputs, storeUrl: e.target.value })} className="rounded-xl" />
-                            <Label className="text-xs font-black uppercase tracking-widest">Consumer Key</Label>
-                            <Input placeholder="ck_..." value={manualInputs.consumerKey || ""} onChange={e => setManualInputs({ ...manualInputs, consumerKey: e.target.value })} className="rounded-xl" />
-                            <Label className="text-xs font-black uppercase tracking-widest">Consumer Secret</Label>
-                            <Input placeholder="cs_..." type="password" value={manualInputs.consumerSecret || ""} onChange={e => setManualInputs({ ...manualInputs, consumerSecret: e.target.value })} className="rounded-xl" />
+                            <Label>Store URL</Label>
+                            <Input placeholder="https://mystore.com" value={manualInputs.storeUrl || ""} onChange={e => setManualInputs({ ...manualInputs, storeUrl: e.target.value })} />
+                            <Label>Consumer Key</Label>
+                            <Input placeholder="ck_..." value={manualInputs.consumerKey || ""} onChange={e => setManualInputs({ ...manualInputs, consumerKey: e.target.value })} />
+                            <Label>Consumer Secret</Label>
+                            <Input placeholder="cs_..." type="password" value={manualInputs.consumerSecret || ""} onChange={e => setManualInputs({ ...manualInputs, consumerSecret: e.target.value })} />
                         </>}
                     </div>
-                    <DialogFooter className="gap-2 mt-2">
-                        <Button variant="outline" onClick={() => setIsManualOpen(false)} className="rounded-xl font-black uppercase tracking-widest">Cancel</Button>
-                        <Button onClick={handleManualSubmit} className="rounded-xl font-black uppercase tracking-widest bg-indigo-600 hover:bg-indigo-700">
+                    <DialogFooter className="gap-2">
+                        <Button variant="outline" onClick={() => setIsManualOpen(false)}>Cancel</Button>
+                        <Button onClick={handleManualSubmit}>
                             <CheckCircle2 className="h-4 w-4 mr-2" />Connect
                         </Button>
                     </DialogFooter>

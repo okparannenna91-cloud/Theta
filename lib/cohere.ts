@@ -1,9 +1,10 @@
 import { CohereClient } from "cohere-ai";
+import { logger } from "./logger";
 
 const apiKey = process.env.COHERE_API_KEY;
 
 if (!apiKey) {
-    console.warn("COHERE_API_KEY is not defined in environment variables. Cohere AI fallback will not function.");
+    logger.warn("COHERE_API_KEY is not defined in environment variables. Cohere AI fallback will not function.");
 }
 
 export const cohere = new CohereClient({

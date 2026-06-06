@@ -32,7 +32,7 @@ interface AITool {
 }
 
 const AI_TOOLS: AITool[] = [
-  { id: "summarize", label: "Summarize", icon: FileText, desc: "Generate task summaries", color: "text-indigo-500", bg: "bg-indigo-500/10" },
+  { id: "summarize", label: "Summarize", icon: FileText, desc: "Generate task summaries", color: "text-primary", bg: "bg-primary/10" },
   { id: "write", label: "AI Writing", icon: PenLine, desc: "Write task descriptions", color: "text-blue-500", bg: "bg-blue-500/10" },
   { id: "extract", label: "Extract Data", icon: Search, desc: "Extract info from content", color: "text-emerald-500", bg: "bg-emerald-500/10" },
   { id: "labels", label: "Label Suggestions", icon: Tags, desc: "Auto-tag tasks", color: "text-purple-500", bg: "bg-purple-500/10" },
@@ -148,14 +148,14 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
         <div className="flex items-center justify-between mb-2">
           <div>
             <h3 className="text-lg font-bold flex items-center gap-2">
-              <BrainCircuit className="h-5 w-5 text-indigo-500" />
+              <BrainCircuit className="h-5 w-5 text-primary" />
               AI Features
             </h3>
             <p className="text-xs text-muted-foreground">
               Powered by Nova AI &middot; {tasks.length} tasks analyzed
             </p>
           </div>
-          <Badge variant="outline" className="text-[8px] gap-1 h-5 border-indigo-200 text-indigo-600">
+          <Badge variant="outline" className="text-[8px] gap-1 h-5 border-primary/20 text-primary">
             <Sparkles className="h-2.5 w-2.5" /> Beta
           </Badge>
         </div>
@@ -164,7 +164,7 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
       <div className="flex-1 overflow-auto">
         {/* Quick Action Tools */}
         <div className="p-4 pb-2">
-          <h4 className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">Quick Actions</h4>
+          <h4 className="text-[9px] font-bold text-slate-500 mb-2.5">Quick Actions</h4>
           <div className="grid grid-cols-4 gap-2">
             {AI_TOOLS.map((tool) => {
               const Icon = tool.icon;
@@ -177,13 +177,13 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
                   className={cn(
                     "flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all",
                     isActive
-                      ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
-                      : "border-slate-200 dark:border-slate-700 hover:border-indigo-300 dark:hover:border-indigo-700 hover:bg-slate-50 dark:hover:bg-slate-900/50",
+                      ? "border-primary bg-muted dark:bg-primary/10"
+                      : "border-slate-200 dark:border-slate-700 hover:border-primary/30 dark:hover:border-primary/40 hover:bg-slate-50 dark:hover:bg-slate-900/50",
                     isGenerating && "opacity-60 cursor-not-allowed"
                   )}
                 >
                   {isActive ? (
-                    <Loader2 className="h-5 w-5 text-indigo-500 animate-spin" />
+                    <Loader2 className="h-5 w-5 text-primary animate-spin" />
                   ) : (
                     <Icon className={cn("h-5 w-5", tool.color)} />
                   )}
@@ -196,7 +196,7 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
 
         {/* Custom Prompt */}
         <div className="p-4 pb-2">
-          <h4 className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">Custom Prompt</h4>
+          <h4 className="text-[9px] font-bold text-slate-500 mb-2.5">Custom Prompt</h4>
           <div className="flex gap-2">
             <Input
               placeholder="Ask AI anything about this board..."
@@ -224,7 +224,7 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
               <button
                 key={i}
                 onClick={() => handlePredictiveSuggestion(sp)}
-                className="text-[9px] px-2.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:border-indigo-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all"
+                className="text-[9px] px-2.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-700 text-slate-500 hover:border-primary/30 hover:text-primary hover:bg-muted dark:hover:bg-primary/10 transition-all"
               >
                 {sp}
               </button>
@@ -235,22 +235,22 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
         {/* Result Area */}
         {(result || isGenerating) && (
           <div className="px-4 pb-4">
-            <Card className="border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-indigo-950/20 shadow-sm">
+            <Card className="border-primary/20 dark:border-primary/40 bg-muted/30 dark:bg-primary/10 shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-3">
-                  <Sparkles className="h-3.5 w-3.5 text-indigo-500" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-600">AI Response</span>
+                  <Sparkles className="h-3.5 w-3.5 text-primary" />
+                  <span className="text-[10px] font-bold text-primary">AI Response</span>
                   <div className="flex-1" />
                   {result && (
                     <div className="flex gap-1">
-                      <button className="h-6 w-6 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center justify-center"
+                      <button className="h-6 w-6 rounded-md hover:bg-muted dark:hover:bg-primary/10 flex items-center justify-center"
                         onClick={() => { navigator.clipboard.writeText(result || ""); toast.success("Copied"); }}>
                         <Copy className="h-3 w-3 text-slate-400" />
                       </button>
-                      <button className="h-6 w-6 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center justify-center">
+                      <button className="h-6 w-6 rounded-md hover:bg-muted dark:hover:bg-primary/10 flex items-center justify-center">
                         <ThumbsUp className="h-3 w-3 text-slate-400" />
                       </button>
-                      <button className="h-6 w-6 rounded-md hover:bg-indigo-100 dark:hover:bg-indigo-900/50 flex items-center justify-center">
+                      <button className="h-6 w-6 rounded-md hover:bg-muted dark:hover:bg-primary/10 flex items-center justify-center">
                         <ThumbsDown className="h-3 w-3 text-slate-400" />
                       </button>
                     </div>
@@ -267,7 +267,7 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
                     {result?.split("\n").map((line, i) => (
                       <span key={i}>
                         {line.startsWith("#") ? (
-                          <span className="block font-bold text-indigo-700 dark:text-indigo-300 mt-2 mb-1">
+                          <span className="block font-bold text-primary dark:text-primary mt-2 mb-1">
                             {line.replace(/^#+\s*/, "")}
                           </span>
                         ) : line.match(/^\d\.\s/) ? (
@@ -286,7 +286,7 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
 
         {/* Board Stats */}
         <div className="px-4 pb-4">
-          <h4 className="text-[9px] font-bold uppercase tracking-widest text-slate-500 mb-2.5">Board Intelligence</h4>
+          <h4 className="text-[9px] font-bold text-slate-500 mb-2.5">Board Intelligence</h4>
           <div className="grid grid-cols-2 gap-2">
             {[
               { label: "Completion Rate", value: tasks.length > 0 ? `${Math.round((completedTasks / tasks.length) * 100)}%` : "0%", icon: Check },
@@ -297,7 +297,7 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
               const Icon = stat.icon;
               return (
                 <div key={i} className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-100 dark:border-slate-800">
-                  <Icon className="h-4 w-4 text-indigo-400" />
+                  <Icon className="h-4 w-4 text-primary" />
                   <div>
                     <p className="text-sm font-bold">{stat.value}</p>
                     <p className="text-[8px] text-slate-500 font-medium">{stat.label}</p>

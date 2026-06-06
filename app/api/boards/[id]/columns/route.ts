@@ -48,6 +48,11 @@ export async function POST(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
+        // Enforce plan limits (blocks deactivated workspaces)
+        const { enforcePlanLimit } = await import("@/lib/plan-limits");
+        const columnCount = await (db.column.count as any)({ where: { boardId: params.id } });
+        await enforcePlanLimit(board.workspaceId, "columns", columnCount);
+
         const column = await (db.column.create as any)({
             data: {
                 name: data.name,

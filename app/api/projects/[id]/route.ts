@@ -31,14 +31,12 @@ export async function GET(
       project = await db.project.findUnique({
         where: { id: params.id },
       });
-      console.log(`[Project GET] Target lookup with workspaceId=${workspaceId}. Found=${!!project}`);
     }
 
     if (!project) {
-      console.log(`[Project GET] Shard fallback search for projectId=${params.id}...`);
       const result = await findAcrossShards<Project>("project", {
         id: params.id,
-      });
+      }, workspaceId ? { workspaceId } : undefined);
       project = result.data;
       db = result.db;
     }

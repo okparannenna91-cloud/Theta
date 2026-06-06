@@ -81,9 +81,9 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
     <div className="flex flex-col h-full">
       <div className="p-6 pb-4 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center gap-2 mb-2">
-          <Code className="h-5 w-5 text-indigo-500" />
+          <Code className="h-5 w-5 text-primary" />
           <h3 className="text-lg font-bold">Developer</h3>
-          <Badge variant="outline" className="text-[8px] h-5 ml-auto border-indigo-200 text-indigo-600">
+          <Badge variant="outline" className="text-[8px] h-5 ml-auto border-primary/20 text-primary">
             <Terminal className="h-2.5 w-2.5 mr-1" /> API
           </Badge>
         </div>
@@ -98,8 +98,8 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-                activeTab === tab.id ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all whitespace-nowrap",
+                activeTab === tab.id ? "bg-primary text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
               <Icon className="h-3 w-3" /> {tab.label}
@@ -114,7 +114,7 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
             <Card className="border shadow-sm">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Webhook Endpoints</h4>
+                  <h4 className="text-xs font-bold text-slate-500">Webhook Endpoints</h4>
                   <span className="text-[10px] text-slate-400">{webhooks.length} active</span>
                 </div>
 
@@ -141,7 +141,7 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
 
             <Card className="border border-dashed border-slate-200 dark:border-slate-700 shadow-sm">
               <CardContent className="p-4 space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Add Webhook</h4>
+                <h4 className="text-xs font-bold text-slate-500">Add Webhook</h4>
                 <Input
                   placeholder="https://your-service.com/webhook"
                   value={newWebhookUrl}
@@ -160,9 +160,9 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
                             selected ? prev.filter(e => e !== ev) : [...prev, ev]
                           )}
                           className={cn(
-                            "text-[9px] font-bold px-2 py-1 rounded-full border transition-all uppercase tracking-wider",
+                            "text-[9px] font-bold px-2 py-1 rounded-full border transition-all ",
                             selected
-                              ? "bg-indigo-600 text-white border-indigo-600"
+                              ? "bg-primary text-white border-primary"
                               : "border-slate-200 dark:border-slate-700 text-slate-500 hover:border-slate-300"
                           )}
                         >
@@ -189,7 +189,7 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
 
             <Card className="border shadow-sm">
               <CardContent className="p-4">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Preset Endpoints</h4>
+                <h4 className="text-xs font-bold text-slate-500 mb-3">Preset Endpoints</h4>
                 <div className="space-y-2">
                   {WEBHOOK_PRESETS.map((p) => (
                     <div key={p.name} className="flex items-center justify-between py-1.5 border-b border-slate-50 dark:border-slate-800/50 last:border-0">
@@ -217,7 +217,7 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
             <Card className="border shadow-sm">
               <CardContent className="p-4 space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">API Keys</h4>
+                  <h4 className="text-xs font-bold text-slate-500">API Keys</h4>
                   <Button size="sm" className="h-7 text-[10px] gap-1">
                     <Plus className="h-3 w-3" /> Generate Key
                   </Button>
@@ -250,7 +250,7 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
 
             <Card className="border shadow-sm">
               <CardContent className="p-4 space-y-3">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Rate Limits</h4>
+                <h4 className="text-xs font-bold text-slate-500">Rate Limits</h4>
                 <div className="grid grid-cols-3 gap-3">
                   {[
                     { label: "Requests/min", value: "60", limit: "100" },
@@ -274,7 +274,7 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
             <Card className="border shadow-sm">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">Custom Dashboard Widgets</h4>
+                  <h4 className="text-xs font-bold text-slate-500">Custom Dashboard Widgets</h4>
                   <Button size="sm" className="h-7 text-[10px] gap-1">
                     <Plus className="h-3 w-3" /> New Widget
                   </Button>
@@ -327,7 +327,7 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
           <div className="space-y-4">
             <Card className="border shadow-sm">
               <CardContent className="p-4">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Custom Column Views</h4>
+                <h4 className="text-xs font-bold text-slate-500 mb-3">Custom Column Views</h4>
                 <p className="text-[10px] text-muted-foreground mb-4">Enable alternative rendering styles for your columns</p>
                 <div className="grid grid-cols-2 gap-2">
                   {COLUMN_VIEW_TEMPLATES.map((tpl) => {
@@ -339,13 +339,13 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
                         className={cn(
                           "flex flex-col items-start gap-1.5 p-3 rounded-xl border text-left transition-all",
                           enabled
-                            ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30"
+                            ? "border-primary bg-muted dark:bg-primary/10"
                             : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
                         )}
                       >
                         <div className="flex items-center gap-2 w-full">
                           <span className="text-xs font-semibold">{tpl.name}</span>
-                          {enabled && <Check className="h-3 w-3 text-indigo-600 ml-auto" />}
+                          {enabled && <Check className="h-3 w-3 text-primary ml-auto" />}
                         </div>
                         <p className="text-[9px] text-muted-foreground">{tpl.desc}</p>
                         <code className="text-[8px] font-mono bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded w-full truncate">
@@ -365,7 +365,7 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
             <Card className="border shadow-sm">
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500">GraphQL Explorer</h4>
+                  <h4 className="text-xs font-bold text-slate-500">GraphQL Explorer</h4>
                   <div className="flex items-center gap-2">
                     <Badge variant="outline" className="text-[8px] h-5">POST /api/graphql</Badge>
                     <Button
@@ -383,7 +383,7 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
                 />
                 <div className="flex items-center justify-between">
                   <div className="flex gap-2">
-                    <Button size="sm" className="h-8 text-[10px] gap-1 bg-indigo-600">
+                    <Button size="sm" className="h-8 text-[10px] gap-1 bg-primary">
                       <Play className="h-3 w-3" /> Execute
                     </Button>
                     <Button variant="outline" size="sm" className="h-8 text-[10px] gap-1">
@@ -397,7 +397,7 @@ export default function DeveloperPanel({ workspaceId, boardId }: DeveloperPanelP
 
             <Card className="border shadow-sm">
               <CardContent className="p-4">
-                <h4 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-3">Schema</h4>
+                <h4 className="text-xs font-bold text-slate-500 mb-3">Schema</h4>
                 <div className="space-y-1.5 text-[10px] font-mono text-slate-600">
                   {[
                     "type Query {",

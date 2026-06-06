@@ -70,7 +70,7 @@ export default function DocsView({ workspaceId }: DocsViewProps) {
           <div>
             <div className="flex items-center gap-2 mb-4">
               <Star className="h-3 w-3 text-amber-400 fill-amber-400" />
-              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">Pinned</span>
+              <span className="text-[10px] font-bold text-slate-500">Pinned</span>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {pinned.map((doc) => (
@@ -83,7 +83,7 @@ export default function DocsView({ workspaceId }: DocsViewProps) {
         <div>
           <div className="flex items-center gap-2 mb-4">
             <FileText className="h-3 w-3 text-slate-400" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-slate-500">All Documents</span>
+            <span className="text-[10px] font-bold text-slate-500">All Documents</span>
           </div>
 
           {unpinned.length > 0 ? (
@@ -107,7 +107,7 @@ export default function DocsView({ workspaceId }: DocsViewProps) {
 
 function DocCard({ doc }: { doc: DocItem }) {
   return (
-    <Card className="group border shadow-sm hover:shadow-md hover:border-indigo-500/30 transition-all cursor-pointer">
+    <Card className="group border shadow-sm hover:shadow-md hover:border-primary/30 transition-all cursor-pointer">
       <CardContent className="p-5">
         <div className="flex items-start justify-between mb-4">
           <span className="text-2xl">{doc.emoji}</span>
@@ -125,7 +125,7 @@ function DocCard({ doc }: { doc: DocItem }) {
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
-        <h4 className="text-sm font-semibold mb-2 group-hover:text-indigo-600 transition-colors">{doc.title}</h4>
+        <h4 className="text-sm font-semibold mb-2 group-hover:text-primary transition-colors">{doc.title}</h4>
         <div className="flex items-center justify-between text-[10px] text-slate-400">
           <span className="flex items-center gap-1">
             <Clock className="h-3 w-3" />

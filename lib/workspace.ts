@@ -1,5 +1,6 @@
 import { prisma, getPrismaClient } from "./prisma";
 import { User } from "@prisma/client";
+import { logger } from "./logger";
 
 /**
  * Get the current user's default or specified workspace
@@ -39,7 +40,7 @@ export async function getCurrentWorkspace(
 
     return membership?.workspace || null;
   } catch (error) {
-    console.error("Get current workspace error:", error);
+      logger.error("Get current workspace error:", error);
     return null;
   }
 }
@@ -62,11 +63,11 @@ export async function verifyWorkspaceAccess(
     });
 
     if (!membership) {
-      console.warn(`[Workspace Access] Access denied for user ${userId} to workspace ${workspaceId}. No membership found on Shard 1.`);
+      logger.warn(`Access denied for user ${userId} to workspace ${workspaceId}. No membership found.`);
     }
     return !!membership;
   } catch (error) {
-    console.error("Verify workspace access error:", error);
+    logger.error("Verify workspace access error:", error);
     return false;
   }
 }
@@ -129,7 +130,7 @@ export async function createWorkspace(
 
     return workspace;
   } catch (error) {
-    console.error("Create workspace error:", error);
+    logger.error("Create workspace error:", error);
     throw error;
   }
 }
@@ -165,9 +166,9 @@ export async function getUserWorkspaces(userId: string) {
           projectsCount = await db.project.count({
             where: { workspaceId },
           });
-          console.log(`[Workspace Count] Workspace ${workspaceId} (${m.workspace.name}): ${projectsCount} projects`);
+          logger.debug(`Workspace ${workspaceId} (${m.workspace.name}): ${projectsCount} projects`);
         } catch (countError) {
-          console.error(`Failed to fetch project count for workspace ${workspaceId} on its shard:`, countError);
+          logger.error(`Failed to fetch project count for workspace ${workspaceId} on its shard:`, countError);
           // Default to 0 instead of failing the whole list
         }
 
@@ -189,7 +190,7 @@ export async function getUserWorkspaces(userId: string) {
 
     return workspacesWithCounts;
   } catch (error) {
-    console.error("Get user workspaces error:", error);
+    logger.error("Get user workspaces error:", error);
     return [];
   }
 }
@@ -237,7 +238,7 @@ export async function isWorkspaceAdmin(
     });
     return membership?.role === "owner" || membership?.role === "admin";
   } catch (error) {
-    console.error("isWorkspaceAdmin error:", error);
+    logger.error("isWorkspaceAdmin error:", error);
     return false;
   }
 }
@@ -262,7 +263,7 @@ export async function getWorkspaceMembers(workspaceId: string) {
       },
     });
   } catch (error) {
-    console.error("Get workspace members error:", error);
+    logger.error("Get workspace members error:", error);
     return [];
   }
 }
@@ -367,7 +368,7 @@ export async function deleteWorkspace(workspaceId: string, userId: string) {
                 shard.projectTeam.deleteMany({ where }),
             ]);
         } catch (shardError) {
-            console.error(`Failed to cleanup shard during workspace deletion:`, shardError);
+            logger.error(`Failed to cleanup shard during workspace deletion:`, shardError);
         }
     }));
 
@@ -376,7 +377,7 @@ export async function deleteWorkspace(workspaceId: string, userId: string) {
       where: { id: workspaceId },
     });
   } catch (error) {
-    console.error("Delete workspace error:", error);
+    logger.error("Delete workspace error:", error);
     throw error;
   }
 }

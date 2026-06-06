@@ -53,7 +53,7 @@ export function ProjectActivity({ projectId, workspaceId }: ProjectActivityProps
             case "created": return <Plus className="h-4 w-4 text-emerald-500" />;
             case "updated": return <RefreshCcw className="h-4 w-4 text-blue-500" />;
             case "deleted": return <Trash2 className="h-4 w-4 text-red-500" />;
-            case "commented": return <MessageSquare className="h-4 w-4 text-indigo-500" />;
+            case "commented": return <MessageSquare className="h-4 w-4 text-primary" />;
             case "status_updated": return <CheckCircle2 className="h-4 w-4 text-purple-500" />;
             default: return <ActivityIcon className="h-4 w-4 text-slate-400" />;
         }
@@ -63,10 +63,10 @@ export function ProjectActivity({ projectId, workspaceId }: ProjectActivityProps
         <div className="max-w-4xl space-y-8 h-full overflow-y-auto pr-2 pb-10">
             <div className="flex items-center justify-between mb-8">
                 <div>
-                     <h3 className="text-xl font-black uppercase tracking-tight">Project Activity Feed</h3>
-                     <p className="text-xs font-black uppercase tracking-widest text-indigo-500 mt-1">Real-time audit log and evolution</p>
+                     <h3 className="text-xl font-semibold">Project Activity Feed</h3>
+                     <p className="text-xs font-semibold text-primary mt-1">Real-time audit log and evolution</p>
                 </div>
-                <div className="h-10 w-10 rounded-2xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600">
+                <div className="h-10 w-10 rounded-2xl bg-muted flex items-center justify-center text-primary">
                      <Clock className="h-5 w-5" />
                 </div>
             </div>
@@ -90,14 +90,14 @@ export function ProjectActivity({ projectId, workspaceId }: ProjectActivityProps
                                         <div>
                                             <p className="text-sm font-bold flex items-center gap-2">
                                                 {activity.user?.name}
-                                                <span className="text-[10px] font-black uppercase text-indigo-500 bg-indigo-500/10 px-2 py-0.5 rounded-full">{activity.action}</span>
+                                                <span className="text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">{activity.action}</span>
                                             </p>
-                                            <p className="text-[10px] text-muted-foreground uppercase tracking-widest font-black mt-0.5">
+                                            <p className="text-[10px] text-muted-foreground font-semibold mt-0.5">
                                                 {activity.entityType} • {activity.metadata?.entityName || activity.entityId}
                                             </p>
                                         </div>
                                     </div>
-                                    <time className="text-[10px] font-black uppercase tracking-widest text-slate-400 whitespace-nowrap">
+                                    <time className="text-[10px] font-semibold text-slate-400 whitespace-nowrap">
                                         {format(new Date(activity.createdAt), "PPp")}
                                     </time>
                                 </div>
@@ -106,10 +106,10 @@ export function ProjectActivity({ projectId, workspaceId }: ProjectActivityProps
                                     <div className="mt-4 p-3 rounded-xl bg-white dark:bg-slate-950 border border-slate-200/50 dark:border-slate-800/50 space-y-2">
                                          {Object.entries(activity.metadata.changes).map(([field, values]: [string, any]) => (
                                              <div key={field} className="flex items-center gap-2 text-[10px] font-bold">
-                                                 <span className="text-muted-foreground uppercase tracking-widest">{field}:</span>
+                                                 <span className="text-muted-foreground">{field}:</span>
                                                  <span className="text-red-500 line-through opacity-50">{String(values.old)}</span>
                                                  <ArrowRight className="h-3 w-3 text-slate-300" />
-                                                 <span className="text-indigo-600">{String(values.new)}</span>
+                                                 <span className="text-primary">{String(values.new)}</span>
                                              </div>
                                          ))}
                                     </div>
@@ -120,7 +120,7 @@ export function ProjectActivity({ projectId, workspaceId }: ProjectActivityProps
                 ))}
 
                 {(!activities?.activities || activities.activities.length === 0) && (
-                    <div className="pl-10 py-10 text-center text-slate-400 italic font-black uppercase tracking-widest text-[10px]">
+                    <div className="pl-10 py-10 text-center text-slate-400 italic font-semibold text-[10px]">
                         The silence of progress... No activities yet.
                     </div>
                 )}

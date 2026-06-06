@@ -31,18 +31,18 @@ export function TimelineView({ tasks }: TimelineViewProps) {
     return (
         <div className="w-full h-full flex flex-col bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/50 dark:border-slate-800/50 overflow-hidden shadow-sm">
             <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
-                <h3 className="text-sm font-black uppercase tracking-widest text-slate-500">Project Timeline</h3>
+                <h3 className="text-sm font-semibold text-slate-500">Project Timeline</h3>
             </div>
 
             <ScrollArea className="flex-1 w-full">
                 <div className="min-w-[1200px] flex flex-col">
                     {/* Header: Days */}
                     <div className="flex border-b border-slate-100 dark:border-slate-800">
-                        <div className="w-48 sticky left-0 bg-slate-50 dark:bg-slate-900 border-r z-10 px-4 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Task</div>
+                        <div className="w-48 sticky left-0 bg-slate-50 dark:bg-slate-900 border-r z-10 px-4 py-2 text-[10px] font-bold text-slate-400">Task</div>
                         {days.map((day) => (
                             <div key={day.toISOString()} className="w-24 border-r border-slate-100 dark:border-slate-800 px-2 py-2 flex flex-col items-center">
-                                <span className="text-[10px] text-slate-400 font-bold uppercase">{format(day, "EEE")}</span>
-                                <span className="text-xs font-black text-slate-900 dark:text-slate-100">{format(day, "d")}</span>
+                                <span className="text-[10px] text-slate-400 font-bold">{format(day, "EEE")}</span>
+                                <span className="text-xs font-semibold text-slate-900 dark:text-slate-100">{format(day, "d")}</span>
                             </div>
                         ))}
                     </div>
@@ -58,7 +58,7 @@ export function TimelineView({ tasks }: TimelineViewProps) {
                             return (
                                 <div key={task.id} className="flex border-b border-slate-50 dark:border-slate-800/50 group hover:bg-slate-50/30 dark:hover:bg-slate-800/30 transition-colors">
                                     <div className="w-48 sticky left-0 bg-white dark:bg-slate-900 border-r z-10 px-4 py-3 flex items-center min-w-0">
-                                        <span className="text-xs font-bold truncate group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors">{task.title}</span>
+                                        <span className="text-xs font-bold truncate group-hover:text-primary dark:group-hover:text-primary/80 transition-colors">{task.title}</span>
                                     </div>
                                     <div className="flex-1 relative h-12">
                                         <div
@@ -72,7 +72,7 @@ export function TimelineView({ tasks }: TimelineViewProps) {
                                                 width: `${duration * 96}px`
                                             }}
                                         >
-                                            <span className="text-[10px] font-black truncate">{task.title}</span>
+                                            <span className="text-[10px] font-semibold truncate">{task.title}</span>
                                         </div>
                                     </div>
                                 </div>

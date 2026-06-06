@@ -140,8 +140,8 @@ export default function BoardRelationshipsPanel({ workspaceId, boardId }: BoardR
         <button
           onClick={() => setActiveType(null)}
           className={cn(
-            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-            !activeType ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all whitespace-nowrap",
+            !activeType ? "bg-primary text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
           )}
         >
           <LayoutGrid className="h-3 w-3" /> All ({connList.length})
@@ -154,8 +154,8 @@ export default function BoardRelationshipsPanel({ workspaceId, boardId }: BoardR
               key={type.id}
               onClick={() => setActiveType(type.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
-                activeType === type.id ? "bg-indigo-600 text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all whitespace-nowrap",
+                activeType === type.id ? "bg-primary text-white" : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
               )}
             >
               <Icon className={cn("h-3 w-3", type.color)} /> {type.label} ({count})
@@ -224,7 +224,7 @@ export default function BoardRelationshipsPanel({ workspaceId, boardId }: BoardR
 
             <div className="space-y-4">
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">Target Board</Label>
+                <Label className="text-xs font-bold text-slate-500">Target Board</Label>
                 <Select
                   value={formState.linkedBoardId}
                   onValueChange={(v) => setFormState(f => ({ ...f, linkedBoardId: v }))}
@@ -241,7 +241,7 @@ export default function BoardRelationshipsPanel({ workspaceId, boardId }: BoardR
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">Relationship Type</Label>
+                <Label className="text-xs font-bold text-slate-500">Relationship Type</Label>
                 <div className="grid grid-cols-2 gap-2">
                   {RELATIONSHIP_TYPES.map(type => {
                     const Icon = type.icon;
@@ -253,12 +253,12 @@ export default function BoardRelationshipsPanel({ workspaceId, boardId }: BoardR
                         className={cn(
                           "flex flex-col items-center gap-2 p-4 rounded-xl border text-center transition-all",
                           isSelected
-                            ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/50"
+                            ? "border-primary bg-muted dark:bg-primary/10"
                             : "border-slate-200 dark:border-slate-700 hover:border-slate-300"
                         )}
                       >
                         <Icon className={cn("h-5 w-5", type.color)} />
-                        <span className="text-[10px] font-bold uppercase tracking-wider">{type.label}</span>
+                        <span className="text-[10px] font-bold">{type.label}</span>
                       </button>
                     );
                   })}
@@ -266,7 +266,7 @@ export default function BoardRelationshipsPanel({ workspaceId, boardId }: BoardR
               </div>
 
               <div className="space-y-2">
-                <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">Direction</Label>
+                <Label className="text-xs font-bold text-slate-500">Direction</Label>
                 <Select
                   value={formState.direction}
                   onValueChange={(v) => setFormState(f => ({ ...f, direction: v as "oneWay" | "twoWay" }))}

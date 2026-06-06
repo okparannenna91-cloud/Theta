@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma, getPrismaClient } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { z } from "zod";
 
@@ -75,6 +75,11 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
+
+    // Enforce plan limits (blocks deactivated workspaces)
+    const { enforcePlanLimit } = await import("@/lib/plan-limits");
+    const docCount = await prisma.document.count({ where: { workspaceId: data.workspaceId, archived: false } });
+    await enforcePlanLimit(data.workspaceId, "documents", docCount);
 
     const db = getPrismaClient(data.workspaceId);
 

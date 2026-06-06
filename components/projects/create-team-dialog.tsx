@@ -95,14 +95,11 @@ export function CreateTeamDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[500px] rounded-[2.5rem] p-0 overflow-hidden border-none shadow-2xl">
-                <div className="bg-indigo-950 p-8 text-white relative">
-                    <div className="absolute top-0 right-0 p-8 opacity-10">
-                        <Users className="h-32 w-32" />
-                    </div>
+            <DialogContent className="sm:max-w-[500px] rounded-lg p-0 overflow-hidden border shadow-sm">
+                <div className="bg-primary p-8 text-primary-foreground relative">
                     <DialogHeader>
-                        <DialogTitle className="text-3xl font-black uppercase tracking-tight text-white">Create New Team</DialogTitle>
-                        <DialogDescription className="text-indigo-400 font-bold uppercase tracking-widest text-[10px]">
+                        <DialogTitle className="text-3xl font-semibold tracking-tight text-primary-foreground">Create New Team</DialogTitle>
+                        <DialogDescription className="text-primary-foreground/80 font-semibold text-xs">
                             Assemble your elite unit for project success
                         </DialogDescription>
                     </DialogHeader>
@@ -111,35 +108,35 @@ export function CreateTeamDialog({
                 <div className="p-8 space-y-6 bg-white dark:bg-slate-950">
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-2">
+                            <label className="text-xs font-semibold text-slate-500 ml-1 flex items-center gap-2">
                                 <Type className="h-3 w-3" /> Team Name
                             </label>
                             <Input 
                                 placeholder="e.g. Design Ops, Core Engineering" 
-                                className="rounded-2xl bg-slate-50 dark:bg-slate-900 border-none h-14 font-bold"
+                                className="rounded-lg bg-slate-50 dark:bg-slate-900 border-none h-14 font-semibold"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-500 ml-1 flex items-center gap-2">
+                            <label className="text-xs font-semibold text-slate-500 ml-1 flex items-center gap-2">
                                 <FileText className="h-3 w-3" /> Description
                             </label>
                             <Textarea 
                                 placeholder="Briefly describe the team's mission..." 
-                                className="rounded-2xl bg-slate-50 dark:bg-slate-900 border-none min-h-[100px] font-medium resize-none"
+                                className="rounded-lg bg-slate-50 dark:bg-slate-900 border-none min-h-[100px] font-medium resize-none"
                                 value={description}
                                 onChange={(e) => setDescription(e.target.value)}
                             />
                         </div>
                     </div>
 
-                    <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-900/10 border-2 border-dashed border-amber-200 dark:border-amber-900/30 flex items-start gap-3">
+                    <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/10 border-2 border-dashed border-amber-200 dark:border-amber-900/30 flex items-start gap-3">
                         <UserPlus className="h-5 w-5 text-amber-600 mt-0.5" />
                         <div>
-                            <p className="text-[10px] font-black uppercase tracking-widest text-amber-700">Quick Start Note</p>
-                            <p className="text-[9px] font-bold text-amber-600/80 leading-relaxed uppercase tracking-wider mt-1">
+                            <p className="text-xs font-semibold text-amber-700">Quick Start Note</p>
+                            <p className="text-[9px] font-semibold text-amber-600/80 leading-relaxed mt-1">
                                 You will be added as the Team Admin. You can add more members and assign a Team Lead once the team is created.
                             </p>
                         </div>
@@ -148,13 +145,13 @@ export function CreateTeamDialog({
                     <div className="flex gap-4 pt-4">
                         <Button 
                             variant="ghost" 
-                            className="flex-1 rounded-2xl font-black uppercase tracking-widest h-14"
+                            className="flex-1 rounded-lg font-semibold h-14"
                             onClick={() => onOpenChange(false)}
                         >
                             Cancel
                         </Button>
                         <Button 
-                            className="flex-[2] rounded-2xl font-black uppercase tracking-widest h-14 bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-500/20"
+                            className="flex-[2] rounded-lg font-semibold h-14 bg-primary hover:bg-primary/90 shadow-sm"
                             disabled={!name || createMutation.isPending}
                             onClick={() => createMutation.mutate()}
                         >

@@ -1,43 +1,31 @@
 
+import { redis } from "@/lib/redis/client";
+
 export interface RateLimitOptions {
-    interval: number; // in milliseconds
-    uniqueTokenPerInterval: number; // Max users per interval
+    interval: number;
+    uniqueTokenPerInterval: number;
 }
 
 export function rateLimit(options: RateLimitOptions) {
-    const tokenCache = new Map();
-
     return {
-        check: (res: Response | any, limit: number, token: string) => {
-            const now = Date.now();
-            const tokenCount = tokenCache.get(token) || [0];
-
-            if (tokenCount[0] === 0) {
-                tokenCache.set(token, [1, now]);
-            } else {
-                const [count, firstRequestTime] = tokenCount;
-
-                if (now - firstRequestTime > options.interval) {
-                    // Reset interval
-                    tokenCache.set(token, [1, now]);
-                } else if (count >= limit) {
-                    // Limit reached
-                    return Promise.reject(new Error('Rate limit exceeded'));
-                } else {
-                    // Increment count
-                    tokenCache.set(token, [count + 1, firstRequestTime]);
+        check: async (_res: Response | any, limit: number, token: string) => {
+            try {
+                const key = `ratelimit:${token}`;
+                const windowSeconds = Math.ceil(options.interval / 1000);
+                const count = await redis.incr(key);
+                if (count === 1) {
+                    await redis.expire(key, windowSeconds);
                 }
+                if (count > limit) {
+                    throw new Error('Rate limit exceeded');
+                }
+                return Promise.resolve();
+            } catch (error: any) {
+                if (error.message === 'Rate limit exceeded') {
+                    return Promise.reject(error);
+                }
+                return Promise.resolve();
             }
-
-            // Cleanup old entries to prevent memory leaks
-            if (tokenCache.size > options.uniqueTokenPerInterval) {
-                const oldestEntries = Array.from(tokenCache.entries())
-                    .sort((a, b) => a[1][1] - b[1][1])
-                    .slice(0, 100);
-                oldestEntries.forEach(([key]) => tokenCache.delete(key));
-            }
-
-            return Promise.resolve();
         },
     };
 }

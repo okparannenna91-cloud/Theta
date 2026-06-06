@@ -15,7 +15,7 @@ interface ChartViewProps {
 }
 
 const CHART_EVENTS = [
-  { event: "task_created", label: "Tasks Created", color: "text-indigo-500" },
+  { event: "task_created", label: "Tasks Created", color: "text-primary" },
   { event: "task_completed", label: "Tasks Completed", color: "text-emerald-500" },
   { event: "ai_used", label: "AI Usage", color: "text-violet-500" },
   { event: "project_created", label: "Projects", color: "text-amber-500" },
@@ -50,9 +50,9 @@ export default function ChartView({ workspaceId }: ChartViewProps) {
             key={evt.event}
             onClick={() => setSelectedEvent(evt.event)}
             className={cn(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all",
+              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all",
               selectedEvent === evt.event
-                ? "bg-white dark:bg-slate-800 text-indigo-600 shadow-sm"
+                ? "bg-white dark:bg-slate-800 text-primary shadow-sm"
                 : "text-slate-400 hover:text-slate-600"
             )}
           >

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
+
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -166,7 +166,7 @@ export default function TableView({
             if (e.key === "Enter") handleCellEdit(task.id, col, editValue);
             if (e.key === "Escape") setEditingCell(null);
           }}
-          className="h-7 text-xs border-indigo-500 focus-visible:ring-0 rounded"
+          className="h-7 text-xs border-primary focus-visible:ring-0 rounded"
         />
       );
     }
@@ -186,7 +186,7 @@ export default function TableView({
             </div>
           )}
           <span
-            className="text-xs font-medium truncate cursor-pointer hover:text-indigo-600 transition-colors"
+            className="text-xs font-medium truncate cursor-pointer hover:text-primary transition-colors"
             onDoubleClick={() => {
               setEditingCell({ taskId: task.id, columnId: col.id });
               setEditValue(task.title);
@@ -225,7 +225,7 @@ export default function TableView({
         <div
           className={cn(
             "flex border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group",
-            isSelected && "bg-indigo-50/50 dark:bg-indigo-900/10",
+            isSelected && "bg-muted/50 dark:bg-primary/10",
             task.priority === "high" && "border-l-2 border-l-red-400",
             task.priority === "medium" && "border-l-2 border-l-amber-400",
             depth > 0 && "bg-slate-50/30 dark:bg-slate-900/20"
@@ -317,7 +317,7 @@ export default function TableView({
             {pinnedColumns.map(col => (
               <div
                 key={col.id}
-                className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 border-r border-slate-100 dark:border-slate-800/50 bg-slate-50/80 dark:bg-slate-900/80 sticky left-0 z-20"
+                className="px-3 py-2 text-[10px] font-bold text-slate-500 flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 border-r border-slate-100 dark:border-slate-800/50 bg-slate-50/80 dark:bg-slate-900/80 sticky left-0 z-20"
                 style={{ width: col.width || 200, minWidth: col.width || 200 }}
                 onClick={() => toggleSort(col.id)}
               >
@@ -332,7 +332,7 @@ export default function TableView({
             {scrollColumns.map(col => (
               <div
                 key={col.id}
-                className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-slate-500 flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200"
+                className="px-3 py-2 text-[10px] font-bold text-slate-500 flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200"
                 style={{ width: col.width || 200, minWidth: col.width || 200 }}
                 onClick={() => toggleSort(col.id)}
               >
@@ -367,7 +367,7 @@ export default function TableView({
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">Width</label>
+              <label className="text-xs font-bold text-slate-500">Width</label>
               <Input type="number" defaultValue={columnSettings?.width || 200} className="h-9 mt-1" />
             </div>
             <div className="flex items-center gap-4">

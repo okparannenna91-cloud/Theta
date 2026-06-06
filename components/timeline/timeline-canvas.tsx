@@ -7,7 +7,7 @@ import { ZoomLevel } from "./timeline-page";
 import { cn } from "@/lib/utils";
 import TaskBar from "./task-bar";
 import DependencyEngine from "./dependency-engine";
-import { motion, AnimatePresence } from "framer-motion";
+
 import { ChevronRight, ChevronDown, Folder, FileText } from "lucide-react";
 import ResourceHeatmap from "./resource-heatmap";
 
@@ -132,9 +132,9 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
             <div className="flex flex-1 overflow-hidden">
                 {/* Virtualized Task List */}
                 <div className="w-[350px] border-r bg-background/80 backdrop-blur-xl flex flex-col z-10 shadow-2xl relative">
-                    <div className="h-24 border-b flex items-center px-8 bg-secondary/20 font-black uppercase tracking-widest text-[10px] text-muted-foreground/60">
-                        Project Architecture
-                    </div>
+                        <div className="h-24 border-b flex items-center px-8 bg-secondary/20 font-semibold text-[10px] text-muted-foreground/60">
+                            Project Architecture
+                        </div>
                     <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none" onScroll={handleScroll}>
                         <div style={{ height: allFlattenedTasks.length * ROW_HEIGHT, position: "relative" }}>
                             {visibleTasks.map((task, index) => (
@@ -156,7 +156,7 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
                                             <div className="w-4" />
                                         )}
                                         {task.isSummary ? <Folder className="h-4 w-4 text-amber-500 fill-amber-500/20" /> : <FileText className="h-4 w-4 text-blue-500/60" />}
-                                        <span className={cn("text-xs truncate transition-all", task.isSummary ? "font-black uppercase tracking-widest" : "font-medium")}>
+                                        <span className={cn("text-xs truncate transition-all", task.isSummary ? "font-semibold" : "font-medium")}>
                                             {task.title}
                                         </span>
                                     </div>
@@ -177,14 +177,14 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
                         <div className="sticky top-0 h-24 bg-background/90 backdrop-blur-xl border-b flex flex-col z-20">
                             <div className="flex h-12 border-b border-white/5">
                                 {months.map((month, i) => (
-                                    <div key={i} style={{ width: days.filter(d => d.getMonth() === month.getMonth() && d.getFullYear() === month.getFullYear()).length * cellWidth }} className="h-full border-r border-white/5 flex items-center px-6 text-[10px] font-black uppercase tracking-[0.3em] text-primary/80">
+                                    <div key={i} style={{ width: days.filter(d => d.getMonth() === month.getMonth() && d.getFullYear() === month.getFullYear()).length * cellWidth }} className="h-full border-r border-white/5 flex items-center px-6 text-[10px] font-semibold text-primary/80">
                                         {format(month, "MMMM yyyy")}
                                     </div>
                                 ))}
                             </div>
                             <div className="flex h-12">
                                 {days.map((day, i) => (
-                                    <div key={i} style={{ width: cellWidth }} className={cn("h-full border-r border-white/5 flex flex-col items-center justify-center text-[8px] font-black uppercase tracking-tighter", isToday(day) ? "bg-primary/20 text-primary shadow-inner" : "text-muted-foreground/40")}>
+                                    <div key={i} style={{ width: cellWidth }} className={cn("h-full border-r border-white/5 flex flex-col items-center justify-center text-[8px] font-semibold", isToday(day) ? "bg-primary/20 text-primary shadow-inner" : "text-muted-foreground/40")}>
                                         <span>{format(day, "eee")}</span>
                                         <span className="text-xs">{format(day, "dd")}</span>
                                     </div>

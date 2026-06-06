@@ -13,15 +13,15 @@ export function AnalyticsDashboard({ workspaceId }: { workspaceId: string }) {
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
                 <FadeIn delay={0.4}>
-                    <Card className="glass-card border-none rounded-[3rem] bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl p-10 sm:p-12 overflow-hidden shadow-2xl">
+                    <Card className="border shadow-sm bg-card rounded-xl p-10 sm:p-12 overflow-hidden">
                         <CardHeader className="px-0 pt-0 pb-12">
                             <div className="flex items-center gap-6">
-                                <div className="h-14 w-14 rounded-2xl bg-indigo-600/5 flex items-center justify-center border border-indigo-500/10">
-                                    <TrendingUp className="h-6 w-6 text-indigo-600" />
+                                <div className="h-14 w-14 rounded-2xl bg-primary/5 flex items-center justify-center border border-primary/20">
+                                    <TrendingUp className="h-6 w-6 text-primary" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-2xl font-black uppercase tracking-tighter">Task Creation</CardTitle>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">PostHog event trend (30d)</p>
+                                    <CardTitle className="text-2xl font-semibold">Task Creation</CardTitle>
+                                    <p className="text-[10px] font-semibold text-muted-foreground mt-1">PostHog event trend (30d)</p>
                                 </div>
                             </div>
                         </CardHeader>
@@ -32,15 +32,15 @@ export function AnalyticsDashboard({ workspaceId }: { workspaceId: string }) {
                 </FadeIn>
 
                 <FadeIn delay={0.5}>
-                    <Card className="glass-card border-none rounded-[3rem] bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl p-10 sm:p-12 overflow-hidden shadow-2xl">
+                    <Card className="border shadow-sm bg-card rounded-xl p-10 sm:p-12 overflow-hidden">
                         <CardHeader className="px-0 pt-0 pb-12">
                             <div className="flex items-center gap-6">
                                 <div className="h-14 w-14 rounded-2xl bg-emerald-500/5 flex items-center justify-center border border-emerald-500/10">
                                     <Activity className="h-6 w-6 text-emerald-500" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-2xl font-black uppercase tracking-tighter">Task Completion</CardTitle>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">PostHog event trend (30d)</p>
+                                    <CardTitle className="text-2xl font-semibold">Task Completion</CardTitle>
+                                    <p className="text-[10px] font-semibold text-muted-foreground mt-1">PostHog event trend (30d)</p>
                                 </div>
                             </div>
                         </CardHeader>
@@ -51,15 +51,15 @@ export function AnalyticsDashboard({ workspaceId }: { workspaceId: string }) {
                 </FadeIn>
 
                 <FadeIn delay={0.6}>
-                    <Card className="glass-card border-none rounded-[3rem] bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl p-10 sm:p-12 overflow-hidden shadow-2xl">
+                    <Card className="border shadow-sm bg-card rounded-xl p-10 sm:p-12 overflow-hidden">
                         <CardHeader className="px-0 pt-0 pb-12">
                             <div className="flex items-center gap-6">
                                 <div className="h-14 w-14 rounded-2xl bg-violet-500/5 flex items-center justify-center border border-violet-500/10">
                                     <Activity className="h-6 w-6 text-violet-600" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-2xl font-black uppercase tracking-tighter">AI Usage</CardTitle>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">Nova AI interactions (30d)</p>
+                                    <CardTitle className="text-2xl font-semibold">AI Usage</CardTitle>
+                                    <p className="text-[10px] font-semibold text-muted-foreground mt-1">Nova AI interactions (30d)</p>
                                 </div>
                             </div>
                         </CardHeader>
@@ -70,15 +70,15 @@ export function AnalyticsDashboard({ workspaceId }: { workspaceId: string }) {
                 </FadeIn>
 
                 <FadeIn delay={0.7}>
-                    <Card className="glass-card border-none rounded-[3rem] bg-slate-50/20 dark:bg-slate-900/20 backdrop-blur-3xl p-10 sm:p-12 overflow-hidden shadow-2xl">
+                    <Card className="border shadow-sm bg-card rounded-xl p-10 sm:p-12 overflow-hidden">
                         <CardHeader className="px-0 pt-0 pb-12">
                             <div className="flex items-center gap-6">
                                 <div className="h-14 w-14 rounded-2xl bg-amber-500/5 flex items-center justify-center border border-amber-500/10">
                                     <Activity className="h-6 w-6 text-amber-600" />
                                 </div>
                                 <div>
-                                    <CardTitle className="text-2xl font-black uppercase tracking-tighter">Projects Created</CardTitle>
-                                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] mt-1">PostHog event trend (30d)</p>
+                                    <CardTitle className="text-2xl font-semibold">Projects Created</CardTitle>
+                                    <p className="text-[10px] font-semibold text-muted-foreground mt-1">PostHog event trend (30d)</p>
                                 </div>
                             </div>
                         </CardHeader>

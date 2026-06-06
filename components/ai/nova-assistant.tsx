@@ -222,21 +222,21 @@ export function NovaAssistant() {
                         }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         className={cn(
-                            "mb-4 overflow-hidden rounded-[2.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] border border-white/20 backdrop-blur-2xl bg-white/90 dark:bg-slate-950/90 flex flex-col",
+                            "mb-4 overflow-hidden rounded-lg shadow-lg border border-white/20 backdrop-blur-2xl bg-white/90 dark:bg-slate-950/90 flex flex-col",
                             isMinimized ? "h-18" : "h-[600px] w-[95vw] sm:w-[450px]"
                         )}
                     >
-                        {/* Header with Vibrant Gradient */}
-                        <div className="p-5 bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-500 text-white flex items-center justify-between shrink-0 shadow-lg">
+                        {/* Header */}
+                        <div className="p-5 bg-primary text-white flex items-center justify-between shrink-0 shadow-sm">
                             <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-inner">
+                                <div className="h-10 w-10 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-inner">
                                     <Sparkles className="h-5 w-5 text-white animate-pulse" />
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="font-extrabold text-base tracking-tight leading-tight">Nova Intelligence</span>
                                     <div className="flex items-center gap-1.5">
                                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                        <span className="text-[10px] text-white/80 font-black uppercase tracking-widest">Neural v3.0 Online</span>
+                                        <span className="text-[10px] text-white/80 font-medium">AI Connected</span>
                                     </div>
                                 </div>
                             </div>
@@ -244,7 +244,7 @@ export function NovaAssistant() {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-9 w-9 rounded-xl text-white hover:bg-white/20 transition-all"
+                                    className="h-9 w-9 rounded-md text-white hover:bg-white/20 transition-all"
                                     onClick={() => setIsMinimized(!isMinimized)}
                                 >
                                     {isMinimized ? <Maximize2 className="h-5 w-5" /> : <Minimize2 className="h-5 w-5" />}
@@ -252,7 +252,7 @@ export function NovaAssistant() {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-9 w-9 rounded-xl text-white hover:bg-rose-500 transition-all"
+                                    className="h-9 w-9 rounded-md text-white hover:bg-rose-500 transition-all"
                                     onClick={() => setIsOpen(false)}
                                 >
                                     <X className="h-5 w-5" />
@@ -263,14 +263,14 @@ export function NovaAssistant() {
                         {!isMinimized && (
                             <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden">
                                 <div className="px-6 pt-5 pb-2 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-transparent">
-                                    <TabsList className="grid w-full grid-cols-3 bg-slate-100/50 dark:bg-slate-900/50 rounded-2xl p-1.5 border border-slate-200/50 dark:border-slate-800/50">
-                                        <TabsTrigger value="chat" className="rounded-xl text-[10px] font-black uppercase tracking-[0.2em] py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-indigo-600 transition-all">
+                                    <TabsList className="grid w-full grid-cols-3 bg-slate-100/50 dark:bg-slate-900/50 rounded-lg p-1.5 border border-slate-200/50 dark:border-slate-800/50">
+                                        <TabsTrigger value="chat" className="rounded-lg text-xs font-medium py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
                                             Chat
                                         </TabsTrigger>
-                                        <TabsTrigger value="history" className="rounded-xl text-[10px] font-black uppercase tracking-[0.2em] py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-purple-600 transition-all">
+                                        <TabsTrigger value="history" className="rounded-lg text-xs font-medium py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
                                             Recall
                                         </TabsTrigger>
-                                        <TabsTrigger value="workflows" className="rounded-xl text-[10px] font-black uppercase tracking-[0.2em] py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-lg data-[state=active]:text-rose-600 transition-all">
+                                        <TabsTrigger value="workflows" className="rounded-lg text-xs font-medium py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
                                             Actions
                                         </TabsTrigger>
                                     </TabsList>
@@ -295,8 +295,8 @@ export function NovaAssistant() {
                                                 msg.role === "user" ? "flex-row-reverse" : "flex-row"
                                             )}>
                                                 <div className={cn(
-                                                    "h-10 w-10 rounded-2xl shrink-0 flex items-center justify-center overflow-hidden shadow-md border-2",
-                                                    msg.role === "nova" ? "border-indigo-100 bg-white" : "border-slate-100 bg-slate-50"
+                                                    "h-10 w-10 rounded-lg shrink-0 flex items-center justify-center overflow-hidden shadow-md border-2",
+                                                    msg.role === "nova" ? "border-primary/10 bg-white" : "border-slate-100 bg-slate-50"
                                                 )}>
                                                     <Image 
                                                         src={msg.role === "nova" ? novaAvatar : userAvatar} 
@@ -308,17 +308,17 @@ export function NovaAssistant() {
                                                 </div>
                                                 <div className="flex flex-col gap-1.5">
                                                     <div className={cn(
-                                                        "rounded-[1.5rem] px-5 py-3.5 text-[14px] leading-relaxed shadow-sm",
+                                                        "rounded-lg px-5 py-3.5 text-[14px] leading-relaxed shadow-sm",
                                                         msg.role === "nova"
                                                             ? "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-800 rounded-tl-none prose prose-slate dark:prose-invert max-w-none shadow-[0_4px_15px_rgba(0,0,0,0.03)]"
-                                                            : "bg-gradient-to-br from-indigo-600 to-purple-700 text-white rounded-tr-none shadow-indigo-200/50 dark:shadow-none"
+                                                            : "bg-primary text-white rounded-tr-none shadow-sm"
                                                     )}>
                                                         {msg.role === "nova" ? (
                                                             <ReactMarkdown 
                                                                 remarkPlugins={[remarkGfm]}
                                                                 components={{
                                                                     table: ({ children }) => (
-                                                                        <div className="overflow-x-auto my-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                                                        <div className="overflow-x-auto my-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
                                                                             <table className="w-full text-[12px] border-collapse bg-white dark:bg-slate-900">
                                                                                 {children}
                                                                             </table>
@@ -326,8 +326,8 @@ export function NovaAssistant() {
                                                                     ),
                                                                     th: ({ children }) => <th className="px-4 py-3 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-left border-b border-slate-200 dark:border-slate-700">{children}</th>,
                                                                     td: ({ children }) => <td className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">{children}</td>,
-                                                                    a: ({ children, href }) => <a href={href} className="text-indigo-600 dark:text-indigo-400 font-extrabold hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
-                                                                    strong: ({ children }) => <strong className="font-black text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-900/30 px-1 rounded">{children}</strong>
+                                                                    a: ({ children, href }) => <a href={href} className="text-primary font-medium hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                                                                    strong: ({ children }) => <strong className="font-semibold text-primary bg-primary/10 px-1 rounded">{children}</strong>
                                                                 }}
                                                             >
                                                                 {msg.content}
@@ -340,7 +340,7 @@ export function NovaAssistant() {
                                                             <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2">
                                                                 {msg.attachments.map((file, idx) => (
                                                                     <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-[11px] font-bold text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
-                                                                        <FileIcon className="w-3.5 h-3.5 text-indigo-500" />
+                                                                        <FileIcon className="w-3.5 h-3.5 text-primary" />
                                                                         <span>{file.name}</span>
                                                                     </div>
                                                                 ))}
@@ -348,7 +348,7 @@ export function NovaAssistant() {
                                                         )}
                                                     </div>
                                                     <div className={cn(
-                                                        "text-[10px] px-2 opacity-40 font-bold uppercase tracking-widest",
+                                                        "text-[10px] px-2 opacity-40 font-medium",
                                                         msg.role === "user" ? "text-right" : "text-left"
                                                     )}>
                                                         {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -359,13 +359,13 @@ export function NovaAssistant() {
                                     ))}
                                     {isLoading && (
                                         <div className="flex justify-start animate-pulse">
-                                            <div className="flex gap-3 items-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl rounded-tl-none px-5 py-3 shadow-sm">
+                                            <div className="flex gap-3 items-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg rounded-tl-none px-5 py-3 shadow-sm">
                                                 <div className="flex gap-1">
-                                                    <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]"></span>
+                                                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                                                     <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                                                     <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-bounce"></span>
                                                 </div>
-                                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">Nova is analyzing...</span>
+                                                <span className="text-xs font-medium text-muted-foreground">Analyzing...</span>
                                             </div>
                                         </div>
                                     )}
@@ -376,7 +376,7 @@ export function NovaAssistant() {
                                     {attachedFiles.length > 0 && (
                                         <div className="flex flex-wrap gap-2 w-full animate-in slide-in-from-bottom-2">
                                             {attachedFiles.map((file, i) => (
-                                                <div key={i} className="group relative flex items-center gap-2 px-3 py-2 bg-indigo-500/5 border border-indigo-500/10 rounded-2xl text-[11px] font-black text-indigo-600 uppercase tracking-tighter">
+                                                <div key={i} className="group relative flex items-center gap-2 px-3 py-2 bg-primary/5 border border-primary/10 rounded-lg text-xs font-medium text-primary">
                                                     <Paperclip className="w-3.5 h-3.5" />
                                                     <span className="truncate max-w-[120px]">{file.name}</span>
                                                     <button 
@@ -390,7 +390,7 @@ export function NovaAssistant() {
                                         </div>
                                     )}
                                     <form onSubmit={handleSend} className="flex w-full items-center gap-3">
-                                        <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1 rounded-2xl">
+                                        <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1 rounded-lg">
                                             <input 
                                                 type="file" 
                                                 ref={fileInputRef} 
@@ -402,7 +402,7 @@ export function NovaAssistant() {
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-10 w-10 rounded-xl text-slate-400 hover:text-indigo-600 hover:bg-white transition-all"
+                                                className="h-10 w-10 rounded-lg text-slate-400 hover:text-primary hover:bg-white transition-all"
                                                 onClick={() => fileInputRef.current?.click()}
                                             >
                                                 <Paperclip className="h-5 w-5" />
@@ -412,8 +412,8 @@ export function NovaAssistant() {
                                                 variant="ghost"
                                                 size="icon"
                                                 className={cn(
-                                                    "h-10 w-10 rounded-xl transition-all",
-                                                    isListening ? "text-rose-500 bg-rose-500/10 animate-pulse" : "text-slate-400 hover:text-indigo-600 hover:bg-white"
+                                                    "h-10 w-10 rounded-lg transition-all",
+                                                    isListening ? "text-rose-500 bg-rose-500/10 animate-pulse" : "text-slate-400 hover:text-primary hover:bg-white"
                                                 )}
                                                 onClick={startListening}
                                             >
@@ -422,21 +422,21 @@ export function NovaAssistant() {
                                         </div>
                                         <div className="relative flex-1 group">
                                             <Input
-                                                placeholder={isLimitReached ? "Neural limit reached" : "Command Nova..."}
+                                                placeholder={isLimitReached ? "Limit reached" : "Ask Nova..."}
                                                 value={input}
                                                 onChange={(e) => setInput(e.target.value)}
-                                                className="pr-10 bg-slate-100/50 dark:bg-slate-900/50 border-transparent focus-visible:ring-indigo-500 h-12 rounded-2xl text-sm font-medium transition-all group-hover:bg-slate-100"
+                                                className="pr-10 bg-slate-100/50 dark:bg-slate-900/50 border-transparent focus-visible:ring-primary h-12 rounded-lg text-sm font-medium transition-all group-hover:bg-slate-100"
                                                 disabled={isLoading || isLimitReached}
                                             />
-                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700 pointer-events-none group-focus-within:border-indigo-500 transition-colors">
-                                                <ArrowUpCircle className={cn("h-3.5 w-3.5 transition-colors", input.trim() ? "text-indigo-600" : "text-slate-300")} />
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700 pointer-events-none group-focus-within:border-primary transition-colors">
+                                                <ArrowUpCircle className={cn("h-3.5 w-3.5 transition-colors", input.trim() ? "text-primary" : "text-slate-300")} />
                                             </div>
                                         </div>
                                         <Button
                                             type="submit"
                                             size="icon"
                                             disabled={(!input.trim() && attachedFiles.length === 0) || isLoading || isLimitReached}
-                                            className="h-12 w-12 rounded-[1.25rem] bg-gradient-to-br from-indigo-600 to-purple-700 hover:from-indigo-500 hover:to-purple-600 text-white shadow-[0_8px_20px_rgba(79,70,229,0.3)] transition-all active:scale-95 shrink-0"
+                                            className="h-12 w-12 rounded-lg bg-primary hover:bg-primary/90 text-white shadow-sm transition-all active:scale-95 shrink-0"
                                         >
                                             <Send className="h-5 w-5" />
                                         </Button>
@@ -451,18 +451,18 @@ export function NovaAssistant() {
                                         { title: "Task Deconstruction", date: "Yesterday", icon: Zap, color: "text-rose-500" },
                                         { title: "Project Spec Draft", date: "2 days ago", icon: FileEdit, color: "text-amber-500" },
                                     ].map((item, i) => (
-                                        <div key={i} className="p-4 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 hover:border-indigo-500/50 hover:shadow-xl hover:shadow-indigo-500/5 transition-all cursor-pointer group">
+                                        <div key={i} className="p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group">
                                             <div className="flex items-center justify-between">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-2xl group-hover:bg-indigo-50 transition-colors">
+                                                    <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg group-hover:bg-primary/5 transition-colors">
                                                         <item.icon className={cn("w-5 h-5", item.color)} />
                                                     </div>
                                                     <div className="flex flex-col">
                                                         <span className="text-sm font-extrabold text-slate-900 dark:text-white">{item.title}</span>
-                                                        <span className="text-[11px] text-slate-400 font-black uppercase tracking-widest">{item.date}</span>
+                                                        <span className="text-[11px] text-muted-foreground font-medium">{item.date}</span>
                                                     </div>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="rounded-xl hover:bg-indigo-50">
+                                                <Button variant="ghost" size="icon" className="rounded-lg hover:bg-primary/5">
                                                     <Maximize2 className="w-4 h-4 text-slate-300" />
                                                 </Button>
                                             </div>
@@ -474,27 +474,27 @@ export function NovaAssistant() {
                             <TabsContent value="workflows" className="flex-1 overflow-y-auto p-6 m-0 bg-slate-50/30">
                                 <div className="grid grid-cols-2 gap-4">
                                     {[
-                                        { label: "Summarize", icon: ClipboardList, color: "from-blue-500 to-indigo-600", prompt: "Summarize my active tasks." },
-                                        { label: "Daily Standup", icon: MessageSquare, color: "from-emerald-500 to-teal-600", prompt: "Prepare a daily standup for me." },
-                                        { label: "Draft Spec", icon: FileEdit, color: "from-amber-500 to-orange-600", prompt: "Draft a technical spec for..." },
-                                        { label: "Calc Velocity", icon: Calculator, color: "from-purple-500 to-indigo-600", prompt: "Calculate the team velocity." },
+                                        { label: "Summarize", icon: ClipboardList, color: "bg-primary/10 text-primary", prompt: "Summarize my active tasks." },
+                                        { label: "Daily Standup", icon: MessageSquare, color: "bg-emerald-500/10 text-emerald-500", prompt: "Prepare a daily standup for me." },
+                                        { label: "Draft Spec", icon: FileEdit, color: "bg-amber-500/10 text-amber-500", prompt: "Draft a technical spec for..." },
+                                        { label: "Calc Velocity", icon: Calculator, color: "bg-purple-500/10 text-purple-500", prompt: "Calculate the team velocity." },
                                     ].map((action, i) => (
                                         <button 
                                             key={i} 
                                             onClick={() => setInput(action.prompt)}
-                                            className="p-5 bg-white dark:bg-slate-900 rounded-[2rem] border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center gap-4 hover:border-indigo-500/50 hover:shadow-2xl hover:shadow-indigo-500/10 transition-all active:scale-95 group"
+                                            className="p-5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center gap-4 hover:border-primary/50 hover:shadow-md transition-all active:scale-95 group"
                                         >
-                                            <div className={cn("h-14 w-14 rounded-2xl flex items-center justify-center text-white shadow-xl bg-gradient-to-br", action.color)}>
+                                            <div className={cn("h-14 w-14 rounded-lg flex items-center justify-center shadow-sm", action.color)}>
                                                 <action.icon className="w-6 h-6" />
                                             </div>
-                                            <span className="text-[11px] font-black uppercase tracking-[0.1em] text-slate-700 dark:text-slate-300">{action.label}</span>
+                                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{action.label}</span>
                                         </button>
                                     ))}
                                 </div>
 
                                 <div className="mt-8">
                                     <div className="flex items-center justify-between mb-5 px-2">
-                                        <h4 className="text-[11px] font-black uppercase tracking-[0.25em] text-slate-400">Intelligence Blueprints</h4>
+                                        <h4 className="text-xs font-medium text-muted-foreground">Blueprints</h4>
                                         <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 ml-4" />
                                     </div>
                                     <div className="space-y-3">
@@ -506,10 +506,10 @@ export function NovaAssistant() {
                                             <button 
                                                 key={i} 
                                                 onClick={() => setInput(`${t.name}: `)}
-                                                className="w-full p-4 text-left bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-500/5 hover:border-indigo-500/30 transition-all flex items-center gap-4"
+                                                className="w-full p-4 text-left bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:bg-primary/5 dark:hover:bg-primary/5 hover:border-primary/30 transition-all flex items-center gap-4"
                                             >
                                                 <div className="h-10 w-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                                                    <t.icon className="w-5 h-5 text-indigo-500" />
+                                                    <t.icon className="w-5 h-5 text-primary" />
                                                 </div>
                                                 <div>
                                                     <p className="text-[13px] font-extrabold text-slate-900 dark:text-white leading-none mb-1">{t.name}</p>
@@ -531,10 +531,10 @@ export function NovaAssistant() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "flex items-center gap-3 h-16 px-7 rounded-[2rem] shadow-[0_15px_40px_rgba(79,70,229,0.4)] transition-all z-50 border-2 border-white/20 backdrop-blur-md",
+                    "flex items-center gap-3 h-16 px-7 rounded-lg shadow-sm transition-all z-50 border-2 border-white/20 backdrop-blur-md",
                     isOpen
                         ? "bg-slate-900 text-white"
-                        : "bg-gradient-to-br from-indigo-600 via-purple-600 to-rose-500 text-white"
+                        : "bg-primary text-white"
                 )}
             >
                 <div className="relative">
@@ -548,7 +548,7 @@ export function NovaAssistant() {
                         </span>
                     )}
                 </div>
-                {!isOpen && <span className="font-black text-[13px] tracking-[0.1em] uppercase">Nova AI</span>}
+                                {!isOpen && <span className="font-semibold text-sm">Nova AI</span>}
                 {isOpen && <X className="h-6 w-6" />}
             </motion.button>
         </div>

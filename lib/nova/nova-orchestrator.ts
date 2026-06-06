@@ -2,8 +2,10 @@ import { generateWithOpenRouter } from "../openrouter";
 import { generateWithCohere } from "../cohere";
 import { generateWithOpenAI } from "../openai";
 import { model as geminiModel } from "../gemini";
-import { DecisionFramework } from "./decision-framework";
+import { DecisionFramework, type DecisionResult } from "./decision-framework";
 import { PhilosophyEngine } from "./philosophy-engine";
+import { OutputValidator } from "./output-validator";
+import { logger } from "../logger";
 
 export type TaskComplexity = "simple" | "reasoning" | "critical";
 
@@ -37,8 +39,7 @@ Your request has been classified as **HIGH RISK** (${decision.intent.toUpperCase
 Please confirm explicitly if you want to proceed with: "${prompt}".`;
     }
 
-    // Append decision execution rules to the system prompt to guide LLM behavior
-    const systemPromptAddition = `
+    const systemPrompt = (options.systemPrompt || this.defaultSystemPrompt) + `
 [DECISION FRAMEWORK EVALUATION]
 - Intent: ${decision.intent}
 - Risk Level: ${decision.riskLevel}
@@ -46,36 +47,28 @@ Please confirm explicitly if you want to proceed with: "${prompt}".`;
 - Priority: Action/Outcome first, then Explanation last. Use concise bold lists.
 `;
 
-    const systemPrompt = (options.systemPrompt || this.defaultSystemPrompt) + systemPromptAddition;
-
     let response = "";
 
-    // 1. Attempt Primary Layer (OpenRouter)
+    // 1. Attempt Primary Layer (OpenRouter) with model selected by complexity
     try {
       if (process.env.OPENROUTER) {
-        console.log(`[NovaOrchestrator] Attempting Primary OpenRouter Layer with complexity: ${complexity}`);
-        let modelName = "google/gemini-flash-1.5";
-        if (complexity === "reasoning" || decision.strategy === "PATH_C_MULTISTEP") {
-          modelName = "anthropic/claude-3-5-sonnet";
-        } else if (complexity === "critical" || decision.riskLevel === "MEDIUM") {
-          modelName = "openai/gpt-4o";
-        }
-        
-        response = await this.executeOpenRouter(prompt, systemPrompt, modelName, options.imageUrl);
+        const modelName = this.selectModel(prompt, complexity, decision);
+        logger.info(`[NovaOrchestrator] Attempting OpenRouter with model: ${modelName}, complexity: ${complexity}`);
+        response = OutputValidator.validate(await this.executeOpenRouter(prompt, systemPrompt, modelName, options.imageUrl));
       }
     } catch (error) {
-      console.warn("[NovaOrchestrator] OpenRouter layer failed. Falling back. Error:", error);
+      logger.warn("[NovaOrchestrator] OpenRouter layer failed. Falling back.", error);
     }
 
     // 2. Attempt Secondary Layer (Cohere) for text-only
     if (!response && !options.imageUrl) {
       try {
         if (process.env.COHERE_API_KEY) {
-          console.log("[NovaOrchestrator] Attempting Secondary Cohere Layer...");
-          response = await generateWithCohere(prompt, systemPrompt);
+          logger.info("[NovaOrchestrator] Attempting Secondary Cohere Layer...");
+          response = OutputValidator.validate(await generateWithCohere(prompt, systemPrompt));
         }
       } catch (error) {
-        console.warn("[NovaOrchestrator] Cohere fallback layer failed. Error:", error);
+        logger.warn("[NovaOrchestrator] Cohere fallback layer failed.", error);
       }
     }
 
@@ -83,11 +76,11 @@ Please confirm explicitly if you want to proceed with: "${prompt}".`;
     if (!response) {
       try {
         if (process.env.OPENAI_API_KEY) {
-          console.log("[NovaOrchestrator] Attempting Emergency OpenAI Layer...");
-          response = (await generateWithOpenAI(prompt, systemPrompt)) ?? "";
+          logger.info("[NovaOrchestrator] Attempting Emergency OpenAI Layer...");
+          response = OutputValidator.validate((await generateWithOpenAI(prompt, systemPrompt)) ?? "");
         }
       } catch (error) {
-        console.warn("[NovaOrchestrator] OpenAI fallback layer failed. Error:", error);
+        logger.warn("[NovaOrchestrator] OpenAI fallback layer failed.", error);
       }
     }
 
@@ -95,14 +88,14 @@ Please confirm explicitly if you want to proceed with: "${prompt}".`;
     if (!response) {
       try {
         if (process.env.GEMINI_API_KEY) {
-          console.log("[NovaOrchestrator] Attempting Native Gemini Fallback Layer...");
+          logger.info("[NovaOrchestrator] Attempting Native Gemini Fallback Layer...");
           const result = await geminiModel.generateContent({
             contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\nUser Prompt: ${prompt}` }] }],
           });
-          response = result.response.text();
+          response = OutputValidator.validate(result.response.text());
         }
       } catch (error) {
-        console.error("[NovaOrchestrator] All fallback layers failed.", error);
+        logger.error("[NovaOrchestrator] All fallback layers failed.", error);
       }
     }
 
@@ -120,45 +113,36 @@ Please confirm explicitly if you want to proceed with: "${prompt}".`;
     modelName: string,
     imageUrl?: string
   ): Promise<string> {
-    const apiKey = process.env.OPENROUTER;
-    const messages: any[] = [
-      { role: "system", content: systemPrompt }
-    ];
+    return generateWithOpenRouter(prompt, systemPrompt, imageUrl, modelName);
+  }
 
-    if (imageUrl) {
-      messages.push({
-        role: "user",
-        content: [
-          { type: "text", text: prompt },
-          {
-            type: "image_url",
-            image_url: { url: imageUrl },
-          },
-        ],
-      });
-    } else {
-      messages.push({ role: "user", content: prompt });
+  private static selectModel(prompt: string, complexity: TaskComplexity, decision: DecisionResult): string {
+    const isCodeTask = /\b(code|implement|function|script|algorithm|api|endpoint|migration|refactor|debug)\b/i.test(prompt);
+    const isCreativeTask = /\b(write|draft|compose|brainstorm|creative|story|content)\b/i.test(prompt);
+    const isAnalysisTask = /\b(analyze|evaluate|compare|assess|review|audit|metrics|insights?)\b/i.test(prompt);
+    const isDataTask = /\b(data|export|report|statistics|chart|dashboard|aggregate)\b/i.test(prompt);
+
+    const cheapModel = "google/gemini-flash-1.5";
+    const balancedModel = "openai/gpt-4o-mini";
+    const powerfulModel = "openai/gpt-4o";
+    const reasoningModel = "anthropic/claude-3-5-sonnet";
+
+    if (complexity === "reasoning" || decision.strategy === "PATH_C_MULTISTEP") {
+      return reasoningModel;
     }
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://thetapm.site",
-        "X-Title": "Nova AI",
-      },
-      body: JSON.stringify({
-        model: modelName,
-        messages: messages,
-      })
-    });
-
-    const data = await response.json();
-    if (!response.ok) {
-      throw new Error(data.error?.message || "OpenRouter error");
+    if (complexity === "critical" || decision.riskLevel === "MEDIUM") {
+      return powerfulModel;
     }
 
-    return data.choices[0].message.content;
+    if (isCodeTask || isAnalysisTask) {
+      return balancedModel;
+    }
+
+    if (isDataTask || isCreativeTask) {
+      return balancedModel;
+    }
+
+    return cheapModel;
   }
 }

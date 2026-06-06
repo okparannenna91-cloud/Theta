@@ -5,6 +5,10 @@ import {
   Cpu, Layers, Zap, AlertTriangle, CheckCircle2, ArrowRight,
   Search, Brain, Server, Globe, Sparkles, Info, Shield
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface ModelStackEntry {
@@ -33,10 +37,10 @@ const PROVIDER_ICONS: Record<string, React.ElementType> = {
 };
 
 const PROVIDER_COLORS: Record<string, string> = {
-  OpenRouter: "from-indigo-500/10 to-indigo-600/5 border-indigo-500/20 text-indigo-400",
-  Cohere: "from-emerald-500/10 to-emerald-600/5 border-emerald-500/20 text-emerald-400",
-  OpenAI: "from-green-500/10 to-green-600/5 border-green-500/20 text-green-400",
-  Gemini: "from-blue-500/10 to-blue-600/5 border-blue-500/20 text-blue-400",
+  OpenRouter: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
+  Cohere: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+  OpenAI: "text-green-500 bg-green-500/10 border-green-500/20",
+  Gemini: "text-blue-500 bg-blue-500/10 border-blue-500/20",
 };
 
 const COMPLEXITY_ICONS: Record<string, React.ElementType> = {
@@ -68,10 +72,10 @@ export function AiModelsDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="space-y-4 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 animate-pulse mx-auto" />
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Loading AI Model Configuration</p>
+          <Skeleton className="h-10 w-10 rounded-lg mx-auto" />
+          <Skeleton className="h-4 w-48" />
         </div>
       </div>
     );
@@ -84,34 +88,41 @@ export function AiModelsDashboard() {
   );
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 p-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-            <Cpu className="w-5 h-5 text-white" />
+          <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Cpu className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-sm font-black text-white uppercase tracking-wider">AI Models</h1>
-            <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Section 6 — Nova Model Stack</p>
+            <h1 className="text-lg font-semibold">AI Models</h1>
+            <p className="text-sm text-muted-foreground">Section 6 — Nova Model Stack</p>
           </div>
         </div>
-        <div className="relative">
-          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-          <input type="text" placeholder="Search providers..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            className="w-48 pl-8 pr-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-lg text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-indigo-500/50" />
+        <div className="relative w-56">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <Input
+            placeholder="Search providers..."
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            className="h-9 pl-9 text-xs"
+          />
         </div>
       </div>
 
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2">
         {(["stack", "strategies", "rules"] as const).map(tab => (
-          <button key={tab} onClick={() => setActiveTab(tab)}
-            className={cn("px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border transition-all",
-              activeTab === tab ? "bg-indigo-500/10 border-indigo-500/30 text-indigo-400" : "bg-slate-900/50 border-slate-800 text-slate-500 hover:text-slate-300")}>
-            {tab === "stack" && <Server className="w-3 h-3 inline mr-1.5" />}
-            {tab === "strategies" && <Layers className="w-3 h-3 inline mr-1.5" />}
-            {tab === "rules" && <CheckCircle2 className="w-3 h-3 inline mr-1.5" />}
+          <Badge
+            key={tab}
+            variant={activeTab === tab ? "default" : "outline"}
+            className="cursor-pointer text-xs rounded-md px-3 py-1 flex items-center gap-1.5"
+            onClick={() => setActiveTab(tab)}
+          >
+            {tab === "stack" && <Server className="w-3 h-3" />}
+            {tab === "strategies" && <Layers className="w-3 h-3" />}
+            {tab === "rules" && <CheckCircle2 className="w-3 h-3" />}
             {tab}
-          </button>
+          </Badge>
         ))}
       </div>
 
@@ -119,20 +130,24 @@ export function AiModelsDashboard() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredStack.map((m, i) => {
             const Icon = PROVIDER_ICONS[m.provider] || Cpu;
-            const colorClass = PROVIDER_COLORS[m.provider] || "from-slate-500/10 to-slate-600/5 border-slate-500/20 text-slate-400";
+            const colorClass = PROVIDER_COLORS[m.provider] || "text-muted-foreground bg-muted border-border";
             return (
-              <div key={i} className={cn("rounded-2xl border p-5 bg-gradient-to-br space-y-3 transition-all hover:scale-[1.02] group", colorClass)}>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center">
-                    <Icon className="w-5 h-5" />
+              <Card key={i} className="border shadow-sm hover:border-primary/30 transition-colors">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-3">
+                    <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center border", colorClass)}>
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-sm font-semibold">{m.provider}</CardTitle>
+                      <CardDescription className="text-xs">{m.layer}</CardDescription>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="text-sm font-black text-white uppercase tracking-wider">{m.provider}</h3>
-                    <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{m.layer}</p>
-                  </div>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium">{m.purpose}</p>
-              </div>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{m.purpose}</p>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -143,22 +158,26 @@ export function AiModelsDashboard() {
           {data?.selectionStrategies.map((s, i) => {
             const Icon = COMPLEXITY_ICONS[s.complexity] || Cpu;
             return (
-              <div key={i} className="p-5 bg-slate-900/50 border border-slate-800 rounded-xl space-y-4 group hover:border-indigo-500/20 transition-all">
-                <div className="flex items-center gap-2">
-                  <Icon className="w-4 h-4 text-indigo-400" />
-                  <h3 className="text-xs font-black text-white uppercase tracking-wider">{s.complexity}</h3>
-                </div>
-                <p className="text-[11px] text-slate-400 font-medium">{s.description}</p>
-                <div className="space-y-1.5">
-                  <span className="text-[8px] font-black text-slate-600 uppercase tracking-widest">Recommended Models</span>
-                  {s.recommendedModels.map((model, j) => (
-                    <div key={j} className="flex items-center gap-2 text-[11px] text-slate-400">
-                      <ArrowRight className="w-2.5 h-2.5 text-slate-600 shrink-0" />
-                      <span className="font-medium">{model}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
+              <Card key={i} className="border shadow-sm hover:border-primary/30 transition-colors">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center gap-2">
+                    <Icon className="w-4 h-4 text-primary" />
+                    <CardTitle className="text-sm font-semibold">{s.complexity}</CardTitle>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-sm text-muted-foreground">{s.description}</p>
+                  <div>
+                    <p className="text-xs font-medium text-foreground mb-1.5">Recommended Models</p>
+                    {s.recommendedModels.map((model, j) => (
+                      <div key={j} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <ArrowRight className="w-3 h-3 text-muted-foreground shrink-0" />
+                        <span>{model}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
         </div>
@@ -167,9 +186,9 @@ export function AiModelsDashboard() {
       {activeTab === "rules" && (
         <div className="space-y-3">
           {data?.selectionRules.map((rule, i) => (
-            <div key={i} className="flex items-start gap-3 p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
-              <Info className="w-4 h-4 text-indigo-400 shrink-0 mt-0.5" />
-              <span className="text-xs text-slate-300 font-medium">{rule}</span>
+            <div key={i} className="flex items-start gap-3 px-4 py-3 bg-muted border border-border rounded-lg">
+              <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+              <span className="text-sm text-foreground/80">{rule}</span>
             </div>
           ))}
         </div>

@@ -59,9 +59,7 @@ export async function PATCH(
         task = await db.task.findUnique({ where: { id: params.id } });
         
         if (!task) {
-            // If not found on the specified shard, it might be an invalid workspaceId or moved record
-            // Fallback to searching all shards just in case
-            const searchResult = await findAcrossShards<Task>("task", { id: params.id });
+            const searchResult = await findAcrossShards<Task>("task", { id: params.id }, { workspaceId });
             task = searchResult.data;
             db = searchResult.db;
         }

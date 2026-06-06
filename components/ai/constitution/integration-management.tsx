@@ -6,6 +6,10 @@ import {
   ArrowRight, Info, Shield, Zap, Server, Database, Lock,
   Cpu, HardDrive, Mail, Wallet, Wifi, Cloud, Clock, Brain
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface Service {
@@ -36,16 +40,16 @@ const CATEGORY_ICONS: Record<string, React.ElementType> = {
 };
 
 const CATEGORY_COLORS: Record<string, string> = {
-  database: "from-emerald-500/10 to-emerald-600/5 border-emerald-500/20 text-emerald-400",
-  auth: "from-rose-500/10 to-rose-600/5 border-rose-500/20 text-rose-400",
-  realtime: "from-cyan-500/10 to-cyan-600/5 border-cyan-500/20 text-cyan-400",
-  memory: "from-violet-500/10 to-violet-600/5 border-violet-500/20 text-violet-400",
-  cache: "from-amber-500/10 to-amber-600/5 border-amber-500/20 text-amber-400",
-  ai: "from-indigo-500/10 to-indigo-600/5 border-indigo-500/20 text-indigo-400",
-  storage: "from-blue-500/10 to-blue-600/5 border-blue-500/20 text-blue-400",
-  email: "from-pink-500/10 to-pink-600/5 border-pink-500/20 text-pink-400",
-  payments: "from-green-500/10 to-green-600/5 border-green-500/20 text-green-400",
-  queue: "from-orange-500/10 to-orange-600/5 border-orange-500/20 text-orange-400",
+  database: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+  auth: "text-rose-500 bg-rose-500/10 border-rose-500/20",
+  realtime: "text-cyan-500 bg-cyan-500/10 border-cyan-500/20",
+  memory: "text-violet-500 bg-violet-500/10 border-violet-500/20",
+  cache: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+  ai: "text-indigo-500 bg-indigo-500/10 border-indigo-500/20",
+  storage: "text-blue-500 bg-blue-500/10 border-blue-500/20",
+  email: "text-pink-500 bg-pink-500/10 border-pink-500/20",
+  payments: "text-green-500 bg-green-500/10 border-green-500/20",
+  queue: "text-orange-500 bg-orange-500/10 border-orange-500/20",
 };
 
 export function IntegrationManagement() {
@@ -97,10 +101,10 @@ export function IntegrationManagement() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="space-y-4 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-green-500/10 animate-pulse mx-auto" />
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Loading Integration Rules</p>
+          <Skeleton className="h-10 w-10 rounded-lg mx-auto" />
+          <Skeleton className="h-4 w-40" />
         </div>
       </div>
     );
@@ -117,71 +121,62 @@ export function IntegrationManagement() {
   });
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center shadow-lg shadow-green-500/20">
-          <Globe className="w-5 h-5 text-white" />
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Globe className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-sm font-black text-white uppercase tracking-wider">Integration Rules</h1>
-          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Section 19 — Infrastructure Governance</p>
+          <h1 className="text-lg font-semibold">Integration Rules</h1>
+          <p className="text-sm text-muted-foreground">Section 19 — Infrastructure Governance</p>
         </div>
       </div>
 
       <div className="flex flex-wrap gap-2">
         {(["infrastructure", "evaluate", "rules"] as const).map(tab => (
-          <button
+          <Badge
             key={tab}
+            variant={activeTab === tab ? "default" : "outline"}
+            className="cursor-pointer text-xs rounded-md px-3 py-1"
             onClick={() => setActiveTab(tab)}
-            className={cn(
-              "px-4 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider border transition-all",
-              activeTab === tab
-                ? "bg-green-500/10 border-green-500/30 text-green-400"
-                : "bg-slate-900/50 border-slate-800 text-slate-500 hover:text-slate-300"
-            )}
           >
             {tab === "infrastructure" && <Server className="w-3 h-3 inline mr-1.5" />}
             {tab === "evaluate" && <Zap className="w-3 h-3 inline mr-1.5" />}
             {tab === "rules" && <Shield className="w-3 h-3 inline mr-1.5" />}
             {tab}
-          </button>
+          </Badge>
         ))}
       </div>
 
       {activeTab === "infrastructure" && (
         <>
           <div className="flex flex-col md:flex-row gap-4 items-start md:items-center justify-between">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-500" />
-              <input
-                type="text"
+            <div className="relative w-56">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+              <Input
                 placeholder="Search infrastructure..."
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
-                className="w-48 pl-8 pr-3 py-1.5 text-xs bg-slate-900 border border-slate-800 rounded-lg text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-green-500/50"
+                className="h-9 pl-9 text-xs"
               />
             </div>
             <div className="flex flex-wrap gap-1.5">
-              <button
+              <Badge
+                variant={filterCategory === null ? "default" : "outline"}
+                className="cursor-pointer text-xs rounded-md px-3 py-1"
                 onClick={() => setFilterCategory(null)}
-                className={cn(
-                  "px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider border transition-all",
-                  !filterCategory ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-slate-900/50 border-slate-800 text-slate-500"
-                )}
               >
                 All
-              </button>
+              </Badge>
               {categories.map(cat => (
-                <button
+                <Badge
                   key={cat}
+                  variant={filterCategory === cat ? "default" : "outline"}
+                  className="cursor-pointer text-xs rounded-md px-3 py-1"
                   onClick={() => setFilterCategory(cat)}
-                  className={cn(
-                    "px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider border transition-all",
-                    filterCategory === cat ? "bg-green-500/10 border-green-500/30 text-green-400" : "bg-slate-900/50 border-slate-800 text-slate-500"
-                  )}
                 >
                   {cat}
-                </button>
+                </Badge>
               ))}
             </div>
           </div>
@@ -189,29 +184,35 @@ export function IntegrationManagement() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {filtered.map((svc, i) => {
               const Icon = CATEGORY_ICONS[svc.category] || Globe;
-              const colorClass = CATEGORY_COLORS[svc.category] || "from-slate-500/10 to-slate-600/5 border-slate-500/20 text-slate-400";
+              const colorClass = CATEGORY_COLORS[svc.category] || "text-muted-foreground bg-muted border-border";
               return (
-                <div key={i} className={cn("rounded-2xl border p-5 bg-gradient-to-br space-y-3 transition-all hover:scale-[1.02] group", colorClass)}>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center">
-                        <Icon className="w-5 h-5" />
+                <Card key={i} className="border shadow-sm hover:border-primary/30 transition-colors">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center border", colorClass)}>
+                          <Icon className="w-4 h-4" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-sm font-semibold">{svc.name}</CardTitle>
+                          <CardDescription className="text-xs">{svc.provider}</CardDescription>
+                        </div>
                       </div>
-                      <div>
-                        <h3 className="text-sm font-black text-white uppercase tracking-wider">{svc.name}</h3>
-                        <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">{svc.provider}</p>
+                      <Badge variant="outline" className="text-xs rounded-md px-2 py-0 h-5">
+                        {svc.category}
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    <p className="text-sm text-muted-foreground leading-relaxed">{svc.purpose}</p>
+                    {svc.fallback && (
+                      <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                        <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Fallback: {svc.fallback}</span>
                       </div>
-                    </div>
-                    <span className="text-[8px] font-black uppercase tracking-widest px-2 py-1 rounded-md bg-slate-900/60 border border-slate-800 text-slate-500">{svc.category}</span>
-                  </div>
-                  <p className="text-[11px] text-slate-400 font-medium">{svc.purpose}</p>
-                  {svc.fallback && (
-                    <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/5 border border-amber-500/10">
-                      <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
-                      <span className="text-[10px] font-bold text-amber-400">Fallback: {svc.fallback}</span>
-                    </div>
-                  )}
-                </div>
+                    )}
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
@@ -220,64 +221,82 @@ export function IntegrationManagement() {
 
       {activeTab === "evaluate" && (
         <div className="max-w-2xl space-y-6">
-          <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-xl space-y-4">
-            <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Evaluate New Integration</h3>
-            <div className="space-y-3">
+          <Card className="border shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-sm font-semibold">Evaluate New Integration</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Service Name</label>
-                <input type="text" value={serviceName} onChange={e => setServiceName(e.target.value)}
+                <label className="text-xs font-medium text-foreground">Service Name</label>
+                <Input
+                  type="text"
+                  value={serviceName}
+                  onChange={e => setServiceName(e.target.value)}
                   placeholder="e.g., Supabase"
-                  className="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-lg text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-green-500/50" />
+                  className="h-9 text-xs"
+                />
               </div>
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Category</label>
-                <select value={category} onChange={e => setCategory(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-lg text-slate-300 focus:outline-none focus:border-green-500/50">
+                <label className="text-xs font-medium text-foreground">Category</label>
+                <select
+                  value={category}
+                  onChange={e => setCategory(e.target.value)}
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-xs shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium file:text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                >
                   <option value="">Select category</option>
                   {categories.map(c => <option key={c} value={c}>{c}</option>)}
                 </select>
               </div>
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-slate-500 uppercase tracking-wider">Purpose</label>
-                <input type="text" value={purpose} onChange={e => setPurpose(e.target.value)}
+                <label className="text-xs font-medium text-foreground">Purpose</label>
+                <Input
+                  type="text"
+                  value={purpose}
+                  onChange={e => setPurpose(e.target.value)}
                   placeholder="e.g., Real-time database for task sync"
-                  className="w-full px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-lg text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-green-500/50" />
+                  className="h-9 text-xs"
+                />
               </div>
-              <button onClick={handleEvaluate} disabled={!serviceName || !category || !purpose || evalLoading}
-                className="w-full py-2 rounded-lg bg-green-600 text-white text-[9px] font-black uppercase tracking-wider hover:bg-green-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all">
+              <button
+                onClick={handleEvaluate}
+                disabled={!serviceName || !category || !purpose || evalLoading}
+                className="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground shadow hover:bg-primary/90 h-9 px-4 py-2 w-full text-xs"
+              >
                 {evalLoading ? "Evaluating..." : "Evaluate"}
               </button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
 
           {evalResult && (
-            <div className={cn("p-5 rounded-xl border space-y-3", evalResult.approved
-              ? "bg-emerald-500/5 border-emerald-500/20" : "bg-rose-500/5 border-rose-500/20")}>
-              <div className="flex items-center gap-2">
-                {evalResult.approved
-                  ? <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                  : <XCircle className="w-5 h-5 text-rose-400" />}
-                <span className={cn("text-sm font-black uppercase tracking-wider", evalResult.approved ? "text-emerald-400" : "text-rose-400")}>
-                  {evalResult.approved ? "Approved" : "Rejected"}
-                </span>
-              </div>
-              <p className="text-xs text-slate-300 font-medium">{evalResult.reason}</p>
-              <span className="text-[9px] font-bold text-slate-500">Priority Level: {evalResult.priority}</span>
-            </div>
+            <Card className={cn("border shadow-sm", evalResult.approved ? "border-emerald-500/30" : "border-rose-500/30")}>
+              <CardContent className="p-5 space-y-3">
+                <div className="flex items-center gap-2">
+                  {evalResult.approved
+                    ? <CheckCircle2 className="w-5 h-5 text-emerald-500" />
+                    : <XCircle className="w-5 h-5 text-rose-500" />}
+                  <span className={cn("text-sm font-semibold", evalResult.approved ? "text-emerald-500" : "text-rose-500")}>
+                    {evalResult.approved ? "Approved" : "Rejected"}
+                  </span>
+                </div>
+                <p className="text-sm text-muted-foreground">{evalResult.reason}</p>
+                <p className="text-xs text-muted-foreground">Priority Level: {evalResult.priority}</p>
+              </CardContent>
+            </Card>
           )}
 
-          {/* Evaluation Questions Reference */}
           {data?.evaluationQuestions && data.evaluationQuestions.length > 0 && (
             <div className="space-y-3">
-              <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Evaluation Questions</h3>
+              <h3 className="text-sm font-semibold text-foreground">Evaluation Questions</h3>
               {data.evaluationQuestions.map((q, i) => (
-                <div key={i} className="flex items-start gap-3 p-3 bg-slate-900/50 border border-slate-800 rounded-xl">
-                  <Info className="w-3.5 h-3.5 text-green-400 shrink-0 mt-0.5" />
-                  <div>
-                    <span className="text-xs font-black text-white">{q.question}</span>
-                    <p className="text-[10px] text-slate-400 mt-0.5">{q.description}</p>
-                  </div>
-                </div>
+                <Card key={i} className="border shadow-sm hover:border-primary/30 transition-colors">
+                  <CardContent className="p-4 flex items-start gap-3">
+                    <Info className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{q.question}</p>
+                      <p className="text-sm text-muted-foreground mt-0.5">{q.description}</p>
+                    </div>
+                  </CardContent>
+                </Card>
               ))}
             </div>
           )}
@@ -287,10 +306,12 @@ export function IntegrationManagement() {
       {activeTab === "rules" && (
         <div className="space-y-4">
           {data?.disciplineRules.map((rule, i) => (
-            <div key={i} className="flex items-start gap-3 p-4 bg-slate-900/50 border border-slate-800 rounded-xl">
-              <Shield className="w-4 h-4 text-green-400 shrink-0 mt-0.5" />
-              <span className="text-xs text-slate-300 font-medium">{rule}</span>
-            </div>
+            <Card key={i} className="border shadow-sm hover:border-primary/30 transition-colors">
+              <CardContent className="p-4 flex items-start gap-3">
+                <Shield className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                <span className="text-sm text-muted-foreground">{rule}</span>
+              </CardContent>
+            </Card>
           ))}
         </div>
       )}

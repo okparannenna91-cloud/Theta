@@ -1,5 +1,6 @@
 import { getPrismaClient } from "../prisma";
 import { PROJECT_STRUCTURE_STANDARDS, PROJECT_CREATION_FLOW, PROJECT_INTELLIGENCE_CAPABILITIES, PROJECT_MONITORING_AREAS } from "./constitution/project-standards";
+import { STATUS_DONE, STATUS_IN_PROGRESS, STATUS_BLOCKED } from "../constants/status";
 
 export { PROJECT_STRUCTURE_STANDARDS, PROJECT_CREATION_FLOW, PROJECT_INTELLIGENCE_CAPABILITIES, PROJECT_MONITORING_AREAS } from "./constitution/project-standards";
 
@@ -44,16 +45,16 @@ export class ProjectIntelligence {
     });
 
     const totalTasks = tasks.length;
-    const completedTasks = tasks.filter(t => t.status === "done").length;
+    const completedTasks = tasks.filter(t => t.status === STATUS_DONE).length;
 
     const now = new Date();
-    const overdueTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate) < now && t.status !== "done").length;
+    const overdueTasks = tasks.filter(t => t.dueDate && new Date(t.dueDate) < now && t.status !== STATUS_DONE).length;
 
     const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
-    const stalledTasks = tasks.filter(t => t.status === "in_progress" && new Date(t.updatedAt) < fourDaysAgo).length;
+    const stalledTasks = tasks.filter(t => t.status === STATUS_IN_PROGRESS && new Date(t.updatedAt) < fourDaysAgo).length;
 
     const blockedTasks = tasks.filter(t =>
-      t.status === "blocked" || t.predecessors?.some((d: any) => d.type === "FS")
+      t.status === STATUS_BLOCKED || t.predecessors?.some((d: any) => d.type === "FS")
     ).length;
 
     const rate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 100;
@@ -66,10 +67,10 @@ export class ProjectIntelligence {
 
     const risks: ProjectRisk[] = [];
     if (overdueTasks > 0) {
-      risks.push({ type: "SCHEDULE", severity: overdueTasks > 3 ? "CRITICAL" : "HIGH", description: `${overdueTasks} tasks past due date`, affectedItems: tasks.filter(t => t.dueDate && new Date(t.dueDate) < now && t.status !== "done").map(t => t.title) });
+      risks.push({ type: "SCHEDULE", severity: overdueTasks > 3 ? "CRITICAL" : "HIGH", description: `${overdueTasks} tasks past due date`, affectedItems: tasks.filter(t => t.dueDate && new Date(t.dueDate) < now && t.status !== STATUS_DONE).map(t => t.title) });
     }
     if (stalledTasks > 0) {
-      risks.push({ type: "CAPACITY", severity: stalledTasks > 2 ? "HIGH" : "MEDIUM", description: `${stalledTasks} tasks stalled without updates`, affectedItems: tasks.filter(t => t.status === "in_progress" && new Date(t.updatedAt) < fourDaysAgo).map(t => t.title) });
+      risks.push({ type: "CAPACITY", severity: stalledTasks > 2 ? "HIGH" : "MEDIUM", description: `${stalledTasks} tasks stalled without updates`, affectedItems: tasks.filter(t => t.status === STATUS_IN_PROGRESS && new Date(t.updatedAt) < fourDaysAgo).map(t => t.title) });
     }
     if (blockedTasks > 2) {
       risks.push({ type: "DEPENDENCY", severity: "HIGH", description: `${blockedTasks} tasks blocked by dependencies`, affectedItems: [] });

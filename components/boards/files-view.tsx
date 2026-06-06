@@ -146,11 +146,11 @@ export default function FilesView({ tasks, workspaceId }: FilesViewProps) {
           <table className="w-full text-left">
             <thead>
               <tr className="border-b bg-slate-50 dark:bg-slate-900">
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">Name</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">Type</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">Size</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">From Task</th>
-                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-slate-500">Actions</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500">Name</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500">Type</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500">Size</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500">From Task</th>
+                <th className="px-4 py-3 text-[10px] font-bold text-slate-500">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800">

@@ -126,7 +126,7 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
                 style={{ left }}
                 className="absolute flex items-center justify-center z-10 cursor-pointer group"
             >
-                <div className="w-6 h-6 bg-indigo-600 border-2 border-white dark:border-slate-800 shadow-xl group-hover:scale-125 transition-all">
+                <div className="w-6 h-6 bg-primary border-2 border-white dark:border-slate-800 shadow-xl group-hover:scale-125 transition-all">
                     <div className="-rotate-45 flex items-center justify-center h-full">
                         <Milestone className="w-2.5 h-2.5 text-white" />
                     </div>
@@ -146,7 +146,7 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
                     <div className="absolute right-0 bottom-0 w-1 h-3 bg-slate-900 dark:bg-slate-200 rounded-sm" />
                 </div>
                 {task.progress > 0 && (
-                    <div className="text-[9px] font-black uppercase tracking-widest text-muted-foreground/80 mb-1 px-1">
+                    <div className="text-[9px] font-semibold text-muted-foreground/80 mb-1 px-1">
                         {Math.round(task.progress)}% AGGREGATE
                     </div>
                 )}
@@ -191,16 +191,16 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
                         ) : task.status === "blocked" ? (
                             <AlertCircle className="h-3 w-3 text-rose-500 flex-shrink-0" />
                         ) : null}
-                        <span className="text-[10px] font-black uppercase tracking-widest truncate">
+                        <span className="text-[10px] font-semibold truncate">
                             {task.title}
                         </span>
                         {task.isCritical && (
-                            <Badge variant="outline" className="bg-rose-500/20 text-rose-500 border-rose-500/40 text-[7px] py-0 h-4 font-black">CRITICAL</Badge>
+                            <Badge variant="outline" className="bg-rose-500/20 text-rose-500 border-rose-500/40 text-[7px] py-0 h-4 font-semibold">CRITICAL</Badge>
                         )}
                     </div>
                     
                     {task.progress > 0 && (
-                        <span className="text-[9px] font-black opacity-40 flex-shrink-0">
+                        <span className="text-[9px] font-semibold opacity-40 flex-shrink-0">
                             {Math.round(task.progress)}%
                         </span>
                     )}

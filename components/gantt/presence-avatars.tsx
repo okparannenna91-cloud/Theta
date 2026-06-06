@@ -61,14 +61,14 @@ export default function PresenceAvatars({ workspaceId }: PresenceAvatarsProps) {
                                 >
                                     <Avatar className="h-8 w-8 border-2 border-background ring-2 ring-primary/20 shadow-lg cursor-pointer transition-transform hover:scale-110 hover:z-10">
                                         <AvatarImage src={member.image} />
-                                        <AvatarFallback className="bg-primary/10 text-[10px] font-black uppercase">
+                                        <AvatarFallback className="bg-primary/10 text-[10px] font-semibold">
                                             {member.name.charAt(0)}
                                         </AvatarFallback>
                                     </Avatar>
                                     <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-background" />
                                 </motion.div>
                             </TooltipTrigger>
-                            <TooltipContent className="bg-slate-900 text-white border-none rounded-xl text-[10px] font-black uppercase tracking-widest">
+                            <TooltipContent className="bg-slate-900 text-white border-none rounded-xl text-[10px] font-semibold">
                                 {member.name} (VIEWING)
                             </TooltipContent>
                         </Tooltip>
@@ -76,7 +76,7 @@ export default function PresenceAvatars({ workspaceId }: PresenceAvatarsProps) {
                 ))}
             </AnimatePresence>
             {members.length > 5 && (
-                <div className="h-8 w-8 rounded-full bg-secondary border-2 border-background flex items-center justify-center text-[10px] font-black text-muted-foreground z-10">
+                <div className="h-8 w-8 rounded-full bg-secondary border-2 border-background flex items-center justify-center text-[10px] font-semibold text-muted-foreground z-10">
                     +{members.length - 5}
                 </div>
             )}

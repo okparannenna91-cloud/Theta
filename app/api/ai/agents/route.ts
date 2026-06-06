@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { AgentFramework } from "@/lib/nova/agent-framework";
 import { AGENT_REGISTRY } from "@/lib/nova/config";
+import { logger } from "@/lib/logger";
 
 export async function GET(req: NextRequest) {
   try {
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
       collaborationRules: AgentFramework.getCollaborationRules(),
     });
   } catch (error: any) {
-    console.error("[Agent API] GET error:", error);
+    logger.error("[Agent API] GET error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest) {
       message: `Dispatched to ${plans.length} agent(s)`,
     });
   } catch (error: any) {
-    console.error("[Agent API] POST error:", error);
+    logger.error("[Agent API] POST error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -83,19 +83,19 @@ export function InviteMemberDialog({
 
     return (
         <Dialog open={isOpen} onOpenChange={onOpenChange}>
-            <DialogContent className="sm:max-w-[425px] rounded-[2rem] border-slate-200 dark:border-slate-800">
+            <DialogContent className="sm:max-w-[425px] rounded-lg border-slate-200 dark:border-slate-800">
                 <DialogHeader>
-                    <div className="h-12 w-12 bg-indigo-600 rounded-2xl flex items-center justify-center mb-4 shadow-lg shadow-indigo-500/20">
-                        <UserPlus className="h-6 w-6 text-white" />
+                    <div className="h-12 w-12 bg-primary rounded-lg flex items-center justify-center mb-4 shadow-sm">
+                        <UserPlus className="h-6 w-6 text-primary-foreground" />
                     </div>
-                    <DialogTitle className="text-2xl font-black uppercase tracking-tight">Expand the Team</DialogTitle>
-                    <DialogDescription className="font-medium uppercase text-[10px] tracking-widest text-indigo-500">
+                    <DialogTitle className="text-2xl font-semibold tracking-tight">Expand the Team</DialogTitle>
+                    <DialogDescription className="font-semibold text-xs text-primary">
                         Invite a new collaborator to this workspace.
                     </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleSubmit} className="space-y-6 py-4">
                     <div className="space-y-2">
-                        <Label htmlFor="email" className="text-[10px] font-black uppercase tracking-widest text-slate-500">Email Address</Label>
+                        <Label htmlFor="email" className="text-xs font-semibold text-slate-500">Email Address</Label>
                         <div className="relative">
                             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                             <Input
@@ -104,20 +104,20 @@ export function InviteMemberDialog({
                                 placeholder="name@example.com"
                                 value={email}
                                 onChange={(e) => setEmail(e.target.value)}
-                                className="pl-10 h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus-visible:ring-indigo-500 font-bold"
+                                className="pl-10 h-12 rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 focus-visible:ring-primary font-semibold"
                                 required
                             />
                         </div>
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="role" className="text-[10px] font-black uppercase tracking-widest text-slate-500">Permission Role</Label>
+                        <Label htmlFor="role" className="text-xs font-semibold text-slate-500">Permission Role</Label>
                         <Select value={role} onValueChange={setRole}>
-                            <SelectTrigger className="h-12 rounded-xl border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 font-bold">
+                            <SelectTrigger className="h-12 rounded-lg border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 font-semibold">
                                 <SelectValue placeholder="Select role" />
                             </SelectTrigger>
-                            <SelectContent className="rounded-xl">
-                                <SelectItem value="member" className="font-bold">Member (Full Access)</SelectItem>
-                                <SelectItem value="admin" className="font-bold">Admin (Manage Settings)</SelectItem>
+                            <SelectContent className="rounded-lg">
+                                <SelectItem value="member" className="font-semibold">Member (Full Access)</SelectItem>
+                                <SelectItem value="admin" className="font-semibold">Admin (Manage Settings)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -126,14 +126,14 @@ export function InviteMemberDialog({
                             type="button" 
                             variant="ghost" 
                             onClick={() => onOpenChange(false)}
-                            className="rounded-xl font-black uppercase tracking-widest text-[10px]"
+                            className="rounded-lg font-semibold text-xs"
                         >
                             Cancel
                         </Button>
                         <Button 
                             type="submit" 
                             disabled={!email || inviteMutation.isPending}
-                            className="rounded-xl bg-indigo-600 hover:bg-indigo-700 font-black uppercase tracking-widest text-[10px] h-12 px-8 shadow-lg shadow-indigo-500/20"
+                            className="rounded-lg bg-primary hover:bg-primary/90 font-semibold text-xs h-12 px-8 shadow-sm"
                         >
                             {inviteMutation.isPending ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />

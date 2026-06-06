@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { Plus, Layout, ArrowRight, CheckCircle2, Building2, Trash2, AlertTriangle } from "lucide-react";
+import { Plus, ArrowRight, CheckCircle2, Building2, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 
@@ -24,8 +23,7 @@ export default function WorkspacesPage() {
     const createMutation = useMutation({
         mutationFn: async (name: string) => {
             const res = await fetch("/api/workspaces", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
+                method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name }),
             });
             if (!res.ok) throw new Error("Failed to create workspace");
@@ -33,38 +31,27 @@ export default function WorkspacesPage() {
         },
         onSuccess: (newWorkspace) => {
             queryClient.invalidateQueries({ queryKey: ["workspaces"] });
-            setIsOpen(false);
-            setName("");
+            setIsOpen(false); setName("");
             toast.success("Workspace created successfully");
             switchWorkspace(newWorkspace.id);
             router.push("/dashboard");
         },
-        onError: (error: any) => {
-            toast.error(error.message);
-        },
+        onError: (error: any) => { toast.error(error.message); },
     });
 
     const deleteMutation = useMutation({
         mutationFn: async (id: string) => {
-            const res = await fetch(`/api/workspaces/${id}`, {
-                method: "DELETE",
-            });
-            if (!res.ok) {
-                const error = await res.json();
-                throw new Error(error.error || "Failed to delete workspace");
-            }
+            const res = await fetch(`/api/workspaces/${id}`, { method: "DELETE" });
+            if (!res.ok) { const error = await res.json(); throw new Error(error.error || "Failed to delete workspace"); }
             return res.json();
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["workspaces"] });
             setDeleteId(null);
             toast.success("Workspace deleted successfully");
-            // If the deleted workspace was the active one, we might need to switch
             router.refresh();
         },
-        onError: (error: any) => {
-            toast.error(error.message);
-        },
+        onError: (error: any) => { toast.error(error.message); },
     });
 
     const handleSubmit = (e: React.FormEvent) => {
@@ -73,16 +60,14 @@ export default function WorkspacesPage() {
         createMutation.mutate(name);
     };
 
-    const handleDelete = (id: string) => {
-        deleteMutation.mutate(id);
-    };
+    const handleDelete = (id: string) => { deleteMutation.mutate(id); };
 
     if (isLoading) {
         return (
-            <div className="p-8 flex items-center justify-center min-h-[400px]">
+            <div className="flex items-center justify-center min-h-[400px]">
                 <div className="flex flex-col items-center gap-4">
-                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600"></div>
-                    <p className="text-muted-foreground font-medium animate-pulse">Loading your workspaces...</p>
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <p className="text-sm text-muted-foreground">Loading your workspaces...</p>
                 </div>
             </div>
         );
@@ -90,25 +75,17 @@ export default function WorkspacesPage() {
 
     if (error) {
         return (
-            <div className="p-8 flex items-center justify-center min-h-[400px]">
-                <Card className="max-w-md w-full border-red-100 bg-red-50/50 dark:bg-red-900/10 dark:border-red-900/20">
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Card className="max-w-md w-full border shadow-sm">
                     <CardHeader className="text-center">
-                        <div className="mx-auto h-12 w-12 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
-                            <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
+                        <div className="mx-auto h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                            <AlertTriangle className="h-5 w-5 text-destructive" />
                         </div>
-                        <CardTitle className="text-red-900 dark:text-red-200">Connection Issue</CardTitle>
-                        <CardDescription>
-                            We couldn&apos;t retrieve your workspaces. This might be a temporary database shard timeout.
-                        </CardDescription>
+                        <CardTitle className="text-base">Connection Issue</CardTitle>
+                        <CardDescription>We couldn't retrieve your workspaces. Please try again.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center pb-6">
-                        <Button 
-                            onClick={() => window.location.reload()}
-                            variant="outline"
-                            className="border-red-200 hover:bg-red-100 dark:border-red-800 dark:hover:bg-red-900/30"
-                        >
-                            Try Again
-                        </Button>
+                        <Button onClick={() => window.location.reload()} variant="outline">Try Again</Button>
                     </CardContent>
                 </Card>
             </div>
@@ -116,199 +93,130 @@ export default function WorkspacesPage() {
     }
 
     return (
-        <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto">
+        <div className="pb-10 max-w-5xl mx-auto">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                >
-                    <h1 className="text-3xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-400 bg-clip-text text-transparent">
-                        Workspaces
-                    </h1>
-                    <p className="text-muted-foreground mt-1 font-medium">
+                <div>
+                    <h1 className="text-2xl font-semibold text-foreground">Workspaces</h1>
+                    <p className="text-sm text-muted-foreground mt-1">
                         Manage your organizations and environments
                     </p>
-                </motion.div>
-
-                <Button onClick={() => setIsOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 shadow-lg group">
-                    <Plus className="h-4 w-4 mr-2 group-hover:rotate-90 transition-transform" />
-                    Create Workspace
+                </div>
+                <Button onClick={() => setIsOpen(true)}>
+                    <Plus className="h-4 w-4 mr-2" /> Create Workspace
                 </Button>
-
-                <Dialog open={isOpen} onOpenChange={setIsOpen}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle>Create Workspace</DialogTitle>
-                            <CardDescription>
-                                Workspaces are top-level containers for your projects, teams, and billing.
-                            </CardDescription>
-                        </DialogHeader>
-                        <form onSubmit={handleSubmit} className="space-y-4 pt-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="name">Workspace Name</Label>
-                                <Input
-                                    id="name"
-                                    placeholder="e.g. Acme Inc, Development, Personal"
-                                    value={name}
-                                    onChange={(e) => setName(e.target.value)}
-                                    autoFocus
-                                />
-                            </div>
-                            <div className="flex justify-end gap-3 pt-2">
-                                <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>
-                                    Cancel
-                                </Button>
-                                <Button
-                                    type="submit"
-                                    disabled={createMutation.isPending || !name.trim()}
-                                    className="bg-indigo-600 hover:bg-indigo-700"
-                                >
-                                    {createMutation.isPending ? "Creating..." : "Create Workspace"}
-                                </Button>
-                            </div>
-                        </form>
-                    </DialogContent>
-                </Dialog>
-
-                {/* Delete Confirmation Dialog */}
-                <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
-                    <DialogContent>
-                        <DialogHeader>
-                            <DialogTitle className="flex items-center gap-2 text-destructive">
-                                <AlertTriangle className="h-5 w-5" />
-                                Delete Workspace
-                            </DialogTitle>
-                            <CardDescription className="pt-2">
-                                Are you sure you want to delete this workspace? This action is permanent and will delete all projects, tasks, and data associated with it.
-                            </CardDescription>
-                        </DialogHeader>
-                        <div className="flex justify-end gap-3 pt-4">
-                            <Button type="button" variant="ghost" onClick={() => setDeleteId(null)}>
-                                Cancel
-                            </Button>
-                            <Button
-                                variant="destructive"
-                                disabled={deleteMutation.isPending}
-                                onClick={() => deleteId && handleDelete(deleteId)}
-                            >
-                                {deleteMutation.isPending ? "Deleting..." : "Delete Permanently"}
-                            </Button>
-                        </div>
-                    </DialogContent>
-                </Dialog>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {workspaces?.map((ws: any, i: number) => (
-                    <motion.div
-                        key={ws.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: i * 0.1 }}
-                    >
-                        <Card
-                            className={`relative overflow-hidden cursor-pointer group transition-all duration-300 hover:shadow-xl ${activeWorkspaceId === ws.id
-                                ? "ring-2 ring-indigo-500 border-indigo-500 shadow-md"
-                                : "hover:border-indigo-300 border-slate-200 dark:border-slate-800"
-                                }`}
-                        >
-                            <div className="absolute top-0 right-0 p-3 flex items-center gap-2 z-10">
-                                {activeWorkspaceId === ws.id && (
-                                    <CheckCircle2 className="h-5 w-5 text-indigo-500" />
-                                )}
-                                {ws.role === "owner" && (
-                                    <Button
-                                        variant="ghost"
-                                        size="icon"
-                                        className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setDeleteId(ws.id);
-                                        }}
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
-                                )}
-                            </div>
-                            
-                            <div 
-                                className="h-full"
-                                onClick={() => {
-                                    switchWorkspace(ws.id);
-                                    router.push("/dashboard");
-                                }}
-                            >
-                                <CardHeader className="pb-4">
-                                    <div className="flex items-center gap-4">
-                                        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center text-white shadow-sm transition-transform group-hover:scale-110 ${activeWorkspaceId === ws.id
-                                            ? "bg-gradient-to-br from-indigo-500 to-indigo-700"
-                                            : "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400"
-                                            }`}>
-                                            <Building2 className="h-6 w-6" />
-                                        </div>
-                                        <div>
-                                            <CardTitle className="text-xl font-bold">{ws.name}</CardTitle>
-                                            <CardDescription className="flex items-center gap-1.5 mt-0.5">
-                                                <span className="capitalize">{ws.plan || "Free"}</span> Plan
-                                                <span className="h-1 w-1 rounded-full bg-slate-300"></span>
-                                                {ws.role || "Member"}
-                                            </CardDescription>
-                                        </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {workspaces?.map((ws: any) => (
+                    <Card key={ws.id}
+                        className={`border shadow-sm transition-all hover:shadow-md cursor-pointer ${activeWorkspaceId === ws.id ? "ring-2 ring-primary border-primary" : "hover:border-primary/30"}`}>
+                        <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+                            {activeWorkspaceId === ws.id && <CheckCircle2 className="h-5 w-5 text-primary" />}
+                            {ws.role === "owner" && (
+                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                    onClick={(e) => { e.stopPropagation(); setDeleteId(ws.id); }}>
+                                    <Trash2 className="h-4 w-4" />
+                                </Button>
+                            )}
+                        </div>
+                        <div className="h-full" onClick={() => { switchWorkspace(ws.id); router.push("/dashboard"); }}>
+                            <CardHeader className="pb-4">
+                                <div className="flex items-center gap-4">
+                                    <div className={`h-12 w-12 rounded-xl flex items-center justify-center transition-colors ${activeWorkspaceId === ws.id ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`}>
+                                        <Building2 className="h-6 w-6" />
                                     </div>
-                                </CardHeader>
-                                <CardContent className="pt-0 border-t border-slate-50 dark:border-slate-800/50 mt-4 py-4 bg-slate-50/50 dark:bg-slate-900/50">
-                                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                                        <div className="flex gap-4">
-                                            <span>{ws._count?.projects || 0} Projects</span>
-                                            <span>{ws._count?.members || 0} Members</span>
-                                        </div>
-                                        <div className="flex items-center gap-1 font-semibold text-indigo-600 dark:text-indigo-400 opacity-0 group-hover:opacity-100 transition-opacity">
-                                            Enter <ArrowRight className="h-3 w-3" />
-                                        </div>
+                                    <div>
+                                        <CardTitle className="text-base font-semibold">{ws.name}</CardTitle>
+                                        <CardDescription className="flex items-center gap-1.5 text-xs mt-0.5">
+                                            <span className="capitalize">{ws.plan || "Free"}</span>
+                                            <span className="h-1 w-1 rounded-full bg-muted-foreground/30"></span>
+                                            {ws.role || "Member"}
+                                        </CardDescription>
                                     </div>
-                                </CardContent>
-                            </div>
-                        </Card>
-                    </motion.div>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="pt-0 border-t mt-4 py-4 bg-muted/20">
+                                <div className="flex items-center justify-between text-sm text-muted-foreground">
+                                    <div className="flex gap-4">
+                                        <span>{ws._count?.projects || 0} Projects</span>
+                                        <span>{ws._count?.members || 0} Members</span>
+                                    </div>
+                                    <div className="flex items-center gap-1 font-semibold text-primary">
+                                        Enter <ArrowRight className="h-3 w-3" />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </div>
+                    </Card>
                 ))}
 
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ delay: (workspaces?.length || 0) * 0.1 }}
-                >
-                    <button
-                        onClick={() => setIsOpen(true)}
-                        className="w-full h-full min-h-[160px] border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-indigo-600 hover:border-indigo-400 transition-all group p-6"
-                    >
-                        <div className="h-12 w-12 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/30 transition-colors">
-                            <Plus className="h-6 w-6" />
-                        </div>
-                        <span className="font-bold">Create New Workspace</span>
-                    </button>
-                </motion.div>
+                <button onClick={() => setIsOpen(true)}
+                    className="h-full min-h-[160px] border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors p-6">
+                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                        <Plus className="h-5 w-5" />
+                    </div>
+                    <span className="text-sm font-medium">Create New Workspace</span>
+                </button>
             </div>
 
-            <div className="mt-12 p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-800">
-                <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <Layout className="h-5 w-5 text-indigo-500" />
+            <div className="mt-8 p-5 rounded-lg border bg-muted/30">
+                <h2 className="text-sm font-semibold mb-4 flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-primary" />
                     Workspace Fundamentals
                 </h2>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-muted-foreground">
-                    <div className="space-y-2">
-                        <p className="font-bold text-slate-900 dark:text-white">Strict Isolation</p>
+                    <div className="space-y-1">
+                        <p className="font-medium text-foreground">Strict Isolation</p>
                         <p>Every workspace has its own projects, tasks, and teams. Data never crosses organization boundaries.</p>
                     </div>
-                    <div className="space-y-2">
-                        <p className="font-bold text-slate-900 dark:text-white">Individual Billing</p>
-                        <p>Subscriptions and limits are managed per workspace. You can have a Pro workspace and a Free one simultaneously.</p>
+                    <div className="space-y-1">
+                        <p className="font-medium text-foreground">Individual Billing</p>
+                        <p>Subscriptions and limits are managed per workspace.</p>
                     </div>
-                    <div className="space-y-2">
-                        <p className="font-bold text-slate-900 dark:text-white">Team Collaboration</p>
-                        <p>Invite members directly to a workspace. Their access level is managed organization-wide.</p>
+                    <div className="space-y-1">
+                        <p className="font-medium text-foreground">Team Collaboration</p>
+                        <p>Invite members directly to a workspace.</p>
                     </div>
                 </div>
             </div>
+
+            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Create Workspace</DialogTitle>
+                        <CardDescription>Workspaces are top-level containers for your projects, teams, and billing.</CardDescription>
+                    </DialogHeader>
+                    <form onSubmit={handleSubmit} className="space-y-4 pt-2">
+                        <div className="space-y-2">
+                            <Label htmlFor="name">Workspace Name</Label>
+                            <Input id="name" placeholder="e.g. Acme Inc, Development, Personal" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
+                        </div>
+                        <div className="flex justify-end gap-3 pt-2">
+                            <Button type="button" variant="ghost" onClick={() => setIsOpen(false)}>Cancel</Button>
+                            <Button type="submit" disabled={createMutation.isPending || !name.trim()}>
+                                {createMutation.isPending ? "Creating..." : "Create Workspace"}
+                            </Button>
+                        </div>
+                    </form>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2 text-destructive">
+                            <AlertTriangle className="h-5 w-5" /> Delete Workspace
+                        </DialogTitle>
+                        <CardDescription>This action is permanent and will delete all projects, tasks, and data.</CardDescription>
+                    </DialogHeader>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button type="button" variant="ghost" onClick={() => setDeleteId(null)}>Cancel</Button>
+                        <Button variant="destructive" disabled={deleteMutation.isPending} onClick={() => deleteId && handleDelete(deleteId)}>
+                            {deleteMutation.isPending ? "Deleting..." : "Delete Permanently"}
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -2,9 +2,13 @@
 
 import React, { useState, useEffect } from "react";
 import {
-  Users, Clock, CheckCircle2, ArrowRight, Info, ListTodo,
-  MessageSquare, BookOpen, Target, Sparkles, Calendar, FileText
+  Users, CheckCircle2, ArrowRight, Info,
+  MessageSquare, Calendar, FileText
 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface MeetingPhaseDef {
@@ -25,9 +29,9 @@ const PHASE_ICONS: Record<string, React.ElementType> = {
 };
 
 const PHASE_COLORS: Record<string, string> = {
-  PRE_MEETING: "from-amber-500/10 to-amber-600/5 border-amber-500/20 text-amber-400",
-  LIVE_MEETING: "from-emerald-500/10 to-emerald-600/5 border-emerald-500/20 text-emerald-400",
-  POST_MEETING: "from-blue-500/10 to-blue-600/5 border-blue-500/20 text-blue-400",
+  PRE_MEETING: "text-amber-500 bg-amber-500/10 border-amber-500/20",
+  LIVE_MEETING: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20",
+  POST_MEETING: "text-blue-500 bg-blue-500/10 border-blue-500/20",
 };
 
 export function MeetingDashboard() {
@@ -80,10 +84,10 @@ export function MeetingDashboard() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-[60vh]">
+      <div className="flex items-center justify-center min-h-[400px]">
         <div className="space-y-4 text-center">
-          <div className="w-12 h-12 rounded-2xl bg-amber-500/10 animate-pulse mx-auto" />
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Loading Meeting Intelligence</p>
+          <Skeleton className="h-10 w-10 rounded-lg mx-auto" />
+          <Skeleton className="h-4 w-48" />
         </div>
       </div>
     );
@@ -92,12 +96,12 @@ export function MeetingDashboard() {
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 flex items-center justify-center shadow-lg shadow-amber-500/20">
-          <Users className="w-5 h-5 text-white" />
+        <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+          <Users className="w-5 h-5 text-primary" />
         </div>
         <div>
-          <h1 className="text-sm font-black text-white uppercase tracking-wider">Meeting Intelligence</h1>
-          <p className="text-[9px] font-bold text-slate-500 uppercase tracking-widest">Section 15 — Nova Meeting Capabilities</p>
+          <h1 className="text-lg font-semibold">Meeting Intelligence</h1>
+          <p className="text-sm text-muted-foreground">Section 15 — Nova Meeting Capabilities</p>
         </div>
       </div>
 
@@ -105,37 +109,38 @@ export function MeetingDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {data?.phases.map((phase, i) => {
           const Icon = PHASE_ICONS[phase.phase] || Users;
-          const colorClass = PHASE_COLORS[phase.phase] || "from-slate-500/10 to-slate-600/5 border-slate-500/20 text-slate-400";
+          const colorClass = PHASE_COLORS[phase.phase] || "text-muted-foreground bg-muted border-border";
           return (
-            <div
+            <Card
               key={i}
               className={cn(
-                "rounded-2xl border p-5 bg-gradient-to-br space-y-3 transition-all hover:scale-[1.02] cursor-pointer group",
-                colorClass,
-                selectedPhase === phase.phase && "ring-2 ring-amber-500/40"
+                "border shadow-sm hover:border-primary/30 transition-colors cursor-pointer",
+                selectedPhase === phase.phase && "ring-2 ring-primary/40"
               )}
               onClick={() => setSelectedPhase(selectedPhase === phase.phase ? null : phase.phase)}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-center">
-                  <Icon className="w-5 h-5" />
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className={cn("w-10 h-10 rounded-lg flex items-center justify-center border", colorClass)}>
+                    <Icon className="w-5 h-5" />
+                  </div>
+                  <CardTitle className="text-sm font-semibold">{phase.phase.replace(/_/g, " ")}</CardTitle>
                 </div>
-                <div>
-                  <h3 className="text-sm font-black text-white uppercase tracking-wider">{phase.phase.replace(/_/g, " ")}</h3>
-                </div>
-              </div>
-              <p className="text-[11px] text-slate-400 font-medium">{phase.description}</p>
-              {selectedPhase === phase.phase && (
-                <div className="space-y-2 pt-2 border-t border-slate-800/50">
-                  {phase.capabilities.map((cap, j) => (
-                    <div key={j} className="flex items-center gap-2 text-[11px] text-slate-400">
-                      <CheckCircle2 className="w-3 h-3 shrink-0" />
-                      <span className="font-medium">{cap}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <CardDescription className="text-sm">{phase.description}</CardDescription>
+                {selectedPhase === phase.phase && (
+                  <div className="space-y-2 pt-2 border-t border-border">
+                    {phase.capabilities.map((cap, j) => (
+                      <div key={j} className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <CheckCircle2 className="w-3 h-3 shrink-0" />
+                        <span>{cap}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           );
         })}
       </div>
@@ -143,74 +148,78 @@ export function MeetingDashboard() {
       {/* Output Types */}
       {data?.outputTypes && data.outputTypes.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Output Types</h3>
+          <h3 className="text-xs font-semibold text-muted-foreground">Output Types</h3>
           <div className="flex flex-wrap gap-2">
             {data.outputTypes.map((type, i) => (
-              <span key={i} className="text-[9px] font-bold text-slate-400 px-3 py-1.5 rounded-lg bg-slate-900/50 border border-slate-800">
+              <Badge key={i} variant="outline" className="text-xs rounded-md px-3 py-1">
                 {type}
-              </span>
+              </Badge>
             ))}
           </div>
         </div>
       )}
 
       {/* Meeting Prep Simulator */}
-      <div className="p-5 bg-slate-900/50 border border-slate-800 rounded-xl space-y-3">
-        <h3 className="text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Meeting Preparation Simulator</h3>
-        <div className="flex gap-3">
-          <input
-            type="text"
-            value={simulatedTopic}
-            onChange={e => setSimulatedTopic(e.target.value)}
-            placeholder="e.g., sprint review"
-            className="flex-1 px-3 py-2 text-xs bg-slate-900 border border-slate-800 rounded-lg text-slate-300 placeholder:text-slate-600 focus:outline-none focus:border-amber-500/50"
-            onKeyDown={e => e.key === "Enter" && handlePrepare()}
-          />
-          <button
-            onClick={handlePrepare}
-            disabled={!simulatedTopic.trim()}
-            className="px-4 py-2 rounded-lg bg-amber-600 text-white text-[9px] font-black uppercase tracking-wider hover:bg-amber-500 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-          >
-            Prepare
-          </button>
-        </div>
-        {preparation && (
-          <div className="space-y-4 pt-2 border-t border-slate-800/50">
-            <div>
-              <span className="text-[9px] font-black text-amber-400 uppercase tracking-wider">Agenda Items</span>
-              <div className="mt-2 space-y-1.5">
-                {preparation.agendaItems.map((item, i) => (
-                  <div key={i} className="flex items-center gap-2 text-[11px] text-slate-400">
-                    <ArrowRight className="w-3 h-3 text-amber-400 shrink-0" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-            <div>
-              <span className="text-[9px] font-black text-amber-400 uppercase tracking-wider">Suggested Participants</span>
-              <div className="mt-2 flex flex-wrap gap-2">
-                {preparation.participants.map((p, i) => (
-                  <span key={i} className="text-[9px] font-bold text-slate-400 px-2 py-1 rounded-md bg-slate-800 border border-slate-700">
-                    {p}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div>
-              <span className="text-[9px] font-black text-amber-400 uppercase tracking-wider">Context Questions</span>
-              <div className="mt-2 space-y-1.5">
-                {preparation.contextQuestions.map((q, i) => (
-                  <div key={i} className="flex items-center gap-2 text-[11px] text-slate-400">
-                    <Info className="w-3 h-3 text-amber-400 shrink-0" />
-                    <span>{q}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+      <Card className="border shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-xs font-semibold text-muted-foreground">Meeting Preparation Simulator</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-3">
+            <Input
+              type="text"
+              value={simulatedTopic}
+              onChange={e => setSimulatedTopic(e.target.value)}
+              placeholder="e.g., sprint review"
+              className="h-9 text-xs"
+              onKeyDown={e => e.key === "Enter" && handlePrepare()}
+            />
+            <button
+              onClick={handlePrepare}
+              disabled={!simulatedTopic.trim()}
+              className="h-9 px-4 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              Prepare
+            </button>
           </div>
-        )}
-      </div>
+          {preparation && (
+            <div className="space-y-4 pt-3 border-t border-border">
+              <div>
+                <span className="text-xs font-medium text-primary">Agenda Items</span>
+                <div className="mt-2 space-y-1.5">
+                  {preparation.agendaItems.map((item, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <ArrowRight className="w-3 h-3 text-primary shrink-0" />
+                      <span>{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-primary">Suggested Participants</span>
+                <div className="mt-2 flex flex-wrap gap-2">
+                  {preparation.participants.map((p, i) => (
+                    <Badge key={i} variant="outline" className="text-xs rounded-md px-2 py-1">
+                      {p}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <span className="text-xs font-medium text-primary">Context Questions</span>
+                <div className="mt-2 space-y-1.5">
+                  {preparation.contextQuestions.map((q, i) => (
+                    <div key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Info className="w-3 h-3 text-primary shrink-0" />
+                      <span>{q}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

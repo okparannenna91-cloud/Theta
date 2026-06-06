@@ -1,9 +1,10 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { logger } from "./logger";
 
 const apiKey = process.env.GEMINI_API_KEY;
 
 if (!apiKey) {
-    console.warn("GEMINI_API_KEY is not defined in environment variables. Boots AI will not function.");
+    logger.warn("GEMINI_API_KEY is not defined in environment variables. Boots AI will not function.");
 }
 
 const genAI = new GoogleGenerativeAI(apiKey!);

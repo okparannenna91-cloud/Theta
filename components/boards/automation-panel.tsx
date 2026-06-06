@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { motion, AnimatePresence } from "framer-motion";
+
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -103,7 +103,7 @@ const CATEGORIES = [
   { id: "crossBoard", label: "Cross-Board", icon: Link2, color: "text-blue-500", bg: "bg-blue-500/10" },
   { id: "time", label: "Time-Based", icon: Clock, color: "text-purple-500", bg: "bg-purple-500/10" },
   { id: "approval", label: "Approval", icon: CheckCircle2, color: "text-emerald-500", bg: "bg-emerald-500/10" },
-  { id: "ai", label: "AI Automation", icon: BrainCircuit, color: "text-indigo-500", bg: "bg-indigo-500/10" },
+  { id: "ai", label: "AI Automation", icon: BrainCircuit, color: "text-primary", bg: "bg-primary/10" },
 ];
 
 const PRESET_RULES: AutomationRule[] = [
@@ -214,9 +214,9 @@ export default function AutomationPanel({ workspaceId, boardId }: AutomationPane
               key={cat.id}
               onClick={() => setActiveCategory(cat.id)}
               className={cn(
-                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-all whitespace-nowrap",
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[9px] font-bold transition-all whitespace-nowrap",
                 activeCategory === cat.id
-                  ? "bg-indigo-600 text-white shadow-sm"
+                  ? "bg-primary text-white shadow-sm"
                   : "text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-800"
               )}
             >
@@ -298,7 +298,7 @@ export default function AutomationPanel({ workspaceId, boardId }: AutomationPane
           </DialogHeader>
           <div className="space-y-5 py-4">
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">Rule Name</Label>
+              <Label className="text-xs font-bold text-slate-500">Rule Name</Label>
               <Input
                 placeholder="e.g. Notify on status change"
                 value={formState.name}
@@ -308,7 +308,7 @@ export default function AutomationPanel({ workspaceId, boardId }: AutomationPane
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">Trigger</Label>
+              <Label className="text-xs font-bold text-slate-500">Trigger</Label>
               <Select
                 value={formState.trigger}
                 onValueChange={(v) => setFormState(f => ({ ...f, trigger: v as AutomationTrigger }))}
@@ -325,7 +325,7 @@ export default function AutomationPanel({ workspaceId, boardId }: AutomationPane
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">Action</Label>
+              <Label className="text-xs font-bold text-slate-500">Action</Label>
               <Select
                 value={formState.action}
                 onValueChange={(v) => setFormState(f => ({ ...f, action: v as AutomationAction }))}
@@ -342,7 +342,7 @@ export default function AutomationPanel({ workspaceId, boardId }: AutomationPane
             </div>
 
             <div className="space-y-2">
-              <Label className="text-xs font-bold uppercase tracking-widest text-slate-500">Action Value / Message</Label>
+              <Label className="text-xs font-bold text-slate-500">Action Value / Message</Label>
               <Textarea
                 placeholder="Notification message or target value..."
                 value={formState.actionValue}

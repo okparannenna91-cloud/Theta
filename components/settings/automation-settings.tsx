@@ -74,13 +74,13 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
         <div className="space-y-6">
             <div className="flex items-center justify-between">
                 <div>
-                    <h2 className="text-lg font-black tracking-tight">Automations</h2>
+                    <h2 className="text-lg font-semibold">Automations</h2>
                     <p className="text-sm text-muted-foreground">Streamline your workflow with custom rules.</p>
                 </div>
                 <div className="flex items-center gap-4">
                     {limits.max !== -1 && (
                         <div className="text-right hidden sm:block">
-                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Rules Usage</p>
+                            <p className="text-[10px] font-semibold text-muted-foreground">Rules Usage</p>
                             <p className="text-xs font-bold">{limits.current} / {limits.max}</p>
                         </div>
                     )}
@@ -107,15 +107,15 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
                         <CardContent className="p-0">
                             <div className="flex items-center justify-between p-4">
                                 <div className="flex items-center gap-4">
-                                    <div className="h-10 w-10 rounded-xl bg-indigo-50 dark:bg-indigo-900/20 flex items-center justify-center text-indigo-600">
+                                    <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-primary">
                                         <Zap className="h-5 w-5" />
                                     </div>
                                     <div>
                                         <h4 className="font-bold text-sm">{rule.name}</h4>
-                                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-black uppercase tracking-widest mt-1">
+                                        <div className="flex items-center gap-2 text-[10px] text-muted-foreground font-semibold mt-1">
                                             <span>{rule.trigger.replace(/_/g, " ")}</span>
                                             <ArrowRight className="h-3 w-3" />
-                                            <span className="text-indigo-600">{rule.action.replace(/_/g, " ")}: {rule.actionValue}</span>
+                                            <span className="text-primary">{rule.action.replace(/_/g, " ")}: {rule.actionValue}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -133,14 +133,14 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
                 {automations?.length === 0 && (
                     <div className="py-12 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center text-center bg-slate-50/50 dark:bg-slate-900/50">
                         <Zap className="h-12 w-12 text-slate-200 mb-4" />
-                        <h3 className="font-black text-slate-400">No Automations Yet</h3>
+                        <h3 className="font-semibold text-slate-400">No Automations Yet</h3>
                         <p className="text-xs text-slate-400 mt-1 max-w-[200px]">Create rules to automate repetitive tasks like updating priority or status.</p>
                     </div>
                 )}
             </div>
 
             {isOpen && (
-                <Card className="border-indigo-500 shadow-2xl">
+                <Card className="border-primary/20 shadow-2xl">
                     <CardHeader>
                         <CardTitle>New Automation Rule</CardTitle>
                         <CardDescription>Rules run automatically when triggers occur.</CardDescription>

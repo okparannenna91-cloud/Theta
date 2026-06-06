@@ -569,33 +569,33 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-hidden relative selection:bg-indigo-500/30">
+        <div className="flex-1 flex flex-col h-full bg-slate-50 dark:bg-slate-950 overflow-hidden relative selection:bg-primary/30">
             {/* Header */}
             <div className="border-b border-slate-200/60 dark:border-slate-800/60 bg-white/40 dark:bg-slate-900/40 backdrop-blur-3xl z-40 relative">
                 <div className="h-24 flex items-center justify-between px-10">
                     <div className="flex items-center gap-6">
-                        <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-2xl shadow-indigo-500/40 group relative overflow-hidden neural-glow cursor-pointer transition-transform duration-500 hover:scale-105 active:scale-95">
+                            <div className="w-14 h-14 rounded-lg bg-primary flex items-center justify-center text-white shadow-sm group relative overflow-hidden cursor-pointer transition-transform duration-500 hover:scale-105 active:scale-95">
                             <div className="absolute inset-0 bg-gradient-to-br from-white/30 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                             <Sparkles className="w-7 h-7 group-hover:rotate-12 transition-transform duration-500 floating" />
                         </div>
                         <div className="space-y-1">
-                            <h2 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-[0.3em] leading-tight">Nova Intelligence</h2>
+                            <h2 className="text-lg font-semibold text-slate-900 dark:text-white leading-tight">Nova Intelligence</h2>
                             <div className="flex items-center gap-2.5">
                                 <div className="flex items-center">
                                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.8)]" />
                                 </div>
-                                <p className="text-[10px] font-black text-emerald-500 uppercase tracking-[0.2em] opacity-90">Neural Link Active</p>
+                                <p className="text-[10px] font-medium text-emerald-500 opacity-90">AI Connected</p>
                             </div>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-6">
-                        <div className="hidden md:flex items-center bg-slate-100/50 dark:bg-slate-800/50 rounded-2xl p-1.5 border border-slate-200/50 dark:border-slate-700/50">
+                        <div className="hidden md:flex items-center bg-slate-100/50 dark:bg-slate-800/50 rounded-lg p-1.5 border border-slate-200/50 dark:border-slate-700/50">
                             <Button 
                                 variant={selectedProjectId === "all" ? "secondary" : "ghost"} 
                                 size="sm" 
                                 onClick={() => setSelectedProjectId("all")}
-                                className="h-9 px-5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all"
+                                className="h-9 px-5 rounded-lg text-xs font-medium transition-all"
                             >
                                 <Layout className="w-3.5 h-3.5 mr-2" />
                                 Global Architecture
@@ -605,14 +605,14 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                             variant="ghost" 
                             size="sm" 
                             onClick={() => setIsConstitutionOpen(true)}
-                            className="h-10 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/5 transition-all"
+                            className="h-10 rounded-lg font-medium text-xs text-slate-400 hover:text-primary hover:bg-primary/5 transition-all"
                         >
-                            <Shield className="w-4 h-4 mr-2 text-indigo-500" />
+                            <Shield className="w-4 h-4 mr-2 text-primary" />
                             Nova Constitution
                         </Button>
-                        <Button variant="ghost" size="sm" className="h-10 rounded-xl font-black text-[10px] uppercase tracking-widest text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/5 transition-all">
+                        <Button variant="ghost" size="sm" className="h-10 rounded-lg font-medium text-xs text-slate-400 hover:text-primary hover:bg-primary/5 transition-all">
                             <Copy className="w-4 h-4 mr-2" />
-                            Protocol Export
+                            Export
                         </Button>
                     </div>
                 </div>
@@ -620,7 +620,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                 {/* Multi-Mode Tabs */}
                 <div className="px-10 pb-4">
                     <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                        <TabsList className="bg-slate-100/50 dark:bg-slate-900/50 p-1.5 rounded-2xl h-14 border border-slate-200/50 dark:border-slate-800/50">
+                        <TabsList className="bg-slate-100/50 dark:bg-slate-900/50 p-1.5 rounded-lg h-14 border border-slate-200/50 dark:border-slate-800/50">
                             {[
                                 { value: "chat", icon: MessageSquare, label: "Neural Chat" },
                                 { value: "tasks", icon: ListTodo, label: "Task OS" },
@@ -633,7 +633,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                 <TabsTrigger 
                                     key={tab.value}
                                     value={tab.value} 
-                                    className="rounded-xl px-6 text-[9px] font-black uppercase tracking-widest data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-2xl data-[state=active]:shadow-indigo-500/10 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400 transition-all duration-300"
+                                    className="rounded-lg px-6 text-xs font-medium data-[state=active]:bg-white dark:data-[state=active]:bg-slate-950 data-[state=active]:shadow-sm data-[state=active]:text-primary dark:data-[state=active]:text-primary transition-all duration-300"
                                 >
                                     <tab.icon className="w-3.5 h-3.5 mr-2" />
                                     {tab.label}
@@ -650,14 +650,14 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                         {messages.length === 0 && !isLoading ? (
                             <div className="flex-1 flex flex-col items-center justify-center text-center max-w-3xl mx-auto space-y-12 py-20">
                                 <div className="relative group cursor-pointer">
-                                    <div className="absolute inset-0 bg-indigo-500 blur-[80px] opacity-20 rounded-full animate-pulse group-hover:opacity-40 transition-opacity duration-1000" />
-                                    <div className="w-32 h-32 rounded-[3rem] bg-white dark:bg-slate-900 flex items-center justify-center border border-slate-200/50 dark:border-slate-800/50 relative z-10 shadow-2xl transition-all duration-700 group-hover:scale-110 group-hover:rotate-6">
-                                        <Sparkles className="w-16 h-16 text-slate-200 dark:text-slate-800 group-hover:text-indigo-500 transition-colors duration-700 floating" />
+                                    <div className="absolute inset-0 bg-primary/20 blur-[80px] opacity-20 rounded-full animate-pulse group-hover:opacity-40 transition-opacity duration-1000" />
+                                    <div className="w-32 h-32 rounded-lg bg-white dark:bg-slate-900 flex items-center justify-center border border-slate-200/50 dark:border-slate-800/50 relative z-10 shadow-sm transition-all duration-700 group-hover:scale-110 group-hover:rotate-6">
+                                        <Sparkles className="w-16 h-16 text-slate-200 dark:text-slate-800 group-hover:text-primary transition-colors duration-700 floating" />
                                     </div>
                                 </div>
                                 <div className="space-y-6">
                                     <h3 className="text-6xl font-black text-slate-900 dark:text-white tracking-tighter leading-[1.1]">
-                                        Architect your project <br/> with <span className="text-indigo-600 neural-glow px-4 py-1 rounded-2xl bg-indigo-600/5">Nova</span>
+                                        Architect your project <br/> with <span className="text-primary px-4 py-1 rounded-lg bg-primary/5">Nova</span>
                                     </h3>
                                     <p className="text-xl font-medium text-slate-500 leading-relaxed max-w-xl mx-auto opacity-80">
                                         The next-generation Task OS is online. Design workflows, automate execution, and synthesize deep workspace data.
@@ -672,7 +672,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                         <button 
                                             key={suggestion.label}
                                             onClick={() => setInput(suggestion.label)}
-                                            className="group px-8 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl text-[10px] font-black uppercase tracking-widest text-slate-500 hover:border-indigo-500 hover:text-indigo-500 transition-all shadow-sm hover:shadow-2xl hover:shadow-indigo-500/10 flex items-center gap-3"
+                                            className="group px-8 py-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg text-xs font-medium text-slate-500 hover:border-primary hover:text-primary transition-all shadow-sm hover:shadow-md flex items-center gap-3"
                                         >
                                             <suggestion.icon className="w-3.5 h-3.5 opacity-50 group-hover:opacity-100 group-hover:scale-110 transition-all" />
                                             {suggestion.label}
@@ -687,10 +687,10 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                     m.role === "user" ? "flex-row-reverse" : "flex-row"
                                 )}>
                                     <div className={cn(
-                                        "w-14 h-14 rounded-2xl flex-shrink-0 flex items-center justify-center shadow-2xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3",
+                                        "w-14 h-14 rounded-lg flex-shrink-0 flex items-center justify-center shadow-2xl transition-all duration-500 group-hover:scale-110 group-hover:rotate-3",
                                         m.role === "user" 
                                             ? "bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700" 
-                                            : "bg-indigo-600 text-white shadow-indigo-500/30 neural-glow"
+                                            : "bg-primary text-white shadow-sm"
                                     )}>
                                         {m.role === "user" ? <User className="w-7 h-7" /> : <Sparkles className="w-7 h-7 floating" />}
                                     </div>
@@ -699,22 +699,22 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                         m.role === "user" ? "items-end max-w-[75%]" : "items-start max-w-[85%]"
                                     )}>
                                         <div className={cn(
-                                            "p-10 rounded-[2.5rem] text-[15px] font-medium leading-relaxed shadow-sm border transition-all duration-500 relative group/bubble",
+                                            "p-10 rounded-xl text-[15px] font-medium leading-relaxed shadow-sm border transition-all duration-500 relative group/bubble",
                                             m.role === "user" 
                                                 ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 rounded-tr-none" 
-                                                : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white rounded-tl-none group-hover:shadow-2xl group-hover:shadow-indigo-500/10 group-hover:border-indigo-500/30"
+                                                : "bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 text-slate-900 dark:text-white rounded-tl-none group-hover:shadow-sm group-hover:border-primary/30"
                                         )}>
                                             {m.content === "thinking..." ? (
                                                 <div className="flex items-center gap-3 py-2">
                                                     <div className="flex gap-1.5">
-                                                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                                        <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" />
+                                                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                                        <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
                                                     </div>
-                                                    <span className="text-[10px] font-black uppercase tracking-[0.3em] text-indigo-500/60 ml-4">Neural Synthesis In Progress</span>
+                                                    <span className="text-xs font-medium text-muted-foreground ml-4">Processing...</span>
                                                 </div>
                                             ) : (
-                                                <div className="prose dark:prose-invert prose-sm max-w-none prose-headings:font-black prose-headings:tracking-tighter prose-headings:uppercase prose-headings:text-[11px] prose-headings:tracking-[0.2em] prose-headings:text-slate-400 prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:p-0 prose-pre:rounded-3xl prose-pre:border prose-pre:border-white/5">
+                                                <div className="prose dark:prose-invert prose-sm max-w-none prose-headings:font-semibold prose-headings:text-xs prose-headings:text-muted-foreground prose-p:leading-relaxed prose-pre:bg-slate-950 prose-pre:p-0 prose-pre:rounded-3xl prose-pre:border prose-pre:border-white/5">
                                                     <ReactMarkdown 
                                                         remarkPlugins={[remarkGfm]}
                                                         components={{
@@ -726,7 +726,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                                                 </div>
                                                             ),
                                                             thead: ({ children }) => <thead className="bg-slate-50 dark:bg-slate-900/50">{children}</thead>,
-                                                            th: ({ children }) => <th className="px-8 py-5 font-black uppercase tracking-[0.2em] text-[10px] text-slate-500">{children}</th>,
+                                                            th: ({ children }) => <th className="px-8 py-5 text-xs text-muted-foreground">{children}</th>,
                                                             td: ({ children }) => <td className="px-8 py-5 border-t border-slate-100 dark:border-slate-900 text-slate-600 dark:text-slate-400 font-bold">{children}</td>,
                                                             code: ({ node, inline, className, children, ...props }: any) => {
                                                                 const match = /language-(\w+)/.exec(className || "");
@@ -756,7 +756,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                                                         </SyntaxHighlighter>
                                                                     </div>
                                                                 ) : (
-                                                                    <code className="bg-indigo-500/10 dark:bg-indigo-500/20 px-2 py-0.5 rounded-lg font-black text-indigo-600 dark:text-indigo-400 text-[12px]" {...props}>
+                                                                    <code className="bg-primary/10 dark:bg-primary/20 px-2 py-0.5 rounded-lg font-medium text-primary dark:text-primary text-xs" {...props}>
                                                                         {children}
                                                                     </code>
                                                                 )
@@ -782,7 +782,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                                             size="sm" 
                                                             onClick={tool.action}
                                                             className={cn(
-                                                                "h-10 px-5 rounded-2xl border-slate-200 dark:border-slate-800 text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500 flex items-center gap-2.5",
+                                                                "h-10 px-5 rounded-lg border-slate-200 dark:border-slate-800 text-xs text-muted-foreground transition-all duration-500 flex items-center gap-2.5",
                                                                 `hover:border-${tool.color}-500 hover:text-${tool.color}-500 hover:bg-${tool.color}-500/5`
                                                             )}
                                                         >
@@ -799,13 +799,13 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                         )}
                         {isLoading && messages[messages.length-1]?.role !== "assistant" && (
                             <div className="flex gap-8 max-w-5xl mx-auto animate-pulse">
-                                <div className="w-14 h-14 rounded-2xl bg-indigo-600/20 text-white flex items-center justify-center border border-indigo-500/20">
-                                    <Loader2 className="w-7 h-7 animate-spin text-indigo-500" />
+                                <div className="w-14 h-14 rounded-lg bg-primary/20 text-white flex items-center justify-center border border-primary/20">
+                                    <Loader2 className="w-7 h-7 animate-spin text-primary" />
                                 </div>
-                                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-10 rounded-[2.5rem] rounded-tl-none flex items-center gap-3">
-                                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                    <div className="w-2 h-2 bg-indigo-500 rounded-full animate-bounce" />
+                                <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-10 rounded-xl rounded-tl-none flex items-center gap-3">
+                                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                    <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
                                 </div>
                             </div>
                         )}
@@ -814,7 +814,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                     <div className="px-10 pb-10 pt-4 bg-gradient-to-t from-slate-50 dark:from-slate-950 via-slate-50/95 dark:via-slate-950/95 to-transparent">
                         <div className="max-w-4xl mx-auto flex flex-col gap-6">
                             <div className="relative group">
-                                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-indigo-500 rounded-[2.5rem] blur-2xl opacity-10 group-focus-within:opacity-30 transition-opacity duration-1000 animate-pulse" />
+                                <div className="absolute -inset-1 bg-primary/10 rounded-lg blur-2xl opacity-10 group-focus-within:opacity-30 transition-opacity duration-1000 animate-pulse" />
                                 <div className="relative z-10">
                                     <textarea 
                                         value={input}
@@ -827,17 +827,17 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                         }}
                                         placeholder="Architect your next brilliant move..."
                                         rows={1}
-                                        className="w-full bg-white dark:bg-slate-900/80 border-2 border-slate-200 dark:border-slate-800 rounded-[2.2rem] px-12 py-8 pr-24 text-base font-bold focus:outline-none focus:ring-0 focus:border-indigo-500/50 transition-all resize-none overflow-hidden min-h-[84px] shadow-2xl shadow-indigo-500/5 dark:shadow-none placeholder:text-slate-400 placeholder:font-black placeholder:uppercase placeholder:tracking-[0.2em] placeholder:text-[10px] backdrop-blur-xl"
+                                        className="w-full bg-white dark:bg-slate-900/80 border-2 border-slate-200 dark:border-slate-800 rounded-lg px-12 py-8 pr-24 text-base font-medium focus:outline-none focus:ring-0 focus:border-primary/50 transition-all resize-none overflow-hidden min-h-[84px] shadow-sm dark:shadow-none placeholder:text-muted-foreground placeholder:font-medium placeholder:text-xs backdrop-blur-xl"
                                     />
                                     <div className="absolute left-4 top-1/2 -translate-y-1/2 z-20">
-                                        <Button size="icon" variant="ghost" className="h-12 w-12 rounded-2xl text-slate-400 hover:text-indigo-500 hover:bg-indigo-500/5 transition-all">
+                                        <Button size="icon" variant="ghost" className="h-12 w-12 rounded-lg text-slate-400 hover:text-primary hover:bg-primary/5 transition-all">
                                             <Paperclip className="w-5 h-5" />
                                         </Button>
                                     </div>
                                     <Button 
                                         onClick={handleSend}
                                         disabled={!input.trim() || isLoading}
-                                        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-14 h-14 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white shadow-2xl shadow-indigo-500/40 transition-all active:scale-90 flex items-center justify-center group overflow-hidden"
+                                        className="absolute right-4 top-1/2 -translate-y-1/2 z-20 w-14 h-14 rounded-lg bg-primary hover:bg-primary/90 text-white shadow-sm transition-all active:scale-90 flex items-center justify-center group overflow-hidden"
                                     >
                                         <div className="absolute inset-0 bg-gradient-to-tr from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
                                         {isLoading ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6 group-hover:translate-x-1 group-hover:-translate-y-1 transition-transform duration-500" />}
@@ -846,19 +846,19 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                             </div>
                             
                             <div className="flex items-center justify-between px-10">
-                                <div className="flex items-center gap-6 text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
-                                    <div className="flex items-center gap-2.5 hover:text-indigo-500 cursor-pointer transition-all duration-500 hover:scale-105 group">
+                                <div className="flex items-center gap-6 text-xs font-medium text-muted-foreground">
+                                    <div className="flex items-center gap-2.5 hover:text-primary cursor-pointer transition-all duration-500 hover:scale-105 group">
                                         <Sparkles className="w-3.5 h-3.5 group-hover:rotate-12 transition-transform" />
-                                        Nova GPT-4o
+                                        GPT-4o
                                     </div>
                                     <span className="w-1.5 h-1.5 rounded-full bg-slate-200 dark:bg-slate-800" />
-                                    <div className="flex items-center gap-2.5 hover:text-indigo-500 cursor-pointer transition-all duration-500 hover:scale-105 group">
+                                    <div className="flex items-center gap-2.5 hover:text-primary cursor-pointer transition-all duration-500 hover:scale-105 group">
                                         <CheckCircle2 className="w-3.5 h-3.5 group-hover:scale-110 transition-transform" />
-                                        Task Engine V2
+                                        Tasks
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3 opacity-40 hover:opacity-100 transition-opacity duration-500">
-                                    <span className="text-[9px] font-black uppercase tracking-widest text-slate-400">Command Palette</span>
+                                    <span className="text-xs font-medium text-muted-foreground">Command Palette</span>
                                     <div className="flex items-center gap-1">
                                         <kbd className="px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-500 font-bold text-[9px]">CMD</kbd>
                                         <kbd className="px-1.5 py-0.5 rounded-md bg-slate-200 dark:bg-slate-800 text-slate-500 font-bold text-[9px]">K</kbd>
@@ -873,7 +873,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                 <TabsContent value="tasks" className="flex-1 flex flex-col min-h-0 m-0 relative overflow-hidden bg-slate-50 dark:bg-slate-950 p-8">
                     {isTabLoading ? (
                         <div className="flex-1 flex items-center justify-center">
-                            <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                            <Loader2 className="w-10 h-10 animate-spin text-primary" />
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col min-h-0 space-y-6">
@@ -885,14 +885,14 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                         value={newTaskTitle}
                                         onChange={(e) => setNewTaskTitle(e.target.value)}
                                         placeholder="Add a new operational task..."
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-5 py-3 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm font-bold placeholder:uppercase placeholder:tracking-wider placeholder:text-[10px]"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-5 py-3 rounded-lg focus:outline-none focus:border-primary text-sm font-bold placeholder:font-medium placeholder:text-xs"
                                     />
                                 </div>
                                 <div className="w-[130px]">
                                     <select 
                                         value={newTaskPriority}
                                         onChange={(e) => setNewTaskPriority(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-4 py-3 rounded-2xl focus:outline-none focus:border-indigo-500 text-xs font-black uppercase tracking-wider text-slate-500"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-4 py-3 rounded-lg focus:outline-none focus:border-primary text-xs font-medium text-slate-500"
                                     >
                                         <option value="low">Low</option>
                                         <option value="medium">Medium</option>
@@ -904,7 +904,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                     <select 
                                         value={newTaskProject}
                                         onChange={(e) => setNewTaskProject(e.target.value)}
-                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-4 py-3 rounded-2xl focus:outline-none focus:border-indigo-500 text-xs font-black uppercase tracking-wider text-slate-500"
+                                        className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-4 py-3 rounded-lg focus:outline-none focus:border-primary text-xs font-medium text-slate-500"
                                     >
                                         <option value="">Select Project</option>
                                         {projects.map(p => (
@@ -912,7 +912,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                         ))}
                                     </select>
                                 </div>
-                                <Button type="submit" className="h-12 px-6 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
+                                <Button type="submit" className="h-12 px-6 rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-medium shadow-sm active:scale-95 transition-all">
                                     Create Task
                                 </Button>
                             </form>
@@ -921,33 +921,33 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                             <div className="flex-1 overflow-y-auto space-y-3 pr-2">
                                 {tasksList.length === 0 ? (
                                     <div className="text-center py-20 space-y-4">
-                                        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-center mx-auto">
+                                        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg flex items-center justify-center mx-auto">
                                             <ListTodo className="w-8 h-8 text-slate-400 animate-bounce" />
                                         </div>
-                                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No tasks in workspace</p>
+                                        <p className="text-sm font-medium text-slate-400">No tasks in workspace</p>
                                     </div>
                                 ) : (
                                     tasksList.map(task => (
                                         <div key={task.id} className={cn(
-                                            "bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-5 rounded-2xl flex items-center justify-between shadow-sm transition-all hover:border-indigo-500/30 group",
+                                            "bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-5 rounded-lg flex items-center justify-between shadow-sm transition-all hover:border-primary/30 group",
                                             task.status === "done" && "opacity-60 bg-slate-100/50 dark:bg-slate-900/50"
                                         )}>
                                             <div className="flex items-center gap-4 flex-1 min-w-0">
-                                                <button onClick={() => toggleTaskStatus(task)} className="text-slate-300 hover:text-indigo-500 transition-colors">
+                                                <button onClick={() => toggleTaskStatus(task)} className="text-slate-300 hover:text-primary transition-colors">
                                                     <CheckCircle2 className={cn("w-6 h-6", task.status === "done" ? "text-emerald-500 fill-emerald-500/20" : "text-slate-300 dark:text-slate-700")} />
                                                 </button>
                                                 <div className="space-y-1 flex-1 min-w-0 text-left">
                                                     <h4 className={cn("text-sm font-bold text-slate-900 dark:text-white truncate", task.status === "done" && "line-through text-slate-400 dark:text-slate-600")}>
                                                         {task.title}
                                                     </h4>
-                                                    <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-wider text-slate-400">
+                                                    <div className="flex items-center gap-3 text-xs font-medium text-slate-400">
                                                         <span>{task.project?.name || "Global"}</span>
                                                         <span className="w-1 h-1 rounded-full bg-slate-300 dark:bg-slate-700" />
                                                         <span className={cn(
-                                                            "font-black uppercase tracking-widest",
+                                                            "font-medium",
                                                             task.priority === "urgent" && "text-red-500",
                                                             task.priority === "high" && "text-amber-500",
-                                                            task.priority === "medium" && "text-indigo-500",
+                                                            task.priority === "medium" && "text-primary",
                                                             task.priority === "low" && "text-slate-400"
                                                         )}>{task.priority}</span>
                                                     </div>
@@ -968,13 +968,13 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                 <TabsContent value="docs" className="flex-1 flex flex-col min-h-0 m-0 relative overflow-hidden bg-slate-50 dark:bg-slate-950 p-8">
                     {isTabLoading ? (
                         <div className="flex-1 flex items-center justify-center">
-                            <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                            <Loader2 className="w-10 h-10 animate-spin text-primary" />
                         </div>
                     ) : openDoc ? (
                         /* Document Detailed view */
                         <div className="flex-1 flex flex-col min-h-0 space-y-6">
                             <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-4">
-                                <Button onClick={() => setOpenDoc(null)} variant="ghost" className="rounded-xl text-[10px] font-black uppercase tracking-widest hover:text-indigo-500 hover:bg-indigo-500/5 h-10 px-4">
+                                <Button onClick={() => setOpenDoc(null)} variant="ghost" className="rounded-lg text-xs font-medium hover:text-primary hover:bg-primary/5 h-10 px-4">
                                     ← Back to Knowledge
                                 </Button>
                                 <Button onClick={() => deleteDoc(openDoc.id)} variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-slate-400 hover:text-red-500 hover:bg-red-500/5 transition-all">
@@ -1003,7 +1003,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                         <select 
                                             value={newDocEmoji}
                                             onChange={(e) => setNewDocEmoji(e.target.value)}
-                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-3 py-3 rounded-2xl focus:outline-none focus:border-indigo-500 text-lg text-center"
+                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-3 py-3 rounded-lg focus:outline-none focus:border-primary text-lg text-center"
                                         >
                                             {["📄", "📝", "📊", "🎯", "🚀", "💡", "🛡️"].map(e => (
                                                 <option key={e} value={e}>{e}</option>
@@ -1016,7 +1016,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                             value={newDocTitle}
                                             onChange={(e) => setNewDocTitle(e.target.value)}
                                             placeholder="Create a new document blueprint..."
-                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-5 py-3 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm font-bold"
+                                            className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-5 py-3 rounded-lg focus:outline-none focus:border-primary text-sm font-bold"
                                         />
                                     </div>
                                 </div>
@@ -1025,10 +1025,10 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                     onChange={(e) => setNewDocContent(e.target.value)}
                                     placeholder="Enter document content (Markdown supported)..."
                                     rows={3}
-                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-5 py-4 rounded-2xl focus:outline-none focus:border-indigo-500 text-sm font-medium resize-none"
+                                    className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-850 px-5 py-4 rounded-lg focus:outline-none focus:border-primary text-sm font-medium resize-none"
                                 />
-                                <Button type="submit" className="h-12 w-full rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-black uppercase tracking-widest text-[10px] shadow-lg shadow-indigo-500/20 active:scale-95 transition-all">
-                                    Create Document Spec
+                                <Button type="submit" className="h-12 w-full rounded-lg bg-primary hover:bg-primary/90 text-white text-xs font-medium shadow-sm active:scale-95 transition-all">
+                                    Create Document
                                 </Button>
                             </form>
 
@@ -1036,22 +1036,22 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                             <div className="flex-1 overflow-y-auto grid grid-cols-1 md:grid-cols-2 gap-4 pr-2">
                                 {docsList.length === 0 ? (
                                     <div className="col-span-full text-center py-20 space-y-4">
-                                        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-center mx-auto">
+                                        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg flex items-center justify-center mx-auto">
                                             <FileText className="w-8 h-8 text-slate-400" />
                                         </div>
-                                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No documents in knowledge base</p>
+                                        <p className="text-sm font-medium text-slate-400">No documents in knowledge base</p>
                                     </div>
                                 ) : (
                                     docsList.map(doc => (
                                         <div 
                                             key={doc.id}
                                             onClick={() => setOpenDoc(doc)}
-                                            className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-6 rounded-2xl flex items-center gap-4 cursor-pointer hover:border-indigo-500/30 transition-all hover:scale-[1.02] shadow-sm text-left group"
+                                            className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-6 rounded-lg flex items-center gap-4 cursor-pointer hover:border-primary/30 transition-all hover:scale-[1.02] shadow-sm text-left group"
                                         >
                                             <span className="text-3xl p-3 bg-slate-50 dark:bg-slate-950 border border-slate-200/40 dark:border-slate-800/40 rounded-xl">{doc.emoji || "📄"}</span>
                                             <div className="space-y-1">
-                                                <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-indigo-500 transition-colors">{doc.title}</h4>
-                                                <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">Spec File</p>
+                                                <h4 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-tight group-hover:text-primary transition-colors">{doc.title}</h4>
+                                                <p className="text-xs text-muted-foreground">Spec File</p>
                                             </div>
                                         </div>
                                     ))
@@ -1065,29 +1065,29 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                 <TabsContent value="sprint" className="flex-1 flex flex-col min-h-0 m-0 relative overflow-hidden bg-slate-50 dark:bg-slate-950 p-8">
                     {isTabLoading ? (
                         <div className="flex-1 flex items-center justify-center">
-                            <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                            <Loader2 className="w-10 h-10 animate-spin text-primary" />
                         </div>
                     ) : boardsList.length === 0 ? (
                         <div className="flex-1 flex flex-col items-center justify-center text-center max-w-xl mx-auto space-y-6">
-                            <div className="w-20 h-20 rounded-2xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center">
-                                <SprintIcon className="w-10 h-10 text-indigo-500 floating" />
+                            <div className="w-20 h-20 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center">
+                                <SprintIcon className="w-10 h-10 text-primary floating" />
                             </div>
-                            <h3 className="text-lg font-black text-slate-900 dark:text-white uppercase tracking-widest">No Active Sprint Boards</h3>
-                            <p className="text-sm font-bold text-slate-400 max-w-xs leading-relaxed uppercase tracking-wider">Ask Nova to establish a sprint board! Type `/sprint Create Sprint 1` inside chat.</p>
+                            <h3 className="text-lg font-semibold text-slate-900 dark:text-white">No Active Sprint Boards</h3>
+                            <p className="text-sm font-medium text-slate-400 max-w-xs leading-relaxed">Ask Nova to establish a sprint board! Type `/sprint Create Sprint 1` inside chat.</p>
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col min-h-0 space-y-6">
                             {/* Board selector */}
-                            <div className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 px-6 py-4 rounded-2xl shadow-sm">
+                            <div className="flex items-center justify-between bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 px-6 py-4 rounded-lg shadow-sm">
                                 <div className="flex items-center gap-3">
-                                    <SprintIcon className="w-5 h-5 text-indigo-500 animate-pulse" />
-                                    <span className="text-xs font-black uppercase tracking-widest text-slate-400">Active Board:</span>
-                                    <span className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-wider">{activeBoard?.name}</span>
+                                    <SprintIcon className="w-5 h-5 text-primary animate-pulse" />
+                                    <span className="text-xs font-medium text-slate-400">Active Board:</span>
+                                    <span className="text-sm font-semibold text-slate-900 dark:text-white">{activeBoard?.name}</span>
                                 </div>
                                 <select 
                                     value={activeBoard?.id}
                                     onChange={(e) => setActiveBoard(boardsList.find(b => b.id === e.target.value))}
-                                    className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-4 py-2.5 rounded-xl focus:outline-none focus:border-indigo-500 text-xs font-black uppercase tracking-wider text-slate-500"
+                                    className="bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 px-4 py-2.5 rounded-xl focus:outline-none focus:border-primary text-xs font-medium text-slate-500"
                                 >
                                     {boardsList.map(b => (
                                         <option key={b.id} value={b.id}>{b.name}</option>
@@ -1108,34 +1108,34 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                             <div className="flex items-center justify-between pb-2 border-b border-slate-200/40 dark:border-slate-800/40">
                                                 <div className="flex items-center gap-2.5">
                                                     <span className={cn("w-2.5 h-2.5 rounded-full bg-" + laneColor + "-500")} />
-                                                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-900 dark:text-white">{laneTitle}</h4>
+                                                    <h4 className="text-xs font-semibold text-slate-900 dark:text-white">{laneTitle}</h4>
                                                 </div>
-                                                <span className="text-[10px] font-black text-slate-400 bg-slate-200/40 dark:bg-slate-800/40 px-2 py-0.5 rounded-lg">{laneTasks.length}</span>
+                                                <span className="text-xs font-medium text-slate-400 bg-slate-200/40 dark:bg-slate-800/40 px-2 py-0.5 rounded-lg">{laneTasks.length}</span>
                                             </div>
 
                                             {/* Lane Cards */}
                                             <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                                                 {laneTasks.length === 0 ? (
                                                     <div className="text-center py-10">
-                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">No active cards</p>
+                                                        <p className="text-xs text-muted-foreground">No active cards</p>
                                                     </div>
                                                 ) : (
                                                     laneTasks.map(task => (
-                                                        <div key={task.id} className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-4.5 rounded-2xl shadow-sm hover:border-indigo-500/20 hover:scale-[1.01] transition-all space-y-3 text-left">
+                                                        <div key={task.id} className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-4.5 rounded-lg shadow-sm hover:border-primary/20 hover:scale-[1.01] transition-all space-y-3 text-left">
                                                             <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{task.title}</h5>
-                                                            <div className="flex items-center justify-between text-[8px] font-black uppercase tracking-wider text-slate-400">
+                                                            <div className="flex items-center justify-between text-xs font-medium text-slate-400">
                                                                 <span className={cn(
                                                                     task.priority === "urgent" && "text-red-500",
                                                                     task.priority === "high" && "text-amber-500",
-                                                                    task.priority === "medium" && "text-indigo-500",
+                                                                    task.priority === "medium" && "text-primary",
                                                                     task.priority === "low" && "text-slate-400"
                                                                 )}>{task.priority}</span>
                                                                 <div className="flex gap-1.5">
                                                                     {status !== "todo" && (
-                                                                        <button onClick={() => moveTaskStatus(task.id, status === "done" ? "in_progress" : "todo")} className="hover:text-indigo-500 uppercase tracking-widest font-black text-[7px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">←</button>
+                                                                        <button onClick={() => moveTaskStatus(task.id, status === "done" ? "in_progress" : "todo")} className="hover:text-primary text-xs font-medium bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">←</button>
                                                                     )}
                                                                     {status !== "done" && (
-                                                                        <button onClick={() => moveTaskStatus(task.id, status === "todo" ? "in_progress" : "done")} className="hover:text-indigo-500 uppercase tracking-widest font-black text-[7px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">→</button>
+                                                                        <button onClick={() => moveTaskStatus(task.id, status === "todo" ? "in_progress" : "done")} className="hover:text-primary text-xs font-medium bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded">→</button>
                                                                     )}
                                                                 </div>
                                                             </div>
@@ -1155,7 +1155,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                 <TabsContent value="reports" className="flex-1 flex flex-col min-h-0 m-0 relative overflow-hidden bg-slate-50 dark:bg-slate-950 p-8">
                     {isTabLoading ? (
                         <div className="flex-1 flex items-center justify-center">
-                            <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                            <Loader2 className="w-10 h-10 animate-spin text-primary" />
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col min-h-0 space-y-6">
@@ -1167,8 +1167,8 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                     { label: "In Development", val: tasksList.filter(t => t.status === "in_progress" || t.status === "development").length, color: "amber" },
                                     { label: "Overdue Cycles", val: tasksList.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "done").length, valColor: "red", color: "indigo" }
                                 ].map((stat, i) => (
-                                    <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-5 rounded-2xl shadow-sm text-left">
-                                        <p className="text-[9px] font-black uppercase tracking-widest text-slate-400">{stat.label}</p>
+                                    <div key={i} className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 p-5 rounded-lg shadow-sm text-left">
+                                        <p className="text-xs text-muted-foreground">{stat.label}</p>
                                         <h3 className={cn("text-2xl font-black mt-2", stat.valColor === "red" && stat.val > 0 ? "text-red-500" : "text-slate-900 dark:text-white")}>{stat.val}</h3>
                                     </div>
                                 ))}
@@ -1176,12 +1176,12 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
 
                             {/* Circular Completion Velocity Meter */}
                             <div className="flex-1 bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-8 flex flex-col items-center justify-center space-y-6 shadow-sm">
-                                <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Completion Velocity Index</h4>
+                                <h4 className="text-xs font-medium text-muted-foreground">Completion</h4>
                                 <div className="relative w-44 h-44 flex items-center justify-center">
                                     <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
                                         <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-slate-100 dark:text-slate-850" />
                                         <circle cx="50" cy="50" r="40" stroke="currentColor" strokeWidth="6" fill="transparent" 
-                                            className="text-indigo-600 transition-all duration-1000"
+                                            className="text-primary transition-all duration-1000"
                                             strokeDasharray={`${Math.round((tasksList.filter(t => t.status === "done" || t.status === "completed").length / tasksList.length) * 251.2) || 0} 251.2`} 
                                         />
                                     </svg>
@@ -1189,7 +1189,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                         <h3 className="text-3xl font-black text-slate-900 dark:text-white">
                                             {Math.round((tasksList.filter(t => t.status === "done" || t.status === "completed").length / tasksList.length) * 100) || 0}%
                                         </h3>
-                                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-400">Total Progress</p>
+                                        <p className="text-xs text-muted-foreground">Total Progress</p>
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-3">
@@ -1199,7 +1199,7 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                             ? "bg-red-500 animate-ping shadow-[0_0_8px_rgba(239,68,68,0.8)]"
                                             : "bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.8)]"
                                     )} />
-                                    <span className="text-[10px] font-black uppercase tracking-widest text-slate-500">
+                                    <span className="text-xs text-muted-foreground">
                                         {tasksList.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "done").length > 0
                                             ? `${tasksList.filter(t => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "done").length} Operational Bottlenecks Detected`
                                             : "System Running at Stable Velocity"
@@ -1212,15 +1212,15 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-8 space-y-5 shadow-sm">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
-                                        <ActivityIcon className="w-5 h-5 text-indigo-500" />
-                                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Nova Audit Trail</h4>
+                                        <ActivityIcon className="w-5 h-5 text-primary" />
+                                        <h4 className="text-xs font-medium text-muted-foreground">Audit Trail</h4>
                                     </div>
-                                    <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-xl uppercase tracking-widest">{auditLogs.length} Executions</span>
+                                    <span className="text-xs font-medium text-primary dark:text-primary bg-primary/5 border border-primary/10 px-3 py-1 rounded-xl">{auditLogs.length} Executions</span>
                                 </div>
                                 <div className="max-h-[300px] overflow-y-auto space-y-3 pr-1">
                                     {auditLogs.length === 0 ? (
                                         <div className="text-center py-10">
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No tool executions recorded yet</p>
+                                            <p className="text-xs text-muted-foreground">No tool executions recorded yet</p>
                                         </div>
                                     ) : (
                                         auditLogs.map((log: any, i: number) => {
@@ -1228,17 +1228,17 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                             const toolName = meta.tool || log.entityId || "unknown";
                                             const timestamp = meta.timestamp || log.createdAt;
                                             return (
-                                                <div key={log.id || i} className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/40 dark:border-slate-800/40 rounded-2xl text-left group hover:border-indigo-500/20 transition-all">
-                                                    <div className="w-10 h-10 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center flex-shrink-0">
-                                                        <Terminal className="w-4 h-4 text-indigo-500" />
+                                                <div key={log.id || i} className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/40 dark:border-slate-800/40 rounded-lg text-left group hover:border-primary/20 transition-all">
+                                                    <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                                                        <Terminal className="w-4 h-4 text-primary" />
                                                     </div>
                                                     <div className="flex-1 min-w-0 space-y-1">
                                                         <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight truncate">{toolName.replace(/_/g, " ")}</h5>
-                                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-wider truncate">
+                                                        <p className="text-xs text-muted-foreground truncate">
                                                             {meta.params ? Object.keys(meta.params).filter(k => meta.params[k]).map(k => `${k}: ${String(meta.params[k]).substring(0, 30)}`).join(" · ") : "No parameters"}
                                                         </p>
                                                     </div>
-                                                    <span className="text-[8px] font-black text-slate-400 uppercase tracking-wider flex-shrink-0">
+                                                    <span className="text-xs text-muted-foreground flex-shrink-0">
                                                         {timestamp ? new Date(timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
                                                     </span>
                                                 </div>
@@ -1255,26 +1255,26 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                 <TabsContent value="analytics" className="flex-1 flex flex-col min-h-0 m-0 relative overflow-hidden bg-slate-50 dark:bg-slate-950 p-8">
                     {isTabLoading ? (
                         <div className="flex-1 flex items-center justify-center">
-                            <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                            <Loader2 className="w-10 h-10 animate-spin text-primary" />
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col min-h-0 space-y-6">
                             {/* Graphic breakdown of priority counts */}
                             <div className="bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 rounded-3xl p-8 flex flex-col min-h-0 flex-1 space-y-6 shadow-sm">
                                 <div className="text-left">
-                                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Workspace Priority Breakdown</h4>
-                                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 mt-1">Operational focus allocation</p>
+                                    <h4 className="text-xs font-semibold text-slate-400">Workspace Priority Breakdown</h4>
+                                    <p className="text-xs text-muted-foreground mt-1">Priority allocation</p>
                                 </div>
 
                                 <div className="flex-1 flex flex-col justify-center space-y-4">
                                     {["urgent", "high", "medium", "low"].map(p => {
                                         const count = tasksList.filter(t => t.priority === p).length;
                                         const pct = Math.round((count / tasksList.length) * 100) || 0;
-                                        const pColor = p === "urgent" ? "bg-red-500 shadow-red-500/20" : p === "high" ? "bg-amber-500 shadow-amber-500/20" : p === "medium" ? "bg-indigo-600 shadow-indigo-500/20" : "bg-slate-400";
+                                        const pColor = p === "urgent" ? "bg-red-500 shadow-red-500/20" : p === "high" ? "bg-amber-500 shadow-amber-500/20" : p === "medium" ? "bg-primary shadow-primary/20" : "bg-slate-400";
                                         
                                         return (
                                             <div key={p} className="space-y-2">
-                                                <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-widest text-slate-500">
+                                                <div className="flex items-center justify-between text-xs text-muted-foreground">
                                                     <span>{p} Priority</span>
                                                     <span>{count} ({pct}%)</span>
                                                 </div>
@@ -1294,48 +1294,48 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                 <TabsContent value="automations" className="flex-1 flex flex-col min-h-0 m-0 relative overflow-hidden bg-slate-50 dark:bg-slate-950 p-8">
                     {isTabLoading ? (
                         <div className="flex-1 flex items-center justify-center">
-                            <Loader2 className="w-10 h-10 animate-spin text-indigo-500" />
+                            <Loader2 className="w-10 h-10 animate-spin text-primary" />
                         </div>
                     ) : (
                         <div className="flex-1 flex flex-col min-h-0 space-y-6">
-                            <div className="text-left bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 px-6 py-5 rounded-2xl shadow-sm flex items-center justify-between">
+                            <div className="text-left bg-white dark:bg-slate-900 border border-slate-200/60 dark:border-slate-800/60 px-6 py-5 rounded-lg shadow-sm flex items-center justify-between">
                                 <div className="space-y-1">
-                                    <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Synthetics Automation Engine</h4>
-                                    <p className="text-[9px] font-black uppercase tracking-wider text-slate-400">Natural language triggered operational logic</p>
+                                        <h4 className="text-xs font-medium text-muted-foreground">Automations</h4>
+                                    <p className="text-xs text-muted-foreground">Natural language triggered operational logic</p>
                                 </div>
-                                <span className="text-[10px] font-black text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 border border-indigo-500/10 px-3 py-1 rounded-xl uppercase tracking-widest">{automationsList.length} Active Rules</span>
+                                <span className="text-xs font-medium text-primary dark:text-primary bg-primary/5 border border-primary/10 px-3 py-1 rounded-xl">{automationsList.length} Active Rules</span>
                             </div>
 
                             {/* Automations Listing */}
                             <div className="flex-1 overflow-y-auto space-y-4 pr-2">
                                 {automationsList.length === 0 ? (
                                     <div className="text-center py-20 space-y-4">
-                                        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl flex items-center justify-center mx-auto">
+                                        <div className="w-16 h-16 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg flex items-center justify-center mx-auto">
                                             <Settings2 className="w-8 h-8 text-slate-400 animate-spin" />
                                         </div>
-                                        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">No automations created yet</p>
-                                        <p className="text-xs font-bold text-slate-400 max-w-xs leading-relaxed uppercase tracking-wider mx-auto">Instruct Nova in chat: &ldquo;When task completed, alert Slack channel&rdquo;</p>
+                                        <p className="text-sm font-medium text-slate-400">No automations created yet</p>
+                                        <p className="text-xs font-medium text-slate-400 max-w-xs leading-relaxed mx-auto">Instruct Nova in chat: &ldquo;When task completed, alert Slack channel&rdquo;</p>
                                     </div>
                                 ) : (
                                     automationsList.map(rule => (
                                         <div key={rule.id} className={cn(
-                                            "bg-white dark:bg-slate-900 border p-6 rounded-2xl flex flex-col gap-4 shadow-sm text-left transition-all hover:border-indigo-500/20 relative group",
+                                            "bg-white dark:bg-slate-900 border p-6 rounded-lg flex flex-col gap-4 shadow-sm text-left transition-all hover:border-primary/20 relative group",
                                             rule.active ? "border-slate-200/60 dark:border-slate-800/60" : "border-slate-100 dark:border-slate-900 opacity-60"
                                         )}>
                                             <div className="flex items-start justify-between">
                                                 <div className="space-y-1 flex-1 pr-4">
                                                     <h5 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-tight">{rule.name}</h5>
                                                     <div className="flex flex-wrap items-center gap-2 mt-2">
-                                                        <span className="text-[8px] font-black uppercase tracking-widest text-indigo-600 dark:text-indigo-400 bg-indigo-500/5 border border-indigo-500/10 px-2 py-0.5 rounded-lg">{rule.trigger}</span>
-                                                        <span className="text-[8px] font-black uppercase tracking-widest text-slate-400">→</span>
-                                                        <span className="text-[8px] font-black uppercase tracking-widest text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 border border-emerald-500/10 px-2 py-0.5 rounded-lg">{rule.action}</span>
+                                                        <span className="text-xs font-medium text-primary dark:text-primary bg-primary/5 border border-primary/10 px-2 py-0.5 rounded-lg">{rule.trigger}</span>
+                                                        <span className="text-xs text-muted-foreground">→</span>
+                                                        <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-500/5 border border-emerald-500/10 px-2 py-0.5 rounded-lg">{rule.action}</span>
                                                     </div>
                                                 </div>
                                                 <button 
                                                     onClick={() => toggleAutomationActive(rule)} 
                                                     className={cn(
                                                         "w-12 h-7 rounded-full p-0.5 transition-all duration-300",
-                                                        rule.active ? "bg-indigo-600 flex justify-end" : "bg-slate-200 dark:bg-slate-850 flex justify-start"
+                                                        rule.active ? "bg-primary flex justify-end" : "bg-slate-200 dark:bg-slate-850 flex justify-start"
                                                     )}
                                                 >
                                                     <span className="w-5.5 h-5.5 bg-white rounded-full shadow-md" />
@@ -1351,20 +1351,20 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-3">
                                         <Brain className="w-5 h-5 text-purple-500" />
-                                        <h4 className="text-xs font-black uppercase tracking-widest text-slate-400">Nova Deep Memory</h4>
+                                        <h4 className="text-xs font-medium text-muted-foreground">Deep Memory</h4>
                                     </div>
-                                    <span className="text-[10px] font-black text-purple-600 dark:text-purple-400 bg-purple-500/5 border border-purple-500/10 px-3 py-1 rounded-xl uppercase tracking-widest">{memoryList.length} Stored</span>
+                                    <span className="text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-500/5 border border-purple-500/10 px-3 py-1 rounded-xl">{memoryList.length} Stored</span>
                                 </div>
                                 <div className="max-h-[250px] overflow-y-auto space-y-3 pr-1">
                                     {memoryList.length === 0 ? (
                                         <div className="text-center py-10 space-y-3">
                                             <Brain className="w-8 h-8 text-slate-300 dark:text-slate-700 mx-auto" />
-                                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">No memories stored</p>
-                                            <p className="text-[9px] font-bold text-slate-400 max-w-xs mx-auto">Ask Nova to &ldquo;remember&rdquo; preferences like your writing style, timezone, or naming conventions</p>
+                                            <p className="text-xs text-muted-foreground">No memories stored</p>
+                                            <p className="text-xs font-medium text-slate-400 max-w-xs mx-auto">Ask Nova to &ldquo;remember&rdquo; preferences like your writing style, timezone, or naming conventions</p>
                                         </div>
                                     ) : (
                                         memoryList.map((mem: any) => (
-                                            <div key={mem.id} className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/40 dark:border-slate-800/40 rounded-2xl text-left group hover:border-purple-500/20 transition-all">
+                                            <div key={mem.id} className="flex items-center gap-4 p-4 bg-slate-50 dark:bg-slate-950 border border-slate-200/40 dark:border-slate-800/40 rounded-lg text-left group hover:border-purple-500/20 transition-all">
                                                 <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center flex-shrink-0">
                                                     <Brain className="w-4 h-4 text-purple-500" />
                                                 </div>

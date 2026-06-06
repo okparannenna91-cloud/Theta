@@ -36,10 +36,10 @@ export default function NovaPage() {
 
     if (!activeWorkspaceId) {
         return (
-            <div className="flex-1 flex items-center justify-center bg-white dark:bg-slate-950">
+            <div className="flex-1 flex items-center justify-center">
                 <div className="text-center space-y-4">
-                    <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-900 animate-pulse mx-auto" />
-                    <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Select a workspace to initialize Nova</p>
+                    <div className="w-12 h-12 rounded-lg bg-muted animate-pulse mx-auto" />
+                    <p className="text-sm text-muted-foreground">Select a workspace to use Nova</p>
                 </div>
             </div>
         );

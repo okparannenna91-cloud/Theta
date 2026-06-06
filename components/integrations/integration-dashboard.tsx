@@ -258,7 +258,7 @@ export default function IntegrationDashboard() {
                 <Skeleton className="h-14 w-full rounded-2xl" />
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {Array.from({ length: 6 }).map((_, i) => (
-                        <div key={i} className="glass-card rounded-xl p-6 space-y-5">
+                        <div key={i} className="border shadow-sm bg-card rounded-xl p-6 space-y-5">
                             <div className="flex items-center gap-5">
                                 <Skeleton className="h-16 w-16 rounded-2xl" />
                                 <div className="flex-1 space-y-2">
@@ -314,9 +314,8 @@ export default function IntegrationDashboard() {
 
                     return (
                         <FadeIn key={provider.id}>
-                            <Card className="glass-card border-none hover:shadow-xl transition-all duration-500 group overflow-hidden flex flex-col h-full">
-                                <div className={`absolute top-0 right-0 w-32 h-32 bg-${provider.id}-500/5 blur-3xl -z-10`} />
-
+                            <Card className="border shadow-sm bg-card hover:shadow-xl transition-all duration-500 group overflow-hidden flex flex-col h-full">
+            
                                 <CardHeader className="flex flex-row items-center gap-5 space-y-0 p-6">
                                     <div
                                         className={`p-4 rounded-2xl transition-all duration-500 group-hover:scale-110 shadow-lg`}
@@ -325,13 +324,13 @@ export default function IntegrationDashboard() {
                                         <provider.icon className={`h-8 w-8 transition-colors duration-500 ${isConnected ? "text-white" : ""}`} style={{ color: isConnected ? "#fff" : provider.color }} />
                                     </div>
                                     <div className="flex-1">
-                                        <CardTitle className="text-xl font-black tracking-tight flex items-center gap-2">
+                                        <CardTitle className="text-xl font-semibold flex items-center gap-2">
                                             {provider.name}
                                             {isConnected && (
                                                 <CheckCircle2 className="h-4 w-4 text-emerald-500" />
                                             )}
                                         </CardTitle>
-                                        <CardDescription className="font-bold text-[10px] uppercase tracking-wider text-muted-foreground mt-1">
+                                        <CardDescription className="font-bold text-[10px] text-muted-foreground mt-1">
                                             {isConnected ? "Active Connector" : "Available Extension"}
                                         </CardDescription>
                                     </div>
@@ -345,7 +344,7 @@ export default function IntegrationDashboard() {
                                     {isConnected && (
                                         <div className="mt-4 p-3 bg-white/5 rounded-xl border border-white/10 flex items-center justify-between">
                                             <span className="text-[10px] font-bold text-muted-foreground uppercase">Last Sync</span>
-                                            <span className="text-[10px] font-black">{new Date(integration.updatedAt).toLocaleDateString()}</span>
+                                            <span className="text-[10px] font-semibold">{new Date(integration.updatedAt).toLocaleDateString()}</span>
                                         </div>
                                     )}
                                 </CardContent>
@@ -366,7 +365,7 @@ export default function IntegrationDashboard() {
                                             )}
                                             <Button
                                                 variant="ghost"
-                                                className="flex-1 rounded-xl h-11 font-black uppercase tracking-widest text-[10px] border border-white/10"
+                                                className="flex-1 rounded-xl h-11 font-semibold text-[10px] border border-white/10"
                                                 onClick={() => handleConnect(provider.id)}
                                             >
                                                 Settings
@@ -383,7 +382,7 @@ export default function IntegrationDashboard() {
                                     ) : (
                                         <Button
                                             className={cn(
-                                                "w-full rounded-2xl h-11 font-black uppercase tracking-[0.2em] text-[10px] transition-all duration-300",
+                                                "w-full rounded-2xl h-11 font-semibold text-[10px] transition-all duration-300",
                                                 isLimitReached ? "opacity-50 cursor-not-allowed bg-slate-200 text-slate-500" : "bg-primary hover:primary/90 text-white shadow-lg shadow-primary/20 hover:scale-[1.02]"
                                             )}
                                             onClick={() => handleConnect(provider.id)}
@@ -400,13 +399,13 @@ export default function IntegrationDashboard() {
 
                 {/* Help Card */}
                 <FadeIn>
-                    <Card className="glass-card border-dashed border-2 border-white/10 bg-transparent flex flex-col items-center justify-center p-8 text-center h-full min-h-[280px]">
+                    <Card className="border-dashed border-2 border-white/10 bg-transparent shadow-sm flex flex-col items-center justify-center p-8 text-center h-full min-h-[280px]">
                         <div className="p-4 bg-white/5 rounded-full mb-4">
                             <Link2 className="h-8 w-8 text-muted-foreground opacity-50" />
                         </div>
-                        <h3 className="text-lg font-black tracking-tight mb-2">Request Integration</h3>
+                        <h3 className="text-lg font-semibold mb-2">Request Integration</h3>
                         <p className="text-xs text-muted-foreground font-medium mb-6">Need a custom provider? We develop new connectors every week.</p>
-                        <Button variant="outline" className="rounded-xl font-bold text-[10px] uppercase tracking-widest">
+                        <Button variant="outline" className="rounded-xl font-bold text-[10px]">
                             Contact Support
                         </Button>
                     </Card>
@@ -414,9 +413,9 @@ export default function IntegrationDashboard() {
             </div>
 
             <Dialog open={isManualModalOpen} onOpenChange={setIsManualModalOpen}>
-                <DialogContent className="glass-card border-none sm:max-w-[425px]">
+                <DialogContent className="border shadow-sm bg-card sm:max-w-[425px]">
                     <DialogHeader>
-                        <DialogTitle className="text-2xl font-black flex items-center gap-3">
+                        <DialogTitle className="text-2xl font-semibold flex items-center gap-3">
                             Connect {selectedManualProvider?.name}
                         </DialogTitle>
                         <DialogDescription className="font-medium text-muted-foreground">
@@ -426,7 +425,7 @@ export default function IntegrationDashboard() {
                             {selectedManualProvider?.id === 'canva' && "Store your Canva design link for quick access."}
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="grid gap-6 py-6 font-bold uppercase tracking-wider text-[10px]">
+                    <div className="grid gap-6 py-6 font-bold text-[10px]">
                         {selectedManualProvider?.id === 'trello' && (
                             <div className="space-y-4">
                                 <div className="space-y-2">
@@ -496,7 +495,7 @@ export default function IntegrationDashboard() {
                     </div>
                     <DialogFooter>
                         <Button
-                            className="w-full h-12 rounded-2xl font-black uppercase tracking-widest text-xs"
+                            className="w-full h-12 rounded-2xl font-semibold text-xs"
                             onClick={handleManualSubmit}
                         >
                             Confirm Connection

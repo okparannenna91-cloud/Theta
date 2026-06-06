@@ -1,4 +1,5 @@
 import { PERMISSION_MATRIX, SENSITIVE_ACTIONS, AUDIT_LOGGING_REQUIREMENTS, AI_SECURITY_RULES, SECURITY_PRIORITY_ORDER, hasPermission, type SecurityRole, type ResourceType, type SecurityAction as ConstitutionSecurityAction } from "./constitution/security";
+import { logger } from "../logger";
 
 export { type SecurityRole } from "./constitution/security";
 
@@ -22,7 +23,7 @@ export class SecurityGuard {
     });
 
     if (!membership) {
-      console.warn(`[SecurityGuard] Access Denied: User ${userId} is not a member of workspace ${workspaceId}`);
+      logger.warn(`Access Denied: User ${userId} is not a member of workspace ${workspaceId}`);
       return false;
     }
 

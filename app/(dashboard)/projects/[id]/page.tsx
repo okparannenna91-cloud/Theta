@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { AnimatePresence, motion } from "framer-motion";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProjectOverview } from "@/components/projects/project-overview";
 import { ProjectActivity } from "@/components/projects/project-activity";
@@ -12,7 +11,6 @@ import {
     ArrowLeft, 
     LayoutList, 
     Columns, 
-    Calendar, 
     CalendarDays,
     TrendingUp, 
     GanttChart as GanttIcon,
@@ -20,12 +18,13 @@ import {
     Activity as ActivityIcon,
     Settings,
     Users as UsersIcon,
-    MessageSquare
+    MessageSquare,
+    Calendar
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { ProjectTasksView } from "@/components/projects/project-tasks-view";
 import KanbanBoard from "@/components/boards/kanban-board";
@@ -57,17 +56,31 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
     if (isLoading) {
         return (
-            <div className="p-8 space-y-8">
+            <div className="space-y-6 p-6">
                 <div className="flex items-center gap-4">
-                     <Skeleton className="h-10 w-10 rounded-full" />
-                     <Skeleton className="h-8 w-64" />
+                    <Skeleton className="h-10 w-10 rounded-full" />
+                    <Skeleton className="h-8 w-64" />
                 </div>
-                <Skeleton className="h-[600px] w-full rounded-3xl" />
+                <Skeleton className="h-[600px] w-full rounded-lg" />
             </div>
         );
     }
 
-    if (!project) return <div>Project not found</div>;
+    if (!project) {
+        return (
+            <div className="flex items-center justify-center min-h-[400px]">
+                <Card className="max-w-md border shadow-sm">
+                    <CardHeader className="text-center">
+                        <CardTitle className="text-base">Project not found</CardTitle>
+                        <CardDescription>The project you're looking for doesn't exist or has been deleted.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex justify-center pb-6">
+                        <Link href="/projects"><Button variant="outline">Back to Projects</Button></Link>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     const tasks = project.tasks || [];
 
@@ -86,249 +99,226 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     ];
 
     return (
-        <div className="h-full flex flex-col bg-white dark:bg-slate-950 relative selection:bg-indigo-500/30">
-            {/* Neural Mesh Background */}
-            <div className="absolute top-0 right-0 -z-10 w-[800px] h-[800px] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none animate-pulse" />
-            <div className="absolute bottom-0 left-0 -z-10 w-[600px] h-[600px] bg-purple-600/5 blur-[100px] rounded-full pointer-events-none" />
-
-            <div className="p-8 sm:p-12 border-b border-indigo-500/10 bg-white/40 dark:bg-slate-950/40 backdrop-blur-2xl sticky top-0 z-40">
-                <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-10">
-                    <div className="flex items-center gap-8">
+        <div className="h-full flex flex-col bg-background">
+            <div className="px-6 lg:px-8 py-4 border-b bg-background/80 backdrop-blur-sm sticky top-0 z-40">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
                         <Link href="/projects">
-                            <Button variant="ghost" size="icon" className="h-14 w-14 rounded-2xl hover:bg-indigo-600 hover:text-white transition-all duration-500 bg-white dark:bg-slate-900 border border-indigo-500/10 shadow-2xl shadow-indigo-500/10 group">
-                                <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
+                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
+                                <ArrowLeft className="h-4 w-4" />
                             </Button>
                         </Link>
-                        <div className="space-y-2">
-                            <h1 className="text-4xl sm:text-5xl font-black tracking-tighter text-slate-900 dark:text-white uppercase leading-none">{project.name}</h1>
-                            <div className="flex items-center gap-4">
-                                <div className="h-1 w-12 bg-indigo-600 rounded-full" />
-                                <div className="flex items-center gap-3">
-                                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.3em]">
-                                        Node ID: {project.id.slice(-8)}
-                                    </p>
-                                    <Badge className="bg-indigo-600/10 text-indigo-600 border border-indigo-500/20 text-[9px] font-black uppercase tracking-[0.2em] px-3 py-1 rounded-lg">
-                                        {view} Protocol
-                                    </Badge>
-                                </div>
+                        <div>
+                            <h1 className="text-xl font-semibold text-foreground">{project.name}</h1>
+                            <div className="flex items-center gap-2 mt-0.5">
+                                <p className="text-xs text-muted-foreground">
+                                    Created {new Date(project.createdAt).toLocaleDateString()}
+                                </p>
+                                <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
+                                <Badge variant="outline" className="text-xs rounded-md px-2 py-0 h-5 capitalize">
+                                    {project.status || "Active"}
+                                </Badge>
                             </div>
                         </div>
                     </div>
+                </div>
 
-                    <div className="flex items-center gap-4 w-full xl:w-auto overflow-x-auto no-scrollbar pb-2 xl:pb-0">
-                         <div className="flex items-center gap-2 bg-slate-100/50 dark:bg-slate-900/50 p-2 rounded-[1.5rem] border border-indigo-500/5">
-                            {tabs.map((tab) => (
-                                <button
-                                    key={tab.id}
-                                    onClick={() => setView(tab.id)}
-                                    className={cn(
-                                        "flex items-center px-6 py-3 rounded-2xl text-[9px] font-black uppercase tracking-[0.2em] transition-all duration-500 whitespace-nowrap",
-                                        view === tab.id
-                                            ? "bg-indigo-600 text-white shadow-2xl shadow-indigo-500/40 scale-105"
-                                            : "text-slate-400 hover:text-indigo-600 hover:bg-white dark:hover:bg-slate-800"
-                                    )}
-                                >
-                                    <tab.icon className={cn("h-4 w-4 mr-3", view === tab.id ? "animate-pulse" : "")} />
-                                    {tab.label}
-                                </button>
-                            ))}
-                         </div>
-                    </div>
+                <div className="flex items-center gap-1 mt-4 -mb-4 overflow-x-auto no-scrollbar">
+                    {tabs.map((tab) => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setView(tab.id)}
+                            className={cn(
+                                "flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-t-md transition-colors whitespace-nowrap border-b-2",
+                                view === tab.id
+                                    ? "text-foreground border-primary bg-muted/30"
+                                    : "text-muted-foreground border-transparent hover:text-foreground hover:border-muted-foreground/20"
+                            )}
+                        >
+                            <tab.icon className="h-3.5 w-3.5" />
+                            {tab.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
-            <div className="flex-1 p-8 sm:p-12 overflow-hidden relative">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={view}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 1.02, y: -20 }}
-                        transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-                        className="h-full"
-                    >
-                        {view === "overview" && (
-                            <ProjectOverview project={project} />
-                        )}
+            <div className="flex-1 p-6 lg:p-8 overflow-y-auto">
+                {view === "overview" && (
+                    <ProjectOverview project={project} />
+                )}
 
-                        {view === "tasks" && (
-                            <ProjectTasksView project={project} />
-                        )}
-                        
-                        {view === "boards" && (
-                            <div className="h-full space-y-12">
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-                                    <div className="space-y-1">
-                                        <h3 className="text-3xl font-black uppercase tracking-tighter">Neural Board Grid</h3>
-                                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em]">Visual execution environments</p>
-                                    </div>
-                                    <Badge className="bg-indigo-600 text-white border-none text-[10px] font-black uppercase tracking-[0.2em] px-6 py-3 rounded-2xl shadow-xl shadow-indigo-500/20">
-                                        {project.boards?.length || 0} ACTIVE INTERFACES
-                                    </Badge>
-                                </div>
-
-                                {project.boards?.length > 0 ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-                                        {project.boards.map((board: any, i: number) => (
-                                             <motion.div key={board.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.1 }}>
-                                                <Link href={`/boards/${board.id}`}>
-                                                    <Card className="glass-card border-none group overflow-hidden h-64 rounded-[3rem] relative transition-all duration-700 hover:scale-[1.03] hover:shadow-[0_40px_80px_-20px_rgba(99,102,241,0.2)] p-10 flex flex-col justify-between">
-                                                        <div className="absolute top-0 right-0 p-10 text-indigo-500 opacity-5 group-hover:opacity-20 transition-all duration-1000 group-hover:scale-150 group-hover:-rotate-12 translate-x-8 -translate-y-8">
-                                                            <Columns className="h-40 w-40" />
-                                                        </div>
-                                                        <div className="space-y-2 relative z-10">
-                                                            <h3 className="text-3xl font-black group-hover:text-indigo-600 transition-all uppercase tracking-tighter">{board.name}</h3>
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                                                                <p className="uppercase text-[9px] font-black tracking-[0.3em] text-slate-400">{board._count?.tasks || 0} SYNCHRONIZED TASKS</p>
-                                                            </div>
-                                                        </div>
-                                                        <div className="relative z-10">
-                                                            <Button variant="ghost" className="p-0 text-indigo-600 font-black h-auto text-[10px] uppercase tracking-[0.3em] hover:bg-transparent group-hover:translate-x-2 transition-transform">Initialize View →</Button>
-                                                        </div>
-                                                    </Card>
-                                                </Link>
-                                             </motion.div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <div className="h-[500px] flex flex-col items-center justify-center text-center p-12 bg-white/30 dark:bg-slate-900/30 backdrop-blur-xl border-2 border-dashed border-indigo-500/10 rounded-[4rem]">
-                                        <div className="h-24 w-24 rounded-[2rem] bg-indigo-600/10 flex items-center justify-center shadow-2xl mb-8 floating">
-                                            <Columns className="h-10 w-10 text-indigo-600" />
-                                        </div>
-                                        <h3 className="text-3xl font-black uppercase mb-4 tracking-tighter">Zero Interface Territory</h3>
-                                        <p className="text-sm text-slate-500 mb-10 max-w-sm font-bold uppercase tracking-widest leading-relaxed">Create a visual matrix to manage your task synchronization.</p>
-                                        <Button size="lg" className="h-16 rounded-[2rem] px-10 font-black uppercase tracking-[0.2em] text-[10px] bg-indigo-600 hover:bg-indigo-700 shadow-2xl shadow-indigo-500/30" asChild>
-                                            <Link href={`/projects/${project.id}/boards`}>Initiate View Matrix</Link>
-                                        </Button>
-                                    </div>
-                                )}
+                {view === "tasks" && (
+                    <ProjectTasksView project={project} />
+                )}
+                
+                {view === "boards" && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold">Boards</h2>
+                                <p className="text-sm text-muted-foreground">Visual task management boards for this project</p>
                             </div>
-                        )}
+                            <Badge variant="secondary" className="text-xs rounded-md px-3 py-1">
+                                {project.boards?.length || 0} boards
+                            </Badge>
+                        </div>
 
-                        {view === "kanban" && (
-                             <div className="h-full">
-                                {project.boards?.[0] ? (
-                                    <KanbanBoard boardId={project.boards[0].id} onBack={() => setView("boards")} />
-                                ) : (
-                                    <div className="h-full flex flex-col items-center justify-center text-center p-12">
-                                        <Columns className="h-16 w-16 text-slate-200 mb-8 floating" />
-                                        <h3 className="text-2xl font-black uppercase tracking-tighter mb-4">No Quick Interface</h3>
-                                        <Button variant="outline" className="h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] px-10" onClick={() => setView("boards")}>Transcend to Boards Tab</Button>
-                                    </div>
-                                )}
-                             </div>
-                        )}
-
-                        {view === "calendar" && (
-                            <CalendarView tasks={tasks} />
-                        )}
-
-                        {view === "timeline" && (
-                            <TimelineView tasks={tasks} />
-                        )}
-                        
-                        {view === "gantt" && (
-                            <GanttChart tasks={tasks} projectId={project.id} workspaceId={project.workspaceId} />
-                        )}
-
-                        {view === "activity" && (
-                            <ProjectActivity projectId={project.id} workspaceId={project.workspaceId} />
-                        )}
-
-                        {view === "teams" && (
-                            <ProjectTeamsTab projectId={project.id} workspaceId={project.workspaceId} />
-                        )}
-                        
-                        {view === "members" && (
-                             <div className="h-full space-y-12">
-                                <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-                                     <div className="space-y-1">
-                                         <h3 className="text-3xl font-black uppercase tracking-tighter">Collective Evolution</h3>
-                                         <p className="text-[10px] font-black uppercase tracking-[0.4em] text-indigo-600">Neural Node Matrix: Operators & Architects</p>
-                                     </div>
-                                     <Button 
-                                         onClick={() => setIsInviteOpen(true)}
-                                         className="h-14 rounded-2xl font-black uppercase tracking-[0.2em] text-[10px] px-10 bg-indigo-600 hover:bg-indigo-700 shadow-2xl shadow-indigo-500/20"
-                                     >
-                                         <UsersIcon className="h-4 w-4 mr-3" />
-                                         Authorize Node
-                                     </Button>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-8">
-                                     {project.team?.members?.map((member: any, i: number) => (
-                                         <motion.div key={member.id} initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}>
-                                            <Card className="glass-card border-none rounded-[2.5rem] shadow-xl hover:shadow-[0_30px_60px_-15px_rgba(99,102,241,0.2)] transition-all duration-500 cursor-pointer group p-8">
-                                                <div className="flex flex-col items-center text-center space-y-6">
-                                                     <div className="relative">
-                                                         <div className="absolute inset-0 bg-indigo-600 blur-2xl opacity-0 group-hover:opacity-20 transition-opacity" />
-                                                         <Avatar className="h-24 w-24 ring-8 ring-white dark:ring-slate-950 shadow-2xl transition-all duration-700 group-hover:scale-110 group-hover:rotate-6">
-                                                              <AvatarImage src={member.user?.imageUrl} />
-                                                              <AvatarFallback className="text-2xl font-black uppercase bg-indigo-600 text-white">{member.user?.name?.[0]}</AvatarFallback>
-                                                         </Avatar>
-                                                     </div>
-                                                     <div className="space-y-1">
-                                                         <h3 className="text-xl font-black uppercase tracking-tighter group-hover:text-indigo-600 transition-colors truncate w-full">{member.user?.name}</h3>
-                                                         <Badge className="bg-indigo-500/10 text-indigo-600 border border-indigo-500/20 text-[9px] font-black uppercase tracking-[0.3em] px-3 py-1 rounded-lg">
-                                                            {member.role}
-                                                         </Badge>
-                                                     </div>
+                        {project.boards?.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {project.boards.map((board: any) => (
+                                    <Link key={board.id} href={`/boards/${board.id}`}>
+                                        <Card className="border shadow-sm hover:border-primary/30 hover:shadow-md transition-all cursor-pointer">
+                                            <CardHeader className="pb-3">
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                                                            <Columns className="h-4 w-4 text-primary" />
+                                                        </div>
+                                                        <CardTitle className="text-sm font-semibold">{board.name}</CardTitle>
+                                                    </div>
+                                                    <div className="h-2 w-2 rounded-full bg-emerald-500" />
                                                 </div>
-                                                <div className="mt-8 pt-6 border-t border-indigo-500/5">
-                                                     <div className="flex items-center justify-center gap-8 text-slate-300 group-hover:text-indigo-500 transition-all duration-500">
-                                                          <MessageSquare className="h-5 w-5 cursor-pointer hover:scale-125 transition-transform" />
-                                                          <Calendar className="h-5 w-5 cursor-pointer hover:scale-125 transition-transform" />
-                                                     </div>
-                                                </div>
-                                            </Card>
-                                         </motion.div>
-                                     ))}
-                                </div>
-                             </div>
-                        )}
-
-                        {view === "analytics" && (
-                            <div className="h-full overflow-y-auto pr-4 pb-20 no-scrollbar">
-                                <div className="p-10 bg-indigo-600/5 backdrop-blur-2xl border border-indigo-500/20 rounded-[3rem] flex flex-col md:flex-row md:items-center justify-between gap-8 mb-12 relative overflow-hidden">
-                                    <div className="absolute right-0 top-0 w-64 h-64 bg-indigo-500/10 blur-[100px] -z-10" />
-                                    <div className="flex items-center gap-8">
-                                        <div className="h-20 w-20 rounded-[2rem] bg-indigo-600 text-white flex items-center justify-center shadow-2xl shadow-indigo-500/40 neural-glow relative overflow-hidden">
-                                             <TrendingUp className="h-10 w-10 relative z-10" />
-                                        </div>
-                                        <div className="space-y-1">
-                                             <h2 className="text-3xl font-black uppercase tracking-tighter">Predictive Synthesis</h2>
-                                             <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-60">Neural Telemetry Data Visualization</p>
-                                        </div>
-                                    </div>
-                                    <Badge className="h-10 px-6 rounded-xl bg-emerald-500/10 text-emerald-500 border border-emerald-500/20 font-black uppercase tracking-widest text-[9px] flex items-center gap-2">
-                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                        System Operational
-                                    </Badge>
-                                </div>
-                                
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-                                    {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-                                        <Card key={i} className="glass-card border-none p-10 rounded-[2.5rem] hover:scale-105 transition-all duration-500 shadow-xl group">
-                                            <div className="space-y-4">
-                                                <Skeleton className="h-4 w-32 bg-slate-100 dark:bg-slate-800 rounded-full" />
-                                                <div className="flex items-end gap-2">
-                                                    <Skeleton className="h-12 w-20 bg-slate-200 dark:bg-slate-700 rounded-xl" />
-                                                    <Skeleton className="h-4 w-12 bg-emerald-500/20 rounded-full" />
-                                                </div>
-                                            </div>
+                                            </CardHeader>
+                                            <CardContent>
+                                                <p className="text-xs text-muted-foreground">
+                                                    {board._count?.tasks || 0} tasks
+                                                </p>
+                                            </CardContent>
                                         </Card>
-                                    ))}
-                                </div>
+                                    </Link>
+                                ))}
+                            </div>
+                        ) : (
+                            <Card className="border-2 border-dashed border-border">
+                                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                                    <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
+                                        <Columns className="h-6 w-6 text-muted-foreground" />
+                                    </div>
+                                    <h3 className="text-sm font-semibold mb-1">No boards yet</h3>
+                                    <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+                                        Create a board to visually manage your project tasks.
+                                    </p>
+                                    <Link href={`/projects/${project.id}/boards`}>
+                                        <Button variant="outline">Create Board</Button>
+                                    </Link>
+                                </CardContent>
+                            </Card>
+                        )}
+                    </div>
+                )}
+
+                {view === "kanban" && (
+                    <div className="h-full">
+                        {project.boards?.[0] ? (
+                            <KanbanBoard boardId={project.boards[0].id} onBack={() => setView("boards")} />
+                        ) : (
+                            <div className="h-full flex flex-col items-center justify-center text-center p-12">
+                                <Columns className="h-12 w-12 text-muted-foreground mb-6" />
+                                <h3 className="text-base font-semibold mb-2">No board selected</h3>
+                                <Button variant="outline" onClick={() => setView("boards")}>Back to Boards</Button>
                             </div>
                         )}
-                        
-                        {view === "settings" && (
-                            <ProjectSettings project={project} />
-                        )}
-                    </motion.div>
-                </AnimatePresence>
-            </div>
+                    </div>
+                )}
 
+                {view === "calendar" && (
+                    <CalendarView tasks={tasks} />
+                )}
+
+                {view === "timeline" && (
+                    <TimelineView tasks={tasks} />
+                )}
+                
+                {view === "gantt" && (
+                    <GanttChart tasks={tasks} projectId={project.id} workspaceId={project.workspaceId} />
+                )}
+
+                {view === "activity" && (
+                    <ProjectActivity projectId={project.id} workspaceId={project.workspaceId} />
+                )}
+
+                {view === "teams" && (
+                    <ProjectTeamsTab projectId={project.id} workspaceId={project.workspaceId} />
+                )}
+                
+                {view === "members" && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold">Members</h2>
+                                <p className="text-sm text-muted-foreground">People with access to this project</p>
+                            </div>
+                            <Button onClick={() => setIsInviteOpen(true)}>
+                                <UsersIcon className="h-4 w-4 mr-2" />
+                                Invite Member
+                            </Button>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+                            {project.team?.members?.map((member: any) => (
+                                <Card key={member.id} className="border shadow-sm hover:border-primary/30 transition-colors">
+                                    <CardHeader className="pb-3 flex flex-col items-center text-center">
+                                        <Avatar className="h-14 w-14 mb-2">
+                                            <AvatarImage src={member.user?.imageUrl} />
+                                            <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
+                                                {member.user?.name?.[0] || "?"}
+                                            </AvatarFallback>
+                                        </Avatar>
+                                        <CardTitle className="text-sm font-semibold truncate w-full">
+                                            {member.user?.name || "Unknown"}
+                                        </CardTitle>
+                                        <Badge variant="outline" className="text-xs rounded-md px-2 py-0 h-5 capitalize">
+                                            {member.role}
+                                        </Badge>
+                                    </CardHeader>
+                                    <CardContent className="pt-0 flex justify-center gap-3">
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                                            <MessageSquare className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
+                                            <Calendar className="h-3.5 w-3.5" />
+                                        </Button>
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {view === "analytics" && (
+                    <div className="space-y-6">
+                        <div className="flex items-center gap-3 p-4 rounded-lg border bg-muted/30">
+                            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <TrendingUp className="h-5 w-5 text-primary" />
+                            </div>
+                            <div>
+                                <h2 className="text-sm font-semibold">Project Insights</h2>
+                                <p className="text-xs text-muted-foreground">Analytics and metrics for this project</p>
+                            </div>
+                            <Badge variant="outline" className="ml-auto text-xs rounded-md px-2 py-0 h-6 flex items-center gap-1.5">
+                                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                                Live
+                            </Badge>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {["Total Tasks", "Completed", "In Progress", "Overdue"].map((label, i) => (
+                                <Card key={i} className="border shadow-sm">
+                                    <CardHeader className="pb-2">
+                                        <CardTitle className="text-xs font-medium text-muted-foreground">{label}</CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <Skeleton className="h-8 w-16 rounded-md" />
+                                    </CardContent>
+                                </Card>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                {view === "settings" && (
+                    <ProjectSettings project={project} />
+                )}
+            </div>
 
             <InviteMemberDialog
                 isOpen={isInviteOpen}
@@ -339,4 +329,3 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         </div>
     );
 }
-

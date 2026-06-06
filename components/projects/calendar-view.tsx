@@ -45,10 +45,10 @@ export function CalendarView({ tasks }: CalendarViewProps) {
     }, [tasks]);
 
     return (
-        <Card className="w-full h-full p-4 sm:p-6 bg-white dark:bg-slate-900 rounded-3xl border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
+        <Card className="w-full h-full p-4 sm:p-6 bg-white dark:bg-slate-900 rounded-xl border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col">
             <div className="mb-6">
-                <h3 className="text-xl font-black uppercase tracking-tight">Project Calendar View</h3>
-                <p className="text-sm font-bold uppercase tracking-widest text-slate-500 mt-1">
+                <h3 className="text-xl font-semibold">Project Calendar View</h3>
+                <p className="text-sm font-bold text-slate-500 mt-1">
                     Manage Tasks on Timeline
                 </p>
             </div>
