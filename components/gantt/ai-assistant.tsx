@@ -26,12 +26,6 @@ export default function AIScheduleAssistant({ tasks, onApplySuggestion }: AISche
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [suggestions, setSuggestions] = useState<{ id: number; type: string; title: string; description: string; impact: string; icon: any }[]>([]);
 
-    useEffect(() => {
-        if (isOpen && suggestions.length === 0) {
-            generateSuggestions();
-        }
-    }, [isOpen]);
-
     const generateSuggestions = async () => {
         setIsAnalyzing(true);
         try {
@@ -60,6 +54,12 @@ export default function AIScheduleAssistant({ tasks, onApplySuggestion }: AISche
             setIsAnalyzing(false);
         }
     };
+
+    useEffect(() => {
+        if (isOpen && suggestions.length === 0) {
+            generateSuggestions();
+        }
+    }, [isOpen, generateSuggestions, suggestions.length]);
 
     return (
         <div className="fixed bottom-20 right-8 z-50 flex flex-col items-end gap-4">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -86,8 +87,8 @@ export default function GalleryView({ tasks, columns, onSelectTask }: GalleryVie
               onClick={() => onSelectTask(task)}
             >
               {hasCover && (
-                <div className="aspect-video bg-slate-100 dark:bg-slate-900 overflow-hidden">
-                  <img src={task.coverImage} alt="" className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                <div className="aspect-video bg-slate-100 dark:bg-slate-900 overflow-hidden relative">
+                  <Image src={task.coverImage} alt="" fill className="object-cover group-hover:scale-105 transition-transform duration-500" />
                 </div>
               )}
               {!hasCover && (

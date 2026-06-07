@@ -82,7 +82,7 @@ export default function WorkspacesPage() {
                             <AlertTriangle className="h-5 w-5 text-destructive" />
                         </div>
                         <CardTitle className="text-base">Connection Issue</CardTitle>
-                        <CardDescription>We couldn't retrieve your workspaces. Please try again.</CardDescription>
+                        <CardDescription>We couldn&apos;t retrieve your workspaces. Please try again.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center pb-6">
                         <Button onClick={() => window.location.reload()} variant="outline">Try Again</Button>

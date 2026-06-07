@@ -98,7 +98,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             setDependencyIds(task.dependencyIds || []);
             setColor(task.color || "");
         }
-    }, [task?.id]);
+    }, [task]);
 
     const updateMutation = useMutation({
         mutationFn: async (data: any) => {

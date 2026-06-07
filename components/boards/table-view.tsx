@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -181,8 +182,8 @@ export default function TableView({
           </button>
           <GripVertical className="h-3 w-3 text-slate-300 flex-shrink-0 cursor-grab" />
           {task.coverImage && (
-            <div className="h-6 w-6 rounded flex-shrink-0 overflow-hidden">
-              <img src={task.coverImage} alt="" className="h-full w-full object-cover" />
+            <div className="h-6 w-6 rounded flex-shrink-0 overflow-hidden relative">
+              <Image src={task.coverImage} alt="" fill className="object-cover" />
             </div>
           )}
           <span

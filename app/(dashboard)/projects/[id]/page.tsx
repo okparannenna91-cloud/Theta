@@ -72,7 +72,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 <Card className="max-w-md border shadow-sm">
                     <CardHeader className="text-center">
                         <CardTitle className="text-base">Project not found</CardTitle>
-                        <CardDescription>The project you're looking for doesn't exist or has been deleted.</CardDescription>
+                        <CardDescription>The project you&apos;re looking for doesn&apos;t exist or has been deleted.</CardDescription>
                     </CardHeader>
                     <CardContent className="flex justify-center pb-6">
                         <Link href="/projects"><Button variant="outline">Back to Projects</Button></Link>

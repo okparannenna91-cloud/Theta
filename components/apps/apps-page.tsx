@@ -112,7 +112,7 @@ export default function AppsPage() {
             const matchSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 p.description.toLowerCase().includes(searchQuery.toLowerCase());
             const matchCat = activeCategory === "All" || p.category === activeCategory;
-            const connected = isConnected(p.id);
+            const connected = integrations.some(i => i.provider === p.id);
             const matchStatus = statusFilter === "all" ? true
                 : statusFilter === "connected" ? connected : !connected;
             return matchSearch && matchCat && matchStatus;

@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import {
-  FileText, Image, FileSpreadsheet, File as FileIcon,
+  FileText, Image as ImageIcon, FileSpreadsheet, File as FileIcon,
   Download, Trash2, Eye, Share2, Upload, Search,
   FolderOpen, MoreHorizontal, Clock, User
 } from "lucide-react";
@@ -23,7 +24,7 @@ interface FilesViewProps {
 }
 
 const FILE_ICONS: Record<string, any> = {
-  image: Image, pdf: FileText, spreadsheet: FileSpreadsheet,
+  image: ImageIcon, pdf: FileText, spreadsheet: FileSpreadsheet,
   doc: FileText, default: FileIcon
 };
 
@@ -114,7 +115,7 @@ export default function FilesView({ tasks, workspaceId }: FilesViewProps) {
               <Card key={i} className="group border shadow-sm hover:shadow-md transition-all overflow-hidden">
                 <div className="aspect-[4/3] bg-slate-50 dark:bg-slate-900 flex items-center justify-center relative">
                   {file.type?.startsWith("image") ? (
-                    <img src={file.url} alt={file.name} className="h-full w-full object-cover" />
+                    <Image src={file.url} alt={file.name} fill className="object-cover" />
                   ) : (
                     <Icon className="h-12 w-12 text-slate-300" />
                   )}
