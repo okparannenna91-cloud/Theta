@@ -1,6 +1,7 @@
 import { redis } from "../redis/client";
 import { getPrismaClient } from "../prisma";
 import { logger } from "../logger";
+import { mem0 } from "../mem0";
 import { MEMORY_TIERS, MEMORY_TYPES, MEMORY_RULES, MEMORY_USER_CONTROLS, type MemoryType, type MemoryTier } from "./constitution/memory";
 
 export { type MemoryType, type MemoryTier } from "./constitution/memory";
@@ -23,6 +24,7 @@ export class MemorySystem {
     try {
       const key = `${SESSION_KEY_PREFIX}${sessionId}:history`;
       await redis.rpush(key, JSON.stringify({ ...message, timestamp: new Date().toISOString() }));
+      await redis.ltrim(key, -200, -1);
       await redis.expire(key, SHORT_TERM_TTL);
     } catch (error) {
       logger.warn("[MemorySystem] Error saving short-term memory:", error);
@@ -45,13 +47,14 @@ export class MemorySystem {
 
   public static async saveLongTerm(payload: MemoryPayload): Promise<void> {
     const { userId, workspaceId, key, content } = payload;
+    const trimmedContent = content.slice(0, 10000);
 
     try {
       const db = getPrismaClient(workspaceId);
       await db.aiMemory.upsert({
         where: { userId_key: { userId, key } },
-        create: { userId, workspaceId, key, content },
-        update: { content, workspaceId },
+        create: { userId, workspaceId, key, content: trimmedContent },
+        update: { content: trimmedContent, workspaceId },
       });
     } catch (error) {
       logger.warn("[MemorySystem] Database long-term memory save failed:", error);
@@ -59,8 +62,7 @@ export class MemorySystem {
 
     if (process.env.MEM0_API_KEY) {
       try {
-        const { mem0 } = await import("../mem0");
-        await mem0.add([{ role: "user", content }], {
+        await mem0.add([{ role: "user", content: trimmedContent }], {
           userId,
           metadata: { workspaceId, key },
         });
@@ -75,7 +77,11 @@ export class MemorySystem {
 
     try {
       const db = getPrismaClient(workspaceId);
-      const records = await db.aiMemory.findMany({ where: { userId }, take: maxMemories, orderBy: { updatedAt: "desc" } });
+      const where: any = { userId };
+      if (workspaceId) {
+        where.workspaceId = workspaceId;
+      }
+      const records = await db.aiMemory.findMany({ where, take: maxMemories, orderBy: { updatedAt: "desc" } });
       for (const rec of records) {
         memories[rec.key] = rec.content;
       }

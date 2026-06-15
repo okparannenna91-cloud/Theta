@@ -1,33 +1,29 @@
 import { CohereClient } from "cohere-ai";
 import { logger } from "./logger";
 
-const apiKey = process.env.COHERE_API_KEY;
+let _cohereClient: CohereClient | null = null;
 
-if (!apiKey) {
-    logger.warn("COHERE_API_KEY is not defined in environment variables. Cohere AI fallback will not function.");
+function getCohereClient(): CohereClient {
+  if (!_cohereClient) {
+    const apiKey = process.env.COHERE_API_KEY;
+    if (!apiKey) {
+      throw new Error("COHERE_API_KEY is not defined in environment variables.");
+    }
+    logger.info("Cohere client initialized.");
+    _cohereClient = new CohereClient({ token: apiKey });
+  }
+  return _cohereClient;
 }
 
-export const cohere = new CohereClient({
-    token: apiKey!,
-});
-
-/**
- * Generate a response using Cohere AI
- */
-export async function generateWithCohere(prompt: string, systemPrompt?: string) {
-    if (!apiKey) {
-        throw new Error("Cohere API key missing");
-    }
-
-    const response = await cohere.chat({
-        message: prompt,
-        preamble: systemPrompt,
-        model: "command-a-03-2025", // Latest flagship model
-    });
-
-    if (!response || !response.text) {
-        throw new Error("Empty response from Cohere");
-    }
-
-    return response.text;
+export async function generateWithCohere(prompt: string, systemPrompt?: string, signal?: AbortSignal) {
+  const client = getCohereClient();
+  const response = await client.chat({
+    message: prompt,
+    preamble: systemPrompt,
+    model: "command-a-03-2025",
+  }, { abortSignal: signal });
+  if (!response || !response.text) {
+    throw new Error("Empty response from Cohere");
+  }
+  return response.text;
 }

@@ -23,6 +23,21 @@ import {
     Archive,
     X,
     Activity,
+    Search,
+    Hash,
+    Calendar,
+    BarChart3,
+    Zap,
+    Link2,
+    ExternalLink,
+    UserCheck,
+    UserX,
+    Eye,
+    EyeOff,
+    BadgeCheck,
+    Wifi,
+    WifiOff,
+    ChevronDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -40,14 +55,27 @@ import {
 import { toast } from "sonner";
 import { TeamChat } from "./team-chat";
 import { usePopups } from "@/components/popups/popup-manager";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import Image from "next/image";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 interface TeamDetailsProps {
     team: any;
     onBack: () => void;
 }
+
+const statusColors: Record<string, string> = {
+    active: "bg-emerald-500",
+    archived: "bg-amber-500",
+    idle: "bg-slate-400",
+};
+
+const tabVariants = {
+    enter: { opacity: 0, y: 12 },
+    center: { opacity: 1, y: 0 },
+    exit: { opacity: 0, y: -12 },
+};
 
 export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
     const [team, setTeam] = useState(initialTeam);
@@ -85,7 +113,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
     });
 
     const { data: invites, isLoading: isLoadingInvites } = useQuery({
-        queryKey: ["team-invites", team.id, team.workspaceId], // Scope to team and workspace
+        queryKey: ["team-invites", team.id, team.workspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/invites?workspaceId=${team.workspaceId}&teamId=${team.id}`);
             if (!res.ok) throw new Error("Failed to fetch invites");
@@ -219,7 +247,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
         onSuccess: () => {
             toast.success("Member removed");
             queryClient.invalidateQueries({ queryKey: ["team-members"] });
-            queryClient.invalidateQueries({ queryKey: ["teams"] }); // Update count
+            queryClient.invalidateQueries({ queryKey: ["teams"] });
         },
     });
 
@@ -238,12 +266,16 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
         },
     });
 
+    const memberList = Array.isArray(members) ? members : [];
+    const memberCount = memberList.length || team.membersCount || 1;
+    const projectCount = Array.isArray(projects) ? projects.length : 0;
+    const boardCount = Array.isArray(boards) ? boards.length : 0;
+    const activeCount = memberList.filter((m: any) => m.isOnline).length;
 
     // --- HANDLERS ---
 
     const copyInviteLink = () => {
-        // This should ideally be a unique link per invite, but for generic team link:
-        const link = `${window.location.origin}/join/${team.id}`; // Conceptual
+        const link = `${window.location.origin}/join/${team.id}`;
         navigator.clipboard.writeText(link);
         setCopiedLink(true);
         toast.success("Link copied");
@@ -251,24 +283,23 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
     };
 
     const tabs = [
-        { id: "members", label: "Members", icon: Users },
-        { id: "projects", label: "Projects", icon: Archive },
-        { id: "boards", label: "Boards", icon: Shield },
+        { id: "members", label: "Members", icon: Users, count: memberCount },
+        { id: "projects", label: "Projects", icon: Archive, count: projectCount },
+        { id: "boards", label: "Boards", icon: Shield, count: boardCount },
         { id: "chat", label: "Chat", icon: MessageSquare },
         { id: "invites", label: "Invitations", icon: UserPlus },
         { id: "activity", label: "Activity", icon: Activity },
         { id: "settings", label: "Settings", icon: Settings },
     ];
 
-    // Access Control
     const canManageSettings = isAdmin;
 
     return (
-        <div className="space-y-6 max-w-6xl mx-auto">
+        <div className="space-y-6 max-w-6xl mx-auto pb-12">
             {/* --- HEADER --- */}
-            <div className="flex items-center justify-between mb-6">
-                <Button variant="ghost" className="gap-2 pl-0 hover:pl-2 transition-all" onClick={onBack}>
-                    <ArrowLeft className="h-4 w-4" /> Back to Teams
+            <div className="flex items-center justify-between mb-2">
+                <Button variant="ghost" className="gap-2 pl-0 hover:pl-2 transition-all group" onClick={onBack}>
+                    <ArrowLeft className="h-4 w-4 group-hover:-translate-x-0.5 transition-transform" /> Back to Teams
                 </Button>
                 <div className="flex gap-2">
                     {team.status === "archived" && (
@@ -276,551 +307,676 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                             <Archive className="h-3 w-3 mr-1" /> Archived
                         </Badge>
                     )}
-                    <Badge variant={team.status === "active" ? "default" : "outline"} className="capitalize">
+                    <Badge className={cn(
+                        "capitalize",
+                        team.status === "active" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" : ""
+                    )} variant={team.status === "active" ? "default" : "outline"}>
+                        <span className={cn(
+                            "h-1.5 w-1.5 rounded-full mr-1.5",
+                            statusColors[team.status] || "bg-slate-400"
+                        )} />
                         {team.status}
                     </Badge>
                 </div>
             </div>
 
-            <div className="flex flex-col md:flex-row gap-6 items-start justify-between">
-                <div>
-                    <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100 flex items-center gap-3">
-                        {team.name}
-                        {isAdmin && <Shield className="h-5 w-5 text-indigo-500" />}
-                    </h1>
-                    <p className="text-slate-500 mt-2 max-w-2xl text-lg">
-                        {team.description || "No description provided."}
-                    </p>
+            {/* --- TEAM INFO & STATS BANNER --- */}
+            <div className="flex flex-col lg:flex-row gap-6 items-start justify-between">
+                <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-4 mb-2">
+                        <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/10 to-indigo-500/10 border border-primary/20 flex items-center justify-center shrink-0">
+                            <Users className="h-8 w-8 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                            <h1 className="text-3xl font-bold text-foreground flex items-center gap-3">
+                                {team.name}
+                                {isAdmin && (
+                                    <span className="inline-flex items-center gap-1 text-xs font-medium text-indigo-600 bg-indigo-500/10 px-2.5 py-1 rounded-full border border-indigo-500/20">
+                                        <Shield className="h-3 w-3" />
+                                        {team.userRole === "owner" ? "Owner" : "Admin"}
+                                    </span>
+                                )}
+                            </h1>
+                            <p className="text-muted-foreground mt-1 max-w-2xl">
+                                {team.description || "No description provided."}
+                            </p>
+                        </div>
+                    </div>
                 </div>
-                <div className="flex items-center gap-4 bg-white dark:bg-slate-900 p-2 rounded-xl shadow-sm border">
+
+                {/* Quick Stats */}
+                <div className="flex items-center gap-3 bg-card p-2.5 rounded-2xl border shadow-sm">
                     <div className="flex -space-x-3">
-                        {members?.slice(0, 5).map((m: any) => (
-                            <div key={m.userId} className="h-10 w-10 rounded-full border-2 border-white dark:border-slate-900 bg-slate-200 flex items-center justify-center overflow-hidden" title={m.user?.name}>
+                        {memberList.slice(0, 5).map((m: any) => (
+                            <div key={m.userId} className="h-10 w-10 rounded-full ring-2 ring-card bg-slate-200 flex items-center justify-center overflow-hidden relative" title={m.user?.name}>
                                 {m.user?.imageUrl ? (
                                     <Image src={m.user.imageUrl} alt={m.user.name || "Member"} width={40} height={40} className="h-full w-full object-cover" />
                                 ) : (
-                                    <span className="text-xs font-bold">{m.user?.name?.[0]}</span>
+                                    <span className="text-xs font-bold">{m.user?.name?.[0] || "?"}</span>
                                 )}
+                                <span className={cn(
+                                    "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full ring-2 ring-card",
+                                    m.isOnline ? "bg-emerald-500" : "bg-slate-400"
+                                )} />
                             </div>
                         ))}
                     </div>
-                    <div className="px-2">
-                        <p className="font-bold text-lg">{members?.length || team.membersCount}</p>
-                        <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Members</p>
+                    <div className="flex items-center divide-x">
+                        <div className="px-4 text-center">
+                            <p className="font-bold text-lg tabular-nums">{memberCount}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Members</p>
+                        </div>
+                        <div className="px-4 text-center">
+                            <p className="font-bold text-lg tabular-nums">{projectCount}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Projects</p>
+                        </div>
+                        <div className="px-4 text-center">
+                            <p className="font-bold text-lg tabular-nums">{activities?.length || 0}</p>
+                            <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Actions</p>
+                        </div>
                     </div>
                 </div>
             </div>
 
             {/* --- TABS --- */}
-            <div className="border-b sticky top-0 bg-background/95 backdrop-blur z-10 pt-4">
-                <div className="flex gap-6">
+            <div className="border-b sticky top-0 bg-background/95 backdrop-blur z-10 pt-2">
+                <div className="flex gap-1 overflow-x-auto no-scrollbar">
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
                             onClick={() => setActiveTab(tab.id)}
-                            className={`
-                                flex items-center pb-4 text-sm font-medium border-b-2 transition-all
-                                ${activeTab === tab.id
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all whitespace-nowrap",
+                                activeTab === tab.id
                                     ? "border-indigo-600 text-indigo-600"
-                                    : "border-transparent text-slate-500 hover:text-slate-800 hover:border-slate-300"}
-                            `}
+                                    : "border-transparent text-muted-foreground hover:text-foreground hover:border-slate-300"
+                            )}
                         >
-                            <tab.icon className="h-4 w-4 mr-2" />
+                            <tab.icon className="h-4 w-4" />
                             {tab.label}
+                            {tab.count !== undefined && (
+                                <span className={cn(
+                                    "text-[10px] font-bold px-1.5 py-0.5 rounded-full",
+                                    activeTab === tab.id
+                                        ? "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300"
+                                        : "bg-muted text-muted-foreground"
+                                )}>
+                                    {tab.count}
+                                </span>
+                            )}
                         </button>
                     ))}
                 </div>
             </div>
 
             {/* --- CONTENT --- */}
-            <div className="pt-6 min-h-[400px]">
+            <div className="min-h-[400px]">
                 <AnimatePresence mode="wait">
+                    <motion.div
+                        key={activeTab}
+                        variants={tabVariants}
+                        initial="enter"
+                        animate="center"
+                        exit="exit"
+                        transition={{ duration: 0.2 }}
+                    >
+                        {/* MEMBERS TAB */}
+                        {activeTab === "members" && (
+                            <div className="space-y-6">
+                                <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+                                    <div className="relative max-w-md w-full">
+                                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                        <Input
+                                            placeholder="Search members by name or email..."
+                                            className="pl-10 h-11 bg-background border rounded-xl"
+                                            value={memberSearch}
+                                            onChange={(e) => setMemberSearch(e.target.value)}
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                                        <span className="flex items-center gap-1.5">
+                                            <span className="h-2 w-2 rounded-full bg-emerald-500" />
+                                            {activeCount} online
+                                        </span>
+                                        <span className="text-border">|</span>
+                                        <span className="flex items-center gap-1.5">
+                                            <Users className="h-3.5 w-3.5" />
+                                            {memberCount} total
+                                        </span>
+                                    </div>
+                                </div>
 
-                    {/* MEMBERS TAB */}
-                    {activeTab === "members" && (
-                        <motion.div
-                            key="members"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="space-y-6"
-                        >
-                            <div className="relative max-w-md">
-                                <Users className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                <Input
-                                    placeholder="Search members by name or email..."
-                                    className="pl-10 h-11 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 rounded-xl"
-                                    value={memberSearch}
-                                    onChange={(e) => setMemberSearch(e.target.value)}
-                                />
-                            </div>
+                                <div className="grid grid-cols-1 gap-3">
+                                    {memberList.filter((m: any) =>
+                                        (m.user?.name || "").toLowerCase().includes(memberSearch.toLowerCase()) ||
+                                        (m.user?.email || "").toLowerCase().includes(memberSearch.toLowerCase())
+                                    ).map((member: any) => (
+                                        <motion.div
+                                            key={member.id}
+                                            layout
+                                            initial={{ opacity: 0, y: 8 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="group flex items-center justify-between p-4 bg-card rounded-xl border hover:shadow-md hover:border-primary/20 transition-all"
+                                        >
+                                            <div className="flex items-center gap-4 min-w-0">
+                                                <div className="relative shrink-0">
+                                                    <div className="h-12 w-12 rounded-full bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/30 dark:to-purple-900/30 flex items-center justify-center font-bold text-lg overflow-hidden ring-2 ring-background">
+                                                        {member.user?.imageUrl ? (
+                                                            <Image src={member.user.imageUrl} alt={member.user.name || "Member"} width={48} height={48} className="h-full w-full object-cover" />
+                                                        ) : (
+                                                            <span className="text-indigo-600 dark:text-indigo-400">
+                                                                {member.user?.name?.[0] || "?"}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <span className={cn(
+                                                        "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card",
+                                                        member.isOnline ? "bg-emerald-500" : "bg-slate-400"
+                                                    )}>
+                                                        {member.isOnline && (
+                                                            <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-30" />
+                                                        )}
+                                                    </span>
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-semibold text-foreground truncate">
+                                                            {member.user?.name || "Unknown"}
+                                                        </p>
+                                                        {member.role === "owner" && <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+                                                        {member.role === "admin" && <Shield className="h-3 w-3 text-indigo-500 shrink-0" />}
+                                                    </div>
+                                                    <p className="text-sm text-muted-foreground truncate">{member.user?.email}</p>
+                                                    <div className="flex items-center gap-2 mt-1">
+                                                        <span className={cn(
+                                                            "text-[10px] font-medium flex items-center gap-1",
+                                                            member.isOnline ? "text-emerald-600" : "text-slate-400"
+                                                        )}>
+                                                            {member.isOnline ? (
+                                                                <><Wifi className="h-2.5 w-2.5" /> Online now</>
+                                                            ) : (
+                                                                <><WifiOff className="h-2.5 w-2.5" /> Offline</>
+                                                            )}
+                                                        </span>
+                                                        {member.user?.lastActiveAt && !member.isOnline && (
+                                                            <span className="text-[10px] text-muted-foreground">
+                                                                · {formatDistanceToNow(new Date(member.user.lastActiveAt), { addSuffix: true })}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
 
-                            <div className="grid grid-cols-1 gap-4">
-                                {members?.filter((m: any) =>
-                                    (m.user?.name || "").toLowerCase().includes(memberSearch.toLowerCase()) ||
-                                    (m.user?.email || "").toLowerCase().includes(memberSearch.toLowerCase())
-                                ).map((member: any) => (
-                                    <div key={member.id} className="group flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-xl border hover:shadow-md transition-all">
-                                        <div className="flex items-center gap-4">
-                                            <div className="h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 flex items-center justify-center font-bold text-lg overflow-hidden">
-                                                {member.user?.imageUrl ? (
-                                                    <Image src={member.user.imageUrl} alt={member.user.name || "Member"} width={48} height={48} className="h-full w-full object-cover" />
-                                                ) : (
-                                                    member.user?.name?.[0]
+                                            <div className="flex items-center gap-3 shrink-0">
+                                                <div className="text-right hidden sm:block">
+                                                    <Badge className={cn(
+                                                        "uppercase text-[10px] font-bold px-2.5 py-0.5",
+                                                        member.role === "admin" || member.role === "owner"
+                                                            ? "bg-indigo-500/10 text-indigo-600 border-indigo-500/20"
+                                                            : "bg-muted text-muted-foreground border"
+                                                    )} variant="outline">
+                                                        {member.role === "owner" && <Crown className="h-2.5 w-2.5 mr-1" />}
+                                                        {member.role}
+                                                    </Badge>
+                                                </div>
+
+                                                {isAdmin && member.userId !== team.userId && (
+                                                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {member.role !== "owner" && (
+                                                            <select
+                                                                className="h-8 text-xs border rounded-lg bg-background px-2 py-1"
+                                                                value={member.role}
+                                                                onChange={(e) => changeRoleMutation.mutate({ userId: member.userId, role: e.target.value })}
+                                                                disabled={changeRoleMutation.isPending}
+                                                            >
+                                                                <option value="member">Member</option>
+                                                                <option value="admin">Admin</option>
+                                                            </select>
+                                                        )}
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-lg"
+                                                            onClick={() => {
+                                                                showConfirm({
+                                                                    title: "Remove Member",
+                                                                    description: `Are you sure you want to remove ${member.user?.name || "this member"} from the team?`,
+                                                                    actionLabel: "Remove",
+                                                                    destructive: true,
+                                                                    onAction: () => removeMemberMutation.mutate(member.userId)
+                                                                });
+                                                            }}
+                                                        >
+                                                            <LogOut className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
                                                 )}
                                             </div>
-                                            <div>
-                                                <p className="font-semibold text-lg flex items-center gap-2">
-                                                    {member.user?.name}
-                                                    {member.role === "owner" && <Crown className="h-3 w-3 text-amber-500 fill-amber-500" />}
-                                                </p>
-                                                <p className="text-sm text-slate-500">{member.user?.email}</p>
-                                            </div>
+                                        </motion.div>
+                                    ))}
+                                    {memberList.filter((m: any) =>
+                                        (m.user?.name || "").toLowerCase().includes(memberSearch.toLowerCase()) ||
+                                        (m.user?.email || "").toLowerCase().includes(memberSearch.toLowerCase())
+                                    ).length === 0 && (
+                                        <div className="text-center py-12 text-muted-foreground italic">
+                                            No members match your search.
                                         </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
-                                        <div className="flex items-center gap-4">
-                                            <div className="text-right">
-                                                <Badge variant={member.role === "admin" || member.role === "owner" ? "default" : "secondary"} className="uppercase text-[10px]">
-                                                    {member.role}
-                                                </Badge>
-                                                {member.user?.lastActiveAt && (
-                                                    <p className="text-[10px] text-muted-foreground mt-1">
-                                                        Active {format(new Date(member.user.lastActiveAt), "MMM d")}
-                                                    </p>
+                        {/* PROJECTS TAB */}
+                        {activeTab === "projects" && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {isLoadingProjects ? (
+                                    [1, 2, 3].map(i => <Card key={i} className="h-48 animate-pulse" />)
+                                ) : projectCount > 0 ? (
+                                    projects.map((project: any) => (
+                                        <Link key={project.id} href={`/projects/${project.id}`} className="group">
+                                            <Card className="h-full hover:shadow-lg transition-all border overflow-hidden cursor-pointer relative">
+                                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                {project.coverImage && (
+                                                    <div className="h-32 w-full relative">
+                                                        <Image src={project.coverImage} alt={project.name} fill className="object-cover" />
+                                                    </div>
                                                 )}
-                                            </div>
+                                                <CardHeader>
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="h-9 w-9 rounded-xl bg-indigo-500/10 flex items-center justify-center">
+                                                            <Archive className="h-4 w-4 text-indigo-500" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <CardTitle className="text-base group-hover:text-indigo-600 transition-colors truncate">{project.name}</CardTitle>
+                                                            <CardDescription className="line-clamp-1">{project.description || "No description"}</CardDescription>
+                                                        </div>
+                                                    </div>
+                                                </CardHeader>
+                                            </Card>
+                                        </Link>
+                                    ))
+                                ) : (
+                                    <div className="col-span-full py-20 text-center bg-muted/30 border-2 border-dashed rounded-3xl">
+                                        <Archive className="h-12 w-12 mx-auto text-muted-foreground/30 mb-4" />
+                                        <p className="text-muted-foreground font-medium">No projects associated with this team yet.</p>
+                                        <p className="text-xs text-muted-foreground/60 mt-2">Link this team to a project to get started.</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
 
-                                            {isAdmin && member.userId !== team.userId && ( // Can't edit self here simply to avoid lock-out
-                                                <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    {member.role !== "owner" && (
+                        {/* BOARDS TAB */}
+                        {activeTab === "boards" && (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                {isLoadingBoards ? (
+                                    [1, 2, 3].map(i => <Card key={i} className="h-40 animate-pulse" />)
+                                ) : boardCount > 0 ? (
+                                    boards.map((board: any) => (
+                                        <Link key={board.id} href={`/boards/${board.id}`} className="group">
+                                            <Card className="h-full hover:shadow-xl transition-all cursor-pointer relative overflow-hidden">
+                                                <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />
+                                                <CardHeader>
+                                                    <div className="flex items-center justify-between mb-1">
+                                                        <Badge className="bg-indigo-500/10 text-indigo-600 border-none uppercase text-[10px] tracking-widest">{board.project?.name}</Badge>
+                                                        <Shield className="h-4 w-4 text-muted-foreground/40 group-hover:text-indigo-500 transition-colors" />
+                                                    </div>
+                                                    <CardTitle className="text-lg group-hover:text-indigo-600 transition-colors">{board.name}</CardTitle>
+                                                </CardHeader>
+                                                <CardContent>
+                                                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                                                        <span className="flex items-center gap-1.5">
+                                                            <Activity className="h-3.5 w-3.5" />
+                                                            {board._count?.tasks || 0} tasks
+                                                        </span>
+                                                        <span className="flex items-center gap-1.5">
+                                                            <Hash className="h-3.5 w-3.5" />
+                                                            {board.columns?.length || 0} columns
+                                                        </span>
+                                                    </div>
+                                                </CardContent>
+                                            </Card>
+                                        </Link>
+                                    ))
+                                ) : (
+                                    <div className="col-span-full py-12 text-center bg-muted/30 border-2 border-dashed rounded-3xl">
+                                        <Shield className="h-10 w-10 mx-auto text-muted-foreground/30 mb-4" />
+                                        <p className="text-muted-foreground font-medium">No boards found in team projects.</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* CHAT TAB */}
+                        {activeTab === "chat" && (
+                            <div className="bg-card rounded-2xl border shadow-sm h-[600px] overflow-hidden">
+                                <TeamChat teamId={team.id} workspaceId={team.workspaceId} />
+                            </div>
+                        )}
+
+                        {/* INVITES TAB */}
+                        {activeTab === "invites" && (
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                <div className="lg:col-span-2 space-y-6">
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Invite New Members</CardTitle>
+                                            <CardDescription>Enter one or multiple email addresses separated by commas.</CardDescription>
+                                        </CardHeader>
+                                        <CardContent className="space-y-4">
+                                            <div className="flex flex-col gap-3">
+                                                <div className="relative">
+                                                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                    <Input
+                                                        placeholder="e.g. alice@co.com, bob@co.com, carol@co.com"
+                                                        value={inviteEmail}
+                                                        onChange={e => setInviteEmail(e.target.value)}
+                                                        className="pl-10 h-11 rounded-xl"
+                                                    />
+                                                </div>
+                                                {parsedEmails.length > 0 && (
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {parsedEmails.map(email => (
+                                                            <span key={email} className="inline-flex items-center gap-1 px-2.5 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-medium rounded-full border border-indigo-100 dark:border-indigo-800">
+                                                                <Mail className="h-3 w-3" />
+                                                                {email}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                                <div className="flex gap-3">
+                                                    <div className="relative">
                                                         <select
-                                                            className="h-8 text-xs border rounded bg-transparent px-2"
-                                                            value={member.role}
-                                                            onChange={(e) => changeRoleMutation.mutate({ userId: member.userId, role: e.target.value })}
-                                                            disabled={changeRoleMutation.isPending}
+                                                            className="h-11 rounded-xl border border-input bg-background px-4 py-2 text-sm appearance-none pr-8"
+                                                            value={inviteRole}
+                                                            onChange={e => setInviteRole(e.target.value)}
                                                         >
                                                             <option value="member">Member</option>
                                                             <option value="admin">Admin</option>
                                                         </select>
-                                                    )}
-
+                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+                                                    </div>
                                                     <Button
-                                                        variant="ghost"
-                                                        size="icon"
-                                                        className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                        onClick={() => {
-                                                            if (confirm("Are you sure you want to remove this member?")) {
-                                                                removeMemberMutation.mutate(member.userId);
-                                                            }
-                                                        }}
+                                                        className="flex-1 h-11 rounded-xl"
+                                                        onClick={() => inviteMutation.mutate()}
+                                                        disabled={parsedEmails.length === 0 || inviteMutation.isPending}
                                                     >
-                                                        <LogOut className="h-4 w-4" />
+                                                        {inviteMutation.isPending ? (
+                                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                                        ) : (
+                                                            <UserPlus className="mr-2 h-4 w-4" />
+                                                        )}
+                                                        {parsedEmails.length > 1
+                                                            ? `Send ${parsedEmails.length} Invites`
+                                                            : "Send Invite"}
                                                     </Button>
                                                 </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+
+                                    <div className="space-y-4">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="font-semibold text-sm text-muted-foreground uppercase">Pending Invitations</h3>
+                                            {invites && invites.length > 0 && (
+                                                <Badge variant="outline" className="text-xs">
+                                                    {invites.length} pending
+                                                </Badge>
                                             )}
                                         </div>
+                                        {invites?.map((invite: any) => {
+                                            const expiresAt = new Date(invite.expiresAt);
+                                            const now = new Date();
+                                            const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+                                            const isExpiringSoon = invite.status === "pending" && daysLeft <= 2 && daysLeft > 0;
+                                            const isExpired = daysLeft <= 0 && !invite.acceptedAt;
+                                            return (
+                                                <div key={invite.id} className="flex items-center justify-between p-4 border rounded-xl bg-card/50">
+                                                    <div className="flex items-center gap-3 min-w-0">
+                                                        <div className="h-9 w-9 rounded-full bg-muted border flex items-center justify-center shrink-0">
+                                                            <Mail className="h-4 w-4 text-muted-foreground" />
+                                                        </div>
+                                                        <div className="min-w-0">
+                                                            <p className="font-medium text-sm truncate">{invite.email}</p>
+                                                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                <span>{format(new Date(invite.createdAt), "MMM d, yyyy")}</span>
+                                                                <span>•</span>
+                                                                <span className="capitalize">{invite.role}</span>
+                                                                {isExpiringSoon && (
+                                                                    <span className="text-amber-600 font-semibold">• Expires in {daysLeft}d</span>
+                                                                )}
+                                                                {isExpired && (
+                                                                    <span className="text-red-500 font-semibold">• Expired</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex items-center gap-2 shrink-0">
+                                                        <Badge variant="outline" className={
+                                                            invite.status === "pending" ? "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950/20" :
+                                                                invite.status === "revoked" ? "text-red-600 bg-red-50 dark:bg-red-950/20" : ""
+                                                        }>
+                                                            {invite.status}
+                                                        </Badge>
+                                                        {isAdmin && invite.status === "pending" && (
+                                                            <div className="flex items-center gap-1">
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 h-8 text-xs"
+                                                                    disabled={resendInviteMutation.isPending}
+                                                                    onClick={() => resendInviteMutation.mutate(invite.id)}
+                                                                >
+                                                                    {resendInviteMutation.isPending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Resend"}
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 h-8 text-xs"
+                                                                    onClick={() => revokeInviteMutation.mutate(invite.id)}
+                                                                >
+                                                                    Revoke
+                                                                </Button>
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                        {(!invites || invites.length === 0) && (
+                                            <div className="text-center py-10 text-muted-foreground italic bg-muted/20 rounded-xl border border-dashed">
+                                                <Mail className="h-8 w-8 mx-auto mb-2 text-muted-foreground/30" />
+                                                No pending invitations
+                                            </div>
+                                        )}
                                     </div>
-                                ))}
-                            </div>
-                        </motion.div>
-                    )}
-
-                    {/* PROJECTS TAB */}
-                    {activeTab === "projects" && (
-                        <motion.div
-                            key="projects"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                        >
-                            {isLoadingProjects ? (
-                                [1, 2, 3].map(i => <Card key={i} className="h-48 animate-pulse bg-slate-100 dark:bg-slate-800" />)
-                            ) : projects?.length > 0 ? (
-                                projects.map((project: any) => (
-                                    <Link key={project.id} href={`/projects/${project.id}`}>
-                                        <Card className="group hover:shadow-lg transition-all border-slate-200 dark:border-slate-800 overflow-hidden cursor-pointer h-full">
-                                            {project.coverImage && (
-                                                <div className="h-32 w-full relative">
-                                                    <Image src={project.coverImage} alt={project.name} fill className="object-cover" />
-                                                </div>
-                                            )}
-                                            <CardHeader>
-                                                <div className="flex items-center gap-2">
-                                                    <div className="h-8 w-8 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                                                        <Archive className="h-4 w-4 text-blue-500" />
-                                                    </div>
-                                                    <CardTitle className="text-lg group-hover:text-indigo-600 transition-colors uppercase tracking-tight">{project.name}</CardTitle>
-                                                </div>
-                                                <CardDescription className="line-clamp-2">{project.description || "No description provided."}</CardDescription>
-                                            </CardHeader>
-                                        </Card>
-                                    </Link>
-                                ))
-                            ) : (
-                                <div className="col-span-full py-20 text-center bg-slate-50 dark:bg-slate-900 border-2 border-dashed rounded-3xl">
-                                    <Archive className="h-12 w-12 mx-auto text-slate-300 mb-4" />
-                                    <p className="text-slate-500 font-medium">No projects associated with this team yet.</p>
                                 </div>
-                            )}
-                        </motion.div>
-                    )}
 
-                    {/* BOARDS TAB */}
-                    {activeTab === "boards" && (
-                        <motion.div
-                            key="boards"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
-                        >
-                             {isLoadingBoards ? (
-                                [1, 2, 3].map(i => <Card key={i} className="h-40 animate-pulse bg-slate-100 dark:bg-slate-800" />)
-                            ) : boards?.length > 0 ? (
-                                boards.map((board: any) => (
-                                    <Link key={board.id} href={`/boards/${board.id}`}>
-                                        <Card className="group hover:shadow-xl transition-all border-slate-200 dark:border-slate-800 cursor-pointer h-full">
-                                            <CardHeader>
-                                                <div className="flex items-center justify-between mb-2">
-                                                   <Badge className="bg-indigo-500/10 text-indigo-600 border-none uppercase text-[10px] tracking-widest">{board.project?.name}</Badge>
-                                                   <Shield className="h-4 w-4 text-slate-300 group-hover:text-indigo-500 transition-colors" />
-                                                </div>
-                                                <CardTitle className="text-lg group-hover:text-indigo-600 transition-colors">{board.name}</CardTitle>
-                                            </CardHeader>
-                                            <CardContent>
-                                                <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                                                    <div className="flex items-center gap-1">
-                                                        <Activity className="h-3 w-3" />
-                                                        <span>{board._count?.tasks} tasks</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <Users className="h-3 w-3" />
-                                                        <span>{board.columns?.length || 0} columns</span>
-                                                    </div>
-                                                </div>
+                                <div className="space-y-6">
+                                    <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-slate-900 dark:to-slate-900 border-indigo-100 dark:border-slate-800">
+                                        <CardHeader>
+                                            <CardTitle className="text-indigo-900 dark:text-indigo-200 text-sm">Pro Tip</CardTitle>
+                                            <CardDescription className="text-indigo-700/70 dark:text-indigo-300/70 text-xs">
+                                                You can invite multiple people at once by separating their email addresses with commas.
+                                                Admins can manage roles and remove members at any time.
+                                            </CardDescription>
+                                        </CardHeader>
+                                    </Card>
+                                    <Card className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-slate-900 dark:to-slate-900 border-emerald-100 dark:border-slate-800">
+                                        <CardHeader>
+                                            <CardTitle className="text-emerald-900 dark:text-emerald-200 text-sm">Quick Actions</CardTitle>
+                                            <CardContent className="px-0 pt-4 space-y-2">
+                                                <Button variant="outline" size="sm" className="w-full justify-start rounded-lg text-xs" onClick={copyInviteLink}>
+                                                    <Link2 className="h-3.5 w-3.5 mr-2" />
+                                                    Copy Invite Link
+                                                </Button>
+                                                <Button variant="outline" size="sm" className="w-full justify-start rounded-lg text-xs" onClick={() => setActiveTab("chat")}>
+                                                    <MessageSquare className="h-3.5 w-3.5 mr-2" />
+                                                    Open Team Chat
+                                                </Button>
                                             </CardContent>
-                                        </Card>
-                                    </Link>
-                                ))
-                            ) : (
-                                <div className="col-span-full py-12 text-center bg-slate-50 dark:bg-slate-900 border-2 border-dashed rounded-3xl">
-                                    <Shield className="h-10 w-10 mx-auto text-slate-300 mb-4" />
-                                    <p className="text-slate-500 font-medium">No boards found in team projects.</p>
+                                        </CardHeader>
+                                    </Card>
                                 </div>
-                            )}
-                        </motion.div>
-                    )}
+                            </div>
+                        )}
 
-                    {/* CHAT TAB */}
-                    {activeTab === "chat" && (
-                        <motion.div
-                            key="chat"
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            className="bg-white dark:bg-slate-900 rounded-2xl border shadow-sm h-[600px] overflow-hidden"
-                        >
-                            <TeamChat teamId={team.id} workspaceId={team.workspaceId} />
-                        </motion.div>
-                    )}
-
-                    {/* INVITES TAB */}
-                    {activeTab === "invites" && (
-                        <motion.div
-                            key="invites"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="grid grid-cols-1 lg:grid-cols-3 gap-8"
-                        >
-                            <div className="lg:col-span-2 space-y-6">
+                        {/* ACTIVITY TAB */}
+                        {activeTab === "activity" && (
+                            <div className="max-w-3xl">
                                 <Card>
                                     <CardHeader>
-                                        <CardTitle>Invite New Members</CardTitle>
-                                        <CardDescription>Enter one or multiple email addresses separated by commas.</CardDescription>
+                                        <CardTitle>Team Activity</CardTitle>
+                                        <CardDescription>Recent actions and updates within this team.</CardDescription>
                                     </CardHeader>
-                                    <CardContent className="space-y-4">
-                                        <div className="flex flex-col gap-3">
-                                            <div className="relative">
-                                                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
-                                                <Input
-                                                    placeholder="e.g. alice@co.com, bob@co.com, carol@co.com"
-                                                    value={inviteEmail}
-                                                    onChange={e => setInviteEmail(e.target.value)}
-                                                    className="pl-10"
-                                                />
-                                            </div>
-                                            {parsedEmails.length > 0 && (
-                                                <div className="flex flex-wrap gap-2">
-                                                    {parsedEmails.map(email => (
-                                                        <span key={email} className="inline-flex items-center gap-1 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 text-xs font-medium rounded-full border border-indigo-100 dark:border-indigo-800">
-                                                            {email}
-                                                        </span>
-                                                    ))}
+                                    <CardContent>
+                                        <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
+                                            {activities?.map((activity: any) => (
+                                                <div key={activity.id} className="relative flex items-start gap-6">
+                                                    <div className="relative z-10 flex items-center justify-center w-10 h-10 rounded-full border bg-background shadow-sm shrink-0">
+                                                        {activity.user?.imageUrl ? (
+                                                            <Image src={activity.user.imageUrl} alt={activity.user.name || "User"} width={40} height={40} className="h-full w-full object-cover rounded-full" />
+                                                        ) : (
+                                                            <Activity className="h-5 w-5 text-muted-foreground" />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex-1 min-w-0 p-4 rounded-xl border bg-card/50">
+                                                        <div className="flex items-center justify-between gap-2 mb-1">
+                                                            <div className="font-semibold text-sm text-foreground truncate">
+                                                                {activity.user?.name || "User"}
+                                                            </div>
+                                                            <time className="text-[10px] text-muted-foreground shrink-0">
+                                                                {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
+                                                            </time>
+                                                        </div>
+                                                        <div className="text-sm text-muted-foreground">
+                                                            <span className="font-medium text-foreground capitalize">{activity.action}</span>
+                                                            {" "}{activity.entityType?.replace(/_/g, " ")}
+                                                            {activity.metadata?.details && (
+                                                                <span className="block text-xs text-muted-foreground/70 mt-0.5 italic">
+                                                                    {activity.metadata.details}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {(!activities || activities.length === 0) && (
+                                                <div className="flex flex-col items-center py-12 text-muted-foreground">
+                                                    <Activity className="h-10 w-10 mb-3 text-muted-foreground/30" />
+                                                    <p className="italic">No recent activity recorded.</p>
                                                 </div>
                                             )}
-                                            <div className="flex gap-3">
-                                                <select
-                                                    className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-                                                    value={inviteRole}
-                                                    onChange={e => setInviteRole(e.target.value)}
-                                                >
-                                                    <option value="member">Member</option>
-                                                    <option value="admin">Admin</option>
-                                                </select>
-                                                <Button
-                                                    className="flex-1"
-                                                    onClick={() => inviteMutation.mutate()}
-                                                    disabled={parsedEmails.length === 0 || inviteMutation.isPending}
-                                                >
-                                                    {inviteMutation.isPending ? (
-                                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                                    ) : (
-                                                        <UserPlus className="mr-2 h-4 w-4" />
-                                                    )}
-                                                    {parsedEmails.length > 1
-                                                        ? `Send ${parsedEmails.length} Invites`
-                                                        : "Send Invite"}
-                                                </Button>
-                                            </div>
                                         </div>
                                     </CardContent>
                                 </Card>
-
-                                <div className="space-y-4">
-                                    <h3 className="font-semibold text-sm text-muted-foreground uppercase">Pending Invitations</h3>
-                                    {invites?.map((invite: any) => {
-                                        const expiresAt = new Date(invite.expiresAt);
-                                        const now = new Date();
-                                        const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                                        const isExpiringSoon = invite.status === "pending" && daysLeft <= 2 && daysLeft > 0;
-                                        const isExpired = daysLeft <= 0 && !invite.acceptedAt;
-                                        return (
-                                            <div key={invite.id} className="flex items-center justify-between p-4 border rounded-lg bg-slate-50 dark:bg-slate-900/50">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="h-8 w-8 rounded-full bg-white border flex items-center justify-center">
-                                                        <Mail className="h-4 w-4 text-slate-400" />
-                                                    </div>
-                                                    <div>
-                                                        <p className="font-medium text-sm">{invite.email}</p>
-                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                                            <span>{format(new Date(invite.createdAt), "MMM d, yyyy")}</span>
-                                                            <span>•</span>
-                                                            <span className="capitalize">{invite.role}</span>
-                                                            {isExpiringSoon && (
-                                                                <span className="text-amber-600 font-semibold">• Expires in {daysLeft}d</span>
-                                                            )}
-                                                            {isExpired && (
-                                                                <span className="text-red-500 font-semibold">• Expired</span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Badge variant="outline" className={
-                                                        invite.status === "pending" ? "text-amber-600 bg-amber-50 border-amber-200" :
-                                                            invite.status === "revoked" ? "text-red-600 bg-red-50" : ""
-                                                    }>
-                                                        {invite.status}
-                                                    </Badge>
-                                                    {isAdmin && invite.status === "pending" && (
-                                                        <div className="flex items-center gap-1">
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
-                                                                disabled={resendInviteMutation.isPending}
-                                                                onClick={() => resendInviteMutation.mutate(invite.id)}
-                                                            >
-                                                                {resendInviteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Resend"}
-                                                            </Button>
-                                                            <Button
-                                                                variant="ghost"
-                                                                size="sm"
-                                                                className="text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                                onClick={() => revokeInviteMutation.mutate(invite.id)}
-                                                            >
-                                                                Revoke
-                                                            </Button>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                    {(!invites || invites.length === 0) && (
-                                        <div className="text-center py-8 text-slate-400 italic">No pending invitations</div>
-                                    )}
-                                </div>
                             </div>
+                        )}
 
-                            <div className="space-y-6">
-                                <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-slate-900 dark:to-slate-900 border-indigo-100 dark:border-slate-800">
+                        {/* SETTINGS TAB */}
+                        {activeTab === "settings" && (
+                            <div className="max-w-2xl space-y-8">
+                                <Card>
                                     <CardHeader>
-                                        <CardTitle className="text-indigo-900 dark:text-indigo-200">Pro Tip</CardTitle>
-                                        <CardDescription className="text-indigo-700/70 dark:text-indigo-300/70">
-                                            You can invite multiple people at once by separating their email addresses with commas.
-                                            Admins can manage roles and remove members at any time.
-                                        </CardDescription>
+                                        <CardTitle>Team Settings</CardTitle>
+                                        <CardDescription>Manage general team information.</CardDescription>
                                     </CardHeader>
+                                    <CardContent className="space-y-5">
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Team Name</label>
+                                            <Input value={editName} onChange={e => setEditName(e.target.value)} disabled={!isAdmin} className="rounded-xl h-11" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-sm font-medium">Description</label>
+                                            <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} disabled={!isAdmin} className="rounded-xl" />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Status</label>
+                                                <select
+                                                    className="w-full h-11 rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                                                    value={editStatus}
+                                                    onChange={e => setEditStatus(e.target.value)}
+                                                    disabled={!isAdmin}
+                                                >
+                                                    <option value="active">Active</option>
+                                                    <option value="archived">Archived</option>
+                                                </select>
+                                            </div>
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-medium">Default Role</label>
+                                                <select
+                                                    className="w-full h-11 rounded-xl border border-input bg-background px-3 py-2 text-sm"
+                                                    value={editDefaultRole}
+                                                    onChange={e => setEditDefaultRole(e.target.value)}
+                                                    disabled={!isAdmin}
+                                                >
+                                                    <option value="member">Member</option>
+                                                    <option value="admin">Admin</option>
+                                                    <option value="guest">Guest</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <p className="text-[10px] text-muted-foreground">Default role is assigned to users joining via generic team links.</p>
+                                    </CardContent>
+                                    {isAdmin && (
+                                        <CardFooter className="flex justify-between border-t pt-6">
+                                            <Button
+                                                variant="destructive"
+                                                disabled={!isOwner}
+                                                onClick={() => {
+                                                    showConfirm({
+                                                        title: "Total Annihilation",
+                                                        description: `You are about to permanently delete the team "${team.name}". This action cannot be reversed and all associated tasks, chats, and data will be lost.`,
+                                                        actionLabel: "Confirm Deletion",
+                                                        destructive: true,
+                                                        onAction: () => deleteTeamMutation.mutate()
+                                                    });
+                                                }}
+                                                className="rounded-xl"
+                                            >
+                                                <Trash2 className="mr-2 h-4 w-4" /> Delete Team
+                                            </Button>
+
+                                            <Button onClick={() => updateTeamMutation.mutate({
+                                                name: editName,
+                                                description: editDescription,
+                                                status: editStatus,
+                                                defaultRole: editDefaultRole
+                                            })} className="rounded-xl shadow-sm">
+                                                <BadgeCheck className="mr-2 h-4 w-4" /> Save Changes
+                                            </Button>
+                                        </CardFooter>
+                                    )}
+                                </Card>
+
+                                {/* Permissions Matrix */}
+                                <Card className="border-indigo-100 bg-indigo-50/20 dark:bg-indigo-950/10 dark:border-indigo-900/30">
+                                    <CardHeader>
+                                        <CardTitle className="text-sm flex items-center gap-2">
+                                            <Shield className="h-4 w-4 text-indigo-600" />
+                                            Team Permissions Matrix
+                                        </CardTitle>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <div className="text-xs space-y-1">
+                                            {[
+                                                { action: "Invite Members", who: "Admins, Owners" },
+                                                { action: "Manage Roles", who: "Owners, Workspace Admins" },
+                                                { action: "Delete Team", who: "Owners Only", danger: true },
+                                                { action: "Team Chat", who: "All Members" },
+                                                { action: "View Projects & Boards", who: "All Members" },
+                                            ].map((perm) => (
+                                                <div key={perm.action} className="grid grid-cols-2 py-2.5 border-b last:border-0">
+                                                    <span className="text-muted-foreground">{perm.action}</span>
+                                                    <span className={cn("font-medium", perm.danger && "text-red-600")}>{perm.who}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </CardContent>
                                 </Card>
                             </div>
-                        </motion.div>
-                    )}
-
-                    {/* ACTIVITY TAB */}
-                    {activeTab === "activity" && (
-                        <motion.div
-                            key="activity"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            className="max-w-3xl"
-                        >
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Team Activity</CardTitle>
-                                    <CardDescription>Recent actions and updates within this team.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="space-y-8 relative before:absolute before:inset-0 before:ml-5 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-slate-300 before:to-transparent">
-                                        {activities?.map((activity: any) => (
-                                            <div key={activity.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active">
-                                                <div className="flex items-center justify-center w-10 h-10 rounded-full border border-white bg-slate-50 shadow shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2">
-                                                    {activity.user?.imageUrl ? (
-                                                        <Image src={activity.user.imageUrl} alt={activity.user.name || "User"} width={40} height={40} className="h-full w-full object-cover rounded-full" />
-                                                    ) : (
-                                                        <Users className="h-5 w-5 text-slate-400" />
-                                                    )}
-                                                </div>
-                                                <div className="w-[calc(100%-4rem)] md:w-[calc(50%-2.5rem)] p-4 rounded-xl border bg-white dark:bg-slate-900 shadow-sm">
-                                                    <div className="flex items-center justify-between space-x-2 mb-1">
-                                                        <div className="font-bold text-slate-900 dark:text-slate-100">{activity.user?.name || "User"}</div>
-                                                        <time className="font-caveat font-medium text-xs text-indigo-500">{format(new Date(activity.createdAt), "PP p")}</time>
-                                                    </div>
-                                                    <div className="text-slate-500 text-sm">
-                                                        <span className="font-medium text-slate-800 dark:text-slate-200 capitalize">{activity.action}</span>
-                                                        {" "}{activity.entityType}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                        {(!activities || activities.length === 0) && (
-                                            <div className="pl-12 py-4 text-muted-foreground italic">No recent activity recorded.</div>
-                                        )}
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    )}
-
-                    {/* SETTINGS TAB */}
-                    {activeTab === "settings" && (
-                        <motion.div
-                            key="settings"
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            className="max-w-2xl"
-                        >
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Team Settings</CardTitle>
-                                    <CardDescription>Manage general team information.</CardDescription>
-                                </CardHeader>
-                                <CardContent className="space-y-4">
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Team Name</label>
-                                        <Input value={editName} onChange={e => setEditName(e.target.value)} disabled={!isAdmin} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Description</label>
-                                        <Textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} disabled={!isAdmin} />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Status</label>
-                                        <select
-                                            className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                            value={editStatus}
-                                            onChange={e => setEditStatus(e.target.value)}
-                                            disabled={!isAdmin}
-                                        >
-                                            <option value="active">Active</option>
-                                            <option value="archived">Archived</option>
-                                        </select>
-                                    </div>
-                                    <div className="space-y-2">
-                                        <label className="text-sm font-medium">Default Role for New Members</label>
-                                        <select
-                                            className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                                            value={editDefaultRole}
-                                            onChange={e => setEditDefaultRole(e.target.value)}
-                                            disabled={!isAdmin}
-                                        >
-                                            <option value="member">Member</option>
-                                            <option value="admin">Admin</option>
-                                            <option value="guest">Guest</option>
-                                        </select>
-                                        <p className="text-[10px] text-muted-foreground">This role will be automatically assigned to users joining via generic team links.</p>
-                                    </div>
-                                </CardContent>
-                                {isAdmin && (
-                                    <CardFooter className="flex justify-between border-t pt-6">
-                                        <Button
-                                            variant="destructive"
-                                            disabled={!isOwner}
-                                            onClick={() => {
-                                                showConfirm({
-                                                    title: "Total Annihilation",
-                                                    description: `You are about to permanently delete the team "${team.name}". This action cannot be reversed and all associated tasks, chats, and data will be lost.`,
-                                                    actionLabel: "Confirm Deletion",
-                                                    destructive: true,
-                                                    onAction: () => deleteTeamMutation.mutate()
-                                                });
-                                            }}
-                                        >
-                                            <Trash2 className="mr-2 h-4 w-4" /> Delete Team
-                                        </Button>
-
-                                        <Button onClick={() => updateTeamMutation.mutate({
-                                            name: editName,
-                                            description: editDescription,
-                                            status: editStatus,
-                                            defaultRole: editDefaultRole
-                                        })}>
-                                            Save Changes
-                                        </Button>
-                                    </CardFooter>
-                                )}
-                            </Card>
-
-                            <Card className="mt-8 border-indigo-100 bg-indigo-50/20">
-                                <CardHeader>
-                                    <CardTitle className="text-sm flex items-center gap-2">
-                                        <Shield className="h-4 w-4 text-indigo-600" />
-                                        Team Permissions Matrix
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <div className="text-xs space-y-3">
-                                        <div className="grid grid-cols-2 py-1 border-b">
-                                            <span className="text-muted-foreground">Invite Members</span>
-                                            <span className="font-medium">Admins, Owners</span>
-                                        </div>
-                                        <div className="grid grid-cols-2 py-1 border-b">
-                                            <span className="text-muted-foreground">Manage Roles</span>
-                                            <span className="font-medium">Owners, Workspace Admins</span>
-                                        </div>
-                                        <div className="grid grid-cols-2 py-1 border-b">
-                                            <span className="text-muted-foreground">Delete Team</span>
-                                            <span className="font-medium text-red-600">Owners Only</span>
-                                        </div>
-                                        <div className="grid grid-cols-2 py-1 border-b">
-                                            <span className="text-muted-foreground">Team Chat</span>
-                                            <span className="font-medium">All Members</span>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    )}
-
+                        )}
+                    </motion.div>
                 </AnimatePresence>
             </div>
         </div>

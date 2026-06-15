@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { exchangeSlackCode } from "@/lib/integrations/slack";
 import { prisma } from "@/lib/prisma";
+import { encrypt } from "@/lib/crypto";
 import { isWorkspaceAdmin } from "@/lib/workspace";
 
 export async function GET(req: Request) {
@@ -25,11 +26,12 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Missing code or state" }, { status: 400 });
         }
 
-        // Decode state to get workspaceId
+        // Decode and verify signed state to prevent CSRF
         let workspaceId: string;
         try {
-            const decodedState = JSON.parse(Buffer.from(state, "base64").toString());
-            workspaceId = decodedState.workspaceId;
+            const { verifyOAuthState } = await import("@/lib/crypto");
+            const payload = verifyOAuthState(state);
+            workspaceId = payload.workspaceId;
         } catch (e) {
             console.error("Invalid state parameter:", state);
             return NextResponse.json({ error: "Invalid state parameter" }, { status: 400 });
@@ -57,7 +59,7 @@ export async function GET(req: Request) {
             await prisma.integration.update({
                 where: { id: existingIntegration.id },
                 data: {
-                    accessToken: slackData.access_token,
+                    accessToken: encrypt(slackData.access_token),
                     config: {
                         teamId: slackData.team.id,
                         teamName: slackData.team.name,
@@ -72,7 +74,7 @@ export async function GET(req: Request) {
                 data: {
                     type: "slack",
                     workspaceId,
-                    accessToken: slackData.access_token,
+                    accessToken: encrypt(slackData.access_token),
                     config: {
                         teamId: slackData.team.id,
                         teamName: slackData.team.name,

@@ -1,23 +1,50 @@
 
 import { prisma } from "./prisma";
 import { BILLING_PLANS } from "./billing-plans";
-import { encryptSensitiveFields } from "./field-encryption";
+import { encryptSensitiveFields, decryptSensitiveFields } from "./field-encryption";
+import { logger } from "./logger";
+import crypto from "crypto";
 
 /** Lookup by planKey (e.g. "growth", "pro", "theta_plus") */
 const PLAN_BY_KEY = BILLING_PLANS.reduce<Record<string, typeof BILLING_PLANS[0]>>(
     (acc, plan) => { acc[plan.planKey] = plan; return acc; }, {}
 );
 
+const IVNO_MAP_KEY = "ivno:orderMap";
+
+async function storeOrderMapping(orderId: string, workspaceId: string, planKey: string, interval: string): Promise<void> {
+    try {
+        const { redis } = await import("./redis/client");
+        await redis.set(`${IVNO_MAP_KEY}:${orderId}`, JSON.stringify({ workspaceId, planKey, interval }), { ex: 86400 * 7 });
+    } catch {
+        logger.warn("[Ivno] Redis unavailable for order mapping; order will be looked up by workspace search fallback");
+    }
+}
+
+async function resolveOrderMapping(orderId: string): Promise<{ workspaceId: string; planKey: string; interval: string } | null> {
+    try {
+        const { redis } = await import("./redis/client");
+        const raw = await redis.get(`${IVNO_MAP_KEY}:${orderId}`);
+        if (raw) return JSON.parse(String(raw));
+    } catch {
+        // fall through
+    }
+    return null;
+}
+
 /**
- * orderId format: theta.{workspaceId}.{planKey}.{interval}.{timestamp}
- * Dots are used as delimiters to avoid conflicts with planKeys like "theta_plus".
+ * orderId format: theta.{hash}.{timestamp}
+ * Uses a short hash of workspaceId + planKey + interval to avoid leaking internal IDs.
  */
-export function buildIvnoOrderId(
+export async function buildIvnoOrderId(
     workspaceId: string,
     planKey: string,
     interval: string
-): string {
-    return `theta.${workspaceId}.${planKey}.${interval}.${Date.now()}`;
+): Promise<string> {
+    const hash = crypto.createHash("sha256").update(`${workspaceId}:${planKey}:${interval}`).digest("hex").slice(0, 12);
+    const orderId = `theta.${hash}.${Date.now()}`;
+    await storeOrderMapping(orderId, workspaceId, planKey, interval);
+    return orderId;
 }
 
 /**
@@ -29,30 +56,27 @@ export async function handleSuccessfulIvnoPayment(
     currency: string,
     data: any
 ) {
-    // Parse order_id: theta.{workspaceId}.{planKey}.{interval}.{timestamp}
-    const parts = orderId.split(".");
-    if (parts.length < 5 || parts[0] !== "theta") {
-        console.error("Invalid Ivno orderId format:", orderId);
+    const mapping = await resolveOrderMapping(orderId);
+    if (!mapping) {
+        logger.error("[Ivno] Could not resolve order mapping for:", orderId);
         return;
     }
 
-    const workspaceId = parts[1];
-    const planKey = parts[2] as "free" | "growth" | "pro" | "theta_plus";
-    const interval = parts[3] as "monthly" | "annual";
+    const { workspaceId, planKey, interval } = mapping;
 
     const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId } });
     if (!workspace) {
-        console.error("Workspace not found for Ivno payment:", workspaceId);
+        logger.error("Workspace not found for Ivno payment:", workspaceId);
         return;
     }
 
     const plan = PLAN_BY_KEY[planKey];
     if (!plan) {
-        console.error("Plan not found for Ivno payment key:", planKey);
+        logger.error("Plan not found for Ivno payment key:", planKey);
         return;
     }
 
-    const nextBillingDate = calculateNextBillingDate(new Date(), interval || "monthly");
+    const nextBillingDate = calculateNextBillingDate(new Date(), (interval || "monthly") as "monthly" | "annual");
 
     await prisma.workspace.update({
         where: { id: workspaceId },
@@ -77,7 +101,7 @@ export async function handleSuccessfulIvnoPayment(
         }) as any,
     });
 
-    console.log(`[Ivno] Payment successful — workspace: ${workspaceId}, plan: ${plan.planKey}, interval: ${interval}`);
+    logger.info(`[Ivno] Payment successful — workspace: ${workspaceId}, plan: ${plan.planKey}, interval: ${interval}`);
 }
 
 /**
@@ -89,8 +113,8 @@ export async function handleFailedIvnoPayment(
     currency: string,
     data: any
 ) {
-    const parts = orderId.split(".");
-    const workspaceId = parts.length >= 2 ? parts[1] : "unknown";
+    const mapping = await resolveOrderMapping(orderId);
+    const workspaceId = mapping?.workspaceId || "unknown";
 
     try {
         await prisma.billingLog.create({
@@ -104,10 +128,10 @@ export async function handleFailedIvnoPayment(
             }) as any,
         });
     } catch (err) {
-        console.error("[Ivno] Failed to log payment failure:", err);
+        logger.error("[Ivno] Failed to log payment failure:", err);
     }
 
-    console.warn(`[Ivno] Payment failed — orderId: ${orderId}`);
+    logger.warn(`[Ivno] Payment failed — orderId: ${orderId}`);
 }
 
 /**

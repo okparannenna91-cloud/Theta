@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60; // Max allowed for Pro, ignored for Hobby but good for documentation
+export const maxDuration = 60;
 
 import { getCurrentUser } from "@/lib/auth";
 
@@ -13,7 +13,6 @@ import { getPrismaClient } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { buildTools } from "@/lib/ai-tools";
 
-// ─── Prompt Injection Sanitizer ───────────────────────────────────────────────
 const MAX_MEMORY_LENGTH = 1000;
 const MAX_HISTORY_ENTRIES = 20;
 const JAILBREAK_PATTERNS = [
@@ -35,9 +34,8 @@ function sanitizeUserContent(text: string): string {
   return cleaned.slice(0, MAX_MEMORY_LENGTH);
 }
 
-// ─── Redis-Backed Rate Limiter (per-user, sliding window) ────────────────────
 const RATE_LIMIT_MAX_REQUESTS = 20;
-const RATE_LIMIT_WINDOW_SECONDS = 60; // 1 minute
+const RATE_LIMIT_WINDOW_SECONDS = 60;
 
 async function isRateLimited(userId: string): Promise<boolean> {
   try {
@@ -49,36 +47,7 @@ async function isRateLimited(userId: string): Promise<boolean> {
     }
     return count > RATE_LIMIT_MAX_REQUESTS;
   } catch {
-    // If Redis is unavailable, allow the request through
     return false;
-  }
-}
-
-// ─── Audit Logger ────────────────────────────────────────────────────────────
-async function auditToolExecution(
-  workspaceId: string,
-  userId: string,
-  toolName: string,
-  params: Record<string, unknown>
-): Promise<void> {
-  try {
-    const db = getPrismaClient(workspaceId);
-    await db.activity.create({
-      data: {
-        action: "NOVA_TOOL_EXECUTION",
-        entityType: "AI_TOOL",
-        entityId: toolName,
-        workspaceId,
-        userId,
-        metadata: {
-          tool: toolName,
-          params: JSON.parse(JSON.stringify(params)),
-          timestamp: new Date().toISOString(),
-        },
-      },
-    });
-  } catch (e) {
-    logger.error("[AuditLog] Failed to log tool execution:", e);
   }
 }
 
@@ -89,18 +58,19 @@ import { SERVICE_REGISTRY } from "@/lib/nova/config";
 const NOVA_SYSTEM_PROMPT = `${CORE_NOVA_SYSTEM_PROMPT}
 
 [OPERATING GUIDELINES]
-1. PRIORITIZE ACTION: Use tools immediately when a user request can be fulfilled by them.
+1. PRIORITIZE ACTION: Use tools immediately when a user request can be fulfilled by them. ALWAYS call the appropriate tool for "list tasks", "list projects", "list workspaces", "show workspaces", "list members", etc.
 2. EXPLAINABILITY: Always explain *why* you are taking an action. Cite where you found information.
 3. TRANSPARENCY: If a tool execution fails or needs more info, be clear about it.
 4. PROACTIVITY: If a project seems stalled or tasks are overdue, suggest 'get_suggestions'.
-5. FORMATTING: Use bold for entity names. Use Mermaid.js syntax for diagrams (e.g. flowcharts, gantt charts) when explaining complex dependencies or workflows.
+5. FORMATTING: Use bold for entity names. Use Mermaid.js syntax for diagrams (e.g. flowcharts, gantt charts) when explaining complex dependencies or workflows. When listing data, format it as a markdown table.
 6. REAL-TIME: You can broadcast updates via Ably for immediate UI feedback.
+7. ALWAYS use list_tasks when asked about tasks, list_projects when asked about projects, list_workspaces when asked about workspaces, list_members when asked about members. Do NOT just acknowledge the request — actually call the tool and return the results.
 
 Available Specialized Agents: ${AGENT_REGISTRY.map(a => `${a.name} (${a.purpose})`).join(", ")}.
 
 Available Infrastructure Services: ${SERVICE_REGISTRY.map(s => `${s.provider} (${s.category})`).join(", ")}.
 
-You are professional, data-driven, and proactive.`;
+You are professional, data-driven, and proactive. ALWAYS execute the tool — never just say you cannot do something without trying first.`;
 
 export async function POST(req: Request) {
     try {
@@ -109,7 +79,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        // ─── Rate Limit Check ────────────────────────────────────────────
         if (await isRateLimited(user.id)) {
             return NextResponse.json(
                 { error: "Rate limit exceeded. Please wait a moment before trying again." },
@@ -123,7 +92,6 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Nova needs a prompt to help you" }, { status: 400 });
         }
 
-        // ─── Decision Framework: Evaluate Risk & Intent ─────────────────
         const decision = DecisionFramework.evaluate(prompt);
         if (decision.requiresApproval) {
             return NextResponse.json({
@@ -134,7 +102,6 @@ export async function POST(req: Request) {
             }, { status: 403 });
         }
 
-        // Check limits if workspaceId is provided
         if (workspaceId) {
             const { getNovaRequestCount } = await import("@/lib/usage-tracking");
             const currentUsage = await getNovaRequestCount(workspaceId);
@@ -152,33 +119,27 @@ export async function POST(req: Request) {
             const { ContextSystem } = await import("@/lib/nova/context-system");
             const { MemorySystem } = await import("@/lib/nova/memory-system");
 
-            // Integrate prioritized context aggregator
-            const activeContext = await ContextSystem.getActiveContext({
-                workspaceId,
-                userId: user.id,
-                projectId: projectId || undefined,
-            });
+            const [activeContext, longTermMemories, shortTermHistories] = await Promise.all([
+                ContextSystem.getActiveContext({
+                    workspaceId,
+                    userId: user.id,
+                    projectId: projectId || undefined,
+                }),
+                MemorySystem.getLongTerm(user.id, workspaceId).catch(() => ({})),
+                MemorySystem.getShortTerm(conversationId || "global").catch(() => []),
+            ]);
 
-            // Fetch memory layers (Mem0 + Upstash + Prisma)
-            const longTermMemories = await MemorySystem.getLongTerm(user.id, workspaceId);
-            const shortTermHistories = await MemorySystem.getShortTerm(conversationId || "global");
-
-            const sanitizedMemories: Record<string, string> = {};
-            for (const [key, val] of Object.entries(longTermMemories)) {
-              sanitizedMemories[key] = sanitizeUserContent(val);
-            }
-
-            const formattedMemories = Object.entries(sanitizedMemories)
-                .map(([key, val]) => `- ${key}: ${val}`)
+            const formattedMemories = Object.entries(longTermMemories)
+                .map(([key, val]) => `- ${key}: ${sanitizeUserContent(val as string)}`)
                 .join("\n");
 
             const historySlice = shortTermHistories.slice(-MAX_HISTORY_ENTRIES);
             const formattedHistory = historySlice
-                .map((h: { role: string; content: string }) => `- [${h.role.toUpperCase()}]: ${sanitizeUserContent(h.content).substring(0, 100)}`)
+                .map((h: { role: string; content: string }) => `- [${h.role.toUpperCase()}]: ${sanitizeUserContent(h.content).substring(0, 200)}`)
                 .join("\n");
 
             workspaceContext = `${sanitizeUserContent(activeContext.promptString)}
-            
+
 [NOVA HISTORICAL SYSTEM MEMORY]
 User Preferences / Conventions:
 ${formattedMemories || "No stored long-term memories."}
@@ -189,32 +150,27 @@ ${formattedHistory || "No recent conversation history."}
 
             if (conversationId) {
                 const db = getPrismaClient(workspaceId);
-                // Save User Message to local DB
-                await db.aiMessage.create({
+                db.aiMessage.create({
                     data: { conversationId, role: "user", content: prompt }
-                });
-                // Save to short-term cache
-                await MemorySystem.saveShortTerm(conversationId, { role: "user", content: prompt });
+                }).catch(() => {});
+                MemorySystem.saveShortTerm(conversationId, { role: "user", content: prompt }).catch(() => {});
             }
         }
 
-        const systemPrompt = `${NOVA_SYSTEM_PROMPT}\n${workspaceContext}\nYou are Nova, an AI Operator. Execute tools when asked. Summarize actions in bold. Use markdown tables for data when appropriate.\n\n[DECISION FRAMEWORK EVALUATION]\n- Intent: ${decision.intent}\n- Risk Level: ${decision.riskLevel}\n- Strategy: ${decision.strategy}\n- Priority: Action/Outcome first, then Explanation last. Use concise bold lists.`;
+        const systemPrompt = `${NOVA_SYSTEM_PROMPT}\n${workspaceContext}\n\nYou are Nova, an AI Operator. Execute tools when asked. Summarize actions in bold. Use markdown tables for data when appropriate.\n\n[DECISION FRAMEWORK EVALUATION]\n- Intent: ${decision.intent}\n- Risk Level: ${decision.riskLevel}\n- Strategy: ${decision.strategy}\n- Priority: Action/Outcome first, then Explanation last. Use concise bold lists.`;
         const shouldStream = !imageUrl;
 
-        // 1. Check Limits & Increment Usage
         try {
             const { checkLimitExceeded, incrementNovaUsage } = await import("@/lib/usage-tracking");
-            
-            // Check if limit is exceeded
+
             const isExceeded = await checkLimitExceeded(workspaceId, "nova");
             if (isExceeded) {
-                return new Response(JSON.stringify({ error: "Nova limit exceeded for this plan. Please upgrade to continue." }), { 
+                return new Response(JSON.stringify({ error: "Nova limit exceeded for this plan. Please upgrade to continue." }), {
                     status: 403,
                     headers: { "Content-Type": "application/json" }
                 });
             }
 
-            // Increment usage
             await incrementNovaUsage(workspaceId, user.id);
         } catch (e) {
             logger.error("Usage tracking error:", e);
@@ -223,7 +179,6 @@ ${formattedHistory || "No recent conversation history."}
         const tools = buildTools({ user, workspaceId, projectId });
 
         if (shouldStream) {
-            // Use direct OpenAI provider pointed at OpenRouter for maximum stability
             const openrouterProvider = createOpenAI({
                 apiKey: process.env.OPENROUTER,
                 baseURL: "https://openrouter.ai/api/v1",
@@ -238,13 +193,22 @@ ${formattedHistory || "No recent conversation history."}
                 system: systemPrompt,
                 prompt: prompt,
                 tools,
+                maxRetries: 2,
                 onError: ({ error }: { error: unknown }) => {
-                    logger.error("[Nova] Stream error:", error instanceof Error ? error.message : String(error));
+                    const errorMessage = error instanceof Error ? error.message : String(error);
+                    logger.error("[Nova] Stream error:", errorMessage);
+                    if (error instanceof Error && (error.name === 'AbortError' || error.message?.includes('abort'))) {
+                        logger.warn("[Nova] Stream aborted - this may be due to timeout or client disconnect");
+                    }
                 },
                 onFinish: async ({ text }: { text: string }) => {
                     if (text && conversationId) {
-                        const db = getPrismaClient(workspaceId);
-                        await db.aiMessage.create({ data: { conversationId, role: "assistant", content: text } });
+                        try {
+                            const db = getPrismaClient(workspaceId);
+                            await db.aiMessage.create({ data: { conversationId, role: "assistant", content: text } });
+                        } catch (e) {
+                            logger.error("[Nova] Failed to save assistant message:", e);
+                        }
                     }
                 },
             });
@@ -255,7 +219,11 @@ ${formattedHistory || "No recent conversation history."}
             return new Response(optimized);
         }
     } catch (error: any) {
+        if (error.name === 'AbortError' || error.message?.includes('abort') || error.message?.includes('AbortError')) {
+            logger.warn("[Nova] Request was aborted:", error.message);
+            return new Response("The request was interrupted. Please try again.", { status: 200 });
+        }
         logger.error("Nova AI error:", error);
-        return new Response(`Nova Error: ${error.message}`, { status: 200 });
+        return new Response(`I encountered an issue while processing your request. Please try again.`, { status: 200 });
     }
 }

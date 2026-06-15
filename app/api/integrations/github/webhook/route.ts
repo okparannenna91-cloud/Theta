@@ -9,13 +9,17 @@ export async function POST(request: NextRequest) {
 
     const secret = process.env.GITHUB_WEBHOOK_SECRET;
 
-    if (secret && signature) {
-        const hmac = crypto.createHmac("sha256", secret);
-        const digest = "sha256=" + hmac.update(payload).digest("hex");
+    if (!secret) {
+        return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+    }
+    if (!signature) {
+        return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+    }
+    const hmac = crypto.createHmac("sha256", secret);
+    const digest = "sha256=" + hmac.update(payload).digest("hex");
 
-        if (signature !== digest) {
-            return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-        }
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))) {
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     const data = JSON.parse(payload);
@@ -26,8 +30,8 @@ export async function POST(request: NextRequest) {
         // but the integration record in our DB should have the repo info in config/metadata
 
         // For MVP, we might search across all integrations for this repo ID
-        const { prismaShard1, prismaShard2, prismaShard3, prismaShard4 } = await import("@/lib/prisma");
-        const shards = [prismaShard1, prismaShard2, prismaShard3, prismaShard4];
+        const { prismaShard1, prismaShard2, prismaShard3 } = await import("@/lib/prisma");
+        const shards = [prismaShard1, prismaShard2, prismaShard3];
 
         let integration = null;
         let workspaceId = null;

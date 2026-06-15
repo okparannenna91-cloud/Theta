@@ -1,79 +1,69 @@
 import OpenAI from "openai";
 import { logger } from "./logger";
 
-const apiKey = process.env.OPENAI_API_KEY;
+let _openaiClient: OpenAI | null = null;
+let _apiKeyChecked = false;
 
-if (!apiKey) {
-    logger.warn("OPENAI_API_KEY is not defined in environment variables. Nova AI primary functions will be limited.");
+function getOpenAIClient(): OpenAI {
+  if (!_openaiClient) {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) {
+      throw new Error("OPENAI_API_KEY is not defined in environment variables.");
+    }
+    if (!_apiKeyChecked) {
+      logger.info("OpenAI client initialized.");
+      _apiKeyChecked = true;
+    }
+    _openaiClient = new OpenAI({
+      apiKey,
+      timeout: 30000,
+      maxRetries: 2,
+    });
+  }
+  return _openaiClient;
 }
 
-export const openai = new OpenAI({
-    apiKey: apiKey!,
-});
-
-/**
- * Generate a response using OpenAI
- */
-export async function generateWithOpenAI(prompt: string, systemPrompt?: string) {
-    if (!apiKey) {
-        throw new Error("OpenAI API key missing");
-    }
-
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini", // Efficient and high-performance model
-        messages: [
-            { role: "system", content: systemPrompt || "You are a helpful assistant." },
-            { role: "user", content: prompt }
-        ],
-    });
-
-    return response.choices[0].message.content;
+export async function generateWithOpenAI(prompt: string, systemPrompt?: string, signal?: AbortSignal) {
+  const client = getOpenAIClient();
+  const response = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      { role: "system", content: systemPrompt || "You are a helpful assistant." },
+      { role: "user", content: prompt }
+    ],
+  }, { signal });
+  return response.choices[0].message.content;
 }
 
-/**
- * Generate a response with vision capabilities
- */
-export async function generateWithVision(prompt: string, imageUrl: string, systemPrompt?: string) {
-    if (!apiKey) {
-        throw new Error("OpenAI API key missing");
-    }
-
-    const response = await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-            { role: "system", content: systemPrompt || "You are a helpful assistant." },
-            {
-                role: "user",
-                content: [
-                    { type: "text", text: prompt },
-                    {
-                        type: "image_url",
-                        image_url: {
-                            url: imageUrl,
-                        },
-                    },
-                ],
-            },
+export async function generateWithVision(prompt: string, imageUrl: string, systemPrompt?: string, signal?: AbortSignal) {
+  const client = getOpenAIClient();
+  const response = await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      { role: "system", content: systemPrompt || "You are a helpful assistant." },
+      {
+        role: "user",
+        content: [
+          { type: "text", text: prompt },
+          {
+            type: "image_url",
+            image_url: { url: imageUrl },
+          },
         ],
-    });
-
-    return response.choices[0].message.content;
+      },
+    ],
+  }, { signal });
+  return response.choices[0].message.content;
 }
 
-/**
- * Stream a response using OpenAI
- */
-export async function streamWithOpenAI(prompt: string, systemPrompt?: string) {
-    if (!apiKey) {
-        throw new Error("OpenAI API key missing");
-    }
-
-    return await openai.chat.completions.create({
-        model: "gpt-4o-mini",
-        messages: [
-            { role: "system", content: systemPrompt || "You are a helpful assistant." },
-            { role: "user", content: prompt }
-        ],
-        stream: true,
-    });
+export async function streamWithOpenAI(prompt: string, systemPrompt?: string, signal?: AbortSignal) {
+  const client = getOpenAIClient();
+  return await client.chat.completions.create({
+    model: "gpt-4o-mini",
+    messages: [
+      { role: "system", content: systemPrompt || "You are a helpful assistant." },
+      { role: "user", content: prompt }
+    ],
+    stream: true,
+  }, { signal });
 }

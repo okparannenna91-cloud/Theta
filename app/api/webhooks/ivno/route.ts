@@ -1,4 +1,5 @@
 
+import crypto from "crypto";
 import { NextResponse } from "next/server";
 import {
     handleSuccessfulIvnoPayment,
@@ -7,7 +8,27 @@ import {
 
 export async function POST(req: Request) {
     try {
-        const body = await req.json();
+        const rawBody = await req.text();
+        const signature = req.headers.get("x-ivno-signature-256") || req.headers.get("x-signature-256") || "";
+        const secret = process.env.IVNO_WEBHOOK_SECRET;
+        if (secret) {
+            if (!signature) {
+                console.error("[Ivno] Webhook rejected: missing signature header");
+                return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+            }
+            const expected = crypto.createHmac("sha256", secret).update(rawBody).digest("hex");
+            const actual = signature.startsWith("sha256=") ? signature.slice(7) : signature;
+            const expectedBuf = Buffer.from(expected);
+            const actualBuf = Buffer.from(actual);
+            if (expectedBuf.length !== actualBuf.length || !crypto.timingSafeEqual(expectedBuf, actualBuf)) {
+                console.error("[Ivno] Webhook rejected: invalid signature");
+                return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+            }
+        } else {
+            console.warn("[Ivno] IVNO_WEBHOOK_SECRET not set — signature verification disabled");
+        }
+
+        const body = JSON.parse(rawBody);
         console.log("[Ivno] Webhook received:", JSON.stringify(body, null, 2));
 
         const {
@@ -26,7 +47,7 @@ export async function POST(req: Request) {
             value_coin?: string | number;
         } = body;
 
-        const parsedAmount = typeof amount === "string" ? parseFloat(amount) : (amount ?? 0);
+        const parsedAmount = typeof amount === "string" ? parseFloat(amount) || 0 : (amount ?? 0);
         const effectiveCurrency = currency || "USD";
 
         // Security: Only trust the webhook from Ivno — never activate plans from the return_url.

@@ -4,7 +4,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -381,6 +381,9 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const [presenceUsers, setPresenceUsers] = useState<any[]>([]);
   const [activeColumn, setActiveColumn] = useState<any>(null);
 
+  // Prevent concurrent drag-end mutations
+  const dragMutationRef = useRef(false);
+
   // Filter & Sort state
   const [filterConfig, setFilterConfig] = useState<FilterConfig>({});
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
@@ -688,6 +691,10 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   };
 
   const handleDragEnd = async (event: any) => {
+    if (dragMutationRef.current) return;
+    dragMutationRef.current = true;
+    setTimeout(() => { dragMutationRef.current = false; }, 500);
+
     const { active, over } = event;
     setActiveTask(null);
     setActiveColumn(null);

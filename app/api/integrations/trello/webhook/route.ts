@@ -1,13 +1,32 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/prisma";
 
-export async function HEAD() {
-    // Trello initial verification
+export async function HEAD(request: NextRequest) {
+    // Trello initial verification: respond 200 to confirm endpoint exists
     return new NextResponse(null, { status: 200 });
 }
 
 export async function POST(request: NextRequest) {
     const payload = await request.text();
+
+    // Optional shared secret verification for Trello webhooks
+    const trelloSecret = process.env.TRELLO_WEBHOOK_SECRET;
+    if (trelloSecret) {
+        const signature = request.headers.get("x-trello-webhook") || "";
+        if (!signature) {
+            console.error("[Trello] Webhook rejected: missing x-trello-webhook header");
+            return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+        }
+        const expected = crypto.createHmac("sha256", trelloSecret).update(payload).digest("hex");
+        const expectedBuf = Buffer.from(expected);
+        const actualBuf = Buffer.from(signature);
+        if (expectedBuf.length !== actualBuf.length || !crypto.timingSafeEqual(expectedBuf, actualBuf)) {
+            console.error("[Trello] Webhook rejected: invalid signature");
+            return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+        }
+    }
+
     const data = JSON.parse(payload);
 
     try {
@@ -15,8 +34,8 @@ export async function POST(request: NextRequest) {
         if (!boardId) return NextResponse.json({ message: "No model ID found" });
 
         // Search for integration
-        const { prismaShard1, prismaShard2, prismaShard3, prismaShard4 } = await import("@/lib/prisma");
-        const shards = [prismaShard1, prismaShard2, prismaShard3, prismaShard4];
+        const { prismaShard1, prismaShard2, prismaShard3 } = await import("@/lib/prisma");
+        const shards = [prismaShard1, prismaShard2, prismaShard3];
 
         let integration = null;
         let workspaceId = null;

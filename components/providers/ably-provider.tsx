@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import * as Ably from "ably";
 import { useUser } from "@clerk/nextjs";
 
@@ -10,25 +10,25 @@ export const useAblyContext = () => useContext(AblyContext);
 
 export function AblyProvider({ children }: { children: React.ReactNode }) {
   const { user } = useUser();
+  const clientRef = useRef<Ably.Realtime | null>(null);
   const [client, setClient] = useState<Ably.Realtime | null>(null);
 
   useEffect(() => {
-    // If no user, close the connection if it exists
     if (!user) {
-      if (client) {
-        client.connection.close();
+      if (clientRef.current) {
+        clientRef.current.connection.close();
+        clientRef.current = null;
         setClient(null);
       }
       return;
     }
 
-    // Initialize Ably client only if it doesn't exist
-    if (!client) {
+    if (!clientRef.current) {
       const ablyClient = new Ably.Realtime({
         authUrl: "/api/ably/token",
         clientId: user.id,
       });
-      
+
       ablyClient.connection.on("connected", () => {
         console.log("Ably Connected");
       });
@@ -37,24 +37,18 @@ export function AblyProvider({ children }: { children: React.ReactNode }) {
         console.log("Ably Disconnected");
       });
 
+      clientRef.current = ablyClient;
       setClient(ablyClient);
     }
 
-    // Cleanup when user changes significantly or component unmounts
     return () => {
-      // Actually we don't want to close it here on every render, 
-      // but let's handle the top-level cleanup in a separate useEffect.
-    };
-  }, [user, client]);
-
-  // Handle final cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (client) {
-        client.connection.close();
+      if (clientRef.current) {
+        clientRef.current.connection.close();
+        clientRef.current = null;
+        setClient(null);
       }
     };
-  }, [client]);
+  }, [user]);
 
   return (
     <AblyContext.Provider value={client}>

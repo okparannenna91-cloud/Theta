@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prismaShard1, prismaShard2, prismaShard3, prismaShard4 } from "@/lib/prisma";
+import { prismaShard1, prismaShard2, prismaShard3 } from "@/lib/prisma";
 
 export async function GET() {
     const results: any = {};
@@ -7,7 +7,6 @@ export async function GET() {
         { name: "Shard 1", client: prismaShard1 },
         { name: "Shard 2", client: prismaShard2 },
         { name: "Shard 3", client: prismaShard3 },
-        { name: "Shard 4", client: prismaShard4 },
     ];
 
     for (const shard of shards) {

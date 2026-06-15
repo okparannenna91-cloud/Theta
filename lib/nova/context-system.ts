@@ -5,6 +5,21 @@ import { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, get
 export { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, type ContextSource } from "./constitution/context";
 
 const MAX_CONTEXT_TOKENS = 3000;
+
+const workspaceCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL_MS = 5000;
+
+function getCachedOrFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
+  const cached = workspaceCache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
+    return Promise.resolve(cached.data);
+  }
+  return fetcher().then(data => {
+    workspaceCache.set(key, { data, timestamp: Date.now() });
+    return data;
+  });
+}
+
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
@@ -12,7 +27,8 @@ function truncateToBudget(text: string, budget: number): string {
   const tokens = estimateTokens(text);
   if (tokens <= budget) return text;
   const ratio = budget / tokens;
-  return text.slice(0, Math.floor(text.length * ratio)) + "\n[context truncated to fit token budget]";
+  const chars = Array.from(text);
+  return chars.slice(0, Math.floor(chars.length * ratio)).join("") + "\n[context truncated to fit token budget]";
 }
 
 export interface ContextOptions {
@@ -30,7 +46,7 @@ export interface ResolvedContext {
   project: { name: string; description?: string | null } | null;
   sprint: { name: string; status?: string } | null;
   workspace: { name: string; plan: string } | null;
-  user: { name?: string | null; email: string } | null;
+  user: { name?: string | null } | null;
   priority: number;
 }
 
@@ -48,11 +64,11 @@ export class ContextSystem {
     }
 
     const [workspace, project, task, document, user] = await Promise.all([
-      db.workspace.findUnique({ where: { id: workspaceId } }),
-      projectId ? db.project.findUnique({ where: { id: projectId } }) : null,
+      getCachedOrFetch(`workspace:${workspaceId}`, () => db.workspace.findUnique({ where: { id: workspaceId } })),
+      projectId ? getCachedOrFetch(`project:${projectId}`, () => db.project.findUnique({ where: { id: projectId } })) : null,
       taskId ? db.task.findUnique({ where: { id: taskId }, include: { subtasks: true } }) : null,
       documentId ? db.document.findUnique({ where: { id: documentId } }) : null,
-      userId ? db.user.findUnique({ where: { id: userId } }) : null,
+      userId ? db.user.findUnique({ where: { id: userId }, select: { name: true } }) : null,
     ]);
 
     const resolvedContext: ResolvedContext = {
@@ -67,7 +83,7 @@ export class ContextSystem {
       project: project ? { name: project.name, description: project.description } : null,
       sprint: sprintData,
       workspace: workspace ? { name: workspace.name, plan: workspace.plan } : null,
-      user: user ? { name: user.name, email: user.email } : null,
+      user: user ? { name: user.name } : null,
       priority: taskId ? 1 : documentId ? 2 : projectId ? 3 : sprintId ? 4 : 5,
     };
 
@@ -88,10 +104,9 @@ export class ContextSystem {
       promptString += `[BASE] ACTIVE WORKSPACE (Priority 5):\n- Name: ${resolvedContext.workspace.name}\n- Plan Tier: ${resolvedContext.workspace.plan}\n\n`;
     }
     if (resolvedContext.user) {
-      promptString += `[OPERATOR] ACTIVE USER (Priority 6):\n- Name: ${resolvedContext.user.name || "N/A"}\n- Email: ${resolvedContext.user.email}\n`;
+      promptString += `[OPERATOR] ACTIVE USER (Priority 6):\n- Name: ${resolvedContext.user.name || "N/A"}\n`;
     }
 
-    const budgetPerSection = Math.floor(MAX_CONTEXT_TOKENS / 6);
     promptString = truncateToBudget(promptString, MAX_CONTEXT_TOKENS);
 
     return { structured: resolvedContext, promptString };

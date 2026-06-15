@@ -9,7 +9,15 @@ const LOG_PREFIX = {
 
 function formatMessage(prefix: string, message: string, ...args: any[]): string {
   const timestamp = new Date().toISOString();
-  const formatted = args.length > 0 ? `${message} ${args.map(a => typeof a === "object" ? JSON.stringify(a) : String(a)).join(" ")}` : message;
+  const formatted = args.length > 0
+    ? `${message} ${args.map(a => {
+        if (a instanceof Error) return `\n${a.stack || a.message}`;
+        if (typeof a === "object") {
+          try { return JSON.stringify(a, null, 2); } catch { return String(a); }
+        }
+        return String(a);
+      }).join(" ")}`
+    : message;
   return `${timestamp} ${prefix} ${formatted}`;
 }
 

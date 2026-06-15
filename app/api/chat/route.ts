@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, getPrismaClient, prismaShard1, prismaShard2, prismaShard3, prismaShard4 } from "@/lib/prisma";
+import { prisma, getPrismaClient, prismaShard1, prismaShard2, prismaShard3 } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { publishToChannel, getChatChannel } from "@/lib/ably";
 import { z } from "zod";
@@ -56,7 +56,6 @@ export async function GET(req: Request) {
             { name: "Shard 1", client: prismaShard1 },
             { name: "Shard 2", client: prismaShard2 },
             { name: "Shard 3", client: prismaShard3 },
-            { name: "Shard 4", client: prismaShard4 },
         ];
 
         const scanShard = async (shard: any) => {
@@ -233,6 +232,56 @@ export async function POST(req: Request) {
         }
         console.error("Chat POST error:", error);
         return NextResponse.json({ error: error.message || "Internal error" }, { status: 500 });
+    }
+}
+
+export async function PATCH(req: Request) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+        const { searchParams } = new URL(req.url);
+        const messageId = searchParams.get("id");
+        const workspaceId = searchParams.get("workspaceId");
+
+        if (!messageId) {
+            return NextResponse.json({ error: "Missing message id" }, { status: 400 });
+        }
+
+        const body = await req.json();
+        const { isPinned } = body;
+
+        let db: any;
+        let message: any;
+
+        if (workspaceId) {
+            db = getPrismaClient(workspaceId);
+            message = await db.chatMessage.findUnique({ where: { id: messageId } });
+        } else {
+            const { findAcrossShards } = await import("@/lib/prisma");
+            const result = await findAcrossShards<any>("chatMessage", { id: messageId });
+            message = result.data;
+            db = result.db;
+        }
+
+        if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
+        if (message.userId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+        const updated = await db.chatMessage.update({
+            where: { id: messageId },
+            data: { isPinned: isPinned !== undefined ? isPinned : !message.isPinned },
+        });
+
+        const channelName = updated.teamId
+            ? `team:${updated.teamId}:chat`
+            : getChatChannel(updated.workspaceId, updated.projectId ?? undefined);
+
+        await publishToChannel(channelName, "message:updated", updated);
+
+        return NextResponse.json(updated);
+    } catch (error) {
+        console.error("Chat PATCH error:", error);
+        return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }
 }
 

@@ -250,33 +250,31 @@ export function getPlanLimits(plan: PlanName): PlanLimits {
  * Get plan limit error message
  */
 export function getPlanLimitMessage(plan: PlanName, feature: string): string {
-    const limits = PLAN_LIMITS[plan];
-
     switch (feature) {
         case "projects":
-            return `Your ${plan} plan allows up to ${limits.maxProjects} projects. Upgrade to create more.`;
+            return "Project limit reached. Upgrade your plan to create more projects.";
         case "tasks":
-            return `Your ${plan} plan allows up to ${limits.maxTasks} tasks. Upgrade to create more.`;
+            return "Task limit reached. Upgrade your plan to create more tasks.";
         case "members":
-            return `Your ${plan} plan allows up to ${limits.maxMembers} members. Upgrade to add more.`;
+            return "Member limit reached. Upgrade your plan to add more members.";
         case "teams":
-            return `Your ${plan} plan allows up to ${limits.maxTeams} teams. Upgrade to create more.`;
+            return "Team limit reached. Upgrade your plan to create more teams.";
         case "boards":
-            return `Your ${plan} plan allows up to ${limits.maxBoards} Kanban boards. Upgrade to create more.`;
+            return "Board limit reached. Upgrade your plan to create more boards.";
         case "calendar_events":
-            return `Your ${plan} plan allows up to ${limits.maxCalendarEvents} calendar events. Upgrade to create more.`;
+            return "Calendar event limit reached. Upgrade your plan to create more events.";
         case "storage":
-            return `Your ${plan} plan includes ${limits.maxStorage}MB of storage. Upgrade for more space.`;
+            return "Storage limit reached. Upgrade your plan for more space.";
         case "boots":
-            return `Your ${plan} plan allows ${limits.maxNovaRequests} Nova AI requests per month. Upgrade for more.`;
+            return "Nova AI request limit reached. Upgrade your plan for more requests.";
         case "chat":
-            return `Your ${plan} plan allows up to ${limits.maxChatMessages} chat messages. Upgrade to unlock more.`;
+            return "Chat message limit reached. Upgrade your plan for unlimited messaging.";
         case "integrations":
-            return `Integrations are available on Growth plans and above. Upgrade to unlock this feature.`;
+            return "Integration limit reached. Upgrade your plan to unlock more integrations.";
         case "analytics":
-            return `Advanced analytics are available on Pro plans and above. Upgrade to unlock this feature.`;
+            return "Advanced analytics are available on upgraded plans.";
         default:
-            return `This feature is not available on your ${plan} plan. Upgrade to unlock it.`;
+            return "This feature is not available on your current plan. Upgrade to unlock it.";
     }
 }
 

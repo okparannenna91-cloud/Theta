@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import crypto from "crypto";
 import { getPrismaClient } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
@@ -17,6 +18,21 @@ export async function POST(request: NextRequest) {
         });
     }
 
+    // Verify HMAC-SHA256 signature
+    if (!secret) {
+        return NextResponse.json({ error: "Webhook not configured" }, { status: 500 });
+    }
+    if (!signature) {
+        return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+    }
+    const expectedSig = crypto
+        .createHmac("sha256", secret)
+        .update(payload)
+        .digest("hex");
+    if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+        return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    }
+
     const data = JSON.parse(payload);
 
     try {
@@ -26,8 +42,8 @@ export async function POST(request: NextRequest) {
             if (!resourceGid) continue;
 
             // Find integration by resourceGid stored in metadata/config
-            const { prismaShard1, prismaShard2, prismaShard3, prismaShard4 } = await import("@/lib/prisma");
-            const shards = [prismaShard1, prismaShard2, prismaShard3, prismaShard4];
+            const { prismaShard1, prismaShard2, prismaShard3 } = await import("@/lib/prisma");
+            const shards = [prismaShard1, prismaShard2, prismaShard3];
 
             let integration = null;
             let workspaceId = null;

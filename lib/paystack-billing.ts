@@ -3,7 +3,8 @@ import { prisma } from "./prisma";
 import { paystack } from "./paystack";
 import { BILLING_PLAN_LOOKUP, getPlanPrice } from "./billing-plans";
 import { sendEmail } from "./email";
-import { encryptSensitiveFields } from "./field-encryption";
+import { encryptSensitiveFields, decryptSensitiveFields } from "./field-encryption";
+import { logger } from "./logger";
 
 /**
  * Handle recurring charge for a workspace using Paystack
@@ -37,12 +38,16 @@ export async function processPaystackRecurringCharge(workspaceId: string) {
 
     const amount = getPlanPrice(workspace.plan, workspace.billingInterval as any, activeMemberCount, "NGN");
 
+    // Decrypt stored auth code before use
+    const decrypted = decryptSensitiveFields("workspace", workspace as any);
+    const authCode = decrypted.paystackAuthCode || workspace.paystackAuthCode;
+
     try {
         const reference = `sub_${workspaceId}_${Date.now()}`;
         const result = await paystack.chargeAuthorization({
             email: owner.email,
             amount,
-            authorization_code: workspace.paystackAuthCode,
+            authorization_code: authCode,
             reference,
             metadata: { workspaceId, planKey: workspace.plan }
         });
@@ -53,7 +58,7 @@ export async function processPaystackRecurringCharge(workspaceId: string) {
             await handleFailedPayment(workspaceId, "payment_failed", result.data);
         }
     } catch (error: any) {
-        console.error(`Paystack recurring charge failed for ${workspaceId}:`, error.message);
+        logger.error(`Paystack recurring charge failed for ${workspaceId}:`, error.message);
         await handleFailedPayment(workspaceId, "charge_error", { error: error.message });
     }
 }

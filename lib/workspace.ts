@@ -313,8 +313,8 @@ export async function deleteWorkspace(workspaceId: string, userId: string) {
     });
 
     // Actually, a better way is to iterate over the actual shards we have initialized
-    const { prismaShard1, prismaShard2, prismaShard3, prismaShard4 } = await import("./prisma");
-    const allShards = [prismaShard1, prismaShard2, prismaShard3, prismaShard4].filter(Boolean);
+    const { prismaShard1, prismaShard2, prismaShard3 } = await import("./prisma");
+    const allShards = [prismaShard1, prismaShard2, prismaShard3].filter(Boolean);
 
     await Promise.all(allShards.map(async (shard: any) => {
         try {

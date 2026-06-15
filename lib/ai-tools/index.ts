@@ -5,6 +5,18 @@ import { getPrismaClient, prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { STATUS_TODO, STATUS_DONE, STATUS_IN_PROGRESS } from "@/lib/constants/status";
 import { PROMPT_TEMPLATES, BROWSE_TEMPLATES, AVAILABLE_INTEGRATIONS } from "@/lib/constants/templates";
+import { DecisionFramework } from "@/lib/nova/decision-framework";
+import { redis } from "@/lib/redis/client";
+import { getAblyChannel } from "@/lib/ably-server";
+import { TaskIntelligence } from "@/lib/nova/task-intelligence";
+import { getWorkspaceMembers } from "@/lib/workspace";
+import { createInvite } from "@/lib/invite";
+import { ProjectIntelligence } from "@/lib/nova/project-intelligence";
+import { DocumentIntelligence } from "@/lib/nova/document-intelligence";
+import { AgentFramework } from "@/lib/nova/agent-framework";
+import { decryptSensitiveFields } from "@/lib/field-encryption";
+import { mem0 } from "@/lib/mem0";
+import { inngest } from "@/lib/inngest/client";
 
 export interface ToolContext {
   user: { id: string };
@@ -41,13 +53,19 @@ async function enforce(ctx: ToolContext, action: PermissionCheckAction, resource
 
 async function requireToolApproval(toolName: string, params: Record<string, unknown>): Promise<void> {
   const syntheticPrompt = `${toolName} ${Object.values(params).filter(Boolean).join(" ")}`;
-  const { DecisionFramework } = await import("@/lib/nova/decision-framework");
   const decision = DecisionFramework.evaluate(syntheticPrompt);
   if (decision.requiresApproval) {
     throw new Error(
       `**ACTION BLOCKED — CONFIRMATION REQUIRED**\n\n` +
       `The "${toolName}" tool is classified as **HIGH RISK** (${decision.intent} action). ` +
       `This action requires explicit human approval and cannot be delegated to the AI.`
+    );
+  }
+  if (decision.requiresConfirmation) {
+    throw new Error(
+      `**ACTION PAUSED — CONFIRMATION REQUESTED**\n\n` +
+      `The "${toolName}" tool is classified as **MEDIUM RISK** (${decision.intent} action). ` +
+      `Please confirm before proceeding.`
     );
   }
 }
@@ -57,15 +75,14 @@ const PER_TOOL_WINDOW_SECONDS = 60;
 
 async function isToolRateLimited(userId: string, toolName: string): Promise<boolean> {
   try {
-    const { redis } = await import("@/lib/redis/client");
-    const key = `nova:toolrate:${userId}:${toolName}`;
+        const key = `nova:toolrate:${userId}:${toolName}`;
     const count = await redis.incr(key);
     if (count === 1) {
       await redis.expire(key, PER_TOOL_WINDOW_SECONDS);
     }
     return count > PER_TOOL_RATE_LIMIT;
   } catch {
-    return false;
+    return true;
   }
 }
 
@@ -79,24 +96,31 @@ function resolvedPriority(initialPriority: string | undefined, recommendation: T
   return initialPriority || recommendation.priority || "medium";
 }
 
+const _toolsRef: Record<string, { execute: (...args: any[]) => any }> = {};
+
 export function buildTools(ctx: ToolContext) {
   const { user, workspaceId, projectId } = ctx;
 
-  const TOOL_TIMEOUT_MS = 15000;
+  const TOOL_TIMEOUT_MS = 25000;
 
   function wrapTool<T extends Record<string, unknown>, R>(toolName: string, execute: (args: T) => Promise<R>): (args: T) => Promise<R> {
     return async (args: T) => {
       const limited = await isToolRateLimited(user.id, toolName);
       if (limited) {
-        throw new Error(`Rate limit exceeded for tool: ${toolName}. Max ${PER_TOOL_RATE_LIMIT} calls per ${PER_TOOL_WINDOW_SECONDS}s.`);
+        return { error: `Rate limit exceeded for tool: ${toolName}. Max ${PER_TOOL_RATE_LIMIT} calls per ${PER_TOOL_WINDOW_SECONDS}s.` } as any;
       }
-      const result = await Promise.race([
-        execute(args),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error(`Tool "${toolName}" timed out after ${TOOL_TIMEOUT_MS}ms.`)), TOOL_TIMEOUT_MS)
-        ),
-      ]);
-      return result;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        const result = await Promise.race([
+          execute(args),
+          new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`Tool "${toolName}" timed out after ${TOOL_TIMEOUT_MS}ms.`)), TOOL_TIMEOUT_MS);
+          }),
+        ]);
+        return result;
+      } finally {
+        clearTimeout(timer);
+      }
     };
   }
 
@@ -105,7 +129,6 @@ export function buildTools(ctx: ToolContext) {
       description: 'Dispatch a direct UI action to the client.',
       inputSchema: z.object({ action: z.enum(['NAVIGATE', 'OPEN_MODAL', 'SWITCH_TAB', 'REFRESH_DATA']), payload: z.record(z.any()) }),
       execute: async ({ action, payload }: any) => {
-        const { getAblyChannel } = await import("@/lib/ably-server");
         const channel = getAblyChannel(`workspace:${workspaceId}`);
         await channel.publish('UI_ACTION', { action, payload, userId: user.id });
         return { success: true, message: `Dispatched UI action: **${action}**` };
@@ -123,8 +146,17 @@ export function buildTools(ctx: ToolContext) {
         return { success: true, message: `Updated board layout for **${boardId}**.` };
       }
     },
+    list_workspaces: {
+      description: 'List all workspaces the user has access to. Use this when user asks "show workspaces" or "list workspaces".',
+      inputSchema: z.object({}),
+      execute: async () => {
+        const db = getPrismaClient(workspaceId);
+        const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { id: true, name: true } });
+        return { workspace: ws || { id: workspaceId, name: "Current Workspace" } };
+      }
+    },
     list_projects: {
-      description: 'List all projects in the current workspace.',
+      description: 'List all projects in the current workspace. Use this when user asks "list projects" or "show projects".',
       inputSchema: z.object({}),
       execute: async () => {
         await enforce(ctx, "read", "project");
@@ -134,12 +166,12 @@ export function buildTools(ctx: ToolContext) {
       }
     },
     list_tasks: {
-      description: 'List tasks for a specific project.',
+      description: 'List all tasks in the workspace (optionally filtered by project). Use this when user asks "list tasks" or "show tasks".',
       inputSchema: z.object({ projectId: z.string().optional() }),
       execute: async ({ projectId: targetProjectId }: any) => {
         await enforce(ctx, "read", "task");
         const db = getPrismaClient(workspaceId);
-        const tasks = await db.task.findMany({ where: { workspaceId, projectId: targetProjectId || undefined }, take: 20, orderBy: { updatedAt: 'desc' }, select: { id: true, title: true, status: true, priority: true } });
+        const tasks = await db.task.findMany({ where: { workspaceId, projectId: targetProjectId || undefined }, take: 50, orderBy: { updatedAt: 'desc' }, select: { id: true, title: true, status: true, priority: true } });
         return { tasks };
       }
     },
@@ -148,7 +180,6 @@ export function buildTools(ctx: ToolContext) {
       inputSchema: z.object({ title: z.string(), description: z.string().optional(), priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(), projectId: z.string().optional() }),
       execute: async ({ title, description, priority: initialPriority, projectId: targetProjectId }: any) => {
         await enforce(ctx, "write", "task");
-        const { TaskIntelligence } = await import("@/lib/nova/task-intelligence");
         const recommendation = await TaskIntelligence.analyzeAndRecommend(workspaceId, title, description);
         const db = getPrismaClient(workspaceId);
         let pId = targetProjectId || projectId;
@@ -232,7 +263,6 @@ export function buildTools(ctx: ToolContext) {
       inputSchema: z.object({}),
       execute: async () => {
         await enforce(ctx, "read", "workspace");
-        const { getWorkspaceMembers } = await import("@/lib/workspace");
         const members = await getWorkspaceMembers(workspaceId);
         return { members: members.map((m: any) => ({ id: m.user?.id, name: m.user?.name, email: m.user?.email, role: m.role })) };
       }
@@ -242,7 +272,6 @@ export function buildTools(ctx: ToolContext) {
       inputSchema: z.object({ email: z.string().email(), role: z.enum(['admin', 'member']).default('member') }),
       execute: async ({ email, role }: any) => {
         await enforce(ctx, "admin", "member");
-        const { createInvite } = await import("@/lib/invite");
         await createInvite(workspaceId, email, role);
         return { success: true, message: `Sent invitation to **${email}** as **${role}**` };
       }
@@ -266,7 +295,6 @@ export function buildTools(ctx: ToolContext) {
         const db = getPrismaClient(workspaceId);
         const automation = await db.automation.create({ data: { name, trigger, action, actionValue: JSON.stringify(config), workspaceId, active: true } });
         try {
-          const { inngest } = await import("@/lib/inngest/client");
           await inngest.send({ name: "automation/created", data: { automationId: automation.id, workspaceId } });
         } catch (e) { logger.warn("Failed to notify Inngest of automation creation:", e); }
         return { success: true, message: `Automation "**${name}**" has been created and activated.` };
@@ -299,20 +327,24 @@ export function buildTools(ctx: ToolContext) {
       execute: async ({ title, content }: any) => {
         await enforce(ctx, "write", "document");
         await auditToolExecution(workspaceId, user.id, "create_document", { title });
-        const { DocumentIntelligence } = await import("@/lib/nova/document-intelligence");
         const analysis = DocumentIntelligence.analyze(title, content);
         const db = getPrismaClient(workspaceId);
-        const doc = await db.document.create({ data: { title, content, workspaceId, userId: user.id, tags: analysis.suggestedLinks } });
-        if (analysis.extractedTasks.length > 0) {
-          const firstProject = await db.project.findFirst({ where: { workspaceId } });
-          if (firstProject) {
-            await Promise.all(analysis.extractedTasks.map(async (t: string) => { await db.task.create({ data: { title: t, description: `Auto-extracted from: ${title}`, priority: "medium", status: "todo", workspaceId, projectId: firstProject.id, userId: user.id } }); }));
+        const result = await db.$transaction(async (tx) => {
+          const doc = await tx.document.create({ data: { title, content, workspaceId, userId: user.id, tags: analysis.suggestedLinks } });
+          if (analysis.extractedTasks.length > 0) {
+            const firstProject = await tx.project.findFirst({ where: { workspaceId } });
+            if (firstProject) {
+              await Promise.all(analysis.extractedTasks.map(async (t: string) => {
+                await tx.task.create({ data: { title: t, description: `Auto-extracted from: ${title}`, priority: "medium", status: "todo", workspaceId, projectId: firstProject.id, userId: user.id } });
+              }));
+            }
           }
-        }
-        for (const dec of analysis.decisions) {
-          await db.entityLink.create({ data: { sourceId: doc.id, targetId: doc.id, relation: `DECISION: ${dec.substring(0, 50)}` } }).catch(() => {});
-        }
-        return { success: true, message: `Document "**${title}**" created.`, id: doc.id };
+          for (const dec of analysis.decisions) {
+            await tx.entityLink.create({ data: { sourceId: doc.id, targetId: doc.id, relation: `DECISION: ${dec.substring(0, 50)}` } }).catch(() => {});
+          }
+          return doc;
+        });
+        return { success: true, message: `Document "**${title}**" created.`, id: result.id };
       }
     },
     read_document: {
@@ -323,7 +355,8 @@ export function buildTools(ctx: ToolContext) {
         await auditToolExecution(workspaceId, user.id, "read_document", { id });
         const db = getPrismaClient(workspaceId);
         const doc = await db.document.findUnique({ where: { id } });
-        return { title: doc?.title, content: doc?.content };
+        if (!doc) return { found: false, message: "Document not found." };
+        return { found: true, title: doc.title, content: doc.content };
       }
     },
     delete_document: {
@@ -386,7 +419,6 @@ export function buildTools(ctx: ToolContext) {
       inputSchema: z.object({ taskId: z.string(), predecessorId: z.string(), type: z.enum(['FS', 'SS', 'FF', 'SF']).default('FS') }),
       execute: async ({ taskId, predecessorId, type }: any) => {
         await enforce(ctx, "write", "task");
-        const { TaskIntelligence } = await import("@/lib/nova/task-intelligence");
         const hasCycle = await TaskIntelligence.hasDependencyCycle(workspaceId, taskId, predecessorId);
         if (hasCycle) return { error: "Circular dependency detected." };
         const db = getPrismaClient(workspaceId);
@@ -452,7 +484,6 @@ export function buildTools(ctx: ToolContext) {
       inputSchema: z.object({ projectId: z.string() }),
       execute: async ({ projectId: pId }: any) => {
         await enforce(ctx, "read", "project");
-        const { ProjectIntelligence } = await import("@/lib/nova/project-intelligence");
         return ProjectIntelligence.analyzeHealth(workspaceId, pId);
       }
     },
@@ -521,9 +552,10 @@ export function buildTools(ctx: ToolContext) {
         await enforce(ctx, "write", "task");
         const db = getPrismaClient(workspaceId);
         const task = await db.task.findUnique({ where: { id: taskId } });
-        const existingMetadata = typeof task?.attachments === 'object' && task?.attachments ? task.attachments : {};
+        if (!task) return { found: false, message: "Task not found." };
+        const existingMetadata = typeof task.attachments === 'object' && task.attachments ? task.attachments : {};
         await db.task.update({ where: { id: taskId }, data: { attachments: { ...existingMetadata, customFields: fields } } });
-        return { success: true, message: `Updated custom fields for task **${task?.title}**.` };
+        return { success: true, message: `Updated custom fields for task **${task.title}**.` };
       }
     },
     generate_dashboard_config: {
@@ -549,7 +581,6 @@ export function buildTools(ctx: ToolContext) {
         await auditToolExecution(workspaceId, user.id, "get_form_responses", { formId });
         const db = getPrismaClient(workspaceId);
         const responses = await db.formResponse.findMany({ where: { formId }, take: 10, orderBy: { createdAt: 'desc' } });
-        const { decryptSensitiveFields } = await import("@/lib/field-encryption");
         return { responses: responses.map(r => decryptSensitiveFields("formResponse", r).data) };
       }
     },
@@ -583,36 +614,64 @@ export function buildTools(ctx: ToolContext) {
       description: 'Export workspace data as JSON.',
       inputSchema: z.object({
         includeTypes: z.array(z.enum(["tasks","projects","documents"])).optional().describe("Entity types to include; defaults to all."),
-        maxItems: z.number().max(500).optional().describe("Max items per type (default 200, max 500).")
+        maxItems: z.number().max(500).optional().describe("Max items per type (default 200, max 500)."),
+        cursor: z.string().optional().describe("Pagination cursor for fetching the next page."),
       }),
-      execute: async ({ includeTypes = ["tasks", "projects"], maxItems = 200 }: { includeTypes?: string[]; maxItems?: number }) => {
+      execute: async ({ includeTypes = ["tasks", "projects"], maxItems = 200, cursor }: { includeTypes?: string[]; maxItems?: number; cursor?: string }) => {
         await enforce(ctx, "admin", "workspace");
         const db = getPrismaClient(workspaceId);
-        const queries: Promise<{ name: string; count: number; data: unknown[] }>[] = [];
+        const SENSITIVE_FIELDS = new Set(["password", "apiKey", "token", "refreshToken", "secret", "privateKey", "encryptionKey"]);
+        function stripSensitive(obj: any): any {
+          if (Array.isArray(obj)) return obj.map(stripSensitive);
+          if (obj && typeof obj === "object") {
+            const cleaned: any = {};
+            for (const [k, v] of Object.entries(obj)) {
+              if (SENSITIVE_FIELDS.has(k)) continue;
+              cleaned[k] = stripSensitive(v);
+            }
+            return cleaned;
+          }
+          return obj;
+        }
+        const queries: Promise<{ name: string; count: number; cursor: string | null; data: unknown[] }>[] = [];
         if (includeTypes.includes("tasks")) {
           queries.push(
-            db.task.findMany({ where: { workspaceId }, take: maxItems }).then((data: unknown[]) => ({ name: "tasks", count: data.length, data }))
+            db.task.findMany({ where: { workspaceId }, take: maxItems + 1, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: unknown[]) => {
+              const hasMore = data.length > maxItems;
+              if (hasMore) data.pop();
+              return { name: "tasks", count: data.length, cursor: hasMore ? (data[data.length - 1] as any)?.id ?? null : null, data: stripSensitive(data) };
+            })
           );
         }
         if (includeTypes.includes("projects")) {
           queries.push(
-            db.project.findMany({ where: { workspaceId }, take: maxItems }).then((data: unknown[]) => ({ name: "projects", count: data.length, data }))
+            db.project.findMany({ where: { workspaceId }, take: maxItems + 1, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: unknown[]) => {
+              const hasMore = data.length > maxItems;
+              if (hasMore) data.pop();
+              return { name: "projects", count: data.length, cursor: hasMore ? (data[data.length - 1] as any)?.id ?? null : null, data: stripSensitive(data) };
+            })
           );
         }
         if (includeTypes.includes("documents")) {
           queries.push(
-            db.document.findMany({ where: { workspaceId }, take: maxItems }).then((data: unknown[]) => ({ name: "documents", count: data.length, data }))
+            db.document.findMany({ where: { workspaceId }, take: maxItems + 1, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: unknown[]) => {
+              const hasMore = data.length > maxItems;
+              if (hasMore) data.pop();
+              return { name: "documents", count: data.length, cursor: hasMore ? (data[data.length - 1] as any)?.id ?? null : null, data: stripSensitive(data) };
+            })
           );
         }
         const results = await Promise.all(queries);
         const summary: Record<string, number> = {};
         const data: Record<string, unknown[]> = {};
-        for (const { name, count, data: items } of results) {
+        const cursors: Record<string, string | null> = {};
+        for (const { name, count, cursor: nextCursor, data: items } of results) {
           summary[name] = count;
           data[name] = items;
+          cursors[name] = nextCursor;
         }
         await auditToolExecution(workspaceId, user.id, "export_workspace_data", { includeTypes, maxItems, summary });
-        return { success: true, message: `Exported ${Object.entries(summary).map(([k, v]) => `${v} ${k}`).join(", ")}.`, data };
+        return { success: true, message: `Exported ${Object.entries(summary).map(([k, v]) => `${v} ${k}`).join(", ")}.`, data, cursors };
       }
     },
     browse_templates: {
@@ -625,7 +684,6 @@ export function buildTools(ctx: ToolContext) {
       inputSchema: z.object({ email: z.string().email(), projectId: z.string() }),
       execute: async ({ email, projectId: pId }: any) => {
         await enforce(ctx, "admin", "member");
-        const { createInvite } = await import("@/lib/invite");
         await createInvite(workspaceId, email, "guest");
         return { success: true, message: `Guest invitation sent to **${email}**.` };
       }
@@ -647,7 +705,6 @@ export function buildTools(ctx: ToolContext) {
         await enforce(ctx, "read", "billing");
         const db = getPrismaClient(workspaceId);
         const history = await db.billingLog.findMany({ where: { workspaceId }, take: 5, orderBy: { createdAt: 'desc' } });
-        const { decryptSensitiveFields } = await import("@/lib/field-encryption");
         return { history: history.map((h: any) => ({ date: h.createdAt, amount: h.amount, status: h.action, metadata: decryptSensitiveFields("billingLog", h as any).metadata })), plan: "Enterprise Alpha" };
       }
     },
@@ -656,7 +713,6 @@ export function buildTools(ctx: ToolContext) {
       inputSchema: z.object({ objective: z.string(), context: z.string().optional() }),
       execute: async ({ objective, context: extraContext }: any) => {
         await enforce(ctx, "write", "project");
-        const { AgentFramework } = await import("@/lib/nova/agent-framework");
         const plans = await AgentFramework.planExecution(objective);
         if (plans.length === 0) {
           return { message: `No specialized agents matched objective: "**${objective}**". Consider using more specific keywords (e.g., sprint, task, report, document, risk, automate).`, agents: [] };
@@ -665,9 +721,19 @@ export function buildTools(ctx: ToolContext) {
         const results: Array<{ agentId: string; agentName: string; result: string }> = [];
         for (const plan of plans) {
           const agent = AgentFramework.getAgent(plan.agentId);
-          const stepResults: string[] = [];
+          const stepOutputs: string[] = [];
           for (const step of plan.steps) {
-            stepResults.push(step.description);
+            const toolFn = _toolsRef[step.tool]?.execute;
+            if (toolFn) {
+              try {
+                const output = await toolFn(step.params);
+                stepOutputs.push(`[${step.tool}] ${JSON.stringify(output)}`);
+              } catch (e: any) {
+                stepOutputs.push(`[${step.tool}] ERROR: ${e.message}`);
+              }
+            } else {
+              stepOutputs.push(`[${step.tool}] SKIPPED (tool not found)`);
+            }
           }
           if (agent) {
             await db.activity.create({
@@ -677,31 +743,15 @@ export function buildTools(ctx: ToolContext) {
                 entityId: agent.id,
                 workspaceId,
                 userId: user.id,
-                metadata: { agent: agent.name, steps: plan.steps.map(s => s.tool), objective, extraContext },
+                metadata: { agent: agent.name, steps: plan.steps.map(s => s.tool), outputs: stepOutputs, objective, extraContext },
               },
             });
           }
-          let summary = `Aggregated data from **${agent?.name || plan.agentId}**`;
-          if (plan.agentId === "sprint-agent" || plan.agentId === "task-agent") {
-            const taskCount = await db.task.count({ where: { workspaceId } });
-            summary += ` — workspace contains **${taskCount}** tasks.`;
-          }
-          if (plan.agentId === "reporting-agent") {
-            const projectCount = await db.project.count({ where: { workspaceId } });
-            summary += ` — **${projectCount}** projects available for reporting.`;
-          }
-          if (plan.agentId === "risk-agent") {
-            const overdueTasks = await db.task.count({ where: { workspaceId, status: { not: "done" } } });
-            summary += ` — **${overdueTasks}** incomplete tasks may carry risks.`;
-          }
-          if (plan.agentId === "documentation-agent") {
-            const docCount = await db.document.count({ where: { workspaceId } });
-            summary += ` — **${docCount}** documents in the knowledge base.`;
-          }
+          const summary = `**${agent?.name || plan.agentId}**: ${stepOutputs.join("; ")}`;
           results.push({ agentId: plan.agentId, agentName: agent?.name || plan.agentId, result: summary });
         }
         return {
-          message: `**Orchestration complete.** Activated ${results.length} agent(s) for: "${objective}".`,
+          message: `**Orchestration complete.** Executed ${results.length} agent(s) for: "${objective}".`,
           agents: results,
           steps: plans.flatMap(p => p.steps.map(s => s.description)),
         };
@@ -722,7 +772,6 @@ export function buildTools(ctx: ToolContext) {
         }
         let mem0Synced = false;
         try {
-          const { mem0 } = await import("@/lib/mem0");
           await mem0.add([{ role: "user", content: `User preference: ${key} = ${value}` }], { user_id: user.id });
           mem0Synced = true;
         } catch (e) { logger.warn("Mem0 sync failed:", e); }
@@ -736,6 +785,8 @@ export function buildTools(ctx: ToolContext) {
     const originalExecute = (tool as any).execute;
     (rawTools as any)[name].execute = wrapTool(name, originalExecute);
   }
+
+  Object.assign(_toolsRef, rawTools);
 
   return rawTools;
 }

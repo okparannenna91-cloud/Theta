@@ -1,8 +1,28 @@
+import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
     const payload = await request.text();
+    const signature = request.headers.get("x-hub-signature") || "";
+    const secret = process.env.BITBUCKET_WEBHOOK_SECRET;
+    if (secret) {
+        if (!signature) {
+            console.error("[Bitbucket] Webhook rejected: missing signature");
+            return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+        }
+        const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
+        const actual = signature.startsWith("sha256=") ? signature.slice(7) : signature;
+        const expectedBuf = Buffer.from(expected);
+        const actualBuf = Buffer.from(actual);
+        if (expectedBuf.length !== actualBuf.length || !crypto.timingSafeEqual(expectedBuf, actualBuf)) {
+            console.error("[Bitbucket] Webhook rejected: invalid signature");
+            return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+        }
+    } else {
+        console.warn("[Bitbucket] BITBUCKET_WEBHOOK_SECRET not set — signature verification disabled");
+    }
+
     const eventKey = request.headers.get("x-event-key"); // Bitbucket event key
 
     const data = JSON.parse(payload);
@@ -12,8 +32,8 @@ export async function POST(request: NextRequest) {
         if (!repoFullName) return NextResponse.json({ message: "No repo full name found" });
 
         // Search across shards for the integration
-        const { prismaShard1, prismaShard2, prismaShard3, prismaShard4 } = await import("@/lib/prisma");
-        const shards = [prismaShard1, prismaShard2, prismaShard3, prismaShard4];
+        const { prismaShard1, prismaShard2, prismaShard3 } = await import("@/lib/prisma");
+        const shards = [prismaShard1, prismaShard2, prismaShard3];
 
         let integration = null;
         let workspaceId = null;

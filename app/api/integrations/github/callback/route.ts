@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPrismaClient } from "@/lib/prisma";
-import { encrypt } from "@/lib/crypto";
+import { encrypt, verifyOAuthState } from "@/lib/crypto";
 
 export async function GET(request: NextRequest) {
     const code = request.nextUrl.searchParams.get("code");
@@ -11,7 +11,13 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const { workspaceId } = JSON.parse(Buffer.from(state, "base64").toString());
+        let workspaceId: string;
+        try {
+            const payload = verifyOAuthState(state);
+            workspaceId = payload.workspaceId;
+        } catch {
+            return NextResponse.json({ error: "Invalid state parameter" }, { status: 400 });
+        }
 
         if (!workspaceId) {
             return NextResponse.json({ error: "Invalid state" }, { status: 400 });

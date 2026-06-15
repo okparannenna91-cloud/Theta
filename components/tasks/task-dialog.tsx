@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Sheet,
@@ -48,6 +48,7 @@ interface TaskDialogProps {
 
 export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogProps) {
     const queryClient = useQueryClient();
+    const taskIdRef = useRef(task?.id);
     const [title, setTitle] = useState(task?.title || "");
     const [description, setDescription] = useState(task?.description || "");
     const [status, setStatus] = useState(task?.status || "todo");
@@ -67,7 +68,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     const taskChannel = task?.id ? getTaskChannel(workspaceId, task.id) : null;
 
     useAbly(taskChannel, "task:updated", (updatedTask) => {
-        if (updatedTask.id === task.id) {
+        if (updatedTask.id === task.id && updatedTask.id === taskIdRef.current) {
             setTitle(updatedTask.title);
             setDescription(updatedTask.description || "");
             setStatus(updatedTask.status);
@@ -88,6 +89,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
 
     useEffect(() => {
         if (task) {
+            taskIdRef.current = task.id;
             setTitle(task.title);
             setDescription(task.description || "");
             setStatus(task.status);
@@ -225,7 +227,7 @@ Last Description: ${description}`,
                                     <Sparkles className="h-4 w-4 text-primary" />
                                     <h3 className="text-lg font-semibold tracking-tight">Subtasks</h3>
                                 </div>
-                                <TaskSubtasks taskId={task.id} />
+                                <TaskSubtasks taskId={task.id} workspaceId={workspaceId} />
                             </div>
 
                             {/* Attachments */}

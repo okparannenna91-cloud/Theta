@@ -19,7 +19,7 @@ export async function POST(req: Request) {
             .update(rawBody)
             .digest("hex");
 
-        if (hash !== paystackSignature) {
+        if (!crypto.timingSafeEqual(Buffer.from(hash), Buffer.from(paystackSignature))) {
             return NextResponse.json({ error: "Invalid signature" }, { status: 400 });
         }
 

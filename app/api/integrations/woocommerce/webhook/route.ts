@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
 import { getPrismaClient } from "@/lib/prisma";
+import { decrypt } from "@/lib/crypto";
 
 export async function POST(request: NextRequest) {
     const payload = await request.text();
@@ -28,14 +29,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: "Integration not found" }, { status: 404 });
         }
 
-        // WooCommerce verification: if config has a webhookSecret
-        const config = integration.config as any;
-        if (config?.webhookSecret && signature) {
-            const hmac = crypto.createHmac("sha256", config.webhookSecret);
-            const digest = hmac.update(payload).digest("base64");
-            if (signature !== digest) {
-                return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-            }
+        // WooCommerce verification: use consumer secret stored in refreshToken
+        if (!integration.refreshToken) {
+            return NextResponse.json({ error: "Integration not fully configured" }, { status: 401 });
+        }
+        const consumerSecret = decrypt(integration.refreshToken);
+        if (!signature) {
+            return NextResponse.json({ error: "Missing signature" }, { status: 401 });
+        }
+        const hmac = crypto.createHmac("sha256", consumerSecret);
+        const digest = hmac.update(payload).digest("base64");
+        if (!crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(digest))) {
+            return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
         }
 
         // Handle events

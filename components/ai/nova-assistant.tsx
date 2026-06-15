@@ -191,7 +191,12 @@ export function NovaAssistant() {
             // Re-fetch usage to show updated count
             fetchUsage();
         } catch (error: any) {
-            toast.error(error.message || "Nova is having trouble connecting.");
+            const errorMsg = error.message || "Nova is having trouble connecting.";
+            setMessages((prev) => [...prev, {
+                role: "nova",
+                content: `I apologize, but I encountered an issue: ${errorMsg}. Please try again.`,
+                timestamp: new Date(),
+            }]);
         } finally {
             setIsLoading(false);
         }
@@ -208,7 +213,7 @@ export function NovaAssistant() {
     };
 
     return (
-        <div className="fixed bottom-6 right-6 z-[100] flex flex-col items-end font-sans">
+        <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[100] flex-col items-end font-sans">
             <AnimatePresence>
                 {isOpen && (
                     <motion.div
@@ -217,45 +222,46 @@ export function NovaAssistant() {
                             opacity: 1,
                             scale: 1,
                             y: 0,
-                            height: isMinimized ? "72px" : "600px",
-                            width: isMinimized ? "280px" : "450px"
+                            height: isMinimized ? "72px" : "min(600px, 80vh)",
+                            width: isMinimized ? "280px" : "min(450px, 95vw)"
                         }}
                         exit={{ opacity: 0, scale: 0.9, y: 20 }}
                         className={cn(
-                            "mb-4 overflow-hidden rounded-lg shadow-lg border border-white/20 backdrop-blur-2xl bg-white/90 dark:bg-slate-950/90 flex flex-col",
-                            isMinimized ? "h-18" : "h-[600px] w-[95vw] sm:w-[450px]"
+                            "mb-4 overflow-hidden rounded-2xl shadow-2xl border border-white/10 backdrop-blur-2xl bg-white/95 dark:bg-slate-950/95 flex flex-col",
+                            isMinimized ? "h-18" : "h-[80vh] w-[95vw] sm:w-[450px]"
                         )}
                     >
-                        {/* Header */}
-                        <div className="p-5 bg-primary text-white flex items-center justify-between shrink-0 shadow-sm">
-                            <div className="flex items-center gap-3">
-                                <div className="h-10 w-10 rounded-lg bg-white/20 backdrop-blur-md flex items-center justify-center border border-white/30 shadow-inner">
-                                    <Sparkles className="h-5 w-5 text-white animate-pulse" />
+                        {/* Premium Header with Gradient */}
+                        <div className="relative p-5 bg-gradient-to-br from-primary via-primary/90 to-indigo-700 text-white flex items-center justify-between shrink-0 shadow-lg overflow-hidden">
+                            <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.15),transparent_60%)]" />
+                            <div className="flex items-center gap-3 relative z-10">
+                                <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-xl flex items-center justify-center border border-white/30 shadow-lg shadow-black/10">
+                                    <Sparkles className="h-5 w-5 text-white" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="font-extrabold text-base tracking-tight leading-tight">Nova Intelligence</span>
+                                    <span className="font-extrabold text-base tracking-tight leading-tight">Nova</span>
                                     <div className="flex items-center gap-1.5">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                                        <span className="text-[10px] text-white/80 font-medium">AI Connected</span>
+                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-lg shadow-emerald-500/50" />
+                                        <span className="text-[10px] text-white/70 font-medium">AI Connected</span>
                                     </div>
                                 </div>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1 relative z-10">
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-9 w-9 rounded-md text-white hover:bg-white/20 transition-all"
+                                    className="h-9 w-9 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition-all"
                                     onClick={() => setIsMinimized(!isMinimized)}
                                 >
-                                    {isMinimized ? <Maximize2 className="h-5 w-5" /> : <Minimize2 className="h-5 w-5" />}
+                                    {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
                                 </Button>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-9 w-9 rounded-md text-white hover:bg-rose-500 transition-all"
+                                    className="h-9 w-9 rounded-xl text-white/80 hover:text-white hover:bg-rose-500/30 transition-all"
                                     onClick={() => setIsOpen(false)}
                                 >
-                                    <X className="h-5 w-5" />
+                                    <X className="h-4 w-4" />
                                 </Button>
                             </div>
                         </div>
@@ -277,111 +283,117 @@ export function NovaAssistant() {
                                 </div>
 
                                 <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden m-0 data-[state=active]:flex">
-                                    {/* Messages with Professional Styling */}
                                     <div
                                         ref={scrollRef}
-                                        className="flex-1 overflow-y-auto p-6 space-y-6 bg-slate-50/30 dark:bg-slate-950/30 scrollbar-hide"
+                                        className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 sm:space-y-5 bg-gradient-to-b from-slate-50/50 to-white/30 dark:from-slate-950/50 dark:to-slate-950/30 scrollbar-hide"
                                     >
                                     {messages.map((msg, i) => (
-                                        <div
+                                        <motion.div
                                             key={i}
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: i * 0.05 }}
                                             className={cn(
-                                                "flex w-full animate-in fade-in slide-in-from-bottom-3 duration-500",
+                                                "flex w-full",
                                                 msg.role === "user" ? "justify-end" : "justify-start"
                                             )}
                                         >
                                             <div className={cn(
-                                                "flex gap-3 max-w-[88%]",
+                                                "flex gap-2.5 max-w-[92%]",
                                                 msg.role === "user" ? "flex-row-reverse" : "flex-row"
                                             )}>
                                                 <div className={cn(
-                                                    "h-10 w-10 rounded-lg shrink-0 flex items-center justify-center overflow-hidden shadow-md border-2",
-                                                    msg.role === "nova" ? "border-primary/10 bg-white" : "border-slate-100 bg-slate-50"
+                                                    "h-8 w-8 rounded-xl shrink-0 flex items-center justify-center overflow-hidden shadow-lg border-2 mt-1",
+                                                    msg.role === "nova" ? "border-primary/20 bg-gradient-to-br from-primary/10 to-indigo-500/10" : "border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900"
                                                 )}>
                                                     <Image 
                                                         src={msg.role === "nova" ? novaAvatar : userAvatar} 
                                                         alt={msg.role} 
-                                                        width={40} 
-                                                        height={40}
+                                                        width={32} 
+                                                        height={32}
                                                         className="object-cover"
                                                     />
                                                 </div>
-                                                <div className="flex flex-col gap-1.5">
+                                                <div className="flex flex-col gap-1">
                                                     <div className={cn(
-                                                        "rounded-lg px-5 py-3.5 text-[14px] leading-relaxed shadow-sm",
+                                                        "rounded-2xl px-4 py-3 text-[13px] leading-relaxed shadow-sm",
                                                         msg.role === "nova"
-                                                            ? "bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-800 rounded-tl-none prose prose-slate dark:prose-invert max-w-none shadow-[0_4px_15px_rgba(0,0,0,0.03)]"
-                                                            : "bg-primary text-white rounded-tr-none shadow-sm"
+                                                            ? "bg-white dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-800/50 rounded-tl-sm shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
+                                                            : "bg-primary text-white rounded-tr-sm shadow-md"
                                                     )}>
                                                         {msg.role === "nova" ? (
-                                                            <ReactMarkdown 
-                                                                remarkPlugins={[remarkGfm]}
-                                                                components={{
-                                                                    table: ({ children }) => (
-                                                                        <div className="overflow-x-auto my-4 rounded-lg border border-slate-200 dark:border-slate-800 shadow-sm">
-                                                                            <table className="w-full text-[12px] border-collapse bg-white dark:bg-slate-900">
-                                                                                {children}
-                                                                            </table>
-                                                                        </div>
-                                                                    ),
-                                                                    th: ({ children }) => <th className="px-4 py-3 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-bold text-left border-b border-slate-200 dark:border-slate-700">{children}</th>,
-                                                                    td: ({ children }) => <td className="px-4 py-3 border-b border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">{children}</td>,
-                                                                    a: ({ children, href }) => <a href={href} className="text-primary font-medium hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
-                                                                    strong: ({ children }) => <strong className="font-semibold text-primary bg-primary/10 px-1 rounded">{children}</strong>
-                                                                }}
-                                                            >
-                                                                {msg.content}
-                                                            </ReactMarkdown>
+                                                            <div className="prose prose-slate dark:prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-p:my-1 prose-headings:text-xs prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1">
+                                                                <ReactMarkdown 
+                                                                    remarkPlugins={[remarkGfm]}
+                                                                    components={{
+                                                                        table: ({ children }) => (
+                                                                            <div className="overflow-x-auto my-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                                                                <table className="w-full text-[11px] border-collapse bg-white dark:bg-slate-900">
+                                                                                    {children}
+                                                                                </table>
+                                                                            </div>
+                                                                        ),
+                                                                        th: ({ children }) => <th className="px-3 py-2.5 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold text-left border-b border-slate-200 dark:border-slate-700">{children}</th>,
+                                                                        td: ({ children }) => <td className="px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">{children}</td>,
+                                                                        a: ({ children, href }) => <a href={href} className="text-primary font-medium hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
+                                                                    }}
+                                                                >
+                                                                    {msg.content}
+                                                                </ReactMarkdown>
+                                                            </div>
                                                         ) : (
-                                                            msg.content
+                                                            <span className="text-[13px] font-medium">{msg.content}</span>
                                                         )}
 
                                                         {msg.attachments && msg.attachments.length > 0 && (
-                                                            <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-2">
+                                                            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-1.5">
                                                                 {msg.attachments.map((file, idx) => (
-                                                                    <div key={idx} className="flex items-center gap-2 px-3 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-xl text-[11px] font-bold text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
-                                                                        <FileIcon className="w-3.5 h-3.5 text-primary" />
-                                                                        <span>{file.name}</span>
+                                                                    <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
+                                                                        <FileIcon className="w-3 h-3 text-primary" />
+                                                                        <span className="truncate max-w-[80px]">{file.name}</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
                                                         )}
                                                     </div>
                                                     <div className={cn(
-                                                        "text-[10px] px-2 opacity-40 font-medium",
+                                                        "text-[9px] px-1 opacity-30 font-medium",
                                                         msg.role === "user" ? "text-right" : "text-left"
                                                     )}>
                                                         {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        </motion.div>
                                     ))}
                                     {isLoading && (
-                                        <div className="flex justify-start animate-pulse">
-                                            <div className="flex gap-3 items-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-lg rounded-tl-none px-5 py-3 shadow-sm">
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            className="flex justify-start"
+                                        >
+                                            <div className="flex gap-2.5 items-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
                                                 <div className="flex gap-1">
                                                     <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                                                     <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                                                     <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-bounce"></span>
                                                 </div>
-                                                <span className="text-xs font-medium text-muted-foreground">Analyzing...</span>
+                                                <span className="text-xs font-medium text-muted-foreground">Thinking...</span>
                                             </div>
-                                        </div>
+                                        </motion.div>
                                     )}
                                 </div>
 
-                                {/* Modern Footer */}
-                                <CardFooter className="p-6 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950 shrink-0 flex flex-col gap-4">
+                                <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl shrink-0 flex flex-col gap-3">
                                     {attachedFiles.length > 0 && (
-                                        <div className="flex flex-wrap gap-2 w-full animate-in slide-in-from-bottom-2">
+                                        <div className="flex flex-wrap gap-1.5 w-full">
                                             {attachedFiles.map((file, i) => (
-                                                <div key={i} className="group relative flex items-center gap-2 px-3 py-2 bg-primary/5 border border-primary/10 rounded-lg text-xs font-medium text-primary">
-                                                    <Paperclip className="w-3.5 h-3.5" />
-                                                    <span className="truncate max-w-[120px]">{file.name}</span>
+                                                <div key={i} className="group relative flex items-center gap-1.5 px-2.5 py-1.5 bg-primary/5 border border-primary/10 rounded-lg text-[10px] font-medium text-primary">
+                                                    <Paperclip className="w-3 h-3" />
+                                                    <span className="truncate max-w-[100px]">{file.name}</span>
                                                     <button 
                                                         onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))}
-                                                        className="absolute -top-1 -right-1 bg-rose-500 text-white rounded-full w-5 h-5 flex items-center justify-center shadow-lg transform scale-0 group-hover:scale-100 transition-transform"
+                                                        className="ml-1 text-rose-500 hover:text-rose-600"
                                                     >
                                                         <X className="w-3 h-3" />
                                                     </button>
@@ -389,8 +401,8 @@ export function NovaAssistant() {
                                             ))}
                                         </div>
                                     )}
-                                    <form onSubmit={handleSend} className="flex w-full items-center gap-3">
-                                        <div className="flex items-center gap-1.5 bg-slate-50 dark:bg-slate-900 p-1 rounded-lg">
+                                    <form onSubmit={handleSend} className="flex w-full items-center gap-2">
+                                        <div className="flex items-center gap-1 bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-xl">
                                             <input 
                                                 type="file" 
                                                 ref={fileInputRef} 
@@ -402,46 +414,43 @@ export function NovaAssistant() {
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-10 w-10 rounded-lg text-slate-400 hover:text-primary hover:bg-white transition-all"
+                                                className="h-9 w-9 rounded-lg text-slate-400 hover:text-primary hover:bg-white/80 dark:hover:bg-slate-800 transition-all"
                                                 onClick={() => fileInputRef.current?.click()}
                                             >
-                                                <Paperclip className="h-5 w-5" />
+                                                <Paperclip className="h-4 w-4" />
                                             </Button>
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
                                                 className={cn(
-                                                    "h-10 w-10 rounded-lg transition-all",
-                                                    isListening ? "text-rose-500 bg-rose-500/10 animate-pulse" : "text-slate-400 hover:text-primary hover:bg-white"
+                                                    "h-9 w-9 rounded-lg transition-all",
+                                                    isListening ? "text-rose-500 bg-rose-500/10" : "text-slate-400 hover:text-primary hover:bg-white/80 dark:hover:bg-slate-800"
                                                 )}
                                                 onClick={startListening}
                                             >
-                                                <Mic className="h-5 w-5" />
+                                                <Mic className="h-4 w-4" />
                                             </Button>
                                         </div>
-                                        <div className="relative flex-1 group">
+                                        <div className="relative flex-1">
                                             <Input
                                                 placeholder={isLimitReached ? "Limit reached" : "Ask Nova..."}
                                                 value={input}
                                                 onChange={(e) => setInput(e.target.value)}
-                                                className="pr-10 bg-slate-100/50 dark:bg-slate-900/50 border-transparent focus-visible:ring-primary h-12 rounded-lg text-sm font-medium transition-all group-hover:bg-slate-100"
+                                                className="pr-10 bg-slate-100/50 dark:bg-slate-900/50 border-slate-200/50 dark:border-slate-800/50 focus-visible:border-primary/50 h-10 rounded-xl text-sm font-medium transition-all"
                                                 disabled={isLoading || isLimitReached}
                                             />
-                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 rounded-lg bg-white dark:bg-slate-800 flex items-center justify-center shadow-sm border border-slate-100 dark:border-slate-700 pointer-events-none group-focus-within:border-primary transition-colors">
-                                                <ArrowUpCircle className={cn("h-3.5 w-3.5 transition-colors", input.trim() ? "text-primary" : "text-slate-300")} />
-                                            </div>
                                         </div>
                                         <Button
                                             type="submit"
                                             size="icon"
                                             disabled={(!input.trim() && attachedFiles.length === 0) || isLoading || isLimitReached}
-                                            className="h-12 w-12 rounded-lg bg-primary hover:bg-primary/90 text-white shadow-sm transition-all active:scale-95 shrink-0"
+                                            className="h-10 w-10 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-sm transition-all active:scale-95 shrink-0"
                                         >
-                                            <Send className="h-5 w-5" />
+                                            <Send className="h-4 w-4" />
                                         </Button>
                                     </form>
-                                </CardFooter>
+                                </div>
                             </TabsContent>
 
                             <TabsContent value="history" className="flex-1 overflow-y-auto p-6 m-0 bg-slate-50/30">
@@ -527,29 +536,29 @@ export function NovaAssistant() {
         </AnimatePresence>
 
             <motion.button
-                whileHover={{ scale: 1.05, rotate: [0, -5, 5, 0] }}
+                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "flex items-center gap-3 h-16 px-7 rounded-lg shadow-sm transition-all z-50 border-2 border-white/20 backdrop-blur-md",
+                    "flex items-center gap-3 h-14 px-5 rounded-2xl shadow-lg transition-all z-50 border border-white/10 backdrop-blur-xl",
                     isOpen
-                        ? "bg-slate-900 text-white"
-                        : "bg-primary text-white"
+                        ? "bg-slate-900/90 text-white"
+                        : "bg-gradient-to-br from-primary to-indigo-600 text-white shadow-primary/30 hover:shadow-primary/40"
                 )}
             >
                 <div className="relative">
-                    <div className="h-8 w-8 rounded-xl bg-white/20 backdrop-blur-lg flex items-center justify-center border border-white/30">
-                        <Sparkles className="h-5 w-5 text-white" />
+                    <div className="h-8 w-8 rounded-xl bg-white/20 backdrop-blur-lg flex items-center justify-center shadow-inner">
+                        <Sparkles className="h-4 w-4 text-white" />
                     </div>
                     {!isOpen && (
-                        <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-4 w-4 bg-rose-500 border-2 border-white"></span>
+                        <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-white"></span>
                         </span>
                     )}
                 </div>
-                                {!isOpen && <span className="font-semibold text-sm">Nova AI</span>}
-                {isOpen && <X className="h-6 w-6" />}
+                {!isOpen && <span className="font-semibold text-sm tracking-tight">Nova</span>}
+                {isOpen && <X className="h-5 w-5" />}
             </motion.button>
         </div>
     );

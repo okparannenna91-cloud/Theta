@@ -22,7 +22,7 @@ export default clerkMiddleware(async (auth, req) => {
   // Redirect thetapm.site (non-www) → https://www.thetapm.site permanently.
   // Must run BEFORE auth so Clerk doesn't add its own redirect on top.
   const host = req.headers.get('host') ?? '';
-  if (host === 'thetapm.site' || host === 'http://thetapm.site') {
+  if (host === 'thetapm.site' || host === 'thetapm.site:3000') {
     const url = req.nextUrl.clone();
     url.protocol = 'https:';
     url.host = 'www.thetapm.site';

@@ -69,14 +69,15 @@ export const DECISION_PRIORITY_ORDER: string[] = [
 
 export function intentFromString(input: string): NovaIntent {
   const lower = input.toLowerCase();
-  if (lower.includes("create") || lower.includes("make") || lower.includes("add")) return "CREATE";
-  if (lower.includes("delete") || lower.includes("remove") || lower.includes("destroy")) return "DELETE";
-  if (lower.includes("update") || lower.includes("edit") || lower.includes("modify") || lower.includes("change")) return "UPDATE";
-  if (lower.includes("report") || lower.includes("summarize") || lower.includes("analyze")) return "REPORT";
-  if (lower.includes("search") || lower.includes("find") || lower.includes("lookup")) return "SEARCH";
-  if (lower.includes("automate") || lower.includes("workflow") || lower.includes("trigger")) return "AUTOMATE";
-  if (lower.includes("import")) return "IMPORT";
-  if (lower.includes("export")) return "EXPORT";
-  if (lower.includes("read") || lower.includes("get") || lower.includes("show") || lower.includes("list")) return "READ";
+  const hasWord = (w: string) => new RegExp(`\\b${w}\\b`).test(lower);
+  if (hasWord("create") || hasWord("make") || hasWord("add")) return "CREATE";
+  if (hasWord("delete") || hasWord("remove") || hasWord("destroy") || hasWord("erase") || hasWord("purge")) return "DELETE";
+  if (hasWord("update") || hasWord("edit") || hasWord("modify") || hasWord("change")) return "UPDATE";
+  if (hasWord("report") || hasWord("summarize") || hasWord("analyze")) return "REPORT";
+  if (hasWord("search") || hasWord("find") || hasWord("lookup")) return "SEARCH";
+  if (hasWord("automate") || hasWord("workflow") || hasWord("trigger")) return "AUTOMATE";
+  if (hasWord("import")) return "IMPORT";
+  if (hasWord("export")) return "EXPORT";
+  if (hasWord("read") || hasWord("get") || hasWord("show") || hasWord("list")) return "READ";
   return "READ";
 }

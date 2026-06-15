@@ -1,4 +1,4 @@
-import { prisma } from "./prisma";
+import { prisma, getPrismaClient } from "./prisma";
 import { getAblyServer, getWorkspaceChannel } from "./ably";
 
 export type NotificationType =
@@ -29,8 +29,9 @@ export async function createNotification(
     metadata?: NotificationMetadata
 ) {
     try {
+        const db = getPrismaClient(workspaceId);
         // Create notification in database
-        const notification = await prisma.notification.create({
+        const notification = await db.notification.create({
             data: {
                 userId,
                 workspaceId,
@@ -89,7 +90,8 @@ export async function getNotifications(
     workspaceId: string,
     limit: number = 50
 ) {
-    return await prisma.notification.findMany({
+    const db = getPrismaClient(workspaceId);
+    return await db.notification.findMany({
         where: {
             userId,
             workspaceId,
@@ -104,8 +106,9 @@ export async function getNotifications(
 /**
  * Mark notification as read
  */
-export async function markAsRead(notificationId: string) {
-    return await prisma.notification.update({
+export async function markAsRead(notificationId: string, workspaceId: string) {
+    const db = getPrismaClient(workspaceId);
+    return await db.notification.update({
         where: { id: notificationId },
         data: { read: true },
     });
@@ -115,7 +118,8 @@ export async function markAsRead(notificationId: string) {
  * Mark all notifications as read for a user
  */
 export async function markAllAsRead(userId: string, workspaceId: string) {
-    return await prisma.notification.updateMany({
+    const db = getPrismaClient(workspaceId);
+    return await db.notification.updateMany({
         where: {
             userId,
             workspaceId,
@@ -130,8 +134,9 @@ export async function markAllAsRead(userId: string, workspaceId: string) {
 /**
  * Delete a notification
  */
-export async function deleteNotification(notificationId: string) {
-    return await prisma.notification.delete({
+export async function deleteNotification(notificationId: string, workspaceId: string) {
+    const db = getPrismaClient(workspaceId);
+    return await db.notification.delete({
         where: { id: notificationId },
     });
 }
@@ -140,7 +145,8 @@ export async function deleteNotification(notificationId: string) {
  * Get unread notification count
  */
 export async function getUnreadCount(userId: string, workspaceId: string): Promise<number> {
-    return await prisma.notification.count({
+    const db = getPrismaClient(workspaceId);
+    return await db.notification.count({
         where: {
             userId,
             workspaceId,

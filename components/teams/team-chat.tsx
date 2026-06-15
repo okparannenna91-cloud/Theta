@@ -377,23 +377,29 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                                                         <span className="line-clamp-2 italic">{msg.replyTo.content}</span>
                                                     </div>
                                                 )}
-                                                {msg.attachment && (
-                                                    <div className="mb-4">
-                                                        {msg.attachment.category === "image" ? (
-                                                            <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" className="block relative h-60 w-80 overflow-hidden rounded-xl border hover:scale-105 transition-transform duration-700">
-                                                                <Image src={msg.attachment.url} alt="Image" fill className="object-cover" />
-                                                            </a>
-                                                        ) : (
-                                                            <a href={msg.attachment.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 bg-black/10 rounded-xl hover:bg-black/20 transition-all">
-                                                                <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center"><FileText className="h-5 w-5" /></div>
-                                                                <div className="flex flex-col">
-                                                                    <span className="text-xs font-semibold truncate max-w-[150px]">{msg.attachment.originalName}</span>
-                                                                    <span className="text-[10px] text-muted-foreground">Document</span>
-                                                                </div>
-                                                            </a>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                    {msg.attachment && (() => {
+                                                        const url = (() => {
+                                                            try { const u = new URL(msg.attachment.url); if (u.protocol === "http:" || u.protocol === "https:") return u.href; } catch {}
+                                                            return "#";
+                                                        })();
+                                                        return (
+                                                        <div className="mb-4">
+                                                            {msg.attachment.category === "image" ? (
+                                                                <a href={url} target="_blank" rel="noopener noreferrer" className="block relative h-60 w-80 overflow-hidden rounded-xl border hover:scale-105 transition-transform duration-700">
+                                                                    <Image src={url} alt="Image" fill className="object-cover" />
+                                                                </a>
+                                                            ) : (
+                                                                <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-4 p-4 bg-black/10 rounded-xl hover:bg-black/20 transition-all">
+                                                                    <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center"><FileText className="h-5 w-5" /></div>
+                                                                    <div className="flex flex-col">
+                                                                        <span className="text-xs font-semibold truncate max-w-[150px]">{msg.attachment.originalName}</span>
+                                                                        <span className="text-[10px] text-muted-foreground">Document</span>
+                                                                    </div>
+                                                                </a>
+                                                            )}
+                                                        </div>
+                                                        );
+                                                    })()}
                                             </div>
                                         </div>
                                     </div>

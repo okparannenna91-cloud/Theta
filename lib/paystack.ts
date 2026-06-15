@@ -1,5 +1,14 @@
-const PAYSTACK_SECRET_KEY = process.env.PAYSTACK_SECRET_KEY;
+import { logger } from "./logger";
+
 const PAYSTACK_API_URL = "https://api.paystack.co";
+
+function getSecretKey(): string {
+  const key = process.env.PAYSTACK_SECRET_KEY;
+  if (!key) {
+    throw new Error("PAYSTACK_SECRET_KEY is not defined");
+  }
+  return key;
+}
 
 export interface PaystackInitializeResponse {
     status: boolean;
@@ -42,66 +51,56 @@ export interface PaystackVerifyResponse {
     };
 }
 
+async function paystackFetch(path: string, options: RequestInit = {}): Promise<any> {
+  const secretKey = getSecretKey();
+  const url = `${PAYSTACK_API_URL}${path}`;
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      Authorization: `Bearer ${secretKey}`,
+      "Content-Type": "application/json",
+      ...(options.headers || {}),
+    },
+  });
+  const result = await response.json();
+  if (!response.ok) {
+    throw new Error(result.message || `Paystack API error: ${response.statusText}`);
+  }
+  return result;
+}
+
 export const paystack = {
-    /**
-     * Initialize a transaction
-     */
     async initializeTransaction(data: {
         email: string;
-        amount: number; // in lowest currency unit (e.g. Kobo for NGN, Cents for USD)
+        amount: number;
         reference?: string;
         callback_url?: string;
         metadata?: any;
-        plan?: string; // Optional: Paystack Plan Code for recurring subscriptions
+        plan?: string;
         currency?: string;
     }): Promise<PaystackInitializeResponse> {
         try {
-            const response = await fetch(`${PAYSTACK_API_URL}/transaction/initialize`, {
+            return await paystackFetch("/transaction/initialize", {
                 method: "POST",
-                headers: {
-                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-                    "Content-Type": "application/json",
-                },
                 body: JSON.stringify({ ...data, currency: data.currency || "NGN" }),
             });
-
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.message || "Failed to initialize Paystack transaction");
-            }
-            return result;
         } catch (error: any) {
-            console.error("Paystack Initialize Error:", error.message);
+            logger.error("Paystack Initialize Error:", error.message);
             throw error;
         }
     },
 
-    /**
-     * Verify a transaction
-     */
     async verifyTransaction(reference: string): Promise<PaystackVerifyResponse> {
         try {
-            const response = await fetch(`${PAYSTACK_API_URL}/transaction/verify/${reference}`, {
+            return await paystackFetch(`/transaction/verify/${reference}`, {
                 method: "GET",
-                headers: {
-                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-                },
             });
-
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.message || "Failed to verify Paystack transaction");
-            }
-            return result;
         } catch (error: any) {
-            console.error("Paystack Verify Error:", error.message);
+            logger.error("Paystack Verify Error:", error.message);
             throw error;
         }
     },
 
-    /**
-     * Create a plan
-     */
     async createPlan(data: {
         name: string;
         interval: "hourly" | "daily" | "weekly" | "monthly" | "annually";
@@ -109,29 +108,16 @@ export const paystack = {
         currency?: string;
     }) {
         try {
-            const response = await fetch(`${PAYSTACK_API_URL}/plan`, {
+            return await paystackFetch("/plan", {
                 method: "POST",
-                headers: {
-                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({ ...data, currency: "NGN" }), // Allow NGN
+                body: JSON.stringify({ ...data, currency: "NGN" }),
             });
-
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.message || "Failed to create Paystack plan");
-            }
-            return result;
         } catch (error: any) {
-            console.error("Paystack Create Plan Error:", error.message);
+            logger.error("Paystack Create Plan Error:", error.message);
             throw error;
         }
     },
 
-    /**
-     * Charge an authorization (Recurring)
-     */
     async chargeAuthorization(data: {
         email: string;
         amount: number;
@@ -141,22 +127,12 @@ export const paystack = {
         currency?: string;
     }) {
         try {
-            const response = await fetch(`${PAYSTACK_API_URL}/transaction/charge_authorization`, {
+            return await paystackFetch("/transaction/charge_authorization", {
                 method: "POST",
-                headers: {
-                    Authorization: `Bearer ${PAYSTACK_SECRET_KEY}`,
-                    "Content-Type": "application/json",
-                },
                 body: JSON.stringify({ ...data, currency: data.currency || "NGN" }),
             });
-
-            const result = await response.json();
-            if (!response.ok) {
-                throw new Error(result.message || "Failed to charge Paystack authorization");
-            }
-            return result;
         } catch (error: any) {
-            console.error("Paystack Charge Authorization Error:", error.message);
+            logger.error("Paystack Charge Authorization Error:", error.message);
             throw error;
         }
     }

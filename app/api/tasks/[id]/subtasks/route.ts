@@ -8,6 +8,18 @@ const subtaskSchema = z.object({
     order: z.number().optional(),
 });
 
+async function recalculateTaskProgress(taskId: string, db: any) {
+    const [subtasks, completedCount] = await Promise.all([
+        db.subtask.count({ where: { taskId } }),
+        db.subtask.count({ where: { taskId, completed: true } }),
+    ]);
+    const progress = subtasks > 0 ? Math.round((completedCount / subtasks) * 100) : 0;
+    await db.task.update({
+        where: { id: taskId },
+        data: { progress },
+    });
+}
+
 export async function GET(
     req: Request,
     { params }: { params: { id: string } }
@@ -56,10 +68,7 @@ export async function POST(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: task, db } = await findAcrossShards<any>("task", {
-            id: params.id,
-            select: { workspaceId: true },
-        });
+        const { data: task, db } = await findAcrossShards<any>("task", { id: params.id });
 
         if (!task) {
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -89,6 +98,8 @@ export async function POST(
                 taskId: params.id,
             },
         });
+
+        await recalculateTaskProgress(params.id, db);
 
         return NextResponse.json(subtask);
     } catch (error) {

@@ -19,10 +19,11 @@ const SLACK_SCOPES = [
 ].join(",");
 
 export function getSlackAuthUrl(workspaceId: string): string {
+    const { signOAuthState } = require("@/lib/crypto");
     const clientId = process.env.SLACK_CLIENT_ID;
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/slack/callback`;
-    // We pass the workspaceId in the state so we know which workspace to link the token to on callback
-    const state = Buffer.from(JSON.stringify({ workspaceId })).toString("base64");
+    // We pass the workspaceId in the state (HMAC-signed to prevent CSRF)
+    const state = signOAuthState({ workspaceId });
 
     return `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${SLACK_SCOPES}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
 }
@@ -69,12 +70,13 @@ export async function notifyWorkspace(
 ): Promise<void> {
     try {
         const { getPrismaClient } = await import("@/lib/prisma");
+        const { decrypt } = await import("@/lib/crypto");
         const db = getPrismaClient(workspaceId);
 
         const integration = await db.integration.findFirst({
             where: {
                 workspaceId,
-                type: "slack",   // Integration model uses `type` not `provider`
+                type: "slack",
             },
         });
 
@@ -82,6 +84,7 @@ export async function notifyWorkspace(
 
         const config = integration.config as any;
         const channel = config?.channelId || config?.channel || "general";
+        const accessToken = decrypt(integration.accessToken);
 
         if (!channel) return;
 
@@ -109,7 +112,7 @@ export async function notifyWorkspace(
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
-                Authorization: `Bearer ${integration.accessToken}`,
+                Authorization: `Bearer ${accessToken}`,
             },
             body: JSON.stringify({
                 channel,

@@ -1,8 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
 
-/**
- * OpenRouter Provider for Vercel AI SDK
- */
 export const openrouter = createOpenAI({
   apiKey: process.env.OPENROUTER,
   baseURL: "https://openrouter.ai/api/v1",
@@ -12,10 +9,13 @@ export const openrouter = createOpenAI({
   }
 });
 
-/**
- * Generate a response using OpenRouter (Standard Fetch)
- */
-export async function generateWithOpenRouter(prompt: string, systemPrompt?: string, imageUrl?: string, modelName?: string) {
+export async function generateWithOpenRouter(
+  prompt: string,
+  systemPrompt?: string,
+  imageUrl?: string,
+  modelName?: string,
+  signal?: AbortSignal
+) {
     const apiKey = process.env.OPENROUTER;
     if (!apiKey) {
         throw new Error("OpenRouter API key missing");
@@ -55,12 +55,24 @@ export async function generateWithOpenRouter(prompt: string, systemPrompt?: stri
         body: JSON.stringify({
             model,
             messages: messages,
-        })
+        }),
+        signal,
     });
 
-    const data = await response.json();
     if (!response.ok) {
-        throw new Error(data.error?.message || "OpenRouter error");
+        let errorMessage = "OpenRouter error";
+        try {
+            const errorData = await response.json();
+            errorMessage = errorData.error?.message || `OpenRouter returned status ${response.status}`;
+        } catch {
+            errorMessage = `OpenRouter returned status ${response.status}`;
+        }
+        throw new Error(errorMessage);
+    }
+
+    const data = await response.json();
+    if (!data.choices?.[0]?.message?.content) {
+        throw new Error("OpenRouter returned empty response");
     }
 
     return data.choices[0].message.content;

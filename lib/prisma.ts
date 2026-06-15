@@ -40,7 +40,7 @@ const createClient = (shardName: string, url: string | undefined) => {
   // - socketTimeoutMS: 30000 (standard)
   const params = [
     "connectTimeoutMS=5000",
-    "maxPoolSize=10",
+    "maxPoolSize=50",
     "retryWrites=true",
     "socketTimeoutMS=30000"
   ];
@@ -68,8 +68,9 @@ const createClient = (shardName: string, url: string | undefined) => {
     });
 
     return client;
-  } catch (err: any) {
-    logger.error(`FAILED to initialize ${shardName}:`, err.message);
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
+    logger.error(`FAILED to initialize ${shardName}:`, errMsg);
     return undefined;
   }
 };
@@ -82,11 +83,21 @@ const uris = [
 ];
 
 // Initialize/Retrieve Shards from Global Singleton
-export const prismaShard1 = globalStore.shard1 || (globalStore.shard1 = createClient("Shard 1", uris[0])!);
-export const prismaShard2 = globalStore.shard2 || (globalStore.shard2 = createClient("Shard 2", uris[1]) || prismaShard1);
-export const prismaShard3 = globalStore.shard3 || (globalStore.shard3 = createClient("Shard 3", uris[2]) || prismaShard1);
+function requireShard(name: string, uri: string | undefined, fallback: PrismaClient | undefined): PrismaClient {
+  const client = createClient(name, uri);
+  if (!client) {
+    if (fallback) {
+      logger.error(`CRITICAL: ${name} failed to initialize — using fallback. Data for ${name} will be stored on the fallback shard!`);
+    }
+    return fallback ?? (() => { throw new Error(`${name} failed to initialize and no fallback available`); })();
+  }
+  return client;
+}
 
-export const prismaShard4 = prismaShard1;
+export const prismaShard1 = globalStore.shard1 || (globalStore.shard1 = createClient("Shard 1", uris[0])!);
+export const prismaShard2 = globalStore.shard2 || (globalStore.shard2 = requireShard("Shard 2", uris[1], prismaShard1));
+export const prismaShard3 = globalStore.shard3 || (globalStore.shard3 = requireShard("Shard 3", uris[2], prismaShard1));
+
 export const prisma = prismaShard1;
 
 /**
@@ -130,13 +141,15 @@ export async function findAcrossShards<T>(
   if (options.workspaceId) {
     const scopedClient = getPrismaClient(options.workspaceId);
     try {
+      let timer: ReturnType<typeof setTimeout> | undefined;
       const record = await Promise.race([
         // @ts-ignore
         scopedClient[modelName].findFirst({ where }),
-        new Promise((_, reject) =>
-          setTimeout(() => reject(new Error(`Timeout (${timeoutMs}ms) on scoped shard`)), timeoutMs)
-        ),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error(`Timeout (${timeoutMs}ms) on scoped shard`)), timeoutMs);
+        }),
       ]);
+      clearTimeout(timer);
       if (record) return { data: record as T, db: scopedClient };
     } catch (err: any) {
       logger.warn(`Scoped shard query for ${modelName} failed: ${err.message}`);
@@ -159,18 +172,21 @@ export async function findAcrossShards<T>(
     if (!shard) return null;
     
     try {
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error(`Timeout (${timeoutMs}ms) on ${shardObj.name}`)), timeoutMs)
-      );
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeoutPromise = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`Timeout (${timeoutMs}ms) on ${shardObj.name}`)), timeoutMs);
+      });
       
       // @ts-ignore
       const queryPromise = shard[modelName].findFirst({ where });
       
       const record = await Promise.race([queryPromise, timeoutPromise]);
+      clearTimeout(timer);
       if (record) return { data: record as T, db: shard as PrismaClient };
       return null;
-    } catch (err: any) {
-      logger.warn(`Cross-shard query on ${shardObj.name} for ${modelName} failed: ${err.message}`);
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err);
+      logger.warn(`Cross-shard query on ${shardObj.name} for ${modelName} failed: ${errMsg}`);
       return null;
     }
   };

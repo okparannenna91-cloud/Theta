@@ -1,6 +1,7 @@
 // Remove top-level prisma import to avoid circular dependencies and initialization loops
 // import { prisma } from "./prisma";
 import { PlanName, getPlanLimits, getUsagePercentage, getWarningLevel } from "./plan-limits";
+import { logger } from "./logger";
 
 export interface UsageStats {
     projects: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
@@ -99,7 +100,7 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
             automations: createStat(automationCount, limits.maxAutomations),
         };
     } catch (error) {
-        console.error("getUsageStats Error:", error);
+        logger.error("getUsageStats Error:", error);
         throw error;
     }
 }

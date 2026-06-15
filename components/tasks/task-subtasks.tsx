@@ -17,11 +17,20 @@ interface Subtask {
 
 interface TaskSubtasksProps {
     taskId: string;
+    workspaceId?: string;
 }
 
-export function TaskSubtasks({ taskId }: TaskSubtasksProps) {
+export function TaskSubtasks({ taskId, workspaceId }: TaskSubtasksProps) {
     const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
     const queryClient = useQueryClient();
+
+    const invalidateRelated = () => {
+        queryClient.invalidateQueries({ queryKey: ["subtasks", taskId] });
+        if (workspaceId) {
+            queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
+        }
+    };
 
     const { data: subtasks, isLoading } = useQuery<Subtask[]>({
         queryKey: ["subtasks", taskId],
@@ -39,13 +48,19 @@ export function TaskSubtasks({ taskId }: TaskSubtasksProps) {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ title }),
             });
-            if (!res.ok) throw new Error("Failed to create subtask");
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || "Failed to create subtask");
+            }
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["subtasks", taskId] });
+            invalidateRelated();
             setNewSubtaskTitle("");
             toast.success("Subtask added");
+        },
+        onError: (err: Error) => {
+            toast.error(err.message);
         },
     });
 
@@ -60,7 +75,7 @@ export function TaskSubtasks({ taskId }: TaskSubtasksProps) {
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["subtasks", taskId] });
+            invalidateRelated();
         },
     });
 
@@ -71,7 +86,7 @@ export function TaskSubtasks({ taskId }: TaskSubtasksProps) {
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["subtasks", taskId] });
+            invalidateRelated();
             toast.success("Subtask removed");
         },
     });

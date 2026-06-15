@@ -424,16 +424,13 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
 
         // Optimistic update
         const tempId = Date.now().toString();
+        const assistantId = "nova-" + Date.now();
         setMessages(prev => [...prev, { id: tempId, role: "user", content: userMessage, createdAt: new Date().toISOString() }]);
 
         try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased to 15s for actions
-
             const res = await fetch("/api/ai", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                signal: controller.signal,
                 body: JSON.stringify({
                     prompt: userMessage,
                     workspaceId,
@@ -443,7 +440,6 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                 })
             });
 
-            clearTimeout(timeoutId);
             setAttachment(null);
 
             if (!res.ok) {
@@ -453,18 +449,28 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                     throw new Error("Rate limited");
                 }
                 if (res.status === 403) {
+                    const errorData = tryParseJSON(errorText);
+                    if (errorData?.requiresApproval) {
+                        setMessages(prev => [...prev, { 
+                            id: "nova-" + Date.now(), 
+                            role: "assistant", 
+                            content: errorData.error || "This action requires confirmation.",
+                            createdAt: new Date().toISOString() 
+                        }]);
+                        return;
+                    }
                     toast.error("Permission denied — you don't have access to perform this action.", { duration: 5000 });
                     throw new Error("Access denied");
                 }
-                throw new Error(errorText || `Connection failed with status ${res.status}`);
+                const errorMessage = errorText || `Connection failed with status ${res.status}`;
+                const errorData = tryParseJSON(errorText);
+                throw new Error(errorData?.error || errorMessage);
             }
 
             const reader = res.body?.getReader();
             const decoder = new TextDecoder();
             let accumulatedResponse = "";
-            const assistantId = "nova-" + Date.now();
 
-            // Initial assistant bubble with "Thinking" state
             setMessages(prev => [...prev, { 
                 id: assistantId, 
                 role: "assistant", 
@@ -491,16 +497,18 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
                     ));
                 }
 
-                // If stream was empty, show a fallback message
                 if (!accumulatedResponse) {
                     setMessages(prev => prev.map(m => 
-                        m.id === assistantId ? { ...m, content: "Nova is taking her time to architect this perfectly. Please stay on this page; she'll be with you shortly." } : m
+                        m.id === assistantId ? { ...m, content: "I'm ready to help. What would you like to work on?" } : m
                     ));
                 }
             }
         } catch (error: any) {
-            console.error("Failed to send message:", error);
-            toast.error(error.message || "Nova connection lost");
+            const errorMessage = error.message || "Nova encountered a connection issue. Please try again.";
+            console.error("[Nova] Failed to send message:", error);
+            setMessages(prev => prev.map(m =>
+                m.id === assistantId ? { ...m, content: `I apologize, but I encountered an issue: ${errorMessage}. Please try rephrasing your request.` } : m
+            ));
         } finally {
             setIsLoading(false);
         }
@@ -534,6 +542,10 @@ export function NovaChatView({ conversationId, workspaceId }: NovaChatViewProps)
         } finally {
             setIsUploading(false);
         }
+    };
+
+    const tryParseJSON = (text: string): any => {
+        try { return JSON.parse(text); } catch { return null; }
     };
 
     const convertToTask = async (content: string) => {

@@ -1,3 +1,4 @@
+import { logger } from "./logger";
 
 export interface IvnoPaymentRequest {
     amount: number;
@@ -20,17 +21,20 @@ export interface IvnoPaymentResponse {
     currency: string;
 }
 
-export async function createIvnoPayment(data: IvnoPaymentRequest): Promise<IvnoPaymentResponse> {
+function getIvnoCredentials(): { apiKey: string; apiSecret: string } {
     const apiKey = process.env.IVNO_API_KEY;
     const apiSecret = process.env.IVNO_API_SECRET;
-    // According to full docs: https://app.ivno.io/api/ivno/v1/payments/create
-    const apiUrl = process.env.IVNO_API_URL || "https://app.ivno.io/api/ivno/v1/payments/create";
-
     if (!apiKey || !apiSecret) {
         throw new Error("IVNO_API_KEY or IVNO_API_SECRET is not defined");
     }
+    return { apiKey, apiSecret };
+}
 
-    console.log(`[Ivno] Initializing payment at ${apiUrl}...`);
+export async function createIvnoPayment(data: IvnoPaymentRequest): Promise<IvnoPaymentResponse> {
+    const { apiKey, apiSecret } = getIvnoCredentials();
+    const apiUrl = process.env.IVNO_API_URL || "https://app.ivno.io/api/ivno/v1/payments/create";
+
+    logger.info(`[Ivno] Initializing payment at ${apiUrl}...`);
 
     const response = await fetch(apiUrl, {
         method: "POST",
@@ -51,12 +55,12 @@ export async function createIvnoPayment(data: IvnoPaymentRequest): Promise<IvnoP
     try {
         result = JSON.parse(text);
     } catch (e) {
-        console.error("[Ivno] Received non-JSON response:", text);
+        logger.error("[Ivno] Received non-JSON response:", text);
         throw new Error(`Ivno API error (Non-JSON): ${text.substring(0, 150)}...`);
     }
 
     if (!response.ok || result.success === false) {
-        console.error("Ivno Payment Creation Error:", result);
+        logger.error("Ivno Payment Creation Error:", result);
         throw new Error(result.message || result.error || `Failed to create Ivno payment: ${response.statusText}`);
     }
 

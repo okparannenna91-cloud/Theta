@@ -61,8 +61,8 @@ export async function POST(req: Request) {
         const webhookUrl = `${baseUrl}/api/webhooks/ivno`;
         const returnUrl = `${baseUrl}/dashboard/billing?payment=success`;
 
-        // Build the order ID using the dot-delimited format to avoid underscore conflicts
-        const orderId = buildIvnoOrderId(
+        // Build the order ID (hash-based, not exposing internal IDs)
+        const orderId: string = await buildIvnoOrderId(
             workspaceId,
             plan.planKey,
             interval

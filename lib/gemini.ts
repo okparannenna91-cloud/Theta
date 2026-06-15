@@ -1,16 +1,24 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { logger } from "./logger";
 
-const apiKey = process.env.GEMINI_API_KEY;
+let _genAI: GoogleGenerativeAI | null = null;
 
-if (!apiKey) {
-    logger.warn("GEMINI_API_KEY is not defined in environment variables. Boots AI will not function.");
+function getGenAI(): GoogleGenerativeAI {
+  if (!_genAI) {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is not defined in environment variables.");
+    }
+    logger.info("Gemini client initialized.");
+    _genAI = new GoogleGenerativeAI(apiKey);
+  }
+  return _genAI;
 }
 
-const genAI = new GoogleGenerativeAI(apiKey!);
+export function getModel() {
+  return getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
+}
 
-// Using gemini-1.5-flash which is the standard model for project management tasks.
-export const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-// 1.5-flash is natively multimodal, so it handles vision tasks as well
-export const visionModel = model;
+export function getVisionModel() {
+  return getModel();
+}
