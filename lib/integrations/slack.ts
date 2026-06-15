@@ -76,7 +76,7 @@ export async function notifyWorkspace(
         const integration = await db.integration.findFirst({
             where: {
                 workspaceId,
-                type: "slack",
+                provider: "slack",
             },
         });
 

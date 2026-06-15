@@ -51,7 +51,7 @@ export async function GET(req: Request) {
         const existingIntegration = await prisma.integration.findFirst({
             where: {
                 workspaceId,
-                type: "slack",
+                provider: "slack",
             }
         });
 
@@ -72,7 +72,7 @@ export async function GET(req: Request) {
         } else {
             await prisma.integration.create({
                 data: {
-                    type: "slack",
+                    provider: "slack",
                     workspaceId,
                     accessToken: encrypt(slackData.access_token),
                     config: {
