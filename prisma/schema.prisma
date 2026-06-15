@@ -44,6 +44,7 @@ model Workspace {
   documents     Document[]
   forms         Form[]
   aiConversations AiConversation[]
+  aiMemories      AiMemory[]
   aiModelConfigs  AiModelConfig[]
   contextSnapshots AiContextSnapshot[]
   savedSearches   SavedSearch[]
@@ -182,6 +183,7 @@ model User {
   timeLogs      TimeLog[]
   documents     Document[]
   preferences   UserPreference?
+  subscriptions   Subscription[]
   aiConversations AiConversation[]
   aiMemories      AiMemory[]
   contextSnapshots AiContextSnapshot[]
@@ -696,7 +698,6 @@ model Subscription {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
   @@map("subscriptions")
 }
 
