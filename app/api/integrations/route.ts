@@ -43,8 +43,6 @@ export async function GET(req: Request) {
         // We NEVER return accessToken or refreshToken to the frontend.
         const safeIntegrations = integrations.map(int => ({
             id: int.id,
-            type: int.type,
-            // @ts-ignore
             provider: int.provider,
             updatedAt: int.updatedAt,
             config: int.config,
