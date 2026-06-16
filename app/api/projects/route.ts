@@ -4,6 +4,7 @@ import { getPrismaClient } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { canCreateProject, getPlanLimitMessage, PlanName, enforcePlanLimit } from "@/lib/plan-limits";
 import { getProjectCount } from "@/lib/usage-tracking";
+import { getAccessibleProjectIds } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const projectSchema = z.object({
@@ -11,6 +12,7 @@ const projectSchema = z.object({
   description: z.string().optional(),
   color: z.string().optional(),
   coverImage: z.string().optional(),
+  visibility: z.enum(["private", "team_access", "workspace_visible"]).optional().default("private"),
   teamId: z.string().optional(),
   workspaceId: z.string(),
 });
@@ -46,6 +48,9 @@ export async function GET(req: Request) {
     const db = getPrismaClient(workspaceId);
     let whereClause: any = { workspaceId };
 
+    // Filter by project permissions
+    const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+
     if (teamId) {
       // Verify team membership
       const membership = await db.teamMember.findUnique({
@@ -61,7 +66,9 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
 
-      whereClause = { workspaceId, teamId };
+      whereClause = { workspaceId, teamId, id: { in: accessibleProjectIds } };
+    } else {
+      whereClause = { workspaceId, id: { in: accessibleProjectIds } };
     }
 
     const projects = await db.project.findMany({
@@ -216,6 +223,7 @@ export async function POST(req: Request) {
         description: data.description,
         color: data.color,
         coverImage: data.coverImage,
+        visibility: data.visibility,
         workspaceId: data.workspaceId,
         userId: user.id,
         teamId: data.teamId || null,

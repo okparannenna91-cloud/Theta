@@ -20,6 +20,13 @@ export async function GET(
         if (!teamResult.data) {
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
+
+        // Verify workspace access (teams are workspace-scoped)
+        const { verifyWorkspaceAccess } = await import("@/lib/workspace");
+        const hasAccess = await verifyWorkspaceAccess(user.id, teamResult.data.workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
         
         const db = teamResult.db;
 

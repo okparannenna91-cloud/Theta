@@ -156,7 +156,8 @@ export async function getUnreadCount(userId: string, workspaceId: string): Promi
 }
 
 /**
- * Notify all members of a workspace except the actor
+ * Notify members of a workspace (optionally filtered by project access).
+ * If metadata includes a projectId, recipients are filtered to only those with access.
  */
 export async function notifyWorkspaceMembers(
     workspaceId: string,
@@ -170,7 +171,23 @@ export async function notifyWorkspaceMembers(
         const { getWorkspaceMembers } = await import("./workspace");
         const members = await getWorkspaceMembers(workspaceId);
         
-        const otherMembers = members.filter(m => m.userId !== actorId);
+        let otherMembers = members.filter(m => m.userId !== actorId);
+
+        // If notification is about a specific project, filter recipients by project access
+        const projectId = metadata?.projectId as string | undefined;
+        if (projectId) {
+            const { canAccessProject } = await import("./project-permissions");
+            const accessResults = await Promise.all(
+                otherMembers.map(async (m) => ({
+                    userId: m.userId,
+                    hasAccess: (await canAccessProject(m.userId, projectId, workspaceId)).hasAccess,
+                }))
+            );
+            const accessibleUserIds = new Set(
+                accessResults.filter(r => r.hasAccess).map(r => r.userId)
+            );
+            otherMembers = otherMembers.filter(m => accessibleUserIds.has(m.userId));
+        }
         
         await Promise.all(
             otherMembers.map(m => 

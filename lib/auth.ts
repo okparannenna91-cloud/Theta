@@ -1,23 +1,34 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { createWorkspace } from "@/lib/workspace";
+import { logger } from "@/lib/logger";
 
 export async function getCurrentUser() {
+  const timings: Record<string, number> = {};
+  const start = Date.now();
+
+  timings['clerk_auth'] = Date.now();
   const { userId } = await auth();
+  timings['clerk_auth'] = Date.now() - timings['clerk_auth'];
+
   if (!userId) return null;
 
-  // Try to find user in local database first to avoid slow Clerk currentUser() call
+  timings['db_user_lookup'] = Date.now();
   let user = await prisma.user.findUnique({
     where: { clerkId: userId },
   });
+  timings['db_user_lookup'] = Date.now() - timings['db_user_lookup'];
 
   let isNewUser = false;
 
   if (!user) {
-    // User not found in local DB, fetch full profile from Clerk
+    timings['clerk_currentUser'] = Date.now();
     const clerkUser = await currentUser();
+    timings['clerk_currentUser'] = Date.now() - timings['clerk_currentUser'];
+
     if (!clerkUser) return null;
 
+    timings['db_user_create'] = Date.now();
     try {
       user = await prisma.user.create({
         data: {
@@ -38,28 +49,23 @@ export async function getCurrentUser() {
       }
       if (!user) throw error;
     }
-  } else {
-    // Optional: Only update profile if last update was more than 24h ago or similar
-    // For now, let's keep it simple and skip the update on every request to boost performance
+    timings['db_user_create'] = Date.now() - timings['db_user_create'];
   }
 
-  // Create default workspace for new users
   if (isNewUser && user) {
     const userIdForWorkspace = user.id;
     const userEmail = user.email;
     const userName = user.name;
 
-    // Run this in the background to avoid blocking the initial response
     (async () => {
       try {
         const workspaceName = userName
           ? `${userName}'s Workspace`
           : "My Workspace";
-        
+
         const { createWorkspace } = await import("@/lib/workspace");
         await createWorkspace(userIdForWorkspace, workspaceName, "free");
 
-        // Send welcome email
         if (userEmail) {
           const { sendWelcomeEmail } = await import("@/lib/email");
           await sendWelcomeEmail(userEmail, userName || "there");
@@ -68,6 +74,11 @@ export async function getCurrentUser() {
         console.error("Background initial setup failed:", error);
       }
     })();
+  }
+
+  const total = Date.now() - start;
+  if (total > 200) {
+    logger.warn("[Auth] Slow getCurrentUser", { total: `${total}ms`, ...Object.fromEntries(Object.entries(timings).map(([k, v]) => [k, `${v}ms`])), userId });
   }
 
   return user;

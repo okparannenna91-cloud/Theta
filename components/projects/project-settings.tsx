@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import {
     Dialog,
@@ -35,6 +36,7 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
     const [name, setName] = useState(project.name);
     const [description, setDescription] = useState(project.description || "");
     const [color, setColor] = useState(project.color || "#4f46e5");
+    const [visibility, setVisibility] = useState(project.visibility || "private");
     const { showConfirm, showUpgradePrompt } = usePopups();
     const queryClient = useQueryClient();
     const router = useRouter();
@@ -44,7 +46,7 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
             const res = await fetch(`/api/projects/${project.id}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name, description, color }),
+                body: JSON.stringify({ name, description, color, visibility }),
             });
             if (!res.ok) {
                 const data = await res.json();
@@ -146,6 +148,20 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
                                    <span className="text-sm font-semibold opacity-70">{color}</span>
                               </div>
                          </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label className="text-xs font-semibold text-slate-500">Project Visibility</Label>
+                        <Select name="visibility" value={visibility} onValueChange={setVisibility}>
+                            <SelectTrigger className="h-12 rounded-lg">
+                                <SelectValue placeholder="Select visibility" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="private">Private</SelectItem>
+                                <SelectItem value="team_access">Team Access</SelectItem>
+                                <SelectItem value="workspace_visible">Workspace Visible</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </div>
                 </CardContent>
                 <CardFooter className="bg-slate-50/50 dark:bg-slate-900/50 border-t p-6 flex justify-end">

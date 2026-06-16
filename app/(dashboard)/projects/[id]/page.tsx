@@ -109,7 +109,18 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                             </Button>
                         </Link>
                         <div>
-                            <h1 className="text-xl font-semibold text-foreground">{project.name}</h1>
+                            <div className="flex items-center gap-2">
+                                <h1 className="text-xl font-semibold text-foreground">{project.name}</h1>
+                                {project.visibility === "private" && (
+                                    <Badge variant="secondary" className="text-xs rounded-md px-2 py-0 h-5">Private</Badge>
+                                )}
+                                {project.visibility === "team_access" && (
+                                    <Badge className="text-xs rounded-md px-2 py-0 h-5 bg-blue-500/15 text-blue-600 border-blue-500/30">Team Access</Badge>
+                                )}
+                                {project.visibility === "workspace_visible" && (
+                                    <Badge className="text-xs rounded-md px-2 py-0 h-5 bg-emerald-500/15 text-emerald-600 border-emerald-500/30">Workspace</Badge>
+                                )}
+                            </div>
                             <div className="flex items-center gap-2 mt-0.5">
                                 <p className="text-xs text-muted-foreground">
                                     Created {new Date(project.createdAt).toLocaleDateString()}

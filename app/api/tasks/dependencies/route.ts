@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
 import { publishToChannel, getWorkspaceChannel } from "@/lib/ably";
 
@@ -33,6 +34,22 @@ export async function POST(req: Request) {
     // Prevent circular dependencies (basic check)
     if (data.taskId === data.predecessorId) {
         return NextResponse.json({ error: "Cannot create self-dependency" }, { status: 400 });
+    }
+
+    // Verify project access for both tasks
+    const [task, predecessor] = await Promise.all([
+      db.task.findUnique({ where: { id: data.taskId }, select: { projectId: true } }),
+      db.task.findUnique({ where: { id: data.predecessorId }, select: { projectId: true } }),
+    ]);
+
+    if (!task || !predecessor) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    const hasTaskAccess = await canAccessProjectResource(user.id, data.workspaceId, task.projectId);
+    const hasPredAccess = await canAccessProjectResource(user.id, data.workspaceId, predecessor.projectId);
+    if (!hasTaskAccess || !hasPredAccess) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     const dependency = await db.taskDependency.create({
@@ -98,6 +115,22 @@ export async function DELETE(req: Request) {
     }
 
     const db = getPrismaClient(workspaceId);
+
+    // Verify project access for both tasks
+    const [task, predecessor] = await Promise.all([
+      db.task.findUnique({ where: { id: taskId }, select: { projectId: true } }),
+      db.task.findUnique({ where: { id: predecessorId }, select: { projectId: true } }),
+    ]);
+
+    if (!task || !predecessor) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    const hasTaskAccess = await canAccessProjectResource(user.id, workspaceId, task.projectId);
+    const hasPredAccess = await canAccessProjectResource(user.id, workspaceId, predecessor.projectId);
+    if (!hasTaskAccess || !hasPredAccess) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
 
     await db.taskDependency.delete({
       where: {

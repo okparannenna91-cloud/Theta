@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { findAcrossShards } from "@/lib/prisma";
 import { Task } from "@prisma/client";
+import { canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const timeLogSchema = z.object({
@@ -32,6 +33,12 @@ export async function POST(
         const hasAccess = await verifyWorkspaceAccess(user.id, task.workspaceId);
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        // Verify project access
+        const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
+        if (!hasProjectAccess) {
+            return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
         }
 
         const timeLog = await db.timeLog.create({
@@ -77,6 +84,13 @@ export async function GET(
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
+
+        // Verify project access
+        const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
+        if (!hasProjectAccess) {
+            return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
+        }
+
         const rawTimeLogs = await db.timeLog.findMany({
             where: { taskId: params.id },
             orderBy: { createdAt: "desc" },

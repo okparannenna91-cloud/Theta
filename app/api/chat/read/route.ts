@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrismaClient } from "@/lib/prisma";
+import { canAccessProjectResource } from "@/lib/project-permissions";
 
 export async function POST(req: Request) {
     try {
@@ -12,6 +13,11 @@ export async function POST(req: Request) {
 
         if (!teamId || !workspaceId) {
             return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+        }
+
+        const hasAccess = await canAccessProjectResource(user.id, workspaceId, null);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
         const db = getPrismaClient(workspaceId);

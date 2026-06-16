@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma, getPrismaClient } from "@/lib/prisma";
+import { getAccessibleProjectIds } from "@/lib/project-permissions";
 
 export async function GET(req: Request) {
   let workspaceId: string | null = null;
@@ -53,200 +54,128 @@ export async function GET(req: Request) {
 
     const db = getPrismaClient(workspaceId);
 
-    // Base filter for projects/tasks
-    const whereProject: any = { workspaceId };
+    const [accessibleProjectIds, teamMembershipCheck] = await Promise.all([
+      getAccessibleProjectIds(user.id, workspaceId),
+      teamId
+        ? db.teamMember.findUnique({ where: { teamId_userId: { teamId, userId: user.id } } })
+        : Promise.resolve(null),
+    ]);
 
-    if (teamId) {
-      whereProject.teamId = teamId;
-      // Also verify team membership if specific team is requested
-      const teamMembership = await db.teamMember.findUnique({
+    if (teamId && !teamMembershipCheck) {
+      return NextResponse.json({ error: "Access denied to this team" }, { status: 403 });
+    }
+
+    const whereProject: any = { workspaceId, id: { in: accessibleProjectIds } };
+    if (teamId) whereProject.teamId = teamId;
+
+    const whereTask: any = { workspaceId, projectId: { in: accessibleProjectIds } };
+    if (teamId) whereTask.project = { teamId };
+
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const [
+      projectsCount, tasksCount, teamsCount, recentProjects, recentTasks,
+      activities, statuses, taskCounts
+    ] = await Promise.all([
+      db.project.count({ where: whereProject }),
+      db.task.count({ where: { ...whereTask, status: { notIn: ["completed", "done"] } } }),
+      prisma.workspaceMember.count({ where: { workspaceId } }),
+      db.project.findMany({
+        where: whereProject,
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: { _count: { select: { tasks: true } } },
+      }),
+      db.task.findMany({
+        where: whereTask,
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: { project: { select: { name: true } } },
+      }),
+      db.activity.findMany({
         where: {
-          teamId_userId: {
-            teamId,
-            userId: user.id
-          }
+          workspaceId,
+          createdAt: { gte: sevenDaysAgo },
+          OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }]
         }
-      });
-      if (!teamMembership) {
-        return NextResponse.json({ error: "Access denied to this team" }, { status: 403 });
-      }
+      }),
+      db.status.findMany({ where: { workspaceId }, orderBy: { order: "asc" } }),
+      db.task.groupBy({
+        by: ['status', 'priority', 'statusId'],
+        where: whereTask,
+        _count: true,
+      }),
+    ]);
+
+    // Compute completion rate from aggregated counts
+    const completionStatusName = statuses[statuses.length - 1]?.name?.toLowerCase() || "completed";
+    const completedCount = taskCounts.filter(t =>
+      t.status?.toLowerCase() === completionStatusName ||
+      t.statusId === statuses[statuses.length - 1]?.id
+    ).reduce((sum, t) => sum + t._count, 0);
+    const totalTaskCount = taskCounts.reduce((sum, t) => sum + t._count, 0);
+    const completionRate = totalTaskCount > 0 ? Math.round((completedCount / totalTaskCount) * 100) : 0;
+
+    // Status Distribution from aggregated data
+    const statusDistribution = statuses.map(s => {
+      const count = taskCounts
+        .filter(t => t.statusId === s.id || t.status?.toLowerCase() === s.name.toLowerCase())
+        .reduce((sum, t) => sum + t._count, 0);
+      return { name: s.name, value: count };
+    });
+
+    // Priority Distribution from aggregated data
+    const priorityMap: Record<string, number> = { low: 0, medium: 0, high: 0, urgent: 0 };
+    for (const t of taskCounts) {
+      if (t.priority) priorityMap[t.priority] = (priorityMap[t.priority] || 0) + t._count;
     }
 
-    const projectsCount = await db.project.count({
-      where: whereProject,
-    });
-
-    // Fetch tasks linked to this workspace
-    const whereTask: any = { workspaceId };
-    if (teamId) {
-      whereTask.project = { teamId };
-    }
-
-    const tasksCount = await db.task.count({
-      where: {
-        ...whereTask,
-        status: { notIn: ["completed", "done"] }
-      },
-    });
-
-    const teamsCount = await prisma.workspaceMember.count({
-      where: { workspaceId },
-    });
-
-    const allTasks = await db.task.findMany({
-      where: whereTask,
-      include: { project: true }
-    });
-
-    const recentProjects = await db.project.findMany({
-      where: whereProject,
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: {
-        _count: {
-          select: { tasks: true },
-        },
-      },
-    });
-
-    const recentTasks = await db.task.findMany({
-      where: whereTask,
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: {
-        project: {
-          select: {
-            name: true,
-          },
-        },
-      },
-    });
-
-    // Real Activity Trends (Last 7 days)
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    const activities = await db.activity.findMany({
-      where: {
-        workspaceId,
-        createdAt: { gte: sevenDaysAgo }
-      }
+    // Build activity trends from the batched activities
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const activityTrends = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000);
+      const dayKey = d.toDateString();
+      return { name: days[d.getDay()], activities: activities.filter(a => new Date(a.createdAt).toDateString() === dayKey).length };
     });
 
     const rawActivities = await db.activity.findMany({
-      where: { workspaceId },
+      where: {
+        workspaceId,
+        OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }]
+      },
       take: 10,
       orderBy: { createdAt: "desc" },
     });
 
-    const userIdsToFetch = new Set<string>();
-    rawActivities.forEach((a: any) => {
-      if (a.userId) userIdsToFetch.add(a.userId);
-    });
+    const activityUserIds = [...new Set(rawActivities.map((a: any) => a.userId).filter(Boolean))];
+    const activityUsers = activityUserIds.length > 0
+      ? await prisma.user.findMany({ where: { id: { in: activityUserIds } }, select: { id: true, name: true, imageUrl: true } })
+      : [];
+    const userMap = new Map(activityUsers.map(u => [u.id, u]));
+    const recentActivities = rawActivities.map((a: any) => ({ ...a, user: userMap.get(a.userId) || null }));
 
-    const users = await prisma.user.findMany({
-      where: { id: { in: Array.from(userIdsToFetch) } },
-      select: {
-        id: true,
-        name: true,
-        imageUrl: true,
-      },
-    });
-    
-    const userMap = new Map(users.map(u => [u.id, u]));
-
-    const recentActivities = rawActivities.map((a: any) => ({
-      ...a,
-      user: userMap.get(a.userId) || null,
-    }));
-
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const activityTrends = Array.from({ length: 7 }).map((_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - (6 - i));
-      const dayName = days[d.getDay()];
-      const count = activities.filter(a => new Date(a.createdAt).toDateString() === d.toDateString()).length;
-      return { name: dayName, activities: count };
-    });
-
-    // Fetch workspace structure and statuses
-    const [projectsWithTasks, statuses] = await Promise.all([
-      db.project.findMany({
-        where: whereProject,
-        include: {
-          _count: { select: { tasks: true } }
-        }
-      }),
-      db.status.findMany({
-        where: { workspaceId },
-        orderBy: { order: "asc" }
-      })
-    ]);
-
-    // Dynamic Status Calculation
-    const statusDistribution = statuses.map(s => ({
-      name: s.name,
-      value: allTasks.filter((t: any) => 
-        t.statusId === s.id || t.status.toLowerCase() === s.name.toLowerCase()
-      ).length
-    }));
-
-    // Identify completion status (usually the last one)
-    const completionStatus = statuses[statuses.length - 1];
-    const completedTasksCount = completionStatus 
-        ? allTasks.filter((t: any) => t.statusId === completionStatus.id || t.status.toLowerCase() === completionStatus.name.toLowerCase()).length
-        : allTasks.filter((t: any) => t.status === "completed" || t.status === "done").length;
-
-    const completionRate =
-      allTasks.length > 0
-        ? Math.round((completedTasksCount / allTasks.length) * 100)
-        : 0;
+    // Workspace structure from recent projects (reuse existing data)
+    const workspaceStructure = [{
+      name: "Workspace",
+      children: recentProjects.map(p => ({ name: p.name, size: (p as any)._count?.tasks || 1 })),
+    }];
 
     return NextResponse.json({
       projectsCount,
       tasksCount,
       teamsCount,
       completionRate,
-      recentProjects: recentProjects.map((p: any) => ({
-        id: p.id,
-        name: p.name,
-        tasksCount: p._count.tasks,
-      })),
-      recentTasks: recentTasks.map((t: any) => ({
-        id: t.id,
-        title: t.title,
-        status: t.status,
-        project: t.project,
-        priority: t.priority
-      })),
-      recentActivities: recentActivities.map((a: any) => ({
-        id: a.id,
-        action: a.action,
-        entityType: a.entityType,
-        entityId: a.entityId,
-        metadata: a.metadata,
-        createdAt: a.createdAt,
-        user: a.user
-      })),
+      recentProjects: recentProjects.map((p: any) => ({ id: p.id, name: p.name, tasksCount: p._count.tasks })),
+      recentTasks: recentTasks.map((t: any) => ({ id: t.id, title: t.title, status: t.status, project: t.project, priority: t.priority })),
+      recentActivities,
       activityTrends,
       statusDistribution,
-      priorityDistribution: [
-        { name: "Low", value: allTasks.filter((t: any) => t.priority === "low").length },
-        { name: "Medium", value: allTasks.filter((t: any) => t.priority === "medium").length },
-        { name: "High", value: allTasks.filter((t: any) => t.priority === "high").length },
-      ],
-      workspaceStructure: [
-        {
-          name: "Workspace",
-          children: projectsWithTasks.map(p => ({
-            name: p.name,
-            size: p._count.tasks || 1 // Min size 1 for visibility
-          })),
-        },
-      ],
+      priorityDistribution: Object.entries(priorityMap).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value })),
+      workspaceStructure,
       completionTime: [
-        { range: "0-1d", count: completedTasksCount > 0 ? Math.ceil(completedTasksCount * 0.6) : 0 },
-        { range: "1-3d", count: completedTasksCount > 0 ? Math.ceil(completedTasksCount * 0.3) : 0 },
-        { range: "3-7d", count: completedTasksCount > 0 ? Math.ceil(completedTasksCount * 0.1) : 0 },
+        { range: "0-1d", count: completedCount > 0 ? Math.ceil(completedCount * 0.6) : 0 },
+        { range: "1-3d", count: completedCount > 0 ? Math.ceil(completedCount * 0.3) : 0 },
+        { range: "3-7d", count: completedCount > 0 ? Math.ceil(completedCount * 0.1) : 0 },
         { range: "7d+", count: 0 },
       ],
     });

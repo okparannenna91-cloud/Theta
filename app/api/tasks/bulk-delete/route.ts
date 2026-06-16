@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { getAccessibleProjectIds } from "@/lib/project-permissions";
 import { publishToChannel, getWorkspaceChannel, getBoardChannel } from "@/lib/ably";
 
 export async function DELETE(req: Request) {
@@ -21,11 +22,13 @@ export async function DELETE(req: Request) {
     if (!hasAccess) return new NextResponse("Forbidden", { status: 403 });
 
     const shardedPrisma = getPrismaClient(firstTask.workspaceId);
+    const accessibleProjectIds = await getAccessibleProjectIds(user.id, firstTask.workspaceId);
 
     await shardedPrisma.task.deleteMany({
       where: {
         id: { in: taskIds },
-        workspaceId: firstTask.workspaceId
+        workspaceId: firstTask.workspaceId,
+        projectId: { in: accessibleProjectIds }
       }
     });
 

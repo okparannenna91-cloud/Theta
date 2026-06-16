@@ -32,6 +32,7 @@ export default function ProjectsPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [coverImage, setCoverImage] = useState("");
+  const [visibility, setVisibility] = useState("private");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -73,6 +74,7 @@ export default function ProjectsPage() {
       setName("");
       setDescription("");
       setCoverImage("");
+      setVisibility("private");
       import("sonner").then(({ toast }) => toast.success("Project created successfully"));
     },
   });
@@ -95,7 +97,7 @@ export default function ProjectsPage() {
       showUpgradePrompt("projects");
       return;
     }
-    createMutation.mutate({ name, description, coverImage, workspaceId: activeWorkspaceId });
+    createMutation.mutate({ name, description, coverImage, visibility, workspaceId: activeWorkspaceId });
   };
 
   const processedProjects = useMemo(() => {
@@ -337,6 +339,34 @@ export default function ProjectsPage() {
                 <AiGenerator onGenerate={(text) => setDescription(text)} initialPrompt={`Description for a project named "${name}"`} title="Generate Description" />
               </div>
               <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe your project..." />
+            </div>
+            <div className="space-y-2">
+              <Label>Visibility</Label>
+              <Select name="visibility" value={visibility} onValueChange={setVisibility}>
+                <SelectTrigger className="h-10">
+                  <SelectValue placeholder="Select visibility" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="private">
+                    <span className="flex flex-col">
+                      <span>Private</span>
+                      <span className="text-xs text-muted-foreground">Only project members can access</span>
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="team_access">
+                    <span className="flex flex-col">
+                      <span>Team Access</span>
+                      <span className="text-xs text-muted-foreground">All team members can access</span>
+                    </span>
+                  </SelectItem>
+                  <SelectItem value="workspace_visible">
+                    <span className="flex flex-col">
+                      <span>Workspace Visible</span>
+                      <span className="text-xs text-muted-foreground">Everyone in the workspace can see</span>
+                    </span>
+                  </SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <Button type="button" variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>

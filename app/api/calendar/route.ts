@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma, getPrismaClient } from "@/lib/prisma";
 import { canCreateCalendarEvent, getPlanLimitMessage } from "@/lib/plan-limits";
+import { getAccessibleProjectIds, canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const eventSchema = z.object({
@@ -33,6 +34,22 @@ export async function GET(req: Request) {
         }
 
         const db = getPrismaClient(workspaceId);
+
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+        const projectTeams = await db.projectTeam.findMany({
+          where: { projectId: { in: accessibleProjectIds } },
+          select: { teamId: true },
+        });
+        const legacyTeamProjects = await db.project.findMany({
+          where: { id: { in: accessibleProjectIds }, teamId: { not: null } },
+          select: { teamId: true },
+        });
+        const accessibleTeamIds = [
+          ...new Set([
+            ...projectTeams.map(pt => pt.teamId),
+            ...legacyTeamProjects.map(p => p.teamId as string),
+          ]),
+        ];
         
         const [events, count] = await Promise.all([
             db.calendarEvent.findMany({
@@ -40,8 +57,10 @@ export async function GET(req: Request) {
                     workspaceId,
                     OR: [
                         { userId: user.id },
-                        { teamId: { not: null } }
-                    ]
+                        ...(accessibleTeamIds.length > 0
+                          ? [{ teamId: { in: accessibleTeamIds } }]
+                          : []),
+                    ],
                 },
                 orderBy: { start: "asc" }
             }),
@@ -75,6 +94,12 @@ export async function POST(req: Request) {
 
         const body = await req.json();
         const data = eventSchema.parse(body);
+
+        // Check workspace / project access
+        const hasAccess = await canAccessProjectResource(user.id, data.workspaceId, null);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
 
         // Check plan limits strictly
         try {

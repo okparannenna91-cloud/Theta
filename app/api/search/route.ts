@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrismaClient, prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { getAccessibleProjectIds } from "@/lib/project-permissions";
 
 export async function GET(req: Request) {
     try {
@@ -45,6 +46,9 @@ export async function GET(req: Request) {
             );
         }
 
+        // Get accessible project IDs for permission filtering
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+
         const searchTerm = query.trim();
         const db = getPrismaClient(workspaceId);
 
@@ -61,11 +65,13 @@ export async function GET(req: Request) {
             });
             // Map mongo IDs to prisma IDs if necessary, or just use as is
             projects = projects.map(p => ({ ...p, id: p._id?.$oid || p._id }));
+            projects = projects.filter(p => accessibleProjectIds.includes(p.id));
         } catch (e) {
             // Fallback if no text index exists
             projects = await db.project.findMany({
                 where: {
                     workspaceId: workspaceId as string,
+                    id: { in: accessibleProjectIds },
                     OR: [
                         { name: { contains: searchTerm, mode: "insensitive" } },
                         { description: { contains: searchTerm, mode: "insensitive" } },
@@ -100,10 +106,15 @@ export async function GET(req: Request) {
                 id: t._id?.$oid || t._id,
                 project: resolvedProjects.find(p => p.id === (t.projectId?.$oid || t.projectId)) || null
             }));
+            tasks = tasks.filter(t => {
+                const taskProjectId = t.projectId?.$oid || t.projectId;
+                return accessibleProjectIds.includes(taskProjectId);
+            });
         } catch (e) {
             tasks = await db.task.findMany({
                 where: {
                     workspaceId: workspaceId as string,
+                    projectId: { in: accessibleProjectIds },
                     OR: [
                         { title: { contains: searchTerm, mode: "insensitive" } },
                         { description: { contains: searchTerm, mode: "insensitive" } },

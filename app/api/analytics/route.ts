@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrismaClient, prisma as globalPrisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { getAccessibleProjectIds } from "@/lib/project-permissions";
 import { subDays, isAfter, isBefore, startOfDay, endOfDay, format } from "date-fns";
 
 export async function GET(req: Request) {
@@ -28,14 +29,17 @@ export async function GET(req: Request) {
         const db = getPrismaClient(workspaceId);
         const cutoffDate = subDays(new Date(), days);
 
+        // Get accessible project IDs for permission filtering
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+
         // Fetch fundamental data (Relationship & Analytics Accuracy Fix)
         const [projects, tasks, statuses] = await Promise.all([
             db.project.findMany({
-                where: { workspaceId },
+                where: { workspaceId, id: { in: accessibleProjectIds } },
                 include: { _count: { select: { tasks: true } } }
             }),
             db.task.findMany({
-                where: { workspaceId },
+                where: { workspaceId, projectId: { in: accessibleProjectIds } },
                 include: { project: true }
             }),
             db.status.findMany({

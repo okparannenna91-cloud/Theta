@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, findAcrossShards } from "@/lib/prisma";
+import { prisma, findAcrossShards, getPrismaClient } from "@/lib/prisma";
 import { CalendarEvent } from "@prisma/client";
+import { canAccessProjectResource, getAccessibleProjectIds } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -37,11 +38,26 @@ export async function PATCH(
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
         }
 
-        // Only owner can update? Or any team member?
-        // For now, only owner
+        // Verify workspace access
+        const hasAccess = await canAccessProjectResource(user.id, event.workspaceId, null);
+        if (!hasAccess) {
+          return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        // Allow event owner or team members to update
         if (event.userId !== user.id) {
-            // Check if user is in the team if it's a team event
-            // Skipping for brevity, but should be added
+            // If event is linked to a team, check team membership
+            if (event.teamId) {
+                const db = getPrismaClient(event.workspaceId);
+                const teamMember = await db.teamMember.findUnique({
+                    where: { teamId_userId: { teamId: event.teamId, userId: user.id } }
+                });
+                if (!teamMember) {
+                    return NextResponse.json({ error: "Forbidden: not the event owner or team member" }, { status: 403 });
+                }
+            } else {
+                return NextResponse.json({ error: "Forbidden: only the event owner can update" }, { status: 403 });
+            }
         }
 
         const updatedEvent = await db.calendarEvent.update({
@@ -77,6 +93,12 @@ export async function DELETE(
 
         if (!event) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
+        }
+
+        // Verify workspace access
+        const hasAccess = await canAccessProjectResource(user.id, event.workspaceId, null);
+        if (!hasAccess) {
+          return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
         if (event.userId !== user.id) {

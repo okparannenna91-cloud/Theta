@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma, getPrismaClient, prismaShard1, prismaShard2, prismaShard3 } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { getAccessibleProjectIds, requireProjectAccess } from "@/lib/project-permissions";
 import { publishToChannel, getChatChannel } from "@/lib/ably";
 import { z } from "zod";
 
@@ -89,6 +90,14 @@ export async function GET(req: Request) {
         if (effectiveWorkspaceId) {
             allMessagesRaw = allMessagesRaw.filter(m => String(m.workspaceId) === String(effectiveWorkspaceId));
         }
+
+        // Filter by accessible project IDs
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, effectiveWorkspaceId);
+        allMessagesRaw = allMessagesRaw.filter(m => {
+          if (!m.projectId) return true;
+          return accessibleProjectIds.includes(String(m.projectId));
+        });
+
         if (teamId) {
             allMessagesRaw = allMessagesRaw.filter(m => String(m.teamId) === String(teamId));
         }
@@ -199,6 +208,13 @@ export async function POST(req: Request) {
         } else {
             const hasAccess = await verifyWorkspaceAccess(user.id, data.workspaceId);
             if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        }
+
+        if (data.projectId) {
+          const projectAccess = await requireProjectAccess(user.id, data.projectId, data.workspaceId);
+          if (!projectAccess.allowed) {
+            return NextResponse.json({ error: projectAccess.error!.message }, { status: projectAccess.error!.status });
+          }
         }
 
         const messageRaw = await db.chatMessage.create({

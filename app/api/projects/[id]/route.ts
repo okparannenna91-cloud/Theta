@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma, findAcrossShards } from "@/lib/prisma";
 import { Project } from "@prisma/client";
+import { requireProjectAccess } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
   color: z.string().optional(),
+  visibility: z.enum(["private", "team_access", "workspace_visible"]).optional(),
 });
 export async function GET(
   req: Request,
@@ -46,19 +48,13 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Verify workspace access first
-    const membership = await prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: {
-          workspaceId: project.workspaceId,
-          userId: user.id,
-        },
-      },
-    });
-
-    if (!membership) {
-      console.error(`[Project GET] 403: User ${user.id} denied access to workspace ${project.workspaceId}`);
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    // Verify project access using permission system
+    const access = await requireProjectAccess(user.id, project.id, project.workspaceId);
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.error!.message },
+        { status: access.error!.status }
+      );
     }
 
     console.log(`[Project GET] Loading full relations for project=${project.id} from shard DB...`);
@@ -184,18 +180,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Verify workspace access (admins/owners or creator)
-    const membership = await prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: {
-          workspaceId: project.workspaceId,
-          userId: user.id,
-        },
-      },
-    });
-
-    if (!membership) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    // Verify project access using permission system
+    const access = await requireProjectAccess(user.id, project.id, project.workspaceId);
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.error!.message },
+        { status: access.error!.status }
+      );
     }
 
     const updated = await (db as any).project.update({
@@ -234,7 +225,16 @@ export async function DELETE(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Verify workspace access (admins/owners)
+    // Verify project access first
+    const access = await requireProjectAccess(user.id, project.id, project.workspaceId);
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.error!.message },
+        { status: access.error!.status }
+      );
+    }
+
+    // Only workspace owner, admin, or project creator can delete
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {

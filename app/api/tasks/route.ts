@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrismaClient, prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { getAccessibleProjectIds, canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
 import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel } from "@/lib/ably";
 
@@ -54,7 +55,8 @@ export async function GET(req: Request) {
     }
 
     const db = getPrismaClient(workspaceId);
-    let projectWhere: any = { workspaceId };
+    const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+    let projectWhere: any = { id: { in: accessibleProjectIds } };
 
     // If teamId is provided, we only show tasks from projects belonging to that team
     if (teamId) {
@@ -66,7 +68,7 @@ export async function GET(req: Request) {
       if (!membership) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
-      projectWhere = { workspaceId, teamId };
+      projectWhere.teamId = teamId;
     }
 
     const tasks = await db.task.findMany({
@@ -164,6 +166,14 @@ export async function POST(req: Request) {
         return NextResponse.json(
           { error: "Project not found in workspace" },
           { status: 404 }
+        );
+      }
+
+      const hasProjectAccess = await canAccessProjectResource(user.id, data.workspaceId, data.projectId);
+      if (!hasProjectAccess) {
+        return NextResponse.json(
+          { error: "Access denied to this project" },
+          { status: 403 }
         );
       }
     }

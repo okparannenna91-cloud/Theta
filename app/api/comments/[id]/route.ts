@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { findAcrossShards } from "@/lib/prisma";
+import { canAccessProjectResource } from "@/lib/project-permissions";
 import { Comment } from "@prisma/client";
 
 export async function DELETE(
@@ -24,21 +25,29 @@ export async function DELETE(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        // Fetch task to get workspaceId and verify project access
+        const task = await db.task.findUnique({
+          where: { id: comment.taskId },
+          select: { workspaceId: true, projectId: true }
+        });
+
+        if (!task) {
+            return NextResponse.json({ error: "Associated task not found" }, { status: 404 });
+        }
+
+        // Verify user still has access to the task's project
+        const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
+        if (!hasProjectAccess) {
+            return NextResponse.json({ error: "Access denied to this comment's project" }, { status: 403 });
+        }
+
         await db.comment.delete({
             where: { id: params.id },
         });
 
         const { publishToChannel, getTaskChannel } = await import("@/lib/ably");
         
-        // Fetch task to get workspaceId for channel lookup
-        const task = await db.task.findUnique({
-          where: { id: comment.taskId },
-          select: { workspaceId: true }
-        });
-
-        if (task) {
-          await publishToChannel(getTaskChannel(task.workspaceId, comment.taskId), "comment:deleted", { id: params.id });
-        }
+        await publishToChannel(getTaskChannel(task.workspaceId, comment.taskId), "comment:deleted", { id: params.id });
 
         return NextResponse.json({ success: true });
     } catch (error) {

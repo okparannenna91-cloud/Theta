@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import cloudinary from "@/lib/cloudinary";
 import { getCurrentUser } from "@/lib/auth";
+import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { canAccessProjectResource } from "@/lib/project-permissions";
 
 // Supported file types
 const ALLOWED_MIME_TYPES = {
@@ -48,9 +50,26 @@ export async function POST(req: Request) {
         const formData = await req.formData();
         const file = formData.get("file") as File;
         const workspaceId = formData.get("workspaceId") as string;
+        const projectId = formData.get("projectId") as string | null;
 
         if (!file) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
+        }
+
+        // Verify workspace membership
+        if (workspaceId) {
+            const hasWorkspaceAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+            if (!hasWorkspaceAccess) {
+                return NextResponse.json({ error: "Access denied to workspace" }, { status: 403 });
+            }
+        }
+
+        // Verify project-level access if project context is provided
+        if (workspaceId && projectId) {
+            const hasProjectAccess = await canAccessProjectResource(user.id, workspaceId, projectId);
+            if (!hasProjectAccess) {
+                return NextResponse.json({ error: "Access denied to this project's files" }, { status: 403 });
+            }
         }
 
         // Validate file type

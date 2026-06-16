@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { findAcrossShards } from "@/lib/prisma";
 import { Task } from "@prisma/client";
 import { z } from "zod";
+import { canAccessProjectResource } from "@/lib/project-permissions";
 import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel } from "@/lib/ably";
 
 const updateSchema = z.object({
@@ -86,6 +87,12 @@ export async function PATCH(
 
     if (!membership) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // Verify project access
+    const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
+    if (!hasProjectAccess) {
+      return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
     }
 
     const updateData: any = { ...data };
@@ -273,6 +280,12 @@ export async function DELETE(
 
     if (!membership) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // Verify project access
+    const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
+    if (!hasProjectAccess) {
+      return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
     }
 
     // Manual Cascade: Recursively delete all child tasks (subtasks)

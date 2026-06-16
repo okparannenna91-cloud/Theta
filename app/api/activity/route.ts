@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma, getPrismaClient } from "@/lib/prisma";
 import { PlanName } from "@/lib/plan-limits";
+import { canAccessProjectResource, getAccessibleProjectIds } from "@/lib/project-permissions";
 
 export async function GET(req: Request) {
   try {
@@ -38,15 +39,36 @@ export async function GET(req: Request) {
       where.createdAt = { gte: cutoffDate };
     }
 
-    if (projectId) where.projectId = projectId;
+    // Project access filtering
+    if (projectId) {
+      const hasProjectAccess = await canAccessProjectResource(user.id, workspaceId, projectId);
+      if (!hasProjectAccess) {
+        return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
+      }
+      where.projectId = projectId;
+    } else {
+      const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+      where.OR = [
+        { projectId: null },
+        { projectId: { in: accessibleProjectIds } }
+      ];
+    }
+
+    // Additional filters
     if (userId) where.userId = userId;
     if (entityType) where.entityType = entityType;
     if (entityId) where.entityId = entityId;
     if (search) {
-      where.OR = [
+      // Combine with existing project OR filter using AND
+      const searchOr = [
         { action: { contains: search, mode: "insensitive" } },
         { entityType: { contains: search, mode: "insensitive" } }
       ];
+      where.AND = [
+        { OR: where.OR },
+        { OR: searchOr }
+      ];
+      delete where.OR;
     }
 
     const db = getPrismaClient(workspaceId);

@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma, getPrismaClient, findAcrossShards } from "@/lib/prisma";
 import { Project } from "@prisma/client";
 import { canCreateBoard, getPlanLimitMessage } from "@/lib/plan-limits";
+import { getAccessibleProjectIds, requireProjectAccess } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const boardSchema = z.object({
@@ -67,9 +68,15 @@ export async function GET(req: Request) {
       projectWhere.teamId = teamId;
     }
 
+    let accessibleProjectIds: string[] | undefined;
+    if (!teamId) {
+      accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+    }
+
     const boards = await db.board.findMany({
       where: {
         project: projectWhere,
+        ...(!teamId && accessibleProjectIds ? { projectId: { in: accessibleProjectIds } } : {}),
       },
       include: {
         project: {
@@ -148,6 +155,11 @@ export async function POST(req: Request) {
 
     if (!membership) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    const projectAccess = await requireProjectAccess(user.id, data.projectId, project.workspaceId);
+    if (!projectAccess.allowed) {
+      return NextResponse.json({ error: projectAccess.error!.message }, { status: projectAccess.error!.status });
     }
 
     const db = getPrismaClient(project.workspaceId);

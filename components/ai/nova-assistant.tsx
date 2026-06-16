@@ -49,12 +49,14 @@ export function NovaAssistant() {
         },
     ]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isStreaming, setIsStreaming] = useState(false);
     const [usage, setUsage] = useState<{ current: number; max: number } | null>(null);
     const isLimitReached = usage ? (usage.max !== -1 && usage.current >= usage.max) : false;
     const [isListening, setIsListening] = useState(false);
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
 
     const fetchUsage = useCallback(async () => {
         try {
@@ -84,6 +86,13 @@ export function NovaAssistant() {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
         }
     }, [messages, isOpen, isMinimized]);
+
+    useEffect(() => {
+        if (inputRef.current) {
+            inputRef.current.style.height = 'auto';
+            inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 120) + 'px';
+        }
+    }, [input]);
 
     const startListening = () => {
         if (!('webkitSpeechRecognition' in window)) {
@@ -122,7 +131,7 @@ export function NovaAssistant() {
             role: "user",
             content: input,
             timestamp: new Date(),
-            attachments: attachedFiles.map(f => ({ name: f.name, type: f.type, url: "" })) // Placeholder
+            attachments: attachedFiles.map(f => ({ name: f.name, type: f.type, url: "" }))
         };
 
         setMessages((prev) => [...prev, userMessage]);
@@ -137,64 +146,81 @@ export function NovaAssistant() {
                 return;
             }
 
-            const res = await fetch("/api/ai", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    prompt: currentInput,
-                    workspaceId: activeWorkspaceId,
-                    // We'll handle file uploads properly in a later phase (Phase 2 Action Engine)
-                }),
-            });
+            const controller = new AbortController();
+            const fetchTimeout = setTimeout(() => controller.abort("Request timeout"), 55000);
 
-            if (!res.ok) {
-                const error = await res.json();
-                // Specific check for limit error from server
-                if (res.status === 403 && (error.error?.includes("limit") || error.error?.includes("plan"))) {
-                    showUpgradePrompt("nova");
-                    return;
+            try {
+                const res = await fetch("/api/ai", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        prompt: currentInput,
+                        workspaceId: activeWorkspaceId,
+                    }),
+                    signal: controller.signal,
+                });
+
+                if (!res.ok) {
+                    const error = await res.json().catch(() => ({}));
+                    if (res.status === 403 && (error.error?.includes("limit") || error.error?.includes("plan"))) {
+                        showUpgradePrompt("nova");
+                        return;
+                    }
+                    throw new Error(error.error || `Request failed with status ${res.status}`);
                 }
-                throw new Error(error.error || "Failed to get response");
-            }
 
-            const reader = res.body?.getReader();
-            const decoder = new TextDecoder();
-            let accumulatedResponse = "";
-            const assistantId = "nova-" + Date.now();
+                const reader = res.body?.getReader();
+                const decoder = new TextDecoder();
+                let accumulatedResponse = "";
+                let streamEnded = false;
 
-            // Initial assistant message
-            setMessages((prev) => [...prev, {
-                role: "nova",
-                content: "",
-                timestamp: new Date(),
-            }]);
+                setIsStreaming(true);
 
-            if (reader) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    
-                    const chunk = decoder.decode(value);
-                    accumulatedResponse += chunk;
-                    
-                    setMessages((prev) => {
-                        const newMessages = [...prev];
-                        const lastMessage = newMessages[newMessages.length - 1];
-                        if (lastMessage && lastMessage.role === "nova") {
-                            lastMessage.content = accumulatedResponse;
+                setMessages((prev) => [...prev, {
+                    role: "nova",
+                    content: "",
+                    timestamp: new Date(),
+                }]);
+
+                if (reader) {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) {
+                            streamEnded = true;
+                            break;
                         }
-                        return newMessages;
-                    });
+
+                        const chunk = decoder.decode(value, { stream: true });
+                        accumulatedResponse += chunk;
+
+                        setMessages((prev) => {
+                            const newMessages = [...prev];
+                            const lastMessage = newMessages[newMessages.length - 1];
+                            if (lastMessage && lastMessage.role === "nova") {
+                                lastMessage.content = accumulatedResponse;
+                            }
+                            return newMessages;
+                        });
+                    }
                 }
+
+                if (!streamEnded && !accumulatedResponse) {
+                    throw new Error("No response received from Nova");
+                }
+            } finally {
+                clearTimeout(fetchTimeout);
+                setIsStreaming(false);
             }
 
-            // Re-fetch usage to show updated count
             fetchUsage();
         } catch (error: any) {
-            const errorMsg = error.message || "Nova is having trouble connecting.";
+            const isAbort = error?.name === 'AbortError' || error?.message?.includes('abort') || error?.message?.includes('timeout');
+            const errorMsg = isAbort
+                ? "The request took too long. Please try a simpler query or try again."
+                : (error.message || "Nova is having trouble connecting.");
             setMessages((prev) => [...prev, {
                 role: "nova",
-                content: `I apologize, but I encountered an issue: ${errorMsg}. Please try again.`,
+                content: `I encountered an issue: ${errorMsg}`,
                 timestamp: new Date(),
             }]);
         } finally {
@@ -210,6 +236,13 @@ export function NovaAssistant() {
                 timestamp: new Date(),
             },
         ]);
+    };
+
+    const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+        }
     };
 
     return (
@@ -231,18 +264,23 @@ export function NovaAssistant() {
                             isMinimized ? "h-18" : "h-[80vh] w-[95vw] sm:w-[450px]"
                         )}
                     >
-                        {/* Premium Header with Gradient */}
-                        <div className="relative p-5 bg-gradient-to-br from-primary via-primary/90 to-indigo-700 text-white flex items-center justify-between shrink-0 shadow-lg overflow-hidden">
+                        {/* Premium Header */}
+                        <div className="relative p-4 sm:p-5 bg-gradient-to-br from-primary via-primary/90 to-indigo-700 text-white flex items-center justify-between shrink-0 shadow-lg overflow-hidden">
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.15),transparent_60%)]" />
                             <div className="flex items-center gap-3 relative z-10">
-                                <div className="h-10 w-10 rounded-xl bg-white/20 backdrop-blur-xl flex items-center justify-center border border-white/30 shadow-lg shadow-black/10">
-                                    <Sparkles className="h-5 w-5 text-white" />
+                                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-white/20 backdrop-blur-xl flex items-center justify-center border border-white/30 shadow-lg shadow-black/10">
+                                    <Sparkles className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                                 </div>
                                 <div className="flex flex-col">
-                                    <span className="font-extrabold text-base tracking-tight leading-tight">Nova</span>
+                                    <span className="font-extrabold text-sm sm:text-base tracking-tight leading-tight">Nova</span>
                                     <div className="flex items-center gap-1.5">
-                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 shadow-lg shadow-emerald-500/50" />
-                                        <span className="text-[10px] text-white/70 font-medium">AI Connected</span>
+                                        <span className={cn(
+                                            "h-1.5 w-1.5 rounded-full shadow-lg",
+                                            isStreaming ? "bg-yellow-400 shadow-yellow-500/50 animate-pulse" : "bg-emerald-400 shadow-emerald-500/50"
+                                        )} />
+                                        <span className="text-[10px] text-white/70 font-medium">
+                                            {isStreaming ? "Responding..." : "AI Connected"}
+                                        </span>
                                     </div>
                                 </div>
                             </div>
@@ -250,33 +288,33 @@ export function NovaAssistant() {
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-9 w-9 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition-all"
+                                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl text-white/80 hover:text-white hover:bg-white/15 transition-all"
                                     onClick={() => setIsMinimized(!isMinimized)}
                                 >
-                                    {isMinimized ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
+                                    {isMinimized ? <Maximize2 className="h-3.5 w-3.5" /> : <Minimize2 className="h-3.5 w-3.5" />}
                                 </Button>
                                 <Button
                                     variant="ghost"
                                     size="icon"
-                                    className="h-9 w-9 rounded-xl text-white/80 hover:text-white hover:bg-rose-500/30 transition-all"
+                                    className="h-8 w-8 sm:h-9 sm:w-9 rounded-xl text-white/80 hover:text-white hover:bg-rose-500/30 transition-all"
                                     onClick={() => setIsOpen(false)}
                                 >
-                                    <X className="h-4 w-4" />
+                                    <X className="h-3.5 w-3.5" />
                                 </Button>
                             </div>
                         </div>
 
                         {!isMinimized && (
                             <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden">
-                                <div className="px-6 pt-5 pb-2 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-transparent">
-                                    <TabsList className="grid w-full grid-cols-3 bg-slate-100/50 dark:bg-slate-900/50 rounded-lg p-1.5 border border-slate-200/50 dark:border-slate-800/50">
-                                        <TabsTrigger value="chat" className="rounded-lg text-xs font-medium py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
+                                <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-2 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-transparent">
+                                    <TabsList className="grid w-full grid-cols-3 bg-slate-100/50 dark:bg-slate-900/50 rounded-lg p-1 border border-slate-200/50 dark:border-slate-800/50">
+                                        <TabsTrigger value="chat" className="rounded-lg text-[11px] sm:text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
                                             Chat
                                         </TabsTrigger>
-                                        <TabsTrigger value="history" className="rounded-lg text-xs font-medium py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
+                                        <TabsTrigger value="history" className="rounded-lg text-[11px] sm:text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
                                             Recall
                                         </TabsTrigger>
-                                        <TabsTrigger value="workflows" className="rounded-lg text-xs font-medium py-2.5 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
+                                        <TabsTrigger value="workflows" className="rounded-lg text-[11px] sm:text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
                                             Actions
                                         </TabsTrigger>
                                     </TabsList>
@@ -285,72 +323,75 @@ export function NovaAssistant() {
                                 <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden m-0 data-[state=active]:flex">
                                     <div
                                         ref={scrollRef}
-                                        className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 sm:space-y-5 bg-gradient-to-b from-slate-50/50 to-white/30 dark:from-slate-950/50 dark:to-slate-950/30 scrollbar-hide"
+                                        className="flex-1 overflow-y-auto p-3 sm:p-5 space-y-3 sm:space-y-5 bg-gradient-to-b from-slate-50/50 to-white/30 dark:from-slate-950/50 dark:to-slate-950/30 scrollbar-hide"
                                     >
                                     {messages.map((msg, i) => (
                                         <motion.div
                                             key={i}
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
-                                            transition={{ delay: i * 0.05 }}
+                                            transition={{ delay: Math.min(i * 0.03, 0.3) }}
                                             className={cn(
                                                 "flex w-full",
                                                 msg.role === "user" ? "justify-end" : "justify-start"
                                             )}
                                         >
                                             <div className={cn(
-                                                "flex gap-2.5 max-w-[92%]",
+                                                "flex gap-2 max-w-[92%] sm:max-w-[88%]",
                                                 msg.role === "user" ? "flex-row-reverse" : "flex-row"
                                             )}>
                                                 <div className={cn(
-                                                    "h-8 w-8 rounded-xl shrink-0 flex items-center justify-center overflow-hidden shadow-lg border-2 mt-1",
+                                                    "h-7 w-7 sm:h-8 sm:w-8 rounded-xl shrink-0 flex items-center justify-center overflow-hidden shadow-lg border-2 mt-1",
                                                     msg.role === "nova" ? "border-primary/20 bg-gradient-to-br from-primary/10 to-indigo-500/10" : "border-slate-200 dark:border-slate-700 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900"
                                                 )}>
                                                     <Image 
                                                         src={msg.role === "nova" ? novaAvatar : userAvatar} 
                                                         alt={msg.role} 
-                                                        width={32} 
-                                                        height={32}
+                                                        width={28} 
+                                                        height={28}
                                                         className="object-cover"
                                                     />
                                                 </div>
-                                                <div className="flex flex-col gap-1">
+                                                <div className="flex flex-col gap-1 min-w-0">
                                                     <div className={cn(
-                                                        "rounded-2xl px-4 py-3 text-[13px] leading-relaxed shadow-sm",
+                                                        "rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 text-[12px] sm:text-[13px] leading-relaxed shadow-sm break-words",
                                                         msg.role === "nova"
                                                             ? "bg-white dark:bg-slate-900/90 text-slate-800 dark:text-slate-200 border border-slate-100 dark:border-slate-800/50 rounded-tl-sm shadow-[0_2px_8px_rgba(0,0,0,0.04)]"
                                                             : "bg-primary text-white rounded-tr-sm shadow-md"
                                                     )}>
                                                         {msg.role === "nova" ? (
-                                                            <div className="prose prose-slate dark:prose-invert prose-sm max-w-none prose-p:leading-relaxed prose-p:my-1 prose-headings:text-xs prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1">
+                                                            <div className="prose prose-slate dark:prose-invert prose-xs sm:prose-sm max-w-none prose-p:leading-relaxed prose-p:my-1 prose-headings:text-xs prose-headings:font-semibold prose-headings:mt-3 prose-headings:mb-1 prose-table:text-[11px]">
                                                                 <ReactMarkdown 
                                                                     remarkPlugins={[remarkGfm]}
                                                                     components={{
                                                                         table: ({ children }) => (
-                                                                            <div className="overflow-x-auto my-3 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
+                                                                            <div className="overflow-x-auto my-2 rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm">
                                                                                 <table className="w-full text-[11px] border-collapse bg-white dark:bg-slate-900">
                                                                                     {children}
                                                                                 </table>
                                                                             </div>
                                                                         ),
-                                                                        th: ({ children }) => <th className="px-3 py-2.5 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold text-left border-b border-slate-200 dark:border-slate-700">{children}</th>,
-                                                                        td: ({ children }) => <td className="px-3 py-2.5 border-b border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">{children}</td>,
+                                                                        th: ({ children }) => <th className="px-3 py-2 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-semibold text-left border-b border-slate-200 dark:border-slate-700">{children}</th>,
+                                                                        td: ({ children }) => <td className="px-3 py-2 border-b border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400">{children}</td>,
                                                                         a: ({ children, href }) => <a href={href} className="text-primary font-medium hover:underline" target="_blank" rel="noopener noreferrer">{children}</a>,
                                                                     }}
                                                                 >
                                                                     {msg.content}
                                                                 </ReactMarkdown>
+                                                                {isStreaming && i === messages.length - 1 && msg.content.length > 0 && (
+                                                                    <span className="inline-block w-1.5 h-4 bg-primary animate-pulse ml-0.5 rounded-sm align-text-bottom" />
+                                                                )}
                                                             </div>
                                                         ) : (
-                                                            <span className="text-[13px] font-medium">{msg.content}</span>
+                                                            <span className="text-[12px] sm:text-[13px] font-medium">{msg.content}</span>
                                                         )}
 
                                                         {msg.attachments && msg.attachments.length > 0 && (
-                                                            <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-1.5">
+                                                            <div className="mt-2 pt-2 border-t border-slate-100 dark:border-slate-800 flex flex-wrap gap-1.5">
                                                                 {msg.attachments.map((file, idx) => (
-                                                                    <div key={idx} className="flex items-center gap-1.5 px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800 rounded-lg text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
-                                                                        <FileIcon className="w-3 h-3 text-primary" />
-                                                                        <span className="truncate max-w-[80px]">{file.name}</span>
+                                                                    <div key={idx} className="flex items-center gap-1 px-2 py-1 bg-slate-50 dark:bg-slate-800 rounded-lg text-[10px] font-medium text-slate-600 dark:text-slate-300 border border-slate-100 dark:border-slate-700">
+                                                                        <FileIcon className="w-2.5 h-2.5 text-primary" />
+                                                                        <span className="truncate max-w-[70px]">{file.name}</span>
                                                                     </div>
                                                                 ))}
                                                             </div>
@@ -366,43 +407,43 @@ export function NovaAssistant() {
                                             </div>
                                         </motion.div>
                                     ))}
-                                    {isLoading && (
+                                    {isLoading && !isStreaming && (
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             className="flex justify-start"
                                         >
-                                            <div className="flex gap-2.5 items-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl rounded-tl-sm px-4 py-3 shadow-sm">
+                                            <div className="flex gap-2 items-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl rounded-tl-sm px-3.5 py-2.5 sm:px-4 sm:py-3 shadow-sm">
                                                 <div className="flex gap-1">
                                                     <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></span>
                                                     <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
                                                     <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-bounce"></span>
                                                 </div>
-                                                <span className="text-xs font-medium text-muted-foreground">Thinking...</span>
+                                                <span className="text-[11px] sm:text-xs font-medium text-muted-foreground">Thinking...</span>
                                             </div>
                                         </motion.div>
                                     )}
                                 </div>
 
-                                <div className="p-4 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl shrink-0 flex flex-col gap-3">
+                                <div className="p-3 sm:p-5 border-t border-slate-100 dark:border-slate-800 bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl shrink-0 flex flex-col gap-2 sm:gap-3">
                                     {attachedFiles.length > 0 && (
                                         <div className="flex flex-wrap gap-1.5 w-full">
                                             {attachedFiles.map((file, i) => (
-                                                <div key={i} className="group relative flex items-center gap-1.5 px-2.5 py-1.5 bg-primary/5 border border-primary/10 rounded-lg text-[10px] font-medium text-primary">
-                                                    <Paperclip className="w-3 h-3" />
-                                                    <span className="truncate max-w-[100px]">{file.name}</span>
+                                                <div key={i} className="group relative flex items-center gap-1.5 px-2 py-1.5 bg-primary/5 border border-primary/10 rounded-lg text-[10px] font-medium text-primary">
+                                                    <Paperclip className="w-2.5 h-2.5" />
+                                                    <span className="truncate max-w-[80px]">{file.name}</span>
                                                     <button 
                                                         onClick={() => setAttachedFiles(prev => prev.filter((_, idx) => idx !== i))}
                                                         className="ml-1 text-rose-500 hover:text-rose-600"
                                                     >
-                                                        <X className="w-3 h-3" />
+                                                        <X className="w-2.5 h-2.5" />
                                                     </button>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
-                                    <form onSubmit={handleSend} className="flex w-full items-center gap-2">
-                                        <div className="flex items-center gap-1 bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-xl">
+                                    <form onSubmit={handleSend} className="flex w-full items-end gap-2">
+                                        <div className="flex items-center gap-1 bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-xl shrink-0">
                                             <input 
                                                 type="file" 
                                                 ref={fileInputRef} 
@@ -414,30 +455,33 @@ export function NovaAssistant() {
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
-                                                className="h-9 w-9 rounded-lg text-slate-400 hover:text-primary hover:bg-white/80 dark:hover:bg-slate-800 transition-all"
+                                                className="h-8 w-8 sm:h-9 sm:w-9 rounded-lg text-slate-400 hover:text-primary hover:bg-white/80 dark:hover:bg-slate-800 transition-all"
                                                 onClick={() => fileInputRef.current?.click()}
                                             >
-                                                <Paperclip className="h-4 w-4" />
+                                                <Paperclip className="h-3.5 w-3.5" />
                                             </Button>
                                             <Button
                                                 type="button"
                                                 variant="ghost"
                                                 size="icon"
                                                 className={cn(
-                                                    "h-9 w-9 rounded-lg transition-all",
+                                                    "h-8 w-8 sm:h-9 sm:w-9 rounded-lg transition-all",
                                                     isListening ? "text-rose-500 bg-rose-500/10" : "text-slate-400 hover:text-primary hover:bg-white/80 dark:hover:bg-slate-800"
                                                 )}
                                                 onClick={startListening}
                                             >
-                                                <Mic className="h-4 w-4" />
+                                                <Mic className="h-3.5 w-3.5" />
                                             </Button>
                                         </div>
-                                        <div className="relative flex-1">
-                                            <Input
+                                        <div className="relative flex-1 min-w-0">
+                                            <textarea
+                                                ref={inputRef}
                                                 placeholder={isLimitReached ? "Limit reached" : "Ask Nova..."}
                                                 value={input}
                                                 onChange={(e) => setInput(e.target.value)}
-                                                className="pr-10 bg-slate-100/50 dark:bg-slate-900/50 border-slate-200/50 dark:border-slate-800/50 focus-visible:border-primary/50 h-10 rounded-xl text-sm font-medium transition-all"
+                                                onKeyDown={handleKeyDown}
+                                                rows={1}
+                                                className="w-full pr-10 bg-slate-100/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800/50 focus-visible:border-primary/50 focus-visible:ring-0 text-sm font-medium rounded-xl resize-none overflow-hidden py-2.5 px-3.5 min-h-[40px] max-h-[120px] transition-all outline-none"
                                                 disabled={isLoading || isLimitReached}
                                             />
                                         </div>
@@ -445,43 +489,40 @@ export function NovaAssistant() {
                                             type="submit"
                                             size="icon"
                                             disabled={(!input.trim() && attachedFiles.length === 0) || isLoading || isLimitReached}
-                                            className="h-10 w-10 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-sm transition-all active:scale-95 shrink-0"
+                                            className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-primary hover:bg-primary/90 text-white shadow-sm transition-all active:scale-95 shrink-0"
                                         >
-                                            <Send className="h-4 w-4" />
+                                            <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                         </Button>
                                     </form>
                                 </div>
                             </TabsContent>
 
-                            <TabsContent value="history" className="flex-1 overflow-y-auto p-6 m-0 bg-slate-50/30">
-                                <div className="space-y-4">
+                            <TabsContent value="history" className="flex-1 overflow-y-auto p-4 sm:p-6 m-0 bg-slate-50/30">
+                                <div className="space-y-3 sm:space-y-4">
                                     {[
                                         { title: "Sprint Planning", date: "2 hours ago", icon: ClipboardList, color: "text-blue-500" },
                                         { title: "Task Deconstruction", date: "Yesterday", icon: Zap, color: "text-rose-500" },
                                         { title: "Project Spec Draft", date: "2 days ago", icon: FileEdit, color: "text-amber-500" },
                                     ].map((item, i) => (
-                                        <div key={i} className="p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group">
+                                        <div key={i} className="p-3 sm:p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group">
                                             <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="p-3 bg-slate-50 dark:bg-slate-800 rounded-lg group-hover:bg-primary/5 transition-colors">
-                                                        <item.icon className={cn("w-5 h-5", item.color)} />
+                                                <div className="flex items-center gap-3 sm:gap-4">
+                                                    <div className="p-2 sm:p-3 bg-slate-50 dark:bg-slate-800 rounded-lg group-hover:bg-primary/5 transition-colors">
+                                                        <item.icon className={cn("w-4 h-4 sm:w-5 sm:h-5", item.color)} />
                                                     </div>
                                                     <div className="flex flex-col">
-                                                        <span className="text-sm font-extrabold text-slate-900 dark:text-white">{item.title}</span>
-                                                        <span className="text-[11px] text-muted-foreground font-medium">{item.date}</span>
+                                                        <span className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">{item.title}</span>
+                                                        <span className="text-[10px] sm:text-[11px] text-muted-foreground font-medium">{item.date}</span>
                                                     </div>
                                                 </div>
-                                                <Button variant="ghost" size="icon" className="rounded-lg hover:bg-primary/5">
-                                                    <Maximize2 className="w-4 h-4 text-slate-300" />
-                                                </Button>
                                             </div>
                                         </div>
                                     ))}
                                 </div>
                             </TabsContent>
 
-                            <TabsContent value="workflows" className="flex-1 overflow-y-auto p-6 m-0 bg-slate-50/30">
-                                <div className="grid grid-cols-2 gap-4">
+                            <TabsContent value="workflows" className="flex-1 overflow-y-auto p-4 sm:p-6 m-0 bg-slate-50/30">
+                                <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                     {[
                                         { label: "Summarize", icon: ClipboardList, color: "bg-primary/10 text-primary", prompt: "Summarize my active tasks." },
                                         { label: "Daily Standup", icon: MessageSquare, color: "bg-emerald-500/10 text-emerald-500", prompt: "Prepare a daily standup for me." },
@@ -491,22 +532,22 @@ export function NovaAssistant() {
                                         <button 
                                             key={i} 
                                             onClick={() => setInput(action.prompt)}
-                                            className="p-5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center gap-4 hover:border-primary/50 hover:shadow-md transition-all active:scale-95 group"
+                                            className="p-4 sm:p-5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center gap-3 sm:gap-4 hover:border-primary/50 hover:shadow-md transition-all active:scale-95 group"
                                         >
-                                            <div className={cn("h-14 w-14 rounded-lg flex items-center justify-center shadow-sm", action.color)}>
-                                                <action.icon className="w-6 h-6" />
+                                            <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-lg flex items-center justify-center shadow-sm", action.color)}>
+                                                <action.icon className="w-5 h-5 sm:w-6 sm:h-6" />
                                             </div>
-                                            <span className="text-xs font-semibold text-slate-700 dark:text-slate-300">{action.label}</span>
+                                            <span className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300">{action.label}</span>
                                         </button>
                                     ))}
                                 </div>
 
-                                <div className="mt-8">
-                                    <div className="flex items-center justify-between mb-5 px-2">
-                                        <h4 className="text-xs font-medium text-muted-foreground">Blueprints</h4>
+                                <div className="mt-6 sm:mt-8">
+                                    <div className="flex items-center justify-between mb-4 sm:mb-5 px-2">
+                                        <h4 className="text-[10px] sm:text-xs font-medium text-muted-foreground">Blueprints</h4>
                                         <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 ml-4" />
                                     </div>
-                                    <div className="space-y-3">
+                                    <div className="space-y-2 sm:space-y-3">
                                         {[
                                             { name: "Bug Report Architect", desc: "Structured bug reproduction steps", icon: Bot },
                                             { name: "Sprint Planner", desc: "Generate milestones and tasks", icon: Zap },
@@ -515,14 +556,14 @@ export function NovaAssistant() {
                                             <button 
                                                 key={i} 
                                                 onClick={() => setInput(`${t.name}: `)}
-                                                className="w-full p-4 text-left bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:bg-primary/5 dark:hover:bg-primary/5 hover:border-primary/30 transition-all flex items-center gap-4"
+                                                className="w-full p-3 sm:p-4 text-left bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:bg-primary/5 dark:hover:bg-primary/5 hover:border-primary/30 transition-all flex items-center gap-3 sm:gap-4"
                                             >
-                                                <div className="h-10 w-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                                                    <t.icon className="w-5 h-5 text-primary" />
+                                                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                                                    <t.icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                                                 </div>
-                                                <div>
-                                                    <p className="text-[13px] font-extrabold text-slate-900 dark:text-white leading-none mb-1">{t.name}</p>
-                                                    <p className="text-[11px] text-slate-400 font-medium">{t.desc}</p>
+                                                <div className="min-w-0">
+                                                    <p className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 dark:text-white leading-none mb-0.5 truncate">{t.name}</p>
+                                                    <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate">{t.desc}</p>
                                                 </div>
                                             </button>
                                         ))}
@@ -540,25 +581,25 @@ export function NovaAssistant() {
                 whileTap={{ scale: 0.95 }}
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "flex items-center gap-3 h-14 px-5 rounded-2xl shadow-lg transition-all z-50 border border-white/10 backdrop-blur-xl",
+                    "flex items-center gap-2 sm:gap-3 h-12 sm:h-14 px-4 sm:px-5 rounded-2xl shadow-lg transition-all z-50 border border-white/10 backdrop-blur-xl",
                     isOpen
                         ? "bg-slate-900/90 text-white"
                         : "bg-gradient-to-br from-primary to-indigo-600 text-white shadow-primary/30 hover:shadow-primary/40"
                 )}
             >
                 <div className="relative">
-                    <div className="h-8 w-8 rounded-xl bg-white/20 backdrop-blur-lg flex items-center justify-center shadow-inner">
-                        <Sparkles className="h-4 w-4 text-white" />
+                    <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-xl bg-white/20 backdrop-blur-lg flex items-center justify-center shadow-inner">
+                        <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-white" />
                     </div>
                     {!isOpen && (
-                        <span className="absolute -top-0.5 -right-0.5 flex h-3 w-3">
+                        <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5 sm:h-3 sm:w-3">
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 border-2 border-white"></span>
+                            <span className="relative inline-flex rounded-full h-2.5 w-2.5 sm:h-3 sm:w-3 bg-emerald-500 border-2 border-white"></span>
                         </span>
                     )}
                 </div>
-                {!isOpen && <span className="font-semibold text-sm tracking-tight">Nova</span>}
-                {isOpen && <X className="h-5 w-5" />}
+                {!isOpen && <span className="font-semibold text-xs sm:text-sm tracking-tight">Nova</span>}
+                {isOpen && <X className="h-4 w-4 sm:h-5 sm:w-5" />}
             </motion.button>
         </div>
     );

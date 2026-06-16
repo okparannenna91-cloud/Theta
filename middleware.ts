@@ -18,9 +18,9 @@ const limiter = rateLimit({
 });
 
 export default clerkMiddleware(async (auth, req) => {
+  const start = Date.now();
+
   // ── Canonical domain enforcement ────────────────────────────────────────
-  // Redirect thetapm.site (non-www) → https://www.thetapm.site permanently.
-  // Must run BEFORE auth so Clerk doesn't add its own redirect on top.
   const host = req.headers.get('host') ?? '';
   if (host === 'thetapm.site' || host === 'thetapm.site:3000') {
     const url = req.nextUrl.clone();
@@ -34,7 +34,7 @@ export default clerkMiddleware(async (auth, req) => {
   if (req.nextUrl.pathname.startsWith('/api')) {
     const ip = req.ip || req.headers.get('x-forwarded-for') || '127.0.0.1';
     try {
-      await limiter.check(null, 30, ip); // Limit to 30 requests per minute
+      await limiter.check(null, 30, ip);
     } catch {
       return new NextResponse('Too Many Requests', {
         status: 429,
@@ -45,6 +45,11 @@ export default clerkMiddleware(async (auth, req) => {
 
   if (!isPublicRoute(req)) {
     auth().protect();
+  }
+
+  const elapsed = Date.now() - start;
+  if (elapsed > 100) {
+    console.warn(`[Middleware] Slow request: ${req.nextUrl.pathname} took ${elapsed}ms`);
   }
 });
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrismaClient, prisma as globalPrisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { requireProjectAccess } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const linkTeamSchema = z.object({
@@ -26,6 +27,15 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    // Verify project-level access
+    const access = await requireProjectAccess(user.id, params.id, workspaceId);
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.error!.message },
+        { status: access.error!.status }
+      );
     }
 
     const db = getPrismaClient(workspaceId);
@@ -100,6 +110,15 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Verify project-level access
+    const access = await requireProjectAccess(user.id, params.id, workspaceId);
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.error!.message },
+        { status: access.error!.status }
+      );
+    }
+
     const db = getPrismaClient(workspaceId);
 
     // Create project teams
@@ -142,8 +161,17 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
             return NextResponse.json({ error: "Missing required parameters" }, { status: 400 });
         }
 
-        const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
-        if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        const hasWorkspaceAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+        if (!hasWorkspaceAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+        // Verify project-level access
+        const projectAccess = await requireProjectAccess(user.id, params.id, workspaceId);
+        if (!projectAccess.allowed) {
+            return NextResponse.json(
+                { error: projectAccess.error!.message },
+                { status: projectAccess.error!.status }
+            );
+        }
 
         const db = getPrismaClient(workspaceId);
 

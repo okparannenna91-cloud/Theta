@@ -47,8 +47,8 @@ async function auditToolExecution(
   }
 }
 
-async function enforce(ctx: ToolContext, action: PermissionCheckAction, resourceType: ResourceType) {
-  await SecurityGuard.enforce({ userId: ctx.user.id, workspaceId: ctx.workspaceId, action, resourceType });
+async function enforce(ctx: ToolContext, action: PermissionCheckAction, resourceType: ResourceType, extra?: { projectId?: string }) {
+  await SecurityGuard.enforce({ userId: ctx.user.id, workspaceId: ctx.workspaceId, action, resourceType, projectId: extra?.projectId });
 }
 
 async function requireToolApproval(toolName: string, params: Record<string, unknown>): Promise<void> {
@@ -150,9 +150,12 @@ export function buildTools(ctx: ToolContext) {
       description: 'List all workspaces the user has access to. Use this when user asks "show workspaces" or "list workspaces".',
       inputSchema: z.object({}),
       execute: async () => {
-        const db = getPrismaClient(workspaceId);
-        const ws = await db.workspace.findUnique({ where: { id: workspaceId }, select: { id: true, name: true } });
-        return { workspace: ws || { id: workspaceId, name: "Current Workspace" } };
+        const memberships = await prisma.workspaceMember.findMany({
+          where: { userId: user.id },
+          select: { workspace: { select: { id: true, name: true } } },
+        });
+        const workspaces = memberships.map((m: any) => m.workspace).filter(Boolean);
+        return { workspaces: workspaces.length > 0 ? workspaces : [{ id: workspaceId, name: "Current Workspace" }] };
       }
     },
     list_projects: {
@@ -161,7 +164,9 @@ export function buildTools(ctx: ToolContext) {
       execute: async () => {
         await enforce(ctx, "read", "project");
         const db = getPrismaClient(workspaceId);
-        const projects = await db.project.findMany({ where: { workspaceId }, select: { id: true, name: true, description: true } });
+        const { getAccessibleProjectIds } = await import("../project-permissions");
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+        const projects = await db.project.findMany({ where: { workspaceId, id: { in: accessibleProjectIds } }, select: { id: true, name: true, description: true } });
         return { projects };
       }
     },
@@ -171,7 +176,16 @@ export function buildTools(ctx: ToolContext) {
       execute: async ({ projectId: targetProjectId }: any) => {
         await enforce(ctx, "read", "task");
         const db = getPrismaClient(workspaceId);
-        const tasks = await db.task.findMany({ where: { workspaceId, projectId: targetProjectId || undefined }, take: 50, orderBy: { updatedAt: 'desc' }, select: { id: true, title: true, status: true, priority: true } });
+        const { getAccessibleProjectIds } = await import("../project-permissions");
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+        const where: any = { workspaceId, projectId: { in: accessibleProjectIds } };
+        if (targetProjectId) {
+          if (!accessibleProjectIds.includes(targetProjectId)) {
+            return { tasks: [], message: "Project not found or access denied." };
+          }
+          where.projectId = targetProjectId;
+        }
+        const tasks = await db.task.findMany({ where, take: 50, orderBy: { updatedAt: 'desc' }, select: { id: true, title: true, status: true, priority: true } });
         return { tasks };
       }
     },
@@ -184,9 +198,15 @@ export function buildTools(ctx: ToolContext) {
         const db = getPrismaClient(workspaceId);
         let pId = targetProjectId || projectId;
         if (!pId) {
-          const firstProject = await db.project.findFirst({ where: { workspaceId } });
-          if (!firstProject) return { error: "No projects found. Please create a project first." };
+          const { getAccessibleProjectIds } = await import("../project-permissions");
+          const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+          const firstProject = await db.project.findFirst({ where: { workspaceId, id: { in: accessibleProjectIds } } });
+          if (!firstProject) return { error: "No accessible projects found. Please create a project first." };
           pId = firstProject.id;
+        } else {
+          const { canAccessProject } = await import("../project-permissions");
+          const access = await canAccessProject(user.id, pId, workspaceId);
+          if (!access.hasAccess) return { error: "Access denied to the specified project." };
         }
         const task = await db.task.create({ data: { title, description, priority: resolvedPriority(initialPriority, recommendation), status: STATUS_TODO, workspaceId, projectId: pId, userId: recommendation.suggestedAssigneeId || user.id } });
         await db.activity.create({ data: { action: "CREATED", entityType: "TASK", entityId: task.id, workspaceId, userId: user.id, projectId: pId, metadata: { source: "NOVA_AI", title, intelligenceReasoning: recommendation.reason } } });
@@ -199,6 +219,12 @@ export function buildTools(ctx: ToolContext) {
       execute: async ({ taskId, status, priority, title, assigneeId }: any) => {
         await enforce(ctx, "write", "task");
         const db = getPrismaClient(workspaceId);
+        const existingTask = await db.task.findUnique({ where: { id: taskId }, select: { projectId: true } });
+        if (existingTask) {
+          const { canAccessProjectResource } = await import("../project-permissions");
+          const hasAccess = await canAccessProjectResource(user.id, workspaceId, existingTask.projectId);
+          if (!hasAccess) return { error: "Access denied to this task's project." };
+        }
         const task = await db.task.update({ where: { id: taskId }, data: { ...(status && { status }), ...(priority && { priority }), ...(title && { title }), ...(assigneeId && { userId: assigneeId }) } });
         await db.activity.create({ data: { action: "UPDATED", entityType: "TASK", entityId: task.id, workspaceId, userId: user.id, projectId: task.projectId, metadata: { source: "NOVA_AI", updates: { status, priority, title } } } });
         return { success: true, message: `Updated task **${task.title}**` };
@@ -211,6 +237,12 @@ export function buildTools(ctx: ToolContext) {
         await requireToolApproval("delete_task", { taskId });
         await enforce(ctx, "delete", "task");
         const db = getPrismaClient(workspaceId);
+        const existingTask = await db.task.findUnique({ where: { id: taskId }, select: { projectId: true } });
+        if (existingTask) {
+          const { canAccessProjectResource } = await import("../project-permissions");
+          const hasAccess = await canAccessProjectResource(user.id, workspaceId, existingTask.projectId);
+          if (!hasAccess) return { error: "Access denied to this task's project." };
+        }
         const task = await db.task.delete({ where: { id: taskId } });
         await db.activity.create({ data: { action: "DELETED", entityType: "TASK", entityId: taskId, workspaceId, userId: user.id, metadata: { source: "NOVA_AI", title: task.title } } });
         return { success: true, message: `Deleted task **${task.title}**` };
@@ -282,6 +314,12 @@ export function buildTools(ctx: ToolContext) {
       execute: async ({ taskId, subtasks: subtaskTitles }: any) => {
         await enforce(ctx, "write", "task");
         const db = getPrismaClient(workspaceId);
+        const taskRecord = await db.task.findUnique({ where: { id: taskId }, select: { projectId: true } });
+        if (taskRecord) {
+          const { canAccessProjectResource } = await import("../project-permissions");
+          const hasAccess = await canAccessProjectResource(user.id, workspaceId, taskRecord.projectId);
+          if (!hasAccess) return { error: "Access denied to this task's project." };
+        }
         const createdSubtasks = await Promise.all(subtaskTitles.map((title: string, index: number) => db.subtask.create({ data: { title, taskId, order: index } })));
         await db.activity.create({ data: { action: "UPDATED", entityType: "TASK", entityId: taskId, workspaceId, userId: user.id, metadata: { source: "NOVA_AI", addedSubtasks: subtaskTitles.length } } });
         return { success: true, message: `Broke down task into **${createdSubtasks.length}** subtasks.` };
@@ -307,11 +345,13 @@ export function buildTools(ctx: ToolContext) {
         await enforce(ctx, "read", "workspace");
         await auditToolExecution(workspaceId, user.id, "search_workspace", { query });
         const db = getPrismaClient(workspaceId);
+        const { getAccessibleProjectIds } = await import("../project-permissions");
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
         const [tasks, docs, comments, activities] = await Promise.all([
-          db.task.findMany({ where: { workspaceId, OR: [{ title: { contains: query } }, { description: { contains: query } }] }, take: 5, select: { id: true, title: true, status: true } }),
-          db.document.findMany({ where: { workspaceId, OR: [{ title: { contains: query } }, { content: { contains: query } }] }, take: 5, select: { id: true, title: true } }),
-          db.comment.findMany({ where: { task: { workspaceId }, content: { contains: query } }, take: 3, include: { user: { select: { name: true } }, task: { select: { title: true } } } }),
-          db.activity.findMany({ where: { workspaceId }, take: 5, orderBy: { createdAt: 'desc' }, select: { action: true, entityType: true, createdAt: true, metadata: true } })
+          db.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, OR: [{ title: { contains: query } }, { description: { contains: query } }] }, take: 5, select: { id: true, title: true, status: true } }),
+          db.document.findMany({ where: { workspaceId, AND: [{ OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }] }, { OR: [{ title: { contains: query } }, { content: { contains: query } }] }] }, take: 5, select: { id: true, title: true } }),
+          db.comment.findMany({ where: { task: { workspaceId, projectId: { in: accessibleProjectIds } }, content: { contains: query } }, take: 3, include: { user: { select: { name: true } }, task: { select: { title: true } } } }),
+          db.activity.findMany({ where: { workspaceId, OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }] }, take: 5, orderBy: { createdAt: 'desc' }, select: { action: true, entityType: true, createdAt: true, metadata: true } })
         ]);
         return { results: { tasks: tasks.map(t => ({ id: t.id, title: t.title, status: t.status })), documents: docs.map(d => ({ id: d.id, title: d.title })), comments: comments.map(c => ({ user: c.user.name, task: c.task?.title, text: c.content })), activity: activities.map(a => ({ action: a.action, type: a.entityType, time: a.createdAt })) } };
       }
@@ -432,7 +472,13 @@ export function buildTools(ctx: ToolContext) {
       execute: async ({ title, childTaskTitles }: any) => {
         await enforce(ctx, "write", "task");
         const db = getPrismaClient(workspaceId);
-        const epic = await db.task.create({ data: { title, isSummary: true, workspaceId, userId: user.id, projectId: (projectId || (await db.project.findFirst({ where: { workspaceId } }))?.id) as string } });
+        const { getAccessibleProjectIds } = await import("../project-permissions");
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+        const targetProjectId = projectId && accessibleProjectIds.includes(projectId)
+          ? projectId
+          : (await db.project.findFirst({ where: { workspaceId, id: { in: accessibleProjectIds } } }))?.id;
+        if (!targetProjectId) return { error: "No accessible project found." };
+        const epic = await db.task.create({ data: { title, isSummary: true, workspaceId, userId: user.id, projectId: targetProjectId } });
         if (childTaskTitles) { await Promise.all(childTaskTitles.map((t: string) => db.task.create({ data: { title: t, parentId: epic.id, workspaceId, userId: user.id, projectId: epic.projectId } }))); }
         return { success: true, message: `Epic "**${title}**" created.`, id: epic.id };
       }
@@ -443,9 +489,17 @@ export function buildTools(ctx: ToolContext) {
       execute: async ({ projectId: pId }: any) => {
         await enforce(ctx, "read", "task");
         const db = getPrismaClient(workspaceId);
+        const { getAccessibleProjectIds } = await import("../project-permissions");
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+        const targetProjectIds = pId
+          ? (accessibleProjectIds.includes(pId) ? [pId] : [])
+          : accessibleProjectIds;
+        if (targetProjectIds.length === 0) {
+          return { suggestions: ["No accessible projects found."] };
+        }
         const [overdue, stalled] = await Promise.all([
-          db.task.findMany({ where: { workspaceId, projectId: pId || undefined, dueDate: { lt: new Date() }, status: { not: STATUS_DONE } }, take: 3 }),
-          db.task.findMany({ where: { workspaceId, projectId: pId || undefined, status: STATUS_IN_PROGRESS, updatedAt: { lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } }, take: 3 })
+          db.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, dueDate: { lt: new Date() }, status: { not: STATUS_DONE } }, take: 3 }),
+          db.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, status: STATUS_IN_PROGRESS, updatedAt: { lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } }, take: 3 })
         ]);
         return { suggestions: [
           overdue.length > 0 ? `You have **${overdue.length}** overdue tasks.` : "No overdue tasks.",
@@ -472,10 +526,15 @@ export function buildTools(ctx: ToolContext) {
       description: 'Prepare a meeting agenda and context.',
       inputSchema: z.object({ topic: z.string(), projectId: z.string().optional() }),
       execute: async ({ topic, projectId: pId }: any) => {
-        await enforce(ctx, "read", "project");
+        await enforce(ctx, "read", "project", { projectId: pId });
         await auditToolExecution(workspaceId, user.id, "generate_meeting_prep", { topic, projectId: pId });
         const db = getPrismaClient(workspaceId);
-        const tasks = await db.task.findMany({ where: { workspaceId, projectId: pId || undefined, status: STATUS_IN_PROGRESS }, take: 5 });
+        const { getAccessibleProjectIds } = await import("../project-permissions");
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+        const targetProjectIds = pId
+          ? (accessibleProjectIds.includes(pId) ? [pId] : [])
+          : accessibleProjectIds;
+        const tasks = await db.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, status: STATUS_IN_PROGRESS }, take: 5 });
         return { agenda: ["Status update", "Blockers review", "Resource allocation", "Action items"], context: tasks.map(t => t.title) };
       }
     },
@@ -483,7 +542,10 @@ export function buildTools(ctx: ToolContext) {
       description: 'Perform a health check on a project.',
       inputSchema: z.object({ projectId: z.string() }),
       execute: async ({ projectId: pId }: any) => {
-        await enforce(ctx, "read", "project");
+        await enforce(ctx, "read", "project", { projectId: pId });
+        const { canAccessProject } = await import("../project-permissions");
+        const access = await canAccessProject(user.id, pId, workspaceId);
+        if (!access.hasAccess) return { error: "Access denied to this project." };
         return ProjectIntelligence.analyzeHealth(workspaceId, pId);
       }
     },
@@ -522,7 +584,10 @@ export function buildTools(ctx: ToolContext) {
       description: 'Create a new sprint board.',
       inputSchema: z.object({ projectId: z.string(), name: z.string(), startDate: z.string().optional(), endDate: z.string().optional() }),
       execute: async ({ projectId: pId, name, startDate, endDate }: any) => {
-        await enforce(ctx, "write", "project");
+        await enforce(ctx, "write", "project", { projectId: pId });
+        const { canAccessProject } = await import("../project-permissions");
+        const access = await canAccessProject(user.id, pId, workspaceId);
+        if (!access.hasAccess) return { error: "Access denied to this project." };
         const db = getPrismaClient(workspaceId);
         const board = await db.board.create({ data: { name, projectId: pId, workspaceId, visibility: 'private', description: `Sprint: ${startDate || 'N/A'} to ${endDate || 'N/A'}` } });
         await db.column.createMany({ data: [
@@ -620,6 +685,8 @@ export function buildTools(ctx: ToolContext) {
       execute: async ({ includeTypes = ["tasks", "projects"], maxItems = 200, cursor }: { includeTypes?: string[]; maxItems?: number; cursor?: string }) => {
         await enforce(ctx, "admin", "workspace");
         const db = getPrismaClient(workspaceId);
+        const { getAccessibleProjectIds } = await import("../project-permissions");
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
         const SENSITIVE_FIELDS = new Set(["password", "apiKey", "token", "refreshToken", "secret", "privateKey", "encryptionKey"]);
         function stripSensitive(obj: any): any {
           if (Array.isArray(obj)) return obj.map(stripSensitive);
@@ -636,7 +703,7 @@ export function buildTools(ctx: ToolContext) {
         const queries: Promise<{ name: string; count: number; cursor: string | null; data: unknown[] }>[] = [];
         if (includeTypes.includes("tasks")) {
           queries.push(
-            db.task.findMany({ where: { workspaceId }, take: maxItems + 1, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: unknown[]) => {
+            db.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds } }, take: maxItems + 1, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: unknown[]) => {
               const hasMore = data.length > maxItems;
               if (hasMore) data.pop();
               return { name: "tasks", count: data.length, cursor: hasMore ? (data[data.length - 1] as any)?.id ?? null : null, data: stripSensitive(data) };
@@ -645,7 +712,7 @@ export function buildTools(ctx: ToolContext) {
         }
         if (includeTypes.includes("projects")) {
           queries.push(
-            db.project.findMany({ where: { workspaceId }, take: maxItems + 1, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: unknown[]) => {
+            db.project.findMany({ where: { workspaceId, id: { in: accessibleProjectIds } }, take: maxItems + 1, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: unknown[]) => {
               const hasMore = data.length > maxItems;
               if (hasMore) data.pop();
               return { name: "projects", count: data.length, cursor: hasMore ? (data[data.length - 1] as any)?.id ?? null : null, data: stripSensitive(data) };
@@ -654,7 +721,7 @@ export function buildTools(ctx: ToolContext) {
         }
         if (includeTypes.includes("documents")) {
           queries.push(
-            db.document.findMany({ where: { workspaceId }, take: maxItems + 1, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: unknown[]) => {
+            db.document.findMany({ where: { workspaceId, OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }] }, take: maxItems + 1, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: unknown[]) => {
               const hasMore = data.length > maxItems;
               if (hasMore) data.pop();
               return { name: "documents", count: data.length, cursor: hasMore ? (data[data.length - 1] as any)?.id ?? null : null, data: stripSensitive(data) };
@@ -784,6 +851,11 @@ export function buildTools(ctx: ToolContext) {
   for (const [name, tool] of Object.entries(rawTools)) {
     const originalExecute = (tool as any).execute;
     (rawTools as any)[name].execute = wrapTool(name, originalExecute);
+    const schema = (tool as any).inputSchema;
+    if (schema) {
+      (rawTools as any)[name].parameters = schema;
+      delete (rawTools as any)[name].inputSchema;
+    }
   }
 
   Object.assign(_toolsRef, rawTools);

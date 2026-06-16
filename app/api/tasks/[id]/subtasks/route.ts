@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma, findAcrossShards } from "@/lib/prisma";
+import { canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const subtaskSchema = z.object({
@@ -41,6 +42,12 @@ export async function GET(
         const hasAccess = await verifyWorkspaceAccess(user.id, task.workspaceId);
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        // Verify project access
+        const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
+        if (!hasProjectAccess) {
+            return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
         }
 
         const subtasks = await (db as any).subtask.findMany({
@@ -86,6 +93,12 @@ export async function POST(
 
         if (!membership) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        // Verify project access
+        const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
+        if (!hasProjectAccess) {
+            return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
         }
 
         const body = await req.json();

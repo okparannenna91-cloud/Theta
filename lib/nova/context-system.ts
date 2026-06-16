@@ -1,5 +1,6 @@
 import { getPrismaClient } from "../prisma";
 import { logger } from "../logger";
+import { canAccessProject, canAccessProjectResource } from "../project-permissions";
 import { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, getContextPriority, type ContextSource } from "./constitution/context";
 
 export { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, type ContextSource } from "./constitution/context";
@@ -65,11 +66,32 @@ export class ContextSystem {
 
     const [workspace, project, task, document, user] = await Promise.all([
       getCachedOrFetch(`workspace:${workspaceId}`, () => db.workspace.findUnique({ where: { id: workspaceId } })),
-      projectId ? getCachedOrFetch(`project:${projectId}`, () => db.project.findUnique({ where: { id: projectId } })) : null,
+      projectId ? getCachedOrFetch(`project:${projectId}`, async () => {
+        // Verify user has access to this project before caching
+        if (userId) {
+          const access = await canAccessProject(userId, projectId, workspaceId);
+          if (!access.hasAccess) return null;
+        }
+        return db.project.findUnique({ where: { id: projectId } });
+      }) : null,
       taskId ? db.task.findUnique({ where: { id: taskId }, include: { subtasks: true } }) : null,
       documentId ? db.document.findUnique({ where: { id: documentId } }) : null,
       userId ? db.user.findUnique({ where: { id: userId }, select: { name: true } }) : null,
     ]);
+
+    // After fetching, verify project access for task and document context
+    if (task && task.projectId && userId) {
+      const hasAccess = await canAccessProjectResource(userId, workspaceId, task.projectId);
+      if (!hasAccess) {
+        logger.warn(`[ContextSystem] Task ${taskId} filtered: user ${userId} lacks project access`);
+      }
+    }
+    if (document && document.projectId && userId) {
+      const hasAccess = await canAccessProjectResource(userId, workspaceId, document.projectId);
+      if (!hasAccess) {
+        logger.warn(`[ContextSystem] Document ${documentId} filtered: user ${userId} lacks project access`);
+      }
+    }
 
     const resolvedContext: ResolvedContext = {
       task: task ? {

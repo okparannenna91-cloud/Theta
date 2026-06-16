@@ -15,7 +15,7 @@ export interface OrchestrationOptions {
   systemPrompt?: string;
 }
 
-const PROVIDER_TIMEOUT_MS = 30000;
+const PROVIDER_TIMEOUT_MS = 25000;
 
 export class NovaOrchestrator {
   private static defaultSystemPrompt = "You are Nova, the intelligent operating system of Theta.";

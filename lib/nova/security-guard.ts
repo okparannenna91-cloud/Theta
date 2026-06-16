@@ -10,11 +10,12 @@ export interface PermissionCheckOptions {
   workspaceId: string;
   action: PermissionCheckAction;
   resourceType: ResourceType;
+  projectId?: string;
 }
 
 export class SecurityGuard {
   public static async validate(options: PermissionCheckOptions): Promise<boolean> {
-    const { userId, workspaceId, action, resourceType } = options;
+    const { userId, workspaceId, action, resourceType, projectId } = options;
     const { getPrismaClient } = await import("../prisma");
     const db = getPrismaClient(workspaceId);
 
@@ -28,7 +29,20 @@ export class SecurityGuard {
     }
 
     const role = membership.role.toLowerCase() as SecurityRole;
-    return hasPermission(role, resourceType, action);
+    const hasBasePermission = hasPermission(role, resourceType, action);
+    if (!hasBasePermission) return false;
+
+    // If a projectId is provided, verify project-level access
+    if (projectId) {
+      const { canAccessProject } = await import("../project-permissions");
+      const access = await canAccessProject(userId, projectId, workspaceId);
+      if (!access.hasAccess) {
+        logger.warn(`Access Denied: User ${userId} has no access to project ${projectId}`);
+        return false;
+      }
+    }
+
+    return true;
   }
 
   public static async enforce(options: PermissionCheckOptions): Promise<void> {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { findAcrossShards } from "@/lib/prisma";
 import { Board } from "@prisma/client";
+import { requireProjectAccess } from "@/lib/project-permissions";
 
 export async function GET(
   req: Request,
@@ -32,6 +33,12 @@ export async function GET(
 
     if (!membership) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // Check project-level access
+    const accessCheck = await requireProjectAccess(user.id, board.projectId, board.workspaceId);
+    if (!accessCheck.allowed) {
+      return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
     }
 
     // Now fetch full details from the shard
@@ -117,6 +124,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    // Check project-level access
+    const accessCheck = await requireProjectAccess(user.id, board.projectId, board.workspaceId);
+    if (!accessCheck.allowed) {
+      return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
+    }
+
     const updatedBoard = await db.board.update({
       where: { id: params.id },
       data: {
@@ -167,6 +180,12 @@ export async function DELETE(
 
     if (!membership) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    // Check project-level access
+    const accessCheck = await requireProjectAccess(user.id, board.projectId, board.workspaceId);
+    if (!accessCheck.allowed) {
+      return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
     }
 
     // Manual Cascade: Nullify board and column references on tasks

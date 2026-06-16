@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getPrismaClient } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { getAccessibleProjectIds } from "@/lib/project-permissions";
 
 export async function GET(req: Request) {
     try {
@@ -23,6 +24,9 @@ export async function GET(req: Request) {
         }
 
         const db = getPrismaClient(workspaceId);
+
+        // Get accessible project IDs for filtering notifications by project access
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
         
         const where: any = {
             workspaceId,
@@ -69,9 +73,15 @@ export async function GET(req: Request) {
             db.notification.count({ where: { workspaceId, userId: user.id, read: false, archived: false } })
         ]);
 
+        // Post-filter notifications whose metadata references an inaccessible project
+        const filteredNotifications = notifications.filter((n: any) => {
+            if (!n.metadata || !n.metadata.projectId) return true;
+            return accessibleProjectIds.includes(n.metadata.projectId);
+        });
+
         return NextResponse.json({ 
-            notifications, 
-            total,
+            notifications: filteredNotifications, 
+            total: filteredNotifications.length,
             unreadCount,
             hasMore: skip + take < total
         });

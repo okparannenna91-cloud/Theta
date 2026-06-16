@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
 
 import { getCurrentUser } from "@/lib/auth";
+import { canAccessProjectResource } from "@/lib/project-permissions";
 
 import { streamText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
@@ -90,6 +91,14 @@ export async function POST(req: Request) {
 
         if (!prompt) {
             return NextResponse.json({ error: "Nova needs a prompt to help you" }, { status: 400 });
+        }
+
+        // Verify project access if projectId is provided
+        if (workspaceId && projectId) {
+            const hasAccess = await canAccessProjectResource(user.id, workspaceId, projectId);
+            if (!hasAccess) {
+                return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
+            }
         }
 
         const decision = DecisionFramework.evaluate(prompt);
@@ -188,31 +197,64 @@ ${formattedHistory || "No recent conversation history."}
                 }
             });
 
-            const result = await streamText({
-                model: openrouterProvider("openai/gpt-4o-mini"),
-                system: systemPrompt,
-                prompt: prompt,
-                tools,
-                maxRetries: 2,
-                onError: ({ error }: { error: unknown }) => {
-                    const errorMessage = error instanceof Error ? error.message : String(error);
-                    logger.error("[Nova] Stream error:", errorMessage);
-                    if (error instanceof Error && (error.name === 'AbortError' || error.message?.includes('abort'))) {
-                        logger.warn("[Nova] Stream aborted - this may be due to timeout or client disconnect");
-                    }
-                },
-                onFinish: async ({ text }: { text: string }) => {
-                    if (text && conversationId) {
-                        try {
-                            const db = getPrismaClient(workspaceId);
-                            await db.aiMessage.create({ data: { conversationId, role: "assistant", content: text } });
-                        } catch (e) {
-                            logger.error("[Nova] Failed to save assistant message:", e);
+            const abortController = new AbortController();
+            const timeoutId = setTimeout(() => {
+                logger.warn("[Nova] Stream timeout reached (50s) - aborting stream");
+                abortController.abort("Stream timeout after 50s");
+            }, 50000);
+
+            try {
+                const result = await streamText({
+                    model: openrouterProvider("openai/gpt-4o-mini"),
+                    system: systemPrompt,
+                    prompt: prompt,
+                    tools,
+                    maxRetries: 2,
+                    abortSignal: abortController.signal,
+                    onError: ({ error }: { error: unknown }) => {
+                        const errorMessage = error instanceof Error ? error.message : String(error);
+                        logger.error("[Nova] Stream error:", errorMessage, {
+                            errorName: error instanceof Error ? error.name : typeof error,
+                            timestamp: new Date().toISOString()
+                        });
+                        if (error instanceof Error && (error.name === 'AbortError' || error.message?.includes('abort'))) {
+                            logger.warn("[Nova] Stream aborted:", errorMessage);
                         }
-                    }
-                },
-            });
-            return result.toTextStreamResponse();
+                    },
+                    onFinish: async ({ text, finishReason }: { text: string; finishReason?: string }) => {
+                        clearTimeout(timeoutId);
+                        logger.info("[Nova] Stream finished", {
+                            finishReason,
+                            textLength: text?.length || 0,
+                            timestamp: new Date().toISOString()
+                        });
+                        if (text && conversationId) {
+                            try {
+                                const db = getPrismaClient(workspaceId);
+                                await db.aiMessage.create({ data: { conversationId, role: "assistant", content: text } });
+                            } catch (e) {
+                                logger.error("[Nova] Failed to save assistant message:", e);
+                            }
+                        }
+                    },
+                });
+                const response = result.toTextStreamResponse();
+                clearTimeout(timeoutId);
+                return response;
+            } catch (streamError: any) {
+                clearTimeout(timeoutId);
+                const isAbort = streamError?.name === 'AbortError' || streamError?.message?.includes('abort') || streamError?.message?.includes('AbortError');
+                logger.error("[Nova] Stream execution failed:", {
+                    message: streamError?.message,
+                    name: streamError?.name,
+                    isAbort,
+                    timestamp: new Date().toISOString()
+                });
+                if (isAbort) {
+                    return new Response("The request took too long. Please try a simpler query or try again.", { status: 200 });
+                }
+                return new Response(`I encountered an issue while processing your request. Please try again.`, { status: 200 });
+            }
         } else {
             const text = await NovaOrchestrator.execute(prompt, { systemPrompt, imageUrl });
             const optimized = PhilosophyEngine.optimizeResponse(text, decision.intent);

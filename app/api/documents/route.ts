@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma, getPrismaClient } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { getAccessibleProjectIds, requireProjectAccess, canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const documentSchema = z.object({
@@ -39,10 +40,15 @@ export async function GET(req: Request) {
     }
 
     const db = getPrismaClient(workspaceId);
+    const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
     const documents = await db.document.findMany({
       where: {
         workspaceId,
         archived: false,
+        OR: [
+          { projectId: null },
+          { projectId: { in: accessibleProjectIds } },
+        ],
       },
       orderBy: { updatedAt: "desc" },
     });
@@ -74,6 +80,13 @@ export async function POST(req: Request) {
         { error: "Access denied to workspace" },
         { status: 403 }
       );
+    }
+
+    if (data.projectId) {
+      const projectAccess = await requireProjectAccess(user.id, data.projectId, data.workspaceId);
+      if (!projectAccess.allowed) {
+        return NextResponse.json({ error: projectAccess.error!.message }, { status: projectAccess.error!.status });
+      }
     }
 
     // Enforce plan limits (blocks deactivated workspaces)
@@ -145,8 +158,8 @@ export async function DELETE(req: Request) {
     }
 
     // Verify workspace access
-    const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
-    if (!hasAccess) {
+    const hasWorkspaceAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+    if (!hasWorkspaceAccess) {
       return NextResponse.json(
         { error: "Access denied to workspace" },
         { status: 403 }
@@ -154,6 +167,28 @@ export async function DELETE(req: Request) {
     }
 
     const db = getPrismaClient(workspaceId);
+
+    // Fetch the document to verify project-level access
+    const document = await db.document.findUnique({
+      where: { id },
+      select: { projectId: true, userId: true },
+    });
+
+    if (!document) {
+      return NextResponse.json({ error: "Document not found" }, { status: 404 });
+    }
+
+    // Verify project-level access if the document belongs to a project
+    if (document.projectId) {
+      const projectAccess = await canAccessProjectResource(user.id, workspaceId, document.projectId);
+      if (!projectAccess) {
+        return NextResponse.json(
+          { error: "Access denied to this document" },
+          { status: 403 }
+        );
+      }
+    }
+
     await db.document.delete({
       where: { id }
     });
