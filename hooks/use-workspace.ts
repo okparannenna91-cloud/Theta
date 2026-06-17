@@ -20,7 +20,13 @@ export function useWorkspace() {
   const { data: workspaces, isLoading, error } = useQuery({
     queryKey: ["workspaces"],
     queryFn: fetchWorkspaces,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
+
+  const [fallbackWorkspace, setFallbackWorkspace] = useState<any>(null);
+  const [fallbackLoading, setFallbackLoading] = useState(false);
 
   useEffect(() => {
     if (workspaces && workspaces.length > 0) {
@@ -30,8 +36,6 @@ export function useWorkspace() {
       if (savedId && isValidSavedId) {
         if (activeWorkspaceId !== savedId) setActiveWorkspaceId(savedId);
       } else {
-        // If we have a project ID in the URL but no workspace, we'll try to find it
-        // For now, default to the first one but don't force it if the project search is ongoing
         const firstWorkspaceId = workspaces[0].id;
         if (!activeWorkspaceId) {
             setActiveWorkspaceId(firstWorkspaceId);
@@ -41,19 +45,32 @@ export function useWorkspace() {
     }
   }, [workspaces, activeWorkspaceId]);
 
+  useEffect(() => {
+    if ((!workspaces || workspaces.length === 0) && activeWorkspaceId && !fallbackWorkspace) {
+      setFallbackLoading(true);
+      fetch(`/api/workspaces/${activeWorkspaceId}`)
+        .then((res) => res.ok ? res.json() : null)
+        .then((data) => {
+          if (data) setFallbackWorkspace(data);
+        })
+        .catch(() => {})
+        .finally(() => setFallbackLoading(false));
+    }
+  }, [workspaces, activeWorkspaceId, fallbackWorkspace]);
+
   const switchWorkspace = (id: string) => {
     if (!id || typeof id !== "string") return;
     setActiveWorkspaceId(id);
     localStorage.setItem("activeWorkspaceId", id);
   };
 
-  const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId) || workspaces?.[0] || null;
+  const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId) || fallbackWorkspace || workspaces?.[0] || null;
 
   return {
-    workspaces,
+    workspaces: workspaces && workspaces.length > 0 ? workspaces : (fallbackWorkspace ? [fallbackWorkspace] : workspaces),
     activeWorkspace,
     activeWorkspaceId: activeWorkspaceId || activeWorkspace?.id || null,
-    isLoading: isLoading && !workspaces, // Only true on first load with no data
+    isLoading: (isLoading && !workspaces) || fallbackLoading,
     error,
     switchWorkspace,
   };

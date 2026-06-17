@@ -156,9 +156,20 @@ export async function getUserWorkspaces(userId: string) {
       orderBy: { createdAt: "asc" },
     });
 
+    if (memberships.length === 0) {
+      logger.warn(`No workspace memberships found for user ${userId}`);
+      return [];
+    }
+
     // Fetch project counts from correct shards
-    const workspacesWithCounts = await Promise.all(
+    // Use allSettled so one bad member doesn't crash the entire list
+    const results = await Promise.allSettled(
       memberships.map(async (m) => {
+        if (!m.workspace) {
+          logger.warn(`Skipping orphaned workspace member record: memberId=${m.id}, workspaceId=${m.workspaceId}`);
+          return null;
+        }
+
         const workspaceId = m.workspaceId;
         let projectsCount = 0;
         try {
@@ -169,7 +180,6 @@ export async function getUserWorkspaces(userId: string) {
           logger.debug(`Workspace ${workspaceId} (${m.workspace.name}): ${projectsCount} projects`);
         } catch (countError) {
           logger.error(`Failed to fetch project count for workspace ${workspaceId} on its shard:`, countError);
-          // Default to 0 instead of failing the whole list
         }
 
         return {
@@ -187,6 +197,15 @@ export async function getUserWorkspaces(userId: string) {
         };
       })
     );
+
+    const workspacesWithCounts: any[] = [];
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value !== null) {
+        workspacesWithCounts.push(result.value);
+      } else if (result.status === "rejected") {
+        logger.error("Failed to process workspace member:", result.reason);
+      }
+    }
 
     return workspacesWithCounts;
   } catch (error) {
