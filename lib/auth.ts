@@ -53,27 +53,28 @@ export async function getCurrentUser() {
   }
 
   if (isNewUser && user) {
-    const userIdForWorkspace = user.id;
-    const userEmail = user.email;
-    const userName = user.name;
+    try {
+      const userName = user.name;
+      const workspaceName = userName
+        ? `${userName}'s Workspace`
+        : "My Workspace";
 
-    (async () => {
-      try {
-        const workspaceName = userName
-          ? `${userName}'s Workspace`
-          : "My Workspace";
+      const { createWorkspace } = await import("@/lib/workspace");
+      await createWorkspace(user.id, workspaceName, "free");
 
-        const { createWorkspace } = await import("@/lib/workspace");
-        await createWorkspace(userIdForWorkspace, workspaceName, "free");
-
-        if (userEmail) {
-          const { sendWelcomeEmail } = await import("@/lib/email");
-          await sendWelcomeEmail(userEmail, userName || "there");
-        }
-      } catch (error) {
-        console.error("Background initial setup failed:", error);
+      if (user.email) {
+        (async () => {
+          try {
+            const { sendWelcomeEmail } = await import("@/lib/email");
+            await sendWelcomeEmail(user!.email!, userName || "there");
+          } catch (emailError) {
+            console.error("Failed to send welcome email:", emailError);
+          }
+        })();
       }
-    })();
+    } catch (error) {
+      console.error("Initial workspace creation failed:", error);
+    }
   }
 
   const total = Date.now() - start;

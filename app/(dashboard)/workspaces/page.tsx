@@ -29,8 +29,8 @@ export default function WorkspacesPage() {
             if (!res.ok) throw new Error("Failed to create workspace");
             return res.json();
         },
-        onSuccess: (newWorkspace) => {
-            queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+        onSuccess: async (newWorkspace) => {
+            await queryClient.invalidateQueries({ queryKey: ["workspaces"], refetchType: "all" });
             setIsOpen(false); setName("");
             toast.success("Workspace created successfully");
             switchWorkspace(newWorkspace.id);

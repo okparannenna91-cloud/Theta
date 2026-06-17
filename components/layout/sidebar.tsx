@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
@@ -27,14 +27,24 @@ import {
   GanttChartSquare,
   Sparkles,
   ChevronDown,
+  Check,
+  Plus,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useI18n } from "@/lib/i18n";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 
 export function Sidebar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const { t } = useI18n();
   const { workspaces, activeWorkspaceId, switchWorkspace } = useWorkspace();
@@ -105,12 +115,52 @@ export function Sidebar() {
         </div>
 
         <div className="px-3 py-3 border-b border-sidebar-border">
-          <button className="flex items-center justify-between w-full px-3 py-2 rounded-md hover:bg-white/5 transition-colors text-sm text-sidebar-foreground">
-            <span className="truncate font-medium">
-              {activeWorkspace?.name || "Select workspace"}
-            </span>
-            <ChevronDown className="h-4 w-4 text-sidebar-muted flex-shrink-0" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className="flex items-center justify-between w-full px-3 py-2 rounded-md hover:bg-white/5 transition-colors text-sm text-sidebar-foreground">
+                <span className="truncate font-medium">
+                  {activeWorkspace?.name || "Select workspace"}
+                </span>
+                <ChevronDown className="h-4 w-4 text-sidebar-muted flex-shrink-0" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="right" sideOffset={8} className="w-56">
+              <div className="px-2 py-1.5 text-xs font-medium text-sidebar-muted uppercase tracking-wider">
+                Workspaces
+              </div>
+              {workspaces?.map((ws: any) => (
+                <DropdownMenuItem
+                  key={ws.id}
+                  className="flex items-center gap-3 cursor-pointer"
+                  onClick={() => {
+                    switchWorkspace(ws.id);
+                    router.push("/dashboard");
+                  }}
+                >
+                  <div className={cn(
+                    "w-6 h-6 rounded-md flex items-center justify-center text-xs font-medium flex-shrink-0",
+                    ws.id === activeWorkspaceId
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground"
+                  )}>
+                    {ws.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="flex-1 truncate">{ws.name}</span>
+                  {ws.id === activeWorkspaceId && (
+                    <Check className="h-4 w-4 text-primary flex-shrink-0" />
+                  )}
+                </DropdownMenuItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="flex items-center gap-2 cursor-pointer text-primary"
+                onClick={() => router.push("/workspaces")}
+              >
+                <Plus className="h-4 w-4" />
+                <span>Manage Workspaces</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         <nav className="flex-1 overflow-y-auto py-2 px-2">
