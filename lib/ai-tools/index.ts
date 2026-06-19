@@ -17,6 +17,8 @@ import { AgentFramework } from "@/lib/nova/agent-framework";
 import { decryptSensitiveFields } from "@/lib/field-encryption";
 import { mem0 } from "@/lib/mem0";
 import { inngest } from "@/lib/inngest/client";
+import { filterToolsByCategories, type ToolCategory } from "@/lib/ai-tools/registry";
+import { telemetry } from "@/lib/nova/telemetry";
 
 export interface ToolContext {
   user: { id: string };
@@ -98,7 +100,7 @@ function resolvedPriority(initialPriority: string | undefined, recommendation: T
 
 const _toolsRef: Record<string, { execute: (...args: any[]) => any }> = {};
 
-export function buildTools(ctx: ToolContext) {
+export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
   const { user, workspaceId, projectId } = ctx;
 
   const TOOL_TIMEOUT_MS = 25000;
@@ -110,6 +112,7 @@ export function buildTools(ctx: ToolContext) {
         return { error: `Rate limit exceeded for tool: ${toolName}. Max ${PER_TOOL_RATE_LIMIT} calls per ${PER_TOOL_WINDOW_SECONDS}s.` } as any;
       }
       let timer: ReturnType<typeof setTimeout> | undefined;
+      const toolStart = Date.now();
       try {
         const result = await Promise.race([
           execute(args),
@@ -117,7 +120,24 @@ export function buildTools(ctx: ToolContext) {
             timer = setTimeout(() => reject(new Error(`Tool "${toolName}" timed out after ${TOOL_TIMEOUT_MS}ms.`)), TOOL_TIMEOUT_MS);
           }),
         ]);
+        telemetry.trackToolExecution({
+          userId: user.id,
+          workspaceId,
+          toolName,
+          success: true,
+          durationMs: Date.now() - toolStart,
+        });
         return result;
+      } catch (err: any) {
+        telemetry.trackToolExecution({
+          userId: user.id,
+          workspaceId,
+          toolName,
+          success: false,
+          durationMs: Date.now() - toolStart,
+          errorMessage: err.message,
+        });
+        throw err;
       } finally {
         clearTimeout(timer);
       }
@@ -860,5 +880,6 @@ export function buildTools(ctx: ToolContext) {
 
   Object.assign(_toolsRef, rawTools);
 
-  return rawTools;
+  const filtered = categories ? filterToolsByCategories(rawTools, categories) : rawTools;
+  return filtered;
 }

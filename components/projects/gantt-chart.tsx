@@ -19,7 +19,6 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import TimelineCanvas from "../timeline/timeline-canvas";
 import PresenceAvatars from "../gantt/presence-avatars";
-import AIScheduleAssistant from "../gantt/ai-assistant";
 import { toPng } from "html-to-image";
 import { ZoomLevel } from "../timeline/timeline-page";
 
@@ -168,7 +167,6 @@ export function GanttChart({ tasks, projectId, workspaceId }: GanttChartProps) {
                 />
             </div>
 
-            <AIScheduleAssistant tasks={filteredTasks} />
         </div>
     );
 }

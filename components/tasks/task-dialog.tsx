@@ -24,6 +24,7 @@ import { Calendar as CalendarIcon, Flag, Layout, Type, AlignLeft, Clock, Sparkle
 import { format } from "date-fns";
 
 import { useAbly } from "@/hooks/use-ably";
+import { generateAiText } from "@/lib/call-ai";
 import { getTaskChannel } from "@/lib/ably";
 import {
     Popover,
@@ -145,23 +146,15 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     const handleAISummary = async () => {
         setIsSummarizing(true);
         try {
-            const res = await fetch("/api/ai", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    prompt: `/summarize Summarize the current state of this task and recommend next steps.
+            const prompt = `/summarize Summarize the current state of this task and recommend next steps.
 Task: ${title}
 Current Progress: ${progress}%
 Subtasks: ${task.subtasks?.map((s:any) => s.title).join(", ") || "None"}
-Last Description: ${description}`,
-                    workspaceId,
-                }),
-            });
-            if (!res.ok) throw new Error("AI failed");
-            const data = await res.json();
-            setSummary(data.text);
-        } catch (error) {
-            toast.error("Couldn't summarize this task.");
+Last Description: ${description}`;
+            const text = await generateAiText({ prompt, workspaceId });
+            setSummary(text);
+        } catch (error: any) {
+            toast.error(error.message || "Couldn't summarize this task.");
         } finally {
             setIsSummarizing(false);
         }
@@ -399,16 +392,11 @@ Last Description: ${description}`,
                                         onClick={async () => {
                                             setIsSummarizing(true);
                                             try {
-                                                const res = await fetch("/api/ai", {
-                                                    method: "POST",
-                                                    headers: { "Content-Type": "application/json" },
-                                                    body: JSON.stringify({
-                                                        prompt: `/risks Analyze potential risks for this task: ${title}`,
-                                                        workspaceId,
-                                                    }),
-                                                });
-                                                const data = await res.json();
-                                                setSummary(data.text);
+                                                const prompt = `/risks Analyze potential risks for this task: ${title}`;
+                                                const text = await generateAiText({ prompt, workspaceId });
+                                                setSummary(text);
+                                            } catch (error: any) {
+                                                toast.error(error.message || "Risk analysis failed.");
                                             } finally {
                                                 setIsSummarizing(false);
                                             }

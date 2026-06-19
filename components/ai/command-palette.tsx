@@ -31,6 +31,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export function CommandPalette() {
   const [open, setOpen] = React.useState(false);
@@ -56,7 +57,10 @@ export function CommandPalette() {
 
   const handleAskNova = () => {
     runCommand(() => {
-        router.push(`/nova?prompt=${encodeURIComponent(search)}`);
+        navigator.clipboard.writeText(search);
+        toast.info("Nova assistant ready", {
+            description: "Your prompt has been copied. Click the Nova button to paste it."
+        });
     });
   };
 
@@ -175,19 +179,6 @@ export function CommandPalette() {
             )}
 
             <CommandGroup heading={<span className="text-xs font-medium text-muted-foreground px-2 py-4 block">Core Operations</span>}>
-              <CommandItem 
-                onSelect={() => runCommand(() => router.push("/nova"))}
-                className="flex items-center gap-4 p-4 rounded-lg hover:bg-slate-500/10 aria-selected:bg-slate-500/10 cursor-pointer transition-all group mb-2"
-              >
-                <div className="h-10 w-10 bg-primary/5 rounded-lg flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-all">
-                  <Sparkles className="h-5 w-5" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-semibold">Open Nova Chat</p>
-                  <p className="text-xs font-medium text-muted-foreground">Open AI chat interface</p>
-                </div>
-                <CommandShortcut className="text-xs font-semibold">⌘N</CommandShortcut>
-              </CommandItem>
               <CommandItem 
                 onSelect={() => runCommand(() => router.push("/tasks"))}
                 className="flex items-center gap-4 p-4 rounded-lg hover:bg-slate-500/10 aria-selected:bg-slate-500/10 cursor-pointer transition-all group mb-2"

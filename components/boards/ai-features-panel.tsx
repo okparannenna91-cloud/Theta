@@ -11,11 +11,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { toast } from "sonner";
 import {
   Sparkles, BrainCircuit, FileText, MessageSquareMore,
-  Tags, ArrowRight, Loader2, Wand2, Mic, Languages,
+  Tags, ArrowRight, Loader2, Wand2, Languages,
   Lightbulb, PenLine, ListChecks, RefreshCcw, Copy,
   Check, ThumbsUp, ThumbsDown, AlertCircle, Send,
-  Quote, BookOpen, Search, PanelRightClose
+  Search
 } from "lucide-react";
+import { generateAiText } from "@/lib/call-ai";
 
 interface AIFeaturesPanelProps {
   workspaceId: string;
@@ -94,19 +95,10 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
     const promptText = toolPrompts[toolId] || `Process the board data and provide insights.`;
 
     try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: promptText,
-          workspaceId,
-        }),
-      });
-      if (!res.ok) throw new Error("AI request failed");
-      const data = await res.json();
-      setResult(data.text);
+      const text = await generateAiText({ prompt: promptText, workspaceId });
+      setResult(text);
     } catch (err: any) {
-      toast.error("AI request failed");
+      toast.error(err.message || "AI request failed");
     } finally {
       setIsGenerating(false);
     }
@@ -119,19 +111,10 @@ export default function AIFeaturesPanel({ workspaceId, boardId }: AIFeaturesPane
     setActiveTool("custom");
 
     try {
-      const res = await fetch("/api/ai", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          prompt: prompt,
-          workspaceId,
-        }),
-      });
-      if (!res.ok) throw new Error("AI request failed");
-      const data = await res.json();
-      setResult(data.text);
-    } catch {
-      toast.error("AI request failed");
+      const text = await generateAiText({ prompt: prompt, workspaceId });
+      setResult(text);
+    } catch (err: any) {
+      toast.error(err.message || "AI request failed");
     } finally {
       setIsGenerating(false);
     }

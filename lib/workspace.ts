@@ -1,6 +1,7 @@
 import { prisma, getPrismaClient } from "./prisma";
 import { User } from "@prisma/client";
 import { logger } from "./logger";
+import { cacheGetOrSet, cacheKey } from "@/lib/cache";
 
 /**
  * Get the current user's default or specified workspace
@@ -53,14 +54,18 @@ export async function verifyWorkspaceAccess(
   workspaceId: string
 ): Promise<boolean> {
   try {
-    const membership = await prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: {
-          workspaceId,
-          userId,
+    const membership = await cacheGetOrSet(
+      cacheKey("member", workspaceId, userId),
+      () => prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId,
+            userId,
+          },
         },
-      },
-    });
+      }),
+      30,
+    );
 
     if (!membership) {
       logger.warn(`Access denied for user ${userId} to workspace ${workspaceId}. No membership found.`);

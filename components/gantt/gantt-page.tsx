@@ -22,7 +22,6 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import TimelineCanvas from "../timeline/timeline-canvas";
 import PresenceAvatars from "./presence-avatars";
-import AIScheduleAssistant from "./ai-assistant";
 import { toPng } from "html-to-image";
 
 export default function GanttPage() {
@@ -132,8 +131,7 @@ export default function GanttPage() {
                 <TimelineCanvas tasks={tasks} zoomLevel={zoomLevel} searchQuery={searchQuery} />
             </div>
 
-            <AIScheduleAssistant tasks={tasks} />
-
+                        
             <footer className="h-12 bg-background/80 backdrop-blur-sm border-t flex items-center justify-between px-6">
                 <div className="text-xs text-muted-foreground flex items-center gap-2">
                     <Clock className="h-3 w-3" />

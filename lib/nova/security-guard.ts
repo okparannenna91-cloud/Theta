@@ -1,5 +1,6 @@
 import { PERMISSION_MATRIX, SENSITIVE_ACTIONS, AUDIT_LOGGING_REQUIREMENTS, AI_SECURITY_RULES, SECURITY_PRIORITY_ORDER, hasPermission, type SecurityRole, type ResourceType, type SecurityAction as ConstitutionSecurityAction } from "./constitution/security";
 import { logger } from "../logger";
+import { cacheGetOrSet, cacheKey } from "@/lib/cache";
 
 export { type SecurityRole } from "./constitution/security";
 
@@ -17,11 +18,17 @@ export class SecurityGuard {
   public static async validate(options: PermissionCheckOptions): Promise<boolean> {
     const { userId, workspaceId, action, resourceType, projectId } = options;
     const { getPrismaClient } = await import("../prisma");
-    const db = getPrismaClient(workspaceId);
 
-    const membership = await db.workspaceMember.findFirst({
-      where: { workspaceId, userId, status: "active" },
-    });
+    const membership = await cacheGetOrSet(
+      cacheKey("member", workspaceId, userId),
+      async () => {
+        const db = getPrismaClient(workspaceId);
+        return db.workspaceMember.findFirst({
+          where: { workspaceId, userId, status: "active" },
+        });
+      },
+      30,
+    );
 
     if (!membership) {
       logger.warn(`Access Denied: User ${userId} is not a member of workspace ${workspaceId}`);

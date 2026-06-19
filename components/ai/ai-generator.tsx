@@ -16,6 +16,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { Label } from "@/components/ui/label";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { generateAiText } from "@/lib/call-ai";
 
 interface AiGeneratorProps {
     onGenerate: (text: string) => void;
@@ -26,8 +27,8 @@ interface AiGeneratorProps {
 
 export function AiGenerator({
     onGenerate,
-    title = "Nova - Your AI Work Assistant",
-    placeholder = "Ask Nova anything...",
+    title = "AI Generator",
+    placeholder = "Ask the AI assistant...",
     initialPrompt = "",
 }: AiGeneratorProps) {
     const [open, setOpen] = useState(false);
@@ -39,37 +40,14 @@ export function AiGenerator({
 
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
+        setIsLoading(true);
+        setResult("");
 
         try {
-            setIsLoading(true);
-            setResult("");
-            const res = await fetch("/api/ai", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ prompt, workspaceId: activeWorkspaceId }),
-            });
-
-            if (!res.ok) {
-                const errorData = await res.json();
-                throw new Error(errorData.error || "Generation failed");
-            }
-
-            const reader = res.body?.getReader();
-            const decoder = new TextDecoder();
-            let accumulatedResponse = "";
-
-            if (reader) {
-                while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    
-                    const chunk = decoder.decode(value);
-                    accumulatedResponse += chunk;
-                    setResult(accumulatedResponse);
-                }
-            }
+            const text = await generateAiText({ prompt, workspaceId: activeWorkspaceId });
+            setResult(text);
         } catch (error: any) {
-            toast.error(error.message || "Nova couldn't generate content. Please try again.");
+            toast.error(error.message || "Generation failed. Please try again.");
         } finally {
             setIsLoading(false);
         }
@@ -97,7 +75,7 @@ export function AiGenerator({
                 onClick={() => setOpen(true)}
             >
                 <Sparkles className="h-4 w-4 mr-2" />
-                ✨ Ask Nova
+                AI Generate
             </Button>
             <Dialog open={open} onOpenChange={setOpen}>
                 <DialogContent className="sm:max-w-[500px]">
@@ -107,13 +85,13 @@ export function AiGenerator({
                             {title}
                         </DialogTitle>
                         <DialogDescription>
-                            Nova helps you get work done faster. Ask Nova to write descriptions, brainstorm ideas, or generate content.
+                            Generate content with AI assistance to speed up your work.
                         </DialogDescription>
                     </DialogHeader>
 
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
-                            <Label>What can Nova help you with?</Label>
+                            <Label>What would you like to generate?</Label>
                             <div className="flex gap-2">
                                 <Input
                                     value={prompt}
@@ -133,7 +111,7 @@ export function AiGenerator({
 
                         {!result && !isLoading && (
                             <div className="space-y-2">
-                                <Label className="text-xs text-muted-foreground">Suggested for you:</Label>
+                                <Label className="text-xs text-muted-foreground">Suggestions:</Label>
                                 <div className="grid grid-cols-2 gap-2">
                                     {[
                                         "Brainstorm 5 new features",
@@ -157,7 +135,7 @@ export function AiGenerator({
 
                         {result && (
                             <div className="space-y-2">
-                                <Label>Nova says:</Label>
+                                <Label>Generated content:</Label>
                                 <div className="relative">
                                     <Textarea
                                         value={result}

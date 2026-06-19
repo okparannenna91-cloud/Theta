@@ -1,4 +1,5 @@
 import { prisma, getPrismaClient } from "./prisma";
+import { cacheGetOrSet, cacheKey } from "@/lib/cache";
 
 export type ProjectVisibility = "private" | "team_access" | "workspace_visible";
 
@@ -147,68 +148,63 @@ export async function getAccessibleProjectIds(
   userId: string,
   workspaceId: string
 ): Promise<string[]> {
-  try {
-    const db = getPrismaClient(workspaceId);
+  return cacheGetOrSet(
+    cacheKey("accessible", userId, workspaceId),
+    async () => {
+      try {
+        const db = getPrismaClient(workspaceId);
 
-    // Check workspace membership and role
-    const membership = await prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: {
-          workspaceId,
-          userId,
-        },
-      },
-    });
+        const membership = await prisma.workspaceMember.findUnique({
+          where: {
+            workspaceId_userId: { workspaceId, userId },
+          },
+        });
 
-    if (!membership) {
-      return [];
-    }
+        if (!membership) return [];
 
-    // Workspace Owner or Admin can access all projects
-    if (membership.role === "owner" || membership.role === "admin") {
-      const allProjects = await db.project.findMany({
-        where: { workspaceId },
-        select: { id: true },
-      });
-      return allProjects.map((p: any) => p.id);
-    }
+        if (membership.role === "owner" || membership.role === "admin") {
+          const allProjects = await db.project.findMany({
+            where: { workspaceId },
+            select: { id: true },
+          });
+          return allProjects.map((p: any) => p.id);
+        }
 
-    // Run independent queries in parallel
-    const [ownProjects, teamMemberships, visibleProjects] = await Promise.all([
-      db.project.findMany({ where: { workspaceId, userId }, select: { id: true } }),
-      db.teamMember.findMany({ where: { userId }, select: { teamId: true } }),
-      db.project.findMany({ where: { workspaceId, visibility: "workspace_visible" }, select: { id: true } }),
-    ]);
+        const [ownProjects, teamMemberships, visibleProjects] = await Promise.all([
+          db.project.findMany({ where: { workspaceId, userId }, select: { id: true } }),
+          db.teamMember.findMany({ where: { userId }, select: { teamId: true } }),
+          db.project.findMany({ where: { workspaceId, visibility: "workspace_visible" }, select: { id: true } }),
+        ]);
 
-    const ownProjectIds = ownProjects.map((p: any) => p.id);
-    const visibleProjectIds = visibleProjects.map((p: any) => p.id);
-    const teamIds = teamMemberships.map((tm: any) => tm.teamId);
+        const ownProjectIds = ownProjects.map((p: any) => p.id);
+        const visibleProjectIds = visibleProjects.map((p: any) => p.id);
+        const teamIds = teamMemberships.map((tm: any) => tm.teamId);
 
-    // Only query team-linked projects if user has teams
-    let teamLinkedProjectIds: string[] = [];
-    let legacyTeamProjectIds: string[] = [];
+        let teamLinkedProjectIds: string[] = [];
+        let legacyTeamProjectIds: string[] = [];
 
-    if (teamIds.length > 0) {
-      const [teamLinked, legacyLinked] = await Promise.all([
-        db.projectTeam.findMany({ where: { teamId: { in: teamIds } }, select: { projectId: true } }),
-        db.project.findMany({ where: { workspaceId, teamId: { in: teamIds } }, select: { id: true } }),
-      ]);
-      teamLinkedProjectIds = teamLinked.map((pt: any) => pt.projectId);
-      legacyTeamProjectIds = legacyLinked.map((p: any) => p.id);
-    }
+        if (teamIds.length > 0) {
+          const [teamLinked, legacyLinked] = await Promise.all([
+            db.projectTeam.findMany({ where: { teamId: { in: teamIds } }, select: { projectId: true } }),
+            db.project.findMany({ where: { workspaceId, teamId: { in: teamIds } }, select: { id: true } }),
+          ]);
+          teamLinkedProjectIds = teamLinked.map((pt: any) => pt.projectId);
+          legacyTeamProjectIds = legacyLinked.map((p: any) => p.id);
+        }
 
-    const accessibleIds = new Set([
-      ...ownProjectIds,
-      ...teamLinkedProjectIds,
-      ...legacyTeamProjectIds,
-      ...visibleProjectIds,
-    ]);
+        const accessibleIds = new Set([
+          ...ownProjectIds, ...teamLinkedProjectIds,
+          ...legacyTeamProjectIds, ...visibleProjectIds,
+        ]);
 
-    return Array.from(accessibleIds);
-  } catch (error) {
-    console.error("getAccessibleProjectIds error:", error);
-    return [];
-  }
+        return Array.from(accessibleIds);
+      } catch (error) {
+        console.error("getAccessibleProjectIds error:", error);
+        return [];
+      }
+    },
+    30,
+  );
 }
 
 /**

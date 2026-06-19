@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Send, X, Loader2, Bot, User, Trash2, Maximize2, Minimize2, ArrowUpCircle } from "lucide-react";
+import { Sparkles, Send, X, Loader2, Bot, User, Trash2, Maximize2, Minimize2, ArrowUpCircle, Mic, Paperclip, FileIcon, Volume2, MessageSquare, History, Zap, ClipboardList, FileEdit, Calculator, Search, Pin, Brain, Terminal, Activity as ActivityIcon, Plus, ListTodo, BookOpen, Eraser, Settings2, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -14,9 +14,9 @@ import Image from "next/image";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Mic, Paperclip, FileIcon, Volume2, MessageSquare, History, Zap, ClipboardList, FileEdit, Calculator } from "lucide-react";
 import { createAvatar } from '@dicebear/core';
 import { notionists } from '@dicebear/collection';
+import { formatDistanceToNow } from "date-fns";
 
 const novaAvatar = `data:image/svg+xml;utf8,${encodeURIComponent(createAvatar(notionists, {
     seed: 'Aneka',
@@ -33,7 +33,40 @@ interface Message {
     content: string;
     timestamp: Date;
     attachments?: Array<{ name: string; type: string; url: string }>;
+    id?: string;
 }
+
+interface Conversation {
+    id: string;
+    title: string;
+    lastMessageAt: string;
+    isPinned: boolean;
+}
+
+const SLASH_COMMANDS = [
+    { icon: ListTodo, label: "Create Task", command: "/task ", description: "Turn this thought into a task" },
+    { icon: BookOpen, label: "Summarize", command: "/summarize", description: "Summarize the current view" },
+    { icon: Eraser, label: "Clear Chat", command: "/clear", description: "Reset the conversation" },
+    { icon: Terminal, label: "Debug", command: "/debug", description: "Show system diagnostics" },
+];
+
+const BLUEPRINTS = [
+    { name: "Bug Report Architect", desc: "Structured bug reproduction steps", icon: Bot, prompt: "Create a bug report for " },
+    { name: "Sprint Planner", desc: "Generate milestones and tasks", icon: Zap, prompt: "Plan a sprint for " },
+    { name: "PRD Drafter", desc: "Draft a full product requirement doc", icon: FileEdit, prompt: "Draft a PRD for " },
+    { name: "Task Breakdown", desc: "Decompose complex tasks", icon: ListTodo, prompt: "Break down this task: " },
+    { name: "Status Report", desc: "Generate a workspace status report", icon: ClipboardList, prompt: "Generate a status report for " },
+    { name: "Velocity Calc", desc: "Calculate team velocity", icon: Calculator, prompt: "Calculate the team velocity for " },
+];
+
+const QUICK_ACTIONS = [
+    { label: "Summarize", icon: ClipboardList, color: "bg-primary/10 text-primary", prompt: "Summarize my active tasks." },
+    { label: "Daily Standup", icon: MessageSquare, color: "bg-emerald-500/10 text-emerald-500", prompt: "Prepare a daily standup for me." },
+    { label: "Draft Spec", icon: FileEdit, color: "bg-amber-500/10 text-amber-500", prompt: "Draft a technical spec for the current project." },
+    { label: "Calc Velocity", icon: Calculator, color: "bg-purple-500/10 text-purple-500", prompt: "Calculate the team velocity." },
+    { label: "Audit Backlog", icon: ListTodo, color: "bg-rose-500/10 text-rose-500", prompt: "Audit my task backlog and suggest priorities." },
+    { label: "Check Health", icon: ActivityIcon, color: "bg-indigo-500/10 text-indigo-500", prompt: "Run a project health check." },
+];
 
 export function NovaAssistant() {
     const { activeWorkspaceId } = useWorkspace();
@@ -54,9 +87,23 @@ export function NovaAssistant() {
     const isLimitReached = usage ? (usage.max !== -1 && usage.current >= usage.max) : false;
     const [isListening, setIsListening] = useState(false);
     const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+    const [attachments, setAttachments] = useState<Array<{ name: string; type: string; url: string }>>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const [activeTab, setActiveTab] = useState("chat");
+    const [showSlashMenu, setShowSlashMenu] = useState(false);
+
+    const [conversations, setConversations] = useState<Conversation[]>([]);
+    const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
+    const [conversationsLoading, setConversationsLoading] = useState(false);
+    const [recallSearchQuery, setRecallSearchQuery] = useState("");
+
+    const [memories, setMemories] = useState<any[]>([]);
+    const [memoriesLoading, setMemoriesLoading] = useState(false);
+
+    const [auditLogs, setAuditLogs] = useState<any[]>([]);
+    const [auditLogsLoading, setAuditLogsLoading] = useState(false);
 
     const fetchUsage = useCallback(async () => {
         try {
@@ -75,11 +122,132 @@ export function NovaAssistant() {
         }
     }, [activeWorkspaceId]);
 
+    const fetchConversations = useCallback(async () => {
+        if (!activeWorkspaceId) return;
+        setConversationsLoading(true);
+        try {
+            const res = await fetch(`/api/ai/conversations?workspaceId=${activeWorkspaceId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setConversations(data);
+            }
+        } catch (error) {
+            console.error("Failed to fetch conversations:", error);
+        } finally {
+            setConversationsLoading(false);
+        }
+    }, [activeWorkspaceId]);
+
+    const createConversation = useCallback(async () => {
+        if (!activeWorkspaceId) return null;
+        try {
+            const res = await fetch("/api/ai/conversations", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    workspaceId: activeWorkspaceId,
+                    title: "New Conversation"
+                })
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return data.id;
+            }
+        } catch (error) {
+            console.error("Failed to create conversation:", error);
+        }
+        return null;
+    }, [activeWorkspaceId]);
+
+    const fetchConversationMessages = useCallback(async (conversationId: string) => {
+        try {
+            const res = await fetch(`/api/ai/conversations/${conversationId}?workspaceId=${activeWorkspaceId}`);
+            if (res.ok) {
+                const data = await res.json();
+                const loadedMessages: Message[] = (data.messages || []).map((m: any) => ({
+                    role: m.role === "assistant" ? "nova" : "user",
+                    content: m.content,
+                    timestamp: new Date(m.createdAt),
+                    id: m.id,
+                }));
+                if (loadedMessages.length > 0) {
+                    setMessages(loadedMessages);
+                } else {
+                    setMessages([{
+                        role: "nova",
+                        content: "Continuing where we left off. What would you like to work on?",
+                        timestamp: new Date(),
+                    }]);
+                }
+            }
+        } catch (error) {
+            console.error("Failed to fetch messages:", error);
+        }
+    }, [activeWorkspaceId]);
+
+    const fetchMemories = useCallback(async () => {
+        if (!activeWorkspaceId) return;
+        setMemoriesLoading(true);
+        try {
+            const res = await fetch(`/api/ai/memory?workspaceId=${activeWorkspaceId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setMemories(Array.isArray(data) ? data : []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch memories:", error);
+        } finally {
+            setMemoriesLoading(false);
+        }
+    }, [activeWorkspaceId]);
+
+    const deleteMemory = useCallback(async (id: string) => {
+        try {
+            const res = await fetch("/api/ai/memory", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ workspaceId: activeWorkspaceId, id }),
+            });
+            if (res.ok) {
+                setMemories(prev => prev.filter((m: any) => m.id !== id));
+                toast.success("Memory deleted");
+            }
+        } catch (e) {
+            console.error("Failed to delete memory:", e);
+        }
+    }, [activeWorkspaceId]);
+
+    const fetchAuditLogs = useCallback(async () => {
+        if (!activeWorkspaceId) return;
+        setAuditLogsLoading(true);
+        try {
+            const res = await fetch(`/api/activity?workspaceId=${activeWorkspaceId}&type=NOVA_TOOL_EXECUTION&limit=20`);
+            if (res.ok) {
+                const data = await res.json();
+                setAuditLogs(data.activities || data || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch audit logs:", error);
+        } finally {
+            setAuditLogsLoading(false);
+        }
+    }, [activeWorkspaceId]);
+
     useEffect(() => {
         if (activeWorkspaceId && isOpen) {
             fetchUsage();
+            fetchConversations();
         }
-    }, [activeWorkspaceId, isOpen, fetchUsage]);
+    }, [activeWorkspaceId, isOpen, fetchUsage, fetchConversations]);
+
+    useEffect(() => {
+        if (activeTab === "history" && activeWorkspaceId) {
+            fetchMemories();
+            fetchConversations();
+        } else if (activeTab === "workflows" && activeWorkspaceId) {
+            fetchAuditLogs();
+        }
+    }, [activeTab, activeWorkspaceId, fetchMemories, fetchConversations, fetchAuditLogs]);
 
     useEffect(() => {
         if (scrollRef.current) {
@@ -115,7 +283,25 @@ export function NovaAssistant() {
         recognition.start();
     };
 
-    const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const uploadFile = async (file: File): Promise<{ url: string; name: string; type: string } | null> => {
+        try {
+            const formData = new FormData();
+            formData.append("file", file);
+            const res = await fetch("/api/upload", {
+                method: "POST",
+                body: formData
+            });
+            if (res.ok) {
+                const data = await res.json();
+                return { url: data.url, name: file.name, type: file.type };
+            }
+        } catch (error) {
+            console.error("File upload failed:", error);
+        }
+        return null;
+    };
+
+    const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const files = Array.from(e.target.files);
             setAttachedFiles(prev => [...prev, ...files]);
@@ -123,29 +309,68 @@ export function NovaAssistant() {
         }
     };
 
+    const handleSlashCommand = (command: string) => {
+        setShowSlashMenu(false);
+        if (command === "/clear") {
+            clearChat();
+            return;
+        }
+        setInput(command);
+        if (inputRef.current) {
+            inputRef.current.focus();
+        }
+    };
+
     const handleSend = async (e?: React.FormEvent) => {
         e?.preventDefault();
         if ((!input.trim() && attachedFiles.length === 0) || isLoading) return;
 
+        const currentInput = input.trim();
+
+        if (currentInput.startsWith("/clear")) {
+            clearChat();
+            return;
+        }
+
+        if (isLimitReached) {
+            showUpgradePrompt("nova");
+            return;
+        }
+
+        let convId = activeConversationId;
+
+        if (!convId) {
+            convId = await createConversation();
+            if (convId) {
+                setActiveConversationId(convId);
+                fetchConversations();
+            }
+        }
+
+        let uploadedAttachments: Array<{ name: string; type: string; url: string }> = [];
+        if (attachedFiles.length > 0) {
+            for (const file of attachedFiles) {
+                const uploaded = await uploadFile(file);
+                if (uploaded) {
+                    uploadedAttachments.push(uploaded);
+                }
+            }
+        }
+
         const userMessage: Message = {
             role: "user",
-            content: input,
+            content: currentInput,
             timestamp: new Date(),
-            attachments: attachedFiles.map(f => ({ name: f.name, type: f.type, url: "" }))
+            attachments: uploadedAttachments.length > 0 ? uploadedAttachments : attachedFiles.map(f => ({ name: f.name, type: f.type, url: "" }))
         };
 
         setMessages((prev) => [...prev, userMessage]);
-        const currentInput = input;
         setInput("");
         setAttachedFiles([]);
+        setAttachments(uploadedAttachments);
         setIsLoading(true);
 
         try {
-            if (isLimitReached) {
-                showUpgradePrompt("nova");
-                return;
-            }
-
             const controller = new AbortController();
             const fetchTimeout = setTimeout(() => controller.abort("Request timeout"), 55000);
 
@@ -156,6 +381,7 @@ export function NovaAssistant() {
                     body: JSON.stringify({
                         prompt: currentInput,
                         workspaceId: activeWorkspaceId,
+                        conversationId: convId || undefined,
                     }),
                     signal: controller.signal,
                 });
@@ -173,6 +399,7 @@ export function NovaAssistant() {
                 const decoder = new TextDecoder();
                 let accumulatedResponse = "";
                 let streamEnded = false;
+                let chunkCount = 0;
 
                 setIsStreaming(true);
 
@@ -187,11 +414,22 @@ export function NovaAssistant() {
                         const { done, value } = await reader.read();
                         if (done) {
                             streamEnded = true;
+                            console.log("[Nova-Client] Stream ended", {
+                                chunkCount,
+                                accumulatedLength: accumulatedResponse.length,
+                            });
                             break;
                         }
 
                         const chunk = decoder.decode(value, { stream: true });
+                        chunkCount++;
                         accumulatedResponse += chunk;
+
+                        if (chunkCount === 1) {
+                            console.log("[Nova-Client] First chunk received", {
+                                chunkLength: chunk.length,
+                            });
+                        }
 
                         setMessages((prev) => {
                             const newMessages = [...prev];
@@ -204,8 +442,20 @@ export function NovaAssistant() {
                     }
                 }
 
-                if (!streamEnded && !accumulatedResponse) {
-                    throw new Error("No response received from Nova");
+                if (!accumulatedResponse) {
+                    console.warn("[Nova-Client] Zero-content response", {
+                        streamEnded,
+                        chunkCount,
+                        readerPresent: !!reader,
+                    });
+                    setMessages((prev) => {
+                        const newMessages = [...prev];
+                        const lastMsg = newMessages[newMessages.length - 1];
+                        if (lastMsg && lastMsg.role === "nova" && !lastMsg.content) {
+                            lastMsg.content = "I've completed your request.";
+                        }
+                        return newMessages;
+                    });
                 }
             } finally {
                 clearTimeout(fetchTimeout);
@@ -213,6 +463,7 @@ export function NovaAssistant() {
             }
 
             fetchUsage();
+            if (convId) fetchConversations();
         } catch (error: any) {
             const isAbort = error?.name === 'AbortError' || error?.message?.includes('abort') || error?.message?.includes('timeout');
             const errorMsg = isAbort
@@ -236,14 +487,32 @@ export function NovaAssistant() {
                 timestamp: new Date(),
             },
         ]);
+        setActiveConversationId(null);
     };
 
     const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
+            return;
+        }
+        if (e.key === '/' && input === '') {
+            setShowSlashMenu(true);
         }
     };
+
+    const selectConversation = (id: string) => {
+        setActiveConversationId(id);
+        fetchConversationMessages(id);
+        setActiveTab("chat");
+    };
+
+    const filteredConversations = conversations.filter(c =>
+        c.title?.toLowerCase().includes(recallSearchQuery.toLowerCase())
+    );
+
+    const pinnedConversations = filteredConversations.filter(c => c.isPinned);
+    const recentConversations = filteredConversations.filter(c => !c.isPinned);
 
     return (
         <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[100] flex-col items-end font-sans">
@@ -264,7 +533,6 @@ export function NovaAssistant() {
                             isMinimized ? "h-18" : "h-[80vh] w-[95vw] sm:w-[450px]"
                         )}
                     >
-                        {/* Premium Header */}
                         <div className="relative p-4 sm:p-5 bg-gradient-to-br from-primary via-primary/90 to-indigo-700 text-white flex items-center justify-between shrink-0 shadow-lg overflow-hidden">
                             <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(255,255,255,0.15),transparent_60%)]" />
                             <div className="flex items-center gap-3 relative z-10">
@@ -305,16 +573,19 @@ export function NovaAssistant() {
                         </div>
 
                         {!isMinimized && (
-                            <Tabs defaultValue="chat" className="flex-1 flex flex-col overflow-hidden">
+                            <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
                                 <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-2 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-transparent">
                                     <TabsList className="grid w-full grid-cols-3 bg-slate-100/50 dark:bg-slate-900/50 rounded-lg p-1 border border-slate-200/50 dark:border-slate-800/50">
                                         <TabsTrigger value="chat" className="rounded-lg text-[11px] sm:text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
+                                            <MessageSquare className="w-3.5 h-3.5 mr-1.5 inline-block" />
                                             Chat
                                         </TabsTrigger>
                                         <TabsTrigger value="history" className="rounded-lg text-[11px] sm:text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
+                                            <History className="w-3.5 h-3.5 mr-1.5 inline-block" />
                                             Recall
                                         </TabsTrigger>
                                         <TabsTrigger value="workflows" className="rounded-lg text-[11px] sm:text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
+                                            <Zap className="w-3.5 h-3.5 mr-1.5 inline-block" />
                                             Actions
                                         </TabsTrigger>
                                     </TabsList>
@@ -327,7 +598,7 @@ export function NovaAssistant() {
                                     >
                                     {messages.map((msg, i) => (
                                         <motion.div
-                                            key={i}
+                                            key={msg.id || i}
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             transition={{ delay: Math.min(i * 0.03, 0.3) }}
@@ -442,7 +713,7 @@ export function NovaAssistant() {
                                             ))}
                                         </div>
                                     )}
-                                    <form onSubmit={handleSend} className="flex w-full items-end gap-2">
+                                    <form onSubmit={handleSend} className="flex w-full items-end gap-2 relative">
                                         <div className="flex items-center gap-1 bg-slate-100/50 dark:bg-slate-900/50 p-1 rounded-xl shrink-0">
                                             <input 
                                                 type="file" 
@@ -476,14 +747,39 @@ export function NovaAssistant() {
                                         <div className="relative flex-1 min-w-0">
                                             <textarea
                                                 ref={inputRef}
-                                                placeholder={isLimitReached ? "Limit reached" : "Ask Nova..."}
+                                                placeholder={isLimitReached ? "Limit reached" : "Ask Nova... (/ for commands)"}
                                                 value={input}
-                                                onChange={(e) => setInput(e.target.value)}
+                                                onChange={(e) => {
+                                                    setInput(e.target.value);
+                                                    if (e.target.value === '/') {
+                                                        setShowSlashMenu(true);
+                                                    } else {
+                                                        setShowSlashMenu(false);
+                                                    }
+                                                }}
                                                 onKeyDown={handleKeyDown}
                                                 rows={1}
                                                 className="w-full pr-10 bg-slate-100/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800/50 focus-visible:border-primary/50 focus-visible:ring-0 text-sm font-medium rounded-xl resize-none overflow-hidden py-2.5 px-3.5 min-h-[40px] max-h-[120px] transition-all outline-none"
                                                 disabled={isLoading || isLimitReached}
                                             />
+                                            {showSlashMenu && (
+                                                <div className="absolute bottom-full mb-1 left-0 right-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl overflow-hidden z-50">
+                                                    {SLASH_COMMANDS.map((cmd) => (
+                                                        <button
+                                                            key={cmd.command}
+                                                            type="button"
+                                                            onClick={() => handleSlashCommand(cmd.command)}
+                                                            className="w-full flex items-center gap-3 px-4 py-3 text-left text-xs font-medium text-slate-700 dark:text-slate-300 hover:bg-primary/5 hover:text-primary transition-all border-b border-slate-100 dark:border-slate-800 last:border-b-0"
+                                                        >
+                                                            <cmd.icon className="w-4 h-4 text-primary" />
+                                                            <div>
+                                                                <span className="font-semibold">{cmd.label}</span>
+                                                                <span className="text-[10px] text-muted-foreground ml-2">{cmd.description}</span>
+                                                            </div>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                         <Button
                                             type="submit"
@@ -497,77 +793,205 @@ export function NovaAssistant() {
                                 </div>
                             </TabsContent>
 
-                            <TabsContent value="history" className="flex-1 overflow-y-auto p-4 sm:p-6 m-0 bg-slate-50/30">
-                                <div className="space-y-3 sm:space-y-4">
-                                    {[
-                                        { title: "Sprint Planning", date: "2 hours ago", icon: ClipboardList, color: "text-blue-500" },
-                                        { title: "Task Deconstruction", date: "Yesterday", icon: Zap, color: "text-rose-500" },
-                                        { title: "Project Spec Draft", date: "2 days ago", icon: FileEdit, color: "text-amber-500" },
-                                    ].map((item, i) => (
-                                        <div key={i} className="p-3 sm:p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-primary/50 hover:shadow-md transition-all cursor-pointer group">
-                                            <div className="flex items-center justify-between">
-                                                <div className="flex items-center gap-3 sm:gap-4">
-                                                    <div className="p-2 sm:p-3 bg-slate-50 dark:bg-slate-800 rounded-lg group-hover:bg-primary/5 transition-colors">
-                                                        <item.icon className={cn("w-4 h-4 sm:w-5 sm:h-5", item.color)} />
-                                                    </div>
-                                                    <div className="flex flex-col">
-                                                        <span className="text-xs sm:text-sm font-extrabold text-slate-900 dark:text-white">{item.title}</span>
-                                                        <span className="text-[10px] sm:text-[11px] text-muted-foreground font-medium">{item.date}</span>
-                                                    </div>
+                            <TabsContent value="history" className="flex-1 flex flex-col overflow-hidden m-0">
+                                <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-transparent">
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search conversations..."
+                                            value={recallSearchQuery}
+                                            onChange={(e) => setRecallSearchQuery(e.target.value)}
+                                            className="w-full pl-9 pr-4 py-2 bg-slate-100/50 dark:bg-slate-900/50 border border-slate-200/50 dark:border-slate-800/50 rounded-lg text-xs font-medium focus:outline-none focus:border-primary/50 transition-all"
+                                        />
+                                    </div>
+                                    <div className="flex items-center gap-2 mt-3">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className={cn("h-7 px-3 rounded-lg text-[10px] font-medium", activeTab === "history" ? "bg-primary/10 text-primary" : "text-muted-foreground")}
+                                            onClick={() => { setActiveTab("history"); fetchConversations(); }}
+                                        >
+                                            <MessageSquare className="w-3 h-3 mr-1" />
+                                            Conversations
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-7 px-3 rounded-lg text-[10px] font-medium text-muted-foreground hover:text-purple-500 hover:bg-purple-500/5"
+                                            onClick={() => { setActiveTab("history"); fetchMemories(); }}
+                                        >
+                                            <Brain className="w-3 h-3 mr-1" />
+                                            Memories
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 bg-slate-50/30">
+                                    {conversationsLoading ? (
+                                        <div className="space-y-2">
+                                            {[1,2,3].map(i => (
+                                                <div key={i} className="h-14 bg-slate-100 dark:bg-slate-900 animate-pulse rounded-lg border border-slate-200 dark:border-slate-800" />
+                                            ))}
+                                        </div>
+                                    ) : pinnedConversations.length > 0 && (
+                                        <div className="space-y-2">
+                                            <div className="flex items-center gap-2 px-1">
+                                                <Pin className="w-3 h-3 text-primary" />
+                                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Pinned</span>
+                                            </div>
+                                            {pinnedConversations.map(c => (
+                                                <button
+                                                    key={c.id}
+                                                    onClick={() => selectConversation(c.id)}
+                                                    className={cn(
+                                                        "w-full text-left p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-primary/50 hover:shadow-md transition-all",
+                                                        activeConversationId === c.id && "border-primary/50 ring-1 ring-primary/20"
+                                                    )}
+                                                >
+                                                    <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate">{c.title}</span>
+                                                    <span className="text-[10px] text-muted-foreground font-medium">
+                                                        {formatDistanceToNow(new Date(c.lastMessageAt), { addSuffix: true })}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    )}
+
+                                    <div className="space-y-2">
+                                        <div className="flex items-center gap-2 px-1">
+                                            <MessageSquare className="w-3 h-3 text-slate-400" />
+                                            <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                                {pinnedConversations.length > 0 ? "Recent" : "Conversations"}
+                                            </span>
+                                        </div>
+                                        {recentConversations.length === 0 ? (
+                                            <div className="text-center py-8 space-y-2">
+                                                <div className="w-10 h-10 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg flex items-center justify-center mx-auto">
+                                                    <MessageSquare className="w-5 h-5 text-slate-400" />
                                                 </div>
+                                                <p className="text-xs text-muted-foreground">No conversations yet</p>
+                                                <p className="text-[10px] text-muted-foreground">Start a new chat to begin</p>
+                                            </div>
+                                        ) : (
+                                            recentConversations.map(c => (
+                                                <button
+                                                    key={c.id}
+                                                    onClick={() => selectConversation(c.id)}
+                                                    className={cn(
+                                                        "w-full text-left p-3 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:border-primary/50 hover:shadow-md transition-all",
+                                                        activeConversationId === c.id && "border-primary/50 ring-1 ring-primary/20"
+                                                    )}
+                                                >
+                                                    <span className="text-xs font-semibold text-slate-900 dark:text-white block truncate">{c.title || "Untitled"}</span>
+                                                    <span className="text-[10px] text-muted-foreground font-medium">
+                                                        {formatDistanceToNow(new Date(c.lastMessageAt), { addSuffix: true })}
+                                                    </span>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+
+                                    {memories.length > 0 && (
+                                        <div className="pt-3 border-t border-slate-100 dark:border-slate-800">
+                                            <div className="flex items-center gap-2 px-1 mb-2">
+                                                <Brain className="w-3 h-3 text-purple-500" />
+                                                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Memories</span>
+                                                <span className="text-[10px] text-purple-500 font-medium ml-auto">{memories.length} stored</span>
+                                            </div>
+                                            <div className="space-y-2">
+                                                {memories.map((mem: any) => (
+                                                    <div key={mem.id} className="flex items-center gap-2 p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 group hover:border-purple-500/30 transition-all">
+                                                        <Brain className="w-3 h-3 text-purple-500 shrink-0" />
+                                                        <div className="flex-1 min-w-0">
+                                                            <span className="text-[11px] font-semibold text-slate-900 dark:text-white block truncate">{mem.key}</span>
+                                                            <span className="text-[9px] text-slate-500 block truncate">{mem.content}</span>
+                                                        </div>
+                                                        <button onClick={() => deleteMemory(mem.id)} className="text-slate-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+                                                            <Trash2 className="w-3 h-3" />
+                                                        </button>
+                                                    </div>
+                                                ))}
                                             </div>
                                         </div>
-                                    ))}
+                                    )}
                                 </div>
                             </TabsContent>
 
                             <TabsContent value="workflows" className="flex-1 overflow-y-auto p-4 sm:p-6 m-0 bg-slate-50/30">
-                                <div className="grid grid-cols-2 gap-3 sm:gap-4">
-                                    {[
-                                        { label: "Summarize", icon: ClipboardList, color: "bg-primary/10 text-primary", prompt: "Summarize my active tasks." },
-                                        { label: "Daily Standup", icon: MessageSquare, color: "bg-emerald-500/10 text-emerald-500", prompt: "Prepare a daily standup for me." },
-                                        { label: "Draft Spec", icon: FileEdit, color: "bg-amber-500/10 text-amber-500", prompt: "Draft a technical spec for..." },
-                                        { label: "Calc Velocity", icon: Calculator, color: "bg-purple-500/10 text-purple-500", prompt: "Calculate the team velocity." },
-                                    ].map((action, i) => (
-                                        <button 
-                                            key={i} 
-                                            onClick={() => setInput(action.prompt)}
-                                            className="p-4 sm:p-5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center gap-3 sm:gap-4 hover:border-primary/50 hover:shadow-md transition-all active:scale-95 group"
-                                        >
-                                            <div className={cn("h-12 w-12 sm:h-14 sm:w-14 rounded-lg flex items-center justify-center shadow-sm", action.color)}>
-                                                <action.icon className="w-5 h-5 sm:w-6 sm:h-6" />
-                                            </div>
-                                            <span className="text-[11px] sm:text-xs font-semibold text-slate-700 dark:text-slate-300">{action.label}</span>
-                                        </button>
-                                    ))}
-                                </div>
+                                <div className="space-y-6">
+                                    <div>
+                                        <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">Quick Actions</h3>
+                                        <div className="grid grid-cols-2 gap-3">
+                                            {QUICK_ACTIONS.map((action, i) => (
+                                                <button 
+                                                    key={i} 
+                                                    onClick={() => { setInput(action.prompt); setActiveTab("chat"); }}
+                                                    className="p-4 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex flex-col items-center justify-center text-center gap-3 hover:border-primary/50 hover:shadow-md transition-all active:scale-95 group"
+                                                >
+                                                    <div className={cn("h-10 w-10 rounded-lg flex items-center justify-center shadow-sm", action.color)}>
+                                                        <action.icon className="w-5 h-5" />
+                                                    </div>
+                                                    <span className="text-[11px] font-semibold text-slate-700 dark:text-slate-300">{action.label}</span>
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
 
-                                <div className="mt-6 sm:mt-8">
-                                    <div className="flex items-center justify-between mb-4 sm:mb-5 px-2">
-                                        <h4 className="text-[10px] sm:text-xs font-medium text-muted-foreground">Blueprints</h4>
-                                        <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 ml-4" />
+                                    <div>
+                                        <div className="flex items-center justify-between mb-3 px-1">
+                                            <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Blueprints</h3>
+                                            <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 ml-4" />
+                                        </div>
+                                        <div className="space-y-2">
+                                            {BLUEPRINTS.map((t, i) => (
+                                                <button 
+                                                    key={i} 
+                                                    onClick={() => { setInput(t.prompt); setActiveTab("chat"); }}
+                                                    className="w-full p-3 text-left bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:bg-primary/5 dark:hover:bg-primary/5 hover:border-primary/30 transition-all flex items-center gap-3"
+                                                >
+                                                    <div className="h-9 w-9 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
+                                                        <t.icon className="w-4 h-4 text-primary" />
+                                                    </div>
+                                                    <div className="min-w-0">
+                                                        <p className="text-[12px] font-extrabold text-slate-900 dark:text-white leading-none mb-0.5 truncate">{t.name}</p>
+                                                        <p className="text-[10px] text-slate-400 font-medium truncate">{t.desc}</p>
+                                                    </div>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                    <div className="space-y-2 sm:space-y-3">
-                                        {[
-                                            { name: "Bug Report Architect", desc: "Structured bug reproduction steps", icon: Bot },
-                                            { name: "Sprint Planner", desc: "Generate milestones and tasks", icon: Zap },
-                                            { name: "PRD Drafter", desc: "Draft a full product requirement doc", icon: FileEdit },
-                                        ].map((t, i) => (
-                                            <button 
-                                                key={i} 
-                                                onClick={() => setInput(`${t.name}: `)}
-                                                className="w-full p-3 sm:p-4 text-left bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 hover:bg-primary/5 dark:hover:bg-primary/5 hover:border-primary/30 transition-all flex items-center gap-3 sm:gap-4"
-                                            >
-                                                <div className="h-9 w-9 sm:h-10 sm:w-10 rounded-xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center shrink-0">
-                                                    <t.icon className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                                                </div>
-                                                <div className="min-w-0">
-                                                    <p className="text-[12px] sm:text-[13px] font-extrabold text-slate-900 dark:text-white leading-none mb-0.5 truncate">{t.name}</p>
-                                                    <p className="text-[10px] sm:text-[11px] text-slate-400 font-medium truncate">{t.desc}</p>
-                                                </div>
-                                            </button>
-                                        ))}
-                                    </div>
+
+                                    {auditLogs.length > 0 && (
+                                        <div>
+                                            <div className="flex items-center justify-between mb-3 px-1">
+                                                <h3 className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Recent Tool Executions</h3>
+                                                <div className="h-px flex-1 bg-slate-100 dark:bg-slate-800 ml-4" />
+                                            </div>
+                                            <div className="space-y-2">
+                                                {auditLogs.slice(0, 5).map((log: any, i: number) => {
+                                                    const meta = log.metadata || {};
+                                                    const toolName = meta.tool || log.entityId || "unknown";
+                                                    return (
+                                                        <div key={log.id || i} className="flex items-center gap-3 p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800">
+                                                            <div className="w-8 h-8 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                                                                <Terminal className="w-3.5 h-3.5 text-primary" />
+                                                            </div>
+                                                            <div className="flex-1 min-w-0">
+                                                                <span className="text-[11px] font-semibold text-slate-900 dark:text-white block truncate">{toolName.replace(/_/g, " ")}</span>
+                                                                <span className="text-[9px] text-slate-500 block truncate">
+                                                                    {meta.params ? Object.keys(meta.params).filter((k: string) => meta.params[k]).map((k: string) => `${k}: ${String(meta.params[k]).substring(0, 20)}`).join(" · ") : "No parameters"}
+                                                                </span>
+                                                            </div>
+                                                            <span className="text-[9px] text-slate-400 shrink-0">
+                                                                {log.createdAt ? new Date(log.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}
+                                                            </span>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </TabsContent>
                         </Tabs>

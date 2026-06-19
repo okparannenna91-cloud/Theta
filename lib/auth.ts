@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
 import { createWorkspace } from "@/lib/workspace";
 import { logger } from "@/lib/logger";
+import { cacheGetOrSet, cacheKey } from "@/lib/cache";
 
 export async function getCurrentUser() {
   const timings: Record<string, number> = {};
@@ -14,9 +15,11 @@ export async function getCurrentUser() {
   if (!userId) return null;
 
   timings['db_user_lookup'] = Date.now();
-  let user = await prisma.user.findUnique({
-    where: { clerkId: userId },
-  });
+  let user = await cacheGetOrSet(
+    cacheKey("user", "clerk", userId),
+    () => prisma.user.findUnique({ where: { clerkId: userId } }),
+    60,
+  );
   timings['db_user_lookup'] = Date.now() - timings['db_user_lookup'];
 
   let isNewUser = false;

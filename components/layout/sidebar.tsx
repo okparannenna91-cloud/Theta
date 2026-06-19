@@ -25,7 +25,6 @@ import {
   Puzzle,
   BarChart3,
   GanttChartSquare,
-  Sparkles,
   ChevronDown,
   Check,
   Plus,
@@ -52,7 +51,6 @@ export function Sidebar() {
 
   const navigation = [
     { name: t("dashboard"), href: "/dashboard", icon: LayoutDashboard },
-    { name: "Nova AI", href: "/nova", icon: Sparkles },
     { name: t("workspaces"), href: "/workspaces", icon: Building2 },
     { name: t("portfolio"), href: "/portfolio", icon: FolderKanban },
     { name: t("projects"), href: "/projects", icon: LayoutList },
