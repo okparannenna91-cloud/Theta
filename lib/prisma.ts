@@ -17,7 +17,10 @@ declare global {
   } | undefined;
 }
 
-// Initialize the global store
+const NOOP_CLIENT = new Proxy({} as PrismaClient, {
+  get() { return async () => { throw new Error("No database configured — check MONGODB_URI environment variables"); }; },
+});
+
 const globalStore = globalThis.__prismaShards || {};
 if (!globalThis.__prismaShards) {
   globalThis.__prismaShards = globalStore;
@@ -83,22 +86,20 @@ const uris = [
 ];
 
 // Initialize/Retrieve Shards from Global Singleton
-function requireShard(name: string, uri: string | undefined, fallback: PrismaClient | undefined): PrismaClient {
+function requireShard(name: string, uri: string | undefined, fallback: PrismaClient): PrismaClient {
   const client = createClient(name, uri);
   if (!client) {
-    if (fallback) {
-      logger.error(`CRITICAL: ${name} failed to initialize — using fallback. Data for ${name} will be stored on the fallback shard!`);
-    }
-    return fallback ?? (() => { throw new Error(`${name} failed to initialize and no fallback available`); })();
+    logger.error(`CRITICAL: ${name} failed to initialize — using fallback. Data for ${name} will be stored on the fallback shard!`);
+    return fallback;
   }
   return client;
 }
 
-export const prismaShard1 = globalStore.shard1 || (globalStore.shard1 = createClient("Shard 1", uris[0])!);
-export const prismaShard2 = globalStore.shard2 || (globalStore.shard2 = requireShard("Shard 2", uris[1], prismaShard1));
-export const prismaShard3 = globalStore.shard3 || (globalStore.shard3 = requireShard("Shard 3", uris[2], prismaShard1));
+export const prismaShard1: PrismaClient = globalStore.shard1 || (globalStore.shard1 = createClient("Shard 1", uris[0]) ?? NOOP_CLIENT);
+export const prismaShard2: PrismaClient = globalStore.shard2 || (globalStore.shard2 = requireShard("Shard 2", uris[1], prismaShard1));
+export const prismaShard3: PrismaClient = globalStore.shard3 || (globalStore.shard3 = requireShard("Shard 3", uris[2], prismaShard1));
 
-export const prisma = prismaShard1;
+export const prisma: PrismaClient = prismaShard1;
 
 /**
  * Consistent hashing to select a shard based on workspaceId.

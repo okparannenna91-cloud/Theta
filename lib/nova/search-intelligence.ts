@@ -69,7 +69,7 @@ export class SearchIntelligence {
     try {
       const db = getPrismaClient(workspaceId);
       const saved = await db.savedSearch.create({
-        data: { workspaceId, userId, name, query, domain, searchType, filters: (filters || undefined) as any },
+        data: { workspaceId, userId, name, query, domain, searchType, filters: JSON.parse(JSON.stringify(filters ?? {})) },
       });
       return saved.id;
     } catch (error) {

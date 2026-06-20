@@ -6,6 +6,7 @@ import { DecisionFramework, type DecisionResult } from "./decision-framework";
 import { PhilosophyEngine } from "./philosophy-engine";
 import { OutputValidator } from "./output-validator";
 import { logger } from "../logger";
+import { ProviderHealth, type ProviderName } from "./provider-health";
 
 export type TaskComplexity = "simple" | "reasoning" | "critical";
 
@@ -13,9 +14,13 @@ export interface OrchestrationOptions {
   complexity?: TaskComplexity;
   imageUrl?: string;
   systemPrompt?: string;
+  timeoutMs?: number;
 }
 
-const PROVIDER_TIMEOUT_MS = 25000;
+const DEFAULT_TIMEOUT_MS = 15000;
+const FALLBACK_TIMEOUT_MS = 10000;
+
+const providerHealth = new ProviderHealth();
 
 export class NovaOrchestrator {
   private static defaultSystemPrompt = "You are Nova, the intelligent operating system of Theta.";
@@ -25,6 +30,7 @@ export class NovaOrchestrator {
     options: OrchestrationOptions = {}
   ): Promise<string> {
     const complexity = options.complexity || "simple";
+    const primaryTimeout = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 
     const decision = DecisionFramework.evaluate(prompt);
 
@@ -43,20 +49,18 @@ Please confirm explicitly if you want to proceed with: "${prompt}".`;
 - Priority: Action/Outcome first, then Explanation last. Use concise bold lists.
 `;
 
-    let response = "";
-
-    async function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>, label: string): Promise<T> {
+    async function withTimeout<T>(fn: (signal: AbortSignal) => Promise<T>, label: string, timeoutMs: number): Promise<T> {
       const controller = new AbortController();
       const timer = setTimeout(() => {
-        logger.warn(`[NovaOrchestrator] ${label} timed out after ${PROVIDER_TIMEOUT_MS}ms — aborting`);
+        logger.warn(`[NovaOrchestrator] ${label} timed out after ${timeoutMs}ms — aborting`);
         controller.abort();
-      }, PROVIDER_TIMEOUT_MS);
+      }, timeoutMs);
       try {
         const result = await fn(controller.signal);
         return result;
       } catch (error: any) {
         if (error?.name === 'AbortError' || error?.message?.includes('abort')) {
-          throw new Error(`${label} timed out after ${PROVIDER_TIMEOUT_MS}ms`);
+          throw new Error(`${label} timed out after ${timeoutMs}ms`);
         }
         logger.warn(`[NovaOrchestrator] ${label} failed: ${error?.message || error}`);
         throw error;
@@ -65,61 +69,72 @@ Please confirm explicitly if you want to proceed with: "${prompt}".`;
       }
     }
 
-    try {
-      if (process.env.OPENROUTER) {
-        const modelName = this.selectModel(prompt, complexity, decision);
-        logger.info(`[NovaOrchestrator] Attempting OpenRouter with model: ${modelName}, complexity: ${complexity}`);
+    const modelName = this.selectModel(prompt, complexity, decision);
+
+    const primaryProvider: ProviderName = "OpenRouter";
+    const fallbackProviders: ProviderName[] = ["Cohere", "OpenAI", "Gemini"];
+
+    if (providerHealth.isDegraded()) {
+      logger.warn("[NovaOrchestrator] Operating in degraded mode — limited provider availability");
+    }
+
+    let response = "";
+
+    // Phase 1: Try primary provider
+    if (process.env.OPENROUTER && providerHealth.isAvailable(primaryProvider)) {
+      logger.info(`[NovaOrchestrator] Attempting ${primaryProvider} with model: ${modelName}, complexity: ${complexity}`);
+      try {
         response = OutputValidator.validate(await withTimeout(
           (signal) => this.executeOpenRouter(prompt, systemPrompt, modelName, options.imageUrl, signal),
-          "OpenRouter"
+          primaryProvider,
+          primaryTimeout
         ));
+        providerHealth.recordSuccess(primaryProvider);
+      } catch (error: any) {
+        providerHealth.recordFailure(primaryProvider);
+        logger.warn(`[NovaOrchestrator] ${primaryProvider} failed: ${error.message}.`);
       }
-    } catch (error: any) {
-      logger.warn(`[NovaOrchestrator] OpenRouter failed: ${error.message}. Falling back.`);
+    } else if (process.env.OPENROUTER) {
+      logger.warn(`[NovaOrchestrator] Skipping ${primaryProvider} — circuit is ${providerHealth.getState(primaryProvider)}`);
     }
 
+    // Phase 2: Parallel fallback with remaining available providers
     if (!response && !options.imageUrl) {
-      try {
-        if (process.env.COHERE_API_KEY) {
-          logger.info("[NovaOrchestrator] Attempting Secondary Cohere Layer...");
-          response = OutputValidator.validate(await withTimeout(
-            (signal) => generateWithCohere(prompt, systemPrompt, signal),
-            "Cohere"
-          ));
-        }
-      } catch (error: any) {
-        logger.warn(`[NovaOrchestrator] Cohere fallback failed: ${error.message}`);
-      }
-    }
+      const availableFallbacks = fallbackProviders.filter(
+        (name) => process.env[this.envKeyForProvider(name)] && providerHealth.isAvailable(name)
+      );
 
-    if (!response) {
-      try {
-        if (process.env.OPENAI_API_KEY) {
-          logger.info("[NovaOrchestrator] Attempting Emergency OpenAI Layer...");
-          response = OutputValidator.validate(await withTimeout(
-            (signal) => generateWithOpenAI(prompt, systemPrompt, signal).then(r => r ?? ""),
-            "OpenAI"
-          ));
+      for (const name of fallbackProviders) {
+        if (process.env[this.envKeyForProvider(name)] && !providerHealth.isAvailable(name)) {
+          logger.warn(`[NovaOrchestrator] Skipping ${name} — circuit is ${providerHealth.getState(name)}`);
         }
-      } catch (error: any) {
-        logger.warn(`[NovaOrchestrator] OpenAI fallback failed: ${error.message}`);
       }
-    }
 
-    if (!response) {
-      try {
-        if (process.env.GEMINI_API_KEY) {
-          logger.info("[NovaOrchestrator] Attempting Native Gemini Fallback Layer...");
-          const result = await withTimeout(
-            (signal) => getGeminiModel().generateContent({
-              contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\nUser Prompt: ${prompt}` }] }],
-            }).then(r => r.response),
-            "Gemini"
+      if (availableFallbacks.length > 0) {
+        logger.info(`[NovaOrchestrator] Attempting parallel fallback with: ${availableFallbacks.join(", ")}`);
+        try {
+          response = await Promise.any(
+            availableFallbacks.map((name) =>
+              withTimeout(
+                (signal) => this.executeFallback(name, prompt, systemPrompt, signal),
+                name,
+                FALLBACK_TIMEOUT_MS
+              ).then((result) => {
+                providerHealth.recordSuccess(name);
+                return OutputValidator.validate(result);
+              }).catch((error) => {
+                providerHealth.recordFailure(name);
+                throw error;
+              })
+            )
           );
-          response = OutputValidator.validate(result.text());
+        } catch (error: any) {
+          if (error instanceof AggregateError) {
+            logger.error(`[NovaOrchestrator] All parallel fallbacks failed`);
+          } else {
+            logger.error(`[NovaOrchestrator] Fallback error: ${error.message}`);
+          }
         }
-      } catch (error: any) {
-        logger.error(`[NovaOrchestrator] All fallback layers failed: ${error.message}`);
       }
     }
 
@@ -128,6 +143,37 @@ Please confirm explicitly if you want to proceed with: "${prompt}".`;
     }
 
     return PhilosophyEngine.optimizeResponse(response, decision.intent);
+  }
+
+  private static envKeyForProvider(name: ProviderName): string {
+    switch (name) {
+      case "OpenRouter": return "OPENROUTER";
+      case "Cohere": return "COHERE_API_KEY";
+      case "OpenAI": return "OPENAI_API_KEY";
+      case "Gemini": return "GEMINI_API_KEY";
+    }
+  }
+
+  private static async executeFallback(
+    name: ProviderName,
+    prompt: string,
+    systemPrompt: string,
+    signal?: AbortSignal
+  ): Promise<string> {
+    switch (name) {
+      case "Cohere":
+        return generateWithCohere(prompt, systemPrompt, signal);
+      case "OpenAI":
+        return (await generateWithOpenAI(prompt, systemPrompt, signal)) ?? "";
+      case "Gemini": {
+        const result = await getGeminiModel().generateContent({
+          contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\nUser Prompt: ${prompt}` }] }],
+        });
+        return result.response.text();
+      }
+      default:
+        throw new Error(`Unknown fallback provider: ${name}`);
+    }
   }
 
   private static async executeOpenRouter(

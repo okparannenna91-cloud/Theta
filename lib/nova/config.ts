@@ -167,4 +167,4 @@ export {
   getStageMilestone,
 } from "./constitution/evolution";
 
-export { buildSystemPrompt } from "./constitution/index";
+export { buildSystemPrompt, buildSystemPromptForIntent } from "./constitution/index";

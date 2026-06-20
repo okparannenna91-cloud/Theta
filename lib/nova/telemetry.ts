@@ -8,16 +8,11 @@ function key(...parts: string[]): string {
   return `${TELEMETRY_PREFIX}:${parts.join(":")}`;
 }
 
-function safeIncr(k: string): void {
-  redis.incr(k).catch(() => {});
-}
-
 function safePipelined(ops: Array<{ cmd: string; args: (string | number)[] }>): void {
   Promise.allSettled(
     ops.map((op) => {
-      const r = redis as any;
-      const fn = r[op.cmd]?.bind(r);
-      if (fn) return fn(...op.args);
+      const cmdFn = (redis as unknown as Record<string, (...args: (string | number)[]) => unknown>)[op.cmd];
+      if (typeof cmdFn === "function") return cmdFn.bind(redis)(...op.args);
       return Promise.resolve();
     }),
   ).catch(() => {});
@@ -57,6 +52,7 @@ export const telemetry = {
       const errType = opts.errorType || "unknown";
       ops.push({ cmd: "incr", args: [key("errors", errType)] });
       ops.push({ cmd: "incr", args: [key("errors", "total")] });
+      ops.push({ cmd: "sadd", args: [key("errors", "_types"), errType] });
     }
 
     ops.push({ cmd: "zadd", args: [key("latency", "all"), now, `${opts.totalDurationMs}:${opts.userId.slice(0, 8)}`] });
@@ -85,6 +81,7 @@ export const telemetry = {
       { cmd: "incr", args: [key("tools", "by_name", opts.toolName, "calls")] },
       { cmd: "incr", args: [key("tools", "by_category", cat, "calls")] },
       { cmd: "zadd", args: [key("tools", "duration", opts.toolName), now, `${now}:${opts.durationMs}`] },
+      { cmd: "sadd", args: [key("tools", "_names"), opts.toolName] },
     ];
 
     if (opts.success) {
@@ -101,7 +98,7 @@ export const telemetry = {
     safePipelined(ops);
   },
 
-  async getDashboard(workspaceId?: string, hours = 24): Promise<Record<string, unknown>> {
+  async getDashboard(_workspaceId?: string, hours = 24): Promise<Record<string, unknown>> {
     const since = Date.now() - hours * 60 * 60 * 1000;
     const day = new Date().toISOString().slice(0, 10);
 
@@ -110,9 +107,9 @@ export const telemetry = {
     const latencyValues: number[] = [];
     if (Array.isArray(recentEntries)) {
       for (const entry of recentEntries as string[]) {
-        const colonIdx = (entry as string).indexOf(":");
+        const colonIdx = entry.indexOf(":");
         if (colonIdx > 0) {
-          const val = parseInt((entry as string).slice(0, colonIdx), 10);
+          const val = parseInt(entry.slice(0, colonIdx), 10);
           if (!isNaN(val)) latencyValues.push(val);
         }
       }
@@ -135,14 +132,12 @@ export const telemetry = {
     const totalErrors = parseInt((await redis.get(key("errors", "total"))) || "0", 10);
     const totalToolCalls = parseInt((await redis.get(key("tools", "total_calls"))) || "0", 10);
 
-    const errorTypesRaw = await redis.keys(key("errors", "*"));
     const errorTypes: Record<string, number> = {};
-    if (Array.isArray(errorTypesRaw)) {
-      for (const ek of errorTypesRaw) {
-        const label = ek.replace(`${TELEMETRY_PREFIX}:errors:`, "");
-        if (label !== "total") {
-          errorTypes[label] = parseInt((await redis.get(ek)) || "0", 10);
-        }
+    const errorTypeNames = await redis.smembers(key("errors", "_types"));
+    if (Array.isArray(errorTypeNames)) {
+      for (const errName of errorTypeNames) {
+        const count = parseInt((await redis.get(key("errors", errName))) || "0", 10);
+        errorTypes[errName] = count;
       }
     }
 
@@ -154,12 +149,11 @@ export const telemetry = {
       }
     }
 
-    const toolNamesRaw = await redis.keys(key("tools", "by_name", "*", "calls"));
     const topTools: Array<{ name: string; calls: number; success: number; failure: number }> = [];
-    if (Array.isArray(toolNamesRaw)) {
-      for (const tk of toolNamesRaw) {
-        const name = tk.replace(`${TELEMETRY_PREFIX}:tools:by_name:`, "").replace(":calls", "");
-        const calls = parseInt((await redis.get(tk)) || "0", 10);
+    const toolNames = await redis.smembers(key("tools", "_names"));
+    if (Array.isArray(toolNames)) {
+      for (const name of toolNames) {
+        const calls = parseInt((await redis.get(key("tools", "by_name", name, "calls"))) || "0", 10);
         const success = parseInt((await redis.get(key("tools", "by_name", name, "success"))) || "0", 10);
         const failure = parseInt((await redis.get(key("tools", "by_name", name, "failure"))) || "0", 10);
         topTools.push({ name, calls, success, failure });

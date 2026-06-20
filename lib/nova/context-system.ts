@@ -7,13 +7,13 @@ export { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, typ
 
 const MAX_CONTEXT_TOKENS = 3000;
 
-const workspaceCache = new Map<string, { data: any; timestamp: number }>();
+const workspaceCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_TTL_MS = 5000;
 
 function getCachedOrFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T> {
   const cached = workspaceCache.get(key);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL_MS) {
-    return Promise.resolve(cached.data);
+    return Promise.resolve(cached.data as T);
   }
   return fetcher().then(data => {
     workspaceCache.set(key, { data, timestamp: Date.now() });
@@ -38,14 +38,13 @@ export interface ContextOptions {
   projectId?: string;
   taskId?: string;
   documentId?: string;
-  sprintId?: string;
 }
 
 export interface ResolvedContext {
   task: { title: string; description?: string | null; status: string; priority: string; subtasks: string[] } | null;
   document: { title: string; content?: string | null } | null;
   project: { name: string; description?: string | null } | null;
-  sprint: { name: string; status?: string } | null;
+  sprint: { name: string; status: string | null } | null;
   workspace: { name: string; plan: string } | null;
   user: { name?: string | null } | null;
   priority: number;
@@ -53,21 +52,12 @@ export interface ResolvedContext {
 
 export class ContextSystem {
   public static async getActiveContext(options: ContextOptions) {
-    const { workspaceId, userId, projectId, taskId, documentId, sprintId } = options;
+    const { workspaceId, userId, projectId, taskId, documentId } = options;
     const db = getPrismaClient(workspaceId);
-
-    let sprintData: { name: string; status?: string } | null = null;
-    if (sprintId) {
-      try {
-        const s = await (db as any).sprint?.findUnique?.({ where: { id: sprintId } });
-        if (s) sprintData = { name: s.name, status: s.status };
-      } catch { /* sprint model may not exist */ }
-    }
 
     const [workspace, project, task, document, user] = await Promise.all([
       getCachedOrFetch(`workspace:${workspaceId}`, () => db.workspace.findUnique({ where: { id: workspaceId } })),
       projectId ? getCachedOrFetch(`project:${projectId}`, async () => {
-        // Verify user has access to this project before caching
         if (userId) {
           const access = await canAccessProject(userId, projectId, workspaceId);
           if (!access.hasAccess) return null;
@@ -79,7 +69,6 @@ export class ContextSystem {
       userId ? db.user.findUnique({ where: { id: userId }, select: { name: true } }) : null,
     ]);
 
-    // After fetching, verify project access for task and document context
     if (task && task.projectId && userId) {
       const hasAccess = await canAccessProjectResource(userId, workspaceId, task.projectId);
       if (!hasAccess) {
@@ -99,14 +88,14 @@ export class ContextSystem {
         description: task.description,
         status: task.status,
         priority: task.priority,
-        subtasks: task.subtasks?.map((s: any) => s.title) || [],
+        subtasks: task.subtasks?.map((s: { title: string }) => s.title) || [],
       } : null,
       document: document ? { title: document.title, content: document.content?.substring(0, 1000) } : null,
       project: project ? { name: project.name, description: project.description } : null,
-      sprint: sprintData,
+      sprint: null,
       workspace: workspace ? { name: workspace.name, plan: workspace.plan } : null,
       user: user ? { name: user.name } : null,
-      priority: taskId ? 1 : documentId ? 2 : projectId ? 3 : sprintId ? 4 : 5,
+      priority: taskId ? 1 : documentId ? 2 : projectId ? 3 : 5,
     };
 
     let promptString = "ACTIVE EXECUTION CONTEXT:\n";

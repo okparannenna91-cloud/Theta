@@ -35,7 +35,7 @@ export class MemorySystem {
     try {
       const key = `${SESSION_KEY_PREFIX}${sessionId}:history`;
       const items = await redis.lrange(key, -limit, -1);
-      return items.map((item: any) => {
+      return items.map((item: string | { role: string; content: string }) => {
         const parsed = typeof item === "string" ? JSON.parse(item) : item;
         return { role: parsed.role, content: parsed.content };
       });
@@ -77,7 +77,7 @@ export class MemorySystem {
 
     try {
       const db = getPrismaClient(workspaceId);
-      const where: any = { userId };
+      const where: { userId: string; workspaceId?: string } = { userId };
       if (workspaceId) {
         where.workspaceId = workspaceId;
       }

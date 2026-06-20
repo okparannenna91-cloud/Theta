@@ -1,5 +1,5 @@
 import { matchIntent, type DirectActionName } from "./registry";
-import { buildTools, type ToolContext } from "@/lib/ai-tools";
+import { buildTools, type ToolContext, type ToolDefinition } from "@/lib/ai-tools";
 import { logger } from "@/lib/logger";
 import { getPrismaClient } from "@/lib/prisma";
 import { telemetry } from "@/lib/nova/telemetry";
@@ -135,63 +135,63 @@ export async function executeDirectAction(options: DirectActionOptions): Promise
 
     let result: any;
 
+    const getTool = (name: string): ToolDefinition => {
+      const t = tools[name];
+      if (!t) throw new Error(`Tool not available: ${name}`);
+      return t as ToolDefinition;
+    };
+
     switch (action) {
       case "create_task": {
-        const tool = tools[action];
-        if (!tool) throw new Error("Tool not available: create_task");
-        result = await (tool as any).execute({ title: params.title });
+        const tool = getTool(action);
+        result = await tool.execute({ title: params.title });
         break;
       }
 
       case "list_tasks": {
-        const tool = tools[action];
-        if (!tool) throw new Error("Tool not available: list_tasks");
+        const tool = getTool(action);
         let resolvedProjectId: string | undefined;
         if (params.projectName) {
           resolvedProjectId = (await resolveProjectIdByName(params.projectName, workspaceId, user.id)) || undefined;
         }
-        result = await (tool as any).execute({ projectId: resolvedProjectId });
+        result = await tool.execute({ projectId: resolvedProjectId });
         break;
       }
 
       case "update_task": {
-        const tool = tools["update_task"];
-        if (!tool) throw new Error("Tool not available: update_task");
+        const tool = getTool("update_task");
         if (!params.title) throw new Error("Task title is required");
         const resolved = await resolveTaskIdByTitle(params.title, workspaceId, user.id);
         if (!resolved.taskId) {
           return { handled: true, success: false, durationMs: Date.now() - start, action, message: `Task "${params.title}" not found.`, actionName: action };
         }
-        const updateParams: any = { taskId: resolved.taskId };
+        const updateParams: Record<string, unknown> = { taskId: resolved.taskId };
         if (params.status) updateParams.status = params.status;
         if (params.priority) updateParams.priority = params.priority;
-        result = await (tool as any).execute(updateParams);
+        result = await tool.execute(updateParams);
         break;
       }
 
       case "complete_task": {
-        const tool = tools["update_task"];
-        if (!tool) throw new Error("Tool not available: update_task");
+        const tool = getTool("update_task");
         if (!params.title) throw new Error("Task title is required");
         const resolved = await resolveTaskIdByTitle(params.title, workspaceId, user.id);
         if (!resolved.taskId) {
           return { handled: true, success: false, durationMs: Date.now() - start, action, message: `Task "${params.title}" not found.`, actionName: action };
         }
-        result = await (tool as any).execute({ taskId: resolved.taskId, status: "done" });
+        result = await tool.execute({ taskId: resolved.taskId, status: "done" });
         break;
       }
 
       case "create_project": {
-        const tool = tools[action];
-        if (!tool) throw new Error("Tool not available: create_project");
-        result = await (tool as any).execute({ name: params.name });
+        const tool = getTool(action);
+        result = await tool.execute({ name: params.name });
         break;
       }
 
       case "list_projects": {
-        const tool = tools[action];
-        if (!tool) throw new Error("Tool not available: list_projects");
-        result = await (tool as any).execute({});
+        const tool = getTool(action);
+        result = await tool.execute({});
         break;
       }
 
