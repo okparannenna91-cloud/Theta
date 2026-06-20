@@ -447,14 +447,23 @@ export function NovaAssistant() {
                         streamEnded,
                         chunkCount,
                         readerPresent: !!reader,
+                        status: res.status,
+                        statusText: res.statusText,
+                        contentType: res.headers?.get("content-type"),
                     });
                     setMessages((prev) => {
                         const newMessages = [...prev];
                         const lastMsg = newMessages[newMessages.length - 1];
                         if (lastMsg && lastMsg.role === "nova" && !lastMsg.content) {
-                            lastMsg.content = "I've completed your request.";
+                            lastMsg.content = "Nova could not generate a response. Check logs.";
                         }
                         return newMessages;
+                    });
+                } else {
+                    console.log("[Nova-Client] Response received", {
+                        chunkCount,
+                        responseLength: accumulatedResponse.length,
+                        preview: accumulatedResponse.substring(0, 100),
                     });
                 }
             } finally {

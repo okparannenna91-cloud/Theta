@@ -275,6 +275,9 @@ ${formattedHistory || "No recent conversation history."}
                 toolsCount: toolNames.length,
                 toolList: toolNames.join(","),
                 systemPromptLength: systemPrompt?.length || 0,
+                path: route.path,
+                provider: "openrouter",
+                model: "openai/gpt-4o-mini",
                 workspaceId,
                 conversationId,
                 timestamp: new Date().toISOString()
@@ -285,40 +288,51 @@ ${formattedHistory || "No recent conversation history."}
                     model: openrouterProvider("openai/gpt-4o-mini"),
                     system: systemPrompt,
                     prompt: prompt,
-                    tools: tools as any,
+                    tools: route.path === "CHAT" ? undefined : (Object.keys(tools).length > 0 ? (tools as any) : undefined),
                     maxRetries: 2,
                     abortSignal: abortController.signal,
                     onError: ({ error }: { error: unknown }) => {
                         const errorMessage = error instanceof Error ? error.message : String(error);
                         const isOpenRouterError = errorMessage.includes("OpenRouter") || errorMessage.includes("401") || errorMessage.includes("402") || errorMessage.includes("429");
+                        logger.error("[Nova] Stream error:", errorMessage, {
+                            errorName: error instanceof Error ? error.name : typeof error,
+                            isOpenRouterError,
+                            path: route!.path,
+                            timestamp: new Date().toISOString()
+                        });
                         recordStreamEvent(user!.id, workspaceId, isOpenRouterError ? "openrouter_error" : "aborted_stream", {
                             conversationId,
                             promptLength: prompt?.length || 0,
                             errorMessage,
                         });
-                        logger.error("[Nova] Stream error:", errorMessage, {
-                            errorName: error instanceof Error ? error.name : typeof error,
-                            isOpenRouterError,
-                            timestamp: new Date().toISOString()
-                        });
                     },
-                    onFinish: async ({ text, finishReason }: { text: string; finishReason?: string }) => {
+                    onFinish: async ({ text, finishReason, toolCalls }: { text: string; finishReason?: string; toolCalls?: any[] }) => {
                         clearTimeout(timeoutId);
                         const isToolOnly = finishReason === "tool_calls" && !text?.length;
-                        if (isToolOnly) {
-                            recordStreamEvent(user!.id, workspaceId, "tool_only_completion", {
-                                conversationId,
-                                finishReason,
-                                promptLength: prompt?.length || 0,
-                            });
-                        }
+                        const toolCallCount = toolCalls?.length ?? 0;
                         logger.info("[Nova] Stream finished", {
                             finishReason,
                             textLength: text?.length || 0,
                             hasText: !!text?.length,
                             isToolOnly,
+                            toolCallCount,
+                            toolCalls: toolCalls?.map((tc: any) => tc.toolName).join(",") || "none",
+                            path: route!.path,
                             timestamp: new Date().toISOString()
                         });
+                        if (isToolOnly) {
+                            logger.warn("[Nova] Tool-only completion — model returned no text after tool calls", {
+                                toolCalls: toolCalls?.map((tc: any) => tc.toolName).join(","),
+                                finishReason,
+                                path: route!.path,
+                            });
+                            recordStreamEvent(user!.id, workspaceId, "tool_only_completion", {
+                                conversationId,
+                                finishReason,
+                                promptLength: prompt?.length || 0,
+                                toolNames: toolCalls?.map((tc: { toolName: string }) => tc.toolName).join(","),
+                            });
+                        }
                         if (conversationId) {
                             const content = text?.trim() || "[Action completed by Nova]";
                             try {
@@ -331,16 +345,31 @@ ${formattedHistory || "No recent conversation history."}
                     },
                 });
 
-                const FALLBACK_TEXT = "I've completed your request.";
+                const FALLBACK_TEXT = "Nova could not generate a response. Check logs.";
                 let hasContent = false;
+                let totalChunks = 0;
+                let totalBytes = 0;
                 const safeStream = (result.textStream as any).pipeThrough(new TransformStream<string, string>({
                     transform(chunk, controller) {
                         hasContent = true;
+                        totalChunks++;
+                        totalBytes += chunk.length;
                         controller.enqueue(chunk);
                     },
                     flush(controller) {
+                        logger.info("[Nova] Stream flush", {
+                            hasContent,
+                            totalChunks,
+                            totalBytes,
+                            timestamp: new Date().toISOString()
+                        });
                         if (!hasContent) {
-                            logger.info("[Nova] Stream empty — injecting fallback text", {
+                            logger.warn("[Nova] Stream empty — zero chunks produced", {
+                                path: route!.path,
+                                intent: decision!.intent,
+                                strategy: decision!.strategy,
+                                model: "openai/gpt-4o-mini",
+                                toolCount: toolNames.length,
                                 timestamp: new Date().toISOString()
                             });
                             recordStreamEvent(user!.id, workspaceId, "empty_stream", {
@@ -351,6 +380,14 @@ ${formattedHistory || "No recent conversation history."}
                         }
                     },
                 }));
+
+                logger.info("[Nova] Returning stream response", {
+                    totalChunks,
+                    totalBytes,
+                    hasContent,
+                    path: route.path,
+                    durationMs: Date.now() - requestStart,
+                });
 
                 const response = new Response(
                     safeStream.pipeThrough(new TextEncoderStream()),
