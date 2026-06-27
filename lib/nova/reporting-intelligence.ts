@@ -1,4 +1,4 @@
-import { getPrismaClient } from "../prisma";
+import { prisma } from "../prisma";
 import { ContextSystem } from "./context-system";
 import { SecurityGuard } from "./security-guard";
 import { redis } from "../redis/client";
@@ -72,8 +72,7 @@ export class ReportingIntelligence {
     workspaceId: string,
     userId?: string
   ): Promise<void> {
-    const db = getPrismaClient(workspaceId);
-    await db.scheduledReport.upsert({
+        await prisma.scheduledReport.upsert({
       where: { workspaceId_type_scopeId: { workspaceId, type, scopeId } },
       create: { workspaceId, type, frequency, scopeId, nextRun: new Date() },
       update: { frequency },

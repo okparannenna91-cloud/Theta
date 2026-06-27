@@ -1,4 +1,4 @@
-import { getPrismaClient } from "../prisma";
+import { prisma } from "../prisma";
 import { redis } from "../redis/client";
 import { SecurityGuard } from "./security-guard";
 import { SearchIntelligence } from "./search-intelligence";
@@ -29,9 +29,9 @@ export class KnowledgeIntelligence {
       await SecurityGuard.validate({ userId, workspaceId, action: "write", resourceType: "document" });
     }
 
-    const db = getPrismaClient(workspaceId);
+    
 
-    const doc = await db.document.create({
+    const doc = await prisma.document.create({
       data: {
         userId: userId ?? "",
         title,
@@ -58,9 +58,9 @@ export class KnowledgeIntelligence {
 
   public static async search(query: string, options: SearchOptions): Promise<any[]> {
     const scope = SearchIntelligence.parseQuery(query);
-    const db = getPrismaClient(options.workspaceId);
 
-    const results = await db.document.findMany({
+
+    const results = await prisma.document.findMany({
       where: {
         workspaceId: options.workspaceId,
         OR: [
@@ -81,11 +81,11 @@ export class KnowledgeIntelligence {
     targetIds: string[],
     relation: string
   ): Promise<void> {
-    const db = getPrismaClient(workspaceId);
+    
 
     for (const targetId of targetIds) {
       try {
-        await db.entityLink.create({
+        await prisma.entityLink.create({
           data: { sourceId, targetId, relation },
         });
       } catch (error: any) {

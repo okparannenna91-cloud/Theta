@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
     const payload = await request.text();
@@ -31,30 +31,17 @@ export async function POST(request: NextRequest) {
         const repoFullName = data.repository?.full_name;
         if (!repoFullName) return NextResponse.json({ message: "No repo full name found" });
 
-        // Search across shards for the integration
-        const { prismaShard1, prismaShard2, prismaShard3 } = await import("@/lib/prisma");
-        const shards = [prismaShard1, prismaShard2, prismaShard3];
-
-        let integration = null;
-        let workspaceId = null;
-
-        for (const shard of shards) {
-            if (!shard) continue;
-            // @ts-ignore
-            integration = await shard.integration.findFirst({
-                where: {
-                    provider: "bitbucket",
-                    OR: [
-                        { metadata: { equals: { repoName: repoFullName } } },
-                        { config: { equals: { repoName: repoFullName } } }
-                    ]
-                }
-            });
-            if (integration) {
-                workspaceId = integration.workspaceId;
-                break;
+        const integration = await prisma.integration.findFirst({
+            where: {
+                provider: "bitbucket",
+                OR: [
+                    { metadata: { equals: { repoName: repoFullName } } },
+                    { config: { equals: { repoName: repoFullName } } }
+                ]
             }
-        }
+        });
+
+        const workspaceId = integration?.workspaceId;
 
         if (!workspaceId) {
             return NextResponse.json({ message: "No workspace linked to this bitbucket repository" });

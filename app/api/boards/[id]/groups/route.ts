@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { findAcrossShards } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { publishToChannel, getBoardChannel } from "@/lib/ably";
 
@@ -21,12 +21,11 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: board, db } = await findAcrossShards<any>("board", { id: params.id });
+        const board = await prisma.board.findUnique({ where: { id: params.id } });
         if (!board) {
             return NextResponse.json({ error: "Board not found" }, { status: 404 });
         }
 
-        const { prisma } = await import("@/lib/prisma");
         const membership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
@@ -40,7 +39,7 @@ export async function GET(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        const groups = await (db as any).groups.findMany({
+        const groups = await prisma.groups.findMany({
             where: { boardId: params.id },
             orderBy: { order: "asc" },
         });
@@ -68,12 +67,11 @@ export async function POST(
         const body = await req.json();
         const data = groupSchema.parse(body);
 
-        const { data: board, db } = await findAcrossShards<any>("board", { id: params.id });
+        const board = await prisma.board.findUnique({ where: { id: params.id } });
         if (!board) {
             return NextResponse.json({ error: "Board not found" }, { status: 404 });
         }
 
-        const { prisma } = await import("@/lib/prisma");
         const membership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
@@ -87,12 +85,11 @@ export async function POST(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Enforce plan limits (blocks deactivated workspaces)
         const { enforcePlanLimit } = await import("@/lib/plan-limits");
-        const groupCount = await (db as any).groups.count({ where: { boardId: params.id } });
+        const groupCount = await prisma.groups.count({ where: { boardId: params.id } });
         await enforcePlanLimit(board.workspaceId, "groups", groupCount);
 
-        const group = await (db as any).groups.create({
+        const group = await prisma.groups.create({
             data: {
                 name: data.name,
                 order: data.order,

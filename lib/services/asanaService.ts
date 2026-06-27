@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { decrypt, encrypt } from "@/lib/crypto";
 
 const ASANA_API_URL = "https://app.asana.com/api/1.0";
@@ -11,8 +11,7 @@ export class AsanaService {
     }
 
     private async getAccessToken(): Promise<string> {
-        const prisma = getPrismaClient(this.workspaceId);
-        const integration = await prisma.integration.findFirst({
+                const integration = await prisma.integration.findFirst({
             where: {
                 workspaceId: this.workspaceId,
                 // @ts-ignore
@@ -34,7 +33,7 @@ export class AsanaService {
     }
 
     private async refreshAccessToken(integrationId: string, refreshTokenStr: string): Promise<string> {
-        const prisma = getPrismaClient(this.workspaceId);
+        
         const refreshToken = decrypt(refreshTokenStr);
 
         const response = await fetch("https://app.asana.com/-/oauth_token", {

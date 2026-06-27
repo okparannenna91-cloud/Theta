@@ -13,9 +13,8 @@ async function main() {
 
         console.log("\nSimulating GET /api/projects/[id]");
         
-        // Simulating findAcrossShards
         const record = await prisma.project.findFirst({ where: { id: project.id } });
-        console.log("Project found via findAcrossShards:", !!record);
+        console.log("Project found:", !!record);
 
         // Verify workspace access
         const membership = await prisma.workspaceMember.findUnique({

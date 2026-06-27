@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
 import { publishToChannel, getWorkspaceChannel, getBoardChannel } from "@/lib/ably";
@@ -13,18 +13,16 @@ export async function DELETE(req: Request) {
     const { taskIds } = await req.json();
     if (!taskIds || !Array.isArray(taskIds)) return new NextResponse("Invalid request", { status: 400 });
 
-    const { findAcrossShards } = await import("@/lib/prisma");
-    const { data: firstTask } = await findAcrossShards<any>("task", { id: taskIds[0] });
+    const firstTask = await prisma.task.findUnique({ where: { id: taskIds[0] } });
 
     if (!firstTask) return new NextResponse("Tasks not found", { status: 404 });
 
     const hasAccess = await verifyWorkspaceAccess(user.id, firstTask.workspaceId);
     if (!hasAccess) return new NextResponse("Forbidden", { status: 403 });
 
-    const shardedPrisma = getPrismaClient(firstTask.workspaceId);
     const accessibleProjectIds = await getAccessibleProjectIds(user.id, firstTask.workspaceId);
 
-    await shardedPrisma.task.deleteMany({
+    await prisma.task.deleteMany({
       where: {
         id: { in: taskIds },
         workspaceId: firstTask.workspaceId,

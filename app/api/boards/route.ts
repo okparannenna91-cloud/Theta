@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, getPrismaClient, findAcrossShards } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { Project } from "@prisma/client";
 import { canCreateBoard, getPlanLimitMessage } from "@/lib/plan-limits";
 import { getAccessibleProjectIds, requireProjectAccess } from "@/lib/project-permissions";
@@ -52,12 +52,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const db = getPrismaClient(workspaceId);
     let projectWhere: any = { workspaceId };
 
     if (teamId) {
-      // Verify team membership
-      const teamMembership = await db.teamMember.findUnique({
+      const teamMembership = await prisma.teamMember.findUnique({
         where: {
           teamId_userId: { teamId, userId: user.id },
         },
@@ -73,7 +71,7 @@ export async function GET(req: Request) {
       accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
     }
 
-    const boards = await db.board.findMany({
+    const boards = await prisma.board.findMany({
       where: {
         project: projectWhere,
         ...(!teamId && accessibleProjectIds ? { projectId: { in: accessibleProjectIds } } : {}),
@@ -95,14 +93,13 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    // Calculate limits
     const { getPlanLimits } = await import("@/lib/plan-limits");
     const workspace = await prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: { plan: true }
     });
     const planLimits = getPlanLimits((workspace?.plan as any) || "free");
-    const boardCount = await db.board.count({ where: { workspaceId } });
+    const boardCount = await prisma.board.count({ where: { workspaceId } });
 
     return NextResponse.json({
         boards,
@@ -131,9 +128,8 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = boardSchema.parse(body);
 
-    // Verify project belongs to a workspace the user is a member of
-    const { data: project, db: projectDb } = await findAcrossShards<Project>("project", {
-      id: data.projectId,
+    const project = await prisma.project.findUnique({
+      where: { id: data.projectId },
     });
 
     if (!project) {
@@ -143,7 +139,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Verify workspace access
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -162,10 +157,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: projectAccess.error!.message }, { status: projectAccess.error!.status });
     }
 
-    const db = getPrismaClient(project.workspaceId);
-
-    // Check plan limits strictly
-    const boardCount = await db.board.count({
+    const boardCount = await prisma.board.count({
       where: { workspaceId: project.workspaceId }
     });
 
@@ -176,7 +168,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
-    const board = await db.board.create({
+    const board = await prisma.board.create({
       data: {
         name: data.name,
         projectId: data.projectId,
@@ -185,10 +177,9 @@ export async function POST(req: Request) {
       },
     });
 
-    // Create default columns
     const defaultColumns = ["Todo", "In Progress", "Done"];
     for (let i = 0; i < defaultColumns.length; i++) {
-      await db.column.create({
+      await prisma.column.create({
         data: {
           name: defaultColumns[i],
           boardId: board.id,
@@ -197,7 +188,7 @@ export async function POST(req: Request) {
       });
     }
 
-    const boardWithColumns = await db.board.findUnique({
+    const boardWithColumns = await prisma.board.findUnique({
       where: { id: board.id },
       include: {
         columns: true,

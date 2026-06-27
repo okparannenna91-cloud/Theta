@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, findAcrossShards } from "@/lib/prisma";
-import { Project } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/project-permissions";
 import { z } from "zod";
 
@@ -21,45 +20,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId");
-
-    let project: Project | null = null;
-    let db: any = null;
-
-    if (workspaceId) {
-      const { getPrismaClient } = await import("@/lib/prisma");
-      db = getPrismaClient(workspaceId);
-      project = await db.project.findUnique({
-        where: { id: params.id },
-      });
-    }
-
-    if (!project) {
-      const result = await findAcrossShards<Project>("project", {
-        id: params.id,
-      }, workspaceId ? { workspaceId } : undefined);
-      project = result.data;
-      db = result.db;
-    }
-
-    if (!project) {
-      console.error(`[Project GET] 404: Project ${params.id} not found on any shard.`);
-      return NextResponse.json({ error: "Project not found" }, { status: 404 });
-    }
-
-    // Verify project access using permission system
-    const access = await requireProjectAccess(user.id, project.id, project.workspaceId);
-    if (!access.allowed) {
-      return NextResponse.json(
-        { error: access.error!.message },
-        { status: access.error!.status }
-      );
-    }
-
-    console.log(`[Project GET] Loading full relations for project=${project.id} from shard DB...`);
-    // Re-fetch project with relations using the specific shard DB found
-    const fullProject = await db.project.findUnique({
+    const project = await prisma.project.findUnique({
       where: { id: params.id },
       include: {
         tasks: {
@@ -93,24 +54,29 @@ export async function GET(
       }
     });
 
-    if (!fullProject) {
-        return NextResponse.json({ error: "Project details not found" }, { status: 404 });
+    if (!project) {
+      return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Collect all user IDs needed
+    const access = await requireProjectAccess(user.id, project.id, project.workspaceId);
+    if (!access.allowed) {
+      return NextResponse.json(
+        { error: access.error!.message },
+        { status: access.error!.status }
+      );
+    }
+
     const allUserIds = new Set<string>();
-    if (fullProject.userId) allUserIds.add(fullProject.userId);
-    fullProject.tasks?.forEach((t: any) => { if (t.userId) allUserIds.add(t.userId); });
-    fullProject.team?.members?.forEach((m: any) => { if (m.userId) allUserIds.add(m.userId); });
-    fullProject.projectTeams?.forEach((pt: any) => {
+    if (project.userId) allUserIds.add(project.userId);
+    project.tasks?.forEach((t: any) => { if (t.userId) allUserIds.add(t.userId); });
+    project.team?.members?.forEach((m: any) => { if (m.userId) allUserIds.add(m.userId); });
+    project.projectTeams?.forEach((pt: any) => {
         pt.team.members?.forEach((m: any) => { if (m.userId) allUserIds.add(m.userId); });
     });
 
-    // Safeguard: Only query valid MongoDB ObjectIds to prevent BSON errors from legacy data
     const isValidObjectId = (id: string) => /^[a-fA-F0-9]{24}$/.test(id);
     const validUserIds = Array.from(allUserIds).filter(isValidObjectId);
 
-    // Fetch user profiles from the primary shard
     const users = await prisma.user.findMany({
       where: { id: { in: validUserIds } },
       select: {
@@ -123,22 +89,21 @@ export async function GET(
 
     const userMap = new Map(users.map(u => [u.id, u]));
 
-    // Manually attach user profiles back
     const processedProject = {
-        ...fullProject,
-        user: userMap.get(fullProject.userId) || null,
-        tasks: fullProject.tasks?.map((t: any) => ({
+        ...project,
+        user: userMap.get(project.userId) || null,
+        tasks: project.tasks?.map((t: any) => ({
             ...t,
             user: userMap.get(t.userId) || null
         })) || [],
-        team: fullProject.team ? {
-            ...fullProject.team,
-            members: fullProject.team.members?.map((m: any) => ({
+        team: project.team ? {
+            ...project.team,
+            members: project.team.members?.map((m: any) => ({
                 ...m,
                 user: userMap.get(m.userId) || null
             })) || []
         } : null,
-        projectTeams: fullProject.projectTeams?.map((pt: any) => ({
+        projectTeams: project.projectTeams?.map((pt: any) => ({
             ...pt,
             team: pt.team ? {
                 ...pt.team,
@@ -150,7 +115,8 @@ export async function GET(
         })) || []
     };
 
-    return NextResponse.json(processedProject);  } catch (error) {
+    return NextResponse.json(processedProject);
+  } catch (error) {
     console.error("Get project error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
@@ -172,15 +138,12 @@ export async function PATCH(
     const body = await req.json();
     const data = updateSchema.parse(body);
 
-    const { data: project, db } = await findAcrossShards<Project>("project", {
-      id: params.id,
-    });
+    const project = await prisma.project.findUnique({ where: { id: params.id } });
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Verify project access using permission system
     const access = await requireProjectAccess(user.id, project.id, project.workspaceId);
     if (!access.allowed) {
       return NextResponse.json(
@@ -189,7 +152,7 @@ export async function PATCH(
       );
     }
 
-    const updated = await (db as any).project.update({
+    const updated = await prisma.project.update({
       where: { id: params.id },
       data,
     });
@@ -217,15 +180,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: project, db } = await findAcrossShards<Project>("project", {
-      id: params.id,
-    });
+    const project = await prisma.project.findUnique({ where: { id: params.id } });
 
     if (!project) {
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    // Verify project access first
     const access = await requireProjectAccess(user.id, project.id, project.workspaceId);
     if (!access.allowed) {
       return NextResponse.json(
@@ -234,7 +194,6 @@ export async function DELETE(
       );
     }
 
-    // Only workspace owner, admin, or project creator can delete
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -248,12 +207,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Access denied. Only project creators or workspace admins can delete projects." }, { status: 403 });
     }
 
-    // Manual Cascade: Delete all tasks associated with this project (Consistency Fix)
-    await (db as any).task.deleteMany({
+    await prisma.task.deleteMany({
         where: { projectId: params.id }
     });
 
-    await (db as any).project.delete({
+    await prisma.project.delete({
       where: { id: params.id },
     });
 

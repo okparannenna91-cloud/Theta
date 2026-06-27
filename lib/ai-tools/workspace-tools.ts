@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { prisma, getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { getWorkspaceMembers } from "@/lib/workspace";
 import { createInvite } from "@/lib/invite";
 import { decryptSensitiveFields } from "@/lib/field-encryption";
@@ -67,7 +67,7 @@ export function buildWorkspaceTools(ctx: ToolContext): ToolModule {
       }),
       execute: async ({ includeTypes = ["tasks", "projects"], maxItems = 200, cursor }: Record<string, unknown>) => {
         await enforce(ctx, "admin", "workspace");
-        const db = getPrismaClient(workspaceId);
+        
         const { getAccessibleProjectIds } = await import("../project-permissions");
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
         const SENSITIVE_FIELDS = new Set(["password", "apiKey", "token", "refreshToken", "secret", "privateKey", "encryptionKey"]);
@@ -89,7 +89,7 @@ export function buildWorkspaceTools(ctx: ToolContext): ToolModule {
         const queries: Promise<{ name: string; count: number; cursor: string | null; data: unknown[] }>[] = [];
         if (types.includes("tasks")) {
           queries.push(
-            db.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds } }, take: max + 1, ...(cur ? { cursor: { id: cur }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: { id: string }[]) => {
+            prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds } }, take: max + 1, ...(cur ? { cursor: { id: cur }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: { id: string }[]) => {
               const hasMore = data.length > max;
               if (hasMore) data.pop();
               return { name: "tasks", count: data.length, cursor: hasMore ? data[data.length - 1]?.id ?? null : null, data: stripSensitive(data) as unknown[] };
@@ -98,7 +98,7 @@ export function buildWorkspaceTools(ctx: ToolContext): ToolModule {
         }
         if (types.includes("projects")) {
           queries.push(
-            db.project.findMany({ where: { workspaceId, id: { in: accessibleProjectIds } }, take: max + 1, ...(cur ? { cursor: { id: cur }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: { id: string }[]) => {
+            prisma.project.findMany({ where: { workspaceId, id: { in: accessibleProjectIds } }, take: max + 1, ...(cur ? { cursor: { id: cur }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: { id: string }[]) => {
               const hasMore = data.length > max;
               if (hasMore) data.pop();
               return { name: "projects", count: data.length, cursor: hasMore ? data[data.length - 1]?.id ?? null : null, data: stripSensitive(data) as unknown[] };
@@ -107,7 +107,7 @@ export function buildWorkspaceTools(ctx: ToolContext): ToolModule {
         }
         if (types.includes("documents")) {
           queries.push(
-            db.document.findMany({ where: { workspaceId, OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }] }, take: max + 1, ...(cur ? { cursor: { id: cur }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: { id: string }[]) => {
+            prisma.document.findMany({ where: { workspaceId, OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }] }, take: max + 1, ...(cur ? { cursor: { id: cur }, skip: 1 } : {}), orderBy: { id: "asc" } }).then((data: { id: string }[]) => {
               const hasMore = data.length > max;
               if (hasMore) data.pop();
               return { name: "documents", count: data.length, cursor: hasMore ? data[data.length - 1]?.id ?? null : null, data: stripSensitive(data) as unknown[] };
@@ -132,9 +132,9 @@ export function buildWorkspaceTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ title: z.string(), message: z.string() }),
       execute: async ({ title, message }: Record<string, unknown>) => {
         await enforce(ctx, "admin", "workspace");
-        const db = getPrismaClient(workspaceId);
-        const members = await db.workspaceMember.findMany({ where: { workspaceId } });
-        await Promise.all(members.map((m: { userId: string }) => db.notification.create({ data: { title: `Announcement: ${title}`, message: message as string, type: "ANNOUNCEMENT", userId: m.userId, workspaceId, priority: "high" } })));
+        
+        const members = await prisma.workspaceMember.findMany({ where: { workspaceId } });
+        await Promise.all(members.map((m: { userId: string }) => prisma.notification.create({ data: { title: `Announcement: ${title}`, message: message as string, type: "ANNOUNCEMENT", userId: m.userId, workspaceId, priority: "high" } })));
         return { success: true, message: `Announcement sent to **${members.length}** members.` };
       }
     },
@@ -143,9 +143,9 @@ export function buildWorkspaceTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ title: z.string(), targetDate: z.string().optional(), metrics: z.array(z.string()).optional() }),
       execute: async ({ title, targetDate, metrics }: Record<string, unknown>) => {
         await enforce(ctx, "write", "document");
-        const db = getPrismaClient(workspaceId);
+        
         const metricList = metrics as string[] | undefined;
-        await db.document.create({ data: { title: `GOAL: ${title}`, content: `## Goal\nTarget: ${targetDate || 'N/A'}\n### Key Results\n${metricList?.map((m: string) => `- [ ] ${m}`).join('\n') || 'None'}`, workspaceId, userId: user.id } });
+        await prisma.document.create({ data: { title: `GOAL: ${title}`, content: `## Goal\nTarget: ${targetDate || 'N/A'}\n### Key Results\n${metricList?.map((m: string) => `- [ ] ${m}`).join('\n') || 'None'}`, workspaceId, userId: user.id } });
         return { success: true, message: `Goal "**${title}**" established.` };
       }
     },
@@ -154,8 +154,8 @@ export function buildWorkspaceTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({}),
       execute: async () => {
         await enforce(ctx, "read", "billing");
-        const db = getPrismaClient(workspaceId);
-        const history = await db.billingLog.findMany({ where: { workspaceId }, take: 5, orderBy: { createdAt: 'desc' } });
+        
+        const history = await prisma.billingLog.findMany({ where: { workspaceId }, take: 5, orderBy: { createdAt: 'desc' } });
         return { history: history.map((h: { createdAt: Date; amount: number | null; action: string }) => ({ date: h.createdAt, amount: h.amount, status: h.action, metadata: decryptSensitiveFields("billingLog", h as unknown as Record<string, unknown>).metadata })), plan: "Enterprise Alpha" };
       }
     },

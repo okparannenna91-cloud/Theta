@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { canCreateProject, getPlanLimitMessage, PlanName, enforcePlanLimit } from "@/lib/plan-limits";
 import { getProjectCount } from "@/lib/usage-tracking";
@@ -44,8 +44,7 @@ export async function GET(req: Request) {
       );
     }
 
-    const { getPrismaClient, prisma: globalPrisma } = await import("@/lib/prisma");
-    const db = getPrismaClient(workspaceId);
+
     let whereClause: any = { workspaceId };
 
     // Filter by project permissions
@@ -53,7 +52,7 @@ export async function GET(req: Request) {
 
     if (teamId) {
       // Verify team membership
-      const membership = await db.teamMember.findUnique({
+      const membership = await prisma.teamMember.findUnique({
         where: {
           teamId_userId: {
             teamId,
@@ -71,7 +70,7 @@ export async function GET(req: Request) {
       whereClause = { workspaceId, id: { in: accessibleProjectIds } };
     }
 
-    const projects = await db.project.findMany({
+    const projects = await prisma.project.findMany({
       where: whereClause,
       include: {
         tasks: {
@@ -96,7 +95,7 @@ export async function GET(req: Request) {
         allUserIds.add(p.userId);
     });
 
-    const users = await globalPrisma.user.findMany({
+    const users = await prisma.user.findMany({
         where: { id: { in: Array.from(allUserIds) } },
         select: { id: true, name: true, imageUrl: true }
     });
@@ -117,7 +116,7 @@ export async function GET(req: Request) {
 
     // Calculate limits
     const { getPlanLimits } = await import("@/lib/plan-limits");
-    const workspace = await (await import("@/lib/prisma")).prisma.workspace.findUnique({
+    const workspace = await prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: { plan: true }
     });
@@ -161,8 +160,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const db = getPrismaClient(data.workspaceId);
-    const { prisma } = await import("@/lib/prisma");
+
 
     // Get workspace metadata from primary shard
     const workspace = await prisma.workspace.findUnique({
@@ -188,7 +186,7 @@ export async function POST(req: Request) {
     }
 
     if (data.teamId) {
-      const membership = await db.teamMember.findUnique({
+      const membership = await prisma.teamMember.findUnique({
         where: {
           teamId_userId: {
             teamId: data.teamId,
@@ -205,7 +203,7 @@ export async function POST(req: Request) {
       }
 
       // Verify team belongs to workspace
-      const team = await db.team.findFirst({
+      const team = await prisma.team.findFirst({
         where: { id: data.teamId, workspaceId: data.workspaceId },
       });
 
@@ -217,7 +215,7 @@ export async function POST(req: Request) {
       }
     }
 
-    const project = await db.project.create({
+    const project = await prisma.project.create({
       data: {
         name: data.name,
         description: data.description,

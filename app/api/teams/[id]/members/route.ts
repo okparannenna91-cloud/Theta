@@ -14,49 +14,22 @@ export async function GET(
 
         const teamId = params.id;
 
-        const { findAcrossShards } = await import("@/lib/prisma");
-        const teamResult = await findAcrossShards<any>("team", { id: teamId });
+        const team = await prisma.team.findUnique({ where: { id: teamId } });
         
-        if (!teamResult.data) {
+        if (!team) {
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
 
-        // Verify workspace access (teams are workspace-scoped)
         const { verifyWorkspaceAccess } = await import("@/lib/workspace");
-        const hasAccess = await verifyWorkspaceAccess(user.id, teamResult.data.workspaceId);
+        const hasAccess = await verifyWorkspaceAccess(user.id, team.workspaceId);
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
-        
-        const db = teamResult.db;
 
-        // Fetch from shard
-        const membersRawShard = await db.teamMember.findMany({
+        const membersRaw = await prisma.teamMember.findMany({
             where: { teamId },
             orderBy: { role: "asc" },
         });
-
-        // Fetch from primary shard (legacy)
-        const membersRawPrimary = await prisma.teamMember.findMany({
-            where: { teamId },
-            orderBy: { role: "asc" },
-        });
-
-        // Merge and deduplicate by userId
-        // Favoring shard-specific data over primary legacy data
-        const membersMap = new Map();
-
-        // 1. Load primary (legacy) members
-        for (const m of membersRawPrimary) {
-            membersMap.set(m.userId, m);
-        }
-
-        // 2. Overwrite/Add with shard-specific members (Authoritative)
-        for (const m of membersRawShard) {
-            membersMap.set(m.userId, m);
-        }
-
-        const membersRaw = Array.from(membersMap.values());
 
         const isValidObjectId = (id: string) => /^[a-fA-F0-9]{24}$/.test(id);
         const uniqueUserIds = [...new Set(membersRaw.map((m: any) => m.userId))].filter(isValidObjectId);
@@ -109,14 +82,7 @@ export async function DELETE(
             return NextResponse.json({ error: "User ID required" }, { status: 400 });
         }
 
-        const { findAcrossShards } = await import("@/lib/prisma");
-        const teamResult = await findAcrossShards<any>("team", { id: params.id });
-        if (!teamResult.data) {
-            return NextResponse.json({ error: "Team not found" }, { status: 404 });
-        }
-        
-        const db = teamResult.db;
-        const team = await db.team.findUnique({
+        const team = await prisma.team.findUnique({
             where: { id: params.id },
             include: { members: true }
         });
@@ -125,12 +91,10 @@ export async function DELETE(
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
 
-        // Check permissions
         const currentUserMember = team.members.find(m => m.userId === user.id);
         const { isWorkspaceAdmin } = await import("@/lib/workspace");
         const isWsAdmin = await isWorkspaceAdmin(user.id, team.workspaceId);
 
-        // Allow if workspace admin, active team admin, or leaving self
         const isTeamAdmin = currentUserMember?.role === "admin";
         const isSelf = user.id === userIdToRemove;
 
@@ -138,8 +102,7 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // 1. Delete from shard (Authoritative)
-        await db.teamMember.delete({
+        await prisma.teamMember.delete({
             where: {
                 teamId_userId: {
                     teamId: params.id,
@@ -147,21 +110,6 @@ export async function DELETE(
                 },
             },
         });
-
-        // 2. Delete from primary (Legacy/Sync)
-        try {
-            await prisma.teamMember.delete({
-                where: {
-                    teamId_userId: {
-                        teamId: params.id,
-                        userId: userIdToRemove,
-                    },
-                },
-            });
-        } catch (e) {
-            // Ignore if already deleted from primary
-            console.log(`[Team Members DELETE] Primary record already gone or missing: ${userIdToRemove}`);
-        }
 
         return NextResponse.json({ success: true });
     } catch (error) {
@@ -187,14 +135,7 @@ export async function PATCH(
             return NextResponse.json({ error: "User ID and role required" }, { status: 400 });
         }
 
-        const { findAcrossShards } = await import("@/lib/prisma");
-        const teamResult = await findAcrossShards<any>("team", { id: params.id });
-        if (!teamResult.data) {
-            return NextResponse.json({ error: "Team not found" }, { status: 404 });
-        }
-        
-        const db = teamResult.db;
-        const team = await db.team.findUnique({
+        const team = await prisma.team.findUnique({
             where: { id: params.id },
             include: { members: true }
         });
@@ -203,7 +144,6 @@ export async function PATCH(
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
 
-        // Check permissions
         const currentUserMember = team.members.find(m => m.userId === user.id);
         const { isWorkspaceAdmin } = await import("@/lib/workspace");
         const isWsAdmin = await isWorkspaceAdmin(user.id, team.workspaceId);
@@ -212,8 +152,7 @@ export async function PATCH(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        // 1. Update shard (Authoritative)
-        const member = await db.teamMember.update({
+        const member = await prisma.teamMember.update({
             where: {
                 teamId_userId: {
                     teamId: params.id,
@@ -222,21 +161,6 @@ export async function PATCH(
             },
             data: { role },
         });
-
-        // 2. Update primary (Legacy/Sync)
-        try {
-            await prisma.teamMember.update({
-                where: {
-                    teamId_userId: {
-                        teamId: params.id,
-                        userId: userId,
-                    },
-                },
-                data: { role },
-            });
-        } catch (e) {
-            console.log(`[Team Members PATCH] Primary record missing for role update: ${userId}`);
-        }
 
         return NextResponse.json(member);
     } catch (error) {

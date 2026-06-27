@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { PlanName } from "@/lib/plan-limits";
 import { canAccessProjectResource, getAccessibleProjectIds } from "@/lib/project-permissions";
 
@@ -71,10 +71,8 @@ export async function GET(req: Request) {
       delete where.OR;
     }
 
-    const db = getPrismaClient(workspaceId);
-
     const [activitiesRaw, total] = await Promise.all([
-      db.activity.findMany({
+      prisma.activity.findMany({
         where,
         orderBy: { createdAt: "desc" },
         skip,
@@ -83,7 +81,7 @@ export async function GET(req: Request) {
             project: { select: { name: true, color: true } }
         }
       }),
-      db.activity.count({ where })
+      prisma.activity.count({ where })
     ]);
 
     const userIds = Array.from(new Set(activitiesRaw.map(a => a.userId)));

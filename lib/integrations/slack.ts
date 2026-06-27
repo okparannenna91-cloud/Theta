@@ -69,11 +69,10 @@ export async function notifyWorkspace(
     title?: string
 ): Promise<void> {
     try {
-        const { getPrismaClient } = await import("@/lib/prisma");
+        const { prisma } = await import("@/lib/prisma");
         const { decrypt } = await import("@/lib/crypto");
-        const db = getPrismaClient(workspaceId);
 
-        const integration = await db.integration.findFirst({
+        const integration = await prisma.integration.findFirst({
             where: {
                 workspaceId,
                 provider: "slack",

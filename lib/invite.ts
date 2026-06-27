@@ -96,10 +96,7 @@ export async function acceptInvite(token: string, userId: string) {
 
     // Add user to team (if invite has teamId)
     if (invite.teamId) {
-        const { getPrismaClient } = await import("@/lib/prisma");
-        const db = getPrismaClient(invite.workspaceId);
-        
-        const existingTeamMember = await db.teamMember.findUnique({
+        const existingTeamMember = await prisma.teamMember.findUnique({
             where: {
                 teamId_userId: {
                     teamId: invite.teamId,
@@ -109,11 +106,11 @@ export async function acceptInvite(token: string, userId: string) {
         });
 
         if (!existingTeamMember) {
-            await db.teamMember.create({
+            await prisma.teamMember.create({
                 data: {
                     teamId: invite.teamId,
                     userId,
-                    role: invite.role === "owner" ? "admin" : invite.role,
+                    role: invite.role,
                 },
             });
         }

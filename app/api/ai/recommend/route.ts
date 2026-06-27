@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { generateText } from "ai";
 import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
@@ -21,11 +22,8 @@ export async function POST(req: Request) {
         const { title, workspaceId } = await req.json();
         if (!title) return NextResponse.json({ error: "Missing title" }, { status: 400 });
 
-        const { getPrismaClient } = await import("@/lib/prisma");
-        const db = getPrismaClient(workspaceId);
-
         // Fetch projects to allow AI to choose one
-        const projects = await db.project.findMany({
+        const projects = await prisma.project.findMany({
             where: { workspaceId },
             select: { id: true, name: true }
         });

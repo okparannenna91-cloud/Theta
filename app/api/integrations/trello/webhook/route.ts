@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function HEAD(request: NextRequest) {
     // Trello initial verification: respond 200 to confirm endpoint exists
@@ -33,30 +33,17 @@ export async function POST(request: NextRequest) {
         const boardId = data.model?.id;
         if (!boardId) return NextResponse.json({ message: "No model ID found" });
 
-        // Search for integration
-        const { prismaShard1, prismaShard2, prismaShard3 } = await import("@/lib/prisma");
-        const shards = [prismaShard1, prismaShard2, prismaShard3];
-
-        let integration = null;
-        let workspaceId = null;
-
-        for (const shard of shards) {
-            if (!shard) continue;
-            // @ts-ignore
-            integration = await shard.integration.findFirst({
-                where: {
-                    provider: "trello",
-                    OR: [
-                        { metadata: { equals: { boardId: boardId } } },
-                        { config: { equals: { boardId: boardId } } }
-                    ]
-                }
-            });
-            if (integration) {
-                workspaceId = integration.workspaceId;
-                break;
+        const integration = await prisma.integration.findFirst({
+            where: {
+                provider: "trello",
+                OR: [
+                    { metadata: { equals: { boardId: boardId } } },
+                    { config: { equals: { boardId: boardId } } }
+                ]
             }
-        }
+        });
+
+        const workspaceId = integration?.workspaceId;
 
         if (workspaceId) {
             const { createActivity } = await import("@/lib/activity");

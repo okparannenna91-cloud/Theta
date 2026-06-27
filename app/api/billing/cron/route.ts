@@ -1,20 +1,17 @@
-
 import { NextResponse } from "next/server";
-import { runPaystackBillingCron } from "@/lib/paystack-billing";
+import { runBillingCron } from "@/lib/billing/cron";
 
 export async function GET(req: Request) {
-    // Basic security: Check for a secret key in the headers or query params
-    const authHeader = req.headers.get("authorization");
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-        return new NextResponse("Unauthorized", { status: 401 });
-    }
+  const authHeader = req.headers.get("authorization");
+  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
 
-    try {
-        console.log("Starting Paystack billing cron...");
-        await runPaystackBillingCron();
-        return NextResponse.json({ success: true, message: "Billing cron completed" });
-    } catch (error: any) {
-        console.error("Billing cron failed:", error.message);
-        return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    }
+  try {
+    const summary = await runBillingCron();
+    return NextResponse.json({ success: true, summary });
+  } catch (error: any) {
+    console.error("Billing cron failed:", error.message);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
 }

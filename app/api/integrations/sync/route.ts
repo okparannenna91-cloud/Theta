@@ -48,8 +48,7 @@ export async function POST(req: Request) {
         }
 
         // After fetching, we should update the updatedAt timestamp in the DB
-        const { getPrismaClient } = await import("@/lib/prisma");
-        const prisma = getPrismaClient(workspaceId);
+        const { prisma } = await import("@/lib/prisma");
         await prisma.integration.updateMany({
             // @ts-ignore
             where: { workspaceId, provider },

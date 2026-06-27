@@ -91,13 +91,13 @@ export async function POST(req: Request) {
 
             const workspace = await prisma.workspace.findUnique({
                 where: { id: workspaceId },
-                select: { plan: true, billingStatus: true }
+                select: { plan: true, subscriptionStatus: true }
             });
 
             if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
 
             // Strict Billing Check
-            if (workspace.billingStatus === "deactivated") {
+            if (workspace.subscriptionStatus === "deactivated") {
                 return NextResponse.json({
                     error: "Your workspace has been deactivated due to billing issues. Please update your payment method to resume uploads."
                 }, { status: 403 });

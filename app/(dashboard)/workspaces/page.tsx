@@ -30,7 +30,7 @@ export default function WorkspacesPage() {
             return res.json();
         },
         onSuccess: async (newWorkspace) => {
-            await queryClient.invalidateQueries({ queryKey: ["workspaces"], refetchType: "all" });
+            await queryClient.refetchQueries({ queryKey: ["workspaces"] });
             setIsOpen(false); setName("");
             toast.success("Workspace created successfully");
             switchWorkspace(newWorkspace.id);
@@ -45,11 +45,10 @@ export default function WorkspacesPage() {
             if (!res.ok) { const error = await res.json(); throw new Error(error.error || "Failed to delete workspace"); }
             return res.json();
         },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+        onSuccess: async () => {
+            await queryClient.refetchQueries({ queryKey: ["workspaces"] });
             setDeleteId(null);
             toast.success("Workspace deleted successfully");
-            router.refresh();
         },
         onError: (error: any) => { toast.error(error.message); },
     });

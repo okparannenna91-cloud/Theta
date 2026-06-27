@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { decrypt, encrypt } from "@/lib/crypto";
 
 const GITHUB_API_URL = "https://api.github.com";
@@ -11,7 +11,7 @@ export class GitHubService {
     }
 
     private async getIntegration() {
-        const prisma = getPrismaClient(this.workspaceId);
+        
         const integration = await prisma.integration.findFirst({
             where: {
                 workspaceId: this.workspaceId,
@@ -41,7 +41,7 @@ export class GitHubService {
     }
 
     private async refreshAccessToken(integrationId: string, refreshTokenStr: string): Promise<string> {
-        const prisma = getPrismaClient(this.workspaceId);
+        
 
         const clientId = process.env.GITHUB_CLIENT_ID;
         const clientSecret = process.env.GITHUB_CLIENT_SECRET;

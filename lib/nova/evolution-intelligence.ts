@@ -1,4 +1,4 @@
-import { getPrismaClient } from "../prisma";
+import { prisma } from "../prisma";
 import {
   EVOLUTION_MILESTONES,
   LONG_TERM_VISION,
@@ -102,8 +102,8 @@ export class EvolutionIntelligence {
     isEnabled: boolean
   ): Promise<boolean> {
     try {
-      const db = getPrismaClient(workspaceId);
-      await db.evolutionTracking.upsert({
+      
+      await prisma.evolutionTracking.upsert({
         where: { workspaceId_featureKey: { workspaceId, featureKey } },
         create: {
           workspaceId,
@@ -131,8 +131,8 @@ export class EvolutionIntelligence {
     featureKey: string
   ): Promise<{ isEnabled: boolean; stage: string } | null> {
     try {
-      const db = getPrismaClient(workspaceId);
-      const entry = await db.evolutionTracking.findUnique({
+      
+      const entry = await prisma.evolutionTracking.findUnique({
         where: { workspaceId_featureKey: { workspaceId, featureKey } },
       });
       if (!entry) return null;
@@ -147,8 +147,8 @@ export class EvolutionIntelligence {
     workspaceId: string
   ): Promise<Array<{ featureKey: string; stage: string; isEnabled: boolean; enabledAt: Date | null }>> {
     try {
-      const db = getPrismaClient(workspaceId);
-      return await db.evolutionTracking.findMany({
+      
+      return await prisma.evolutionTracking.findMany({
         where: { workspaceId },
         orderBy: [{ isEnabled: "desc" }, { updatedAt: "desc" }],
         select: { featureKey: true, stage: true, isEnabled: true, enabledAt: true },

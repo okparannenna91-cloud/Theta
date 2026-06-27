@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { decrypt, encrypt } from "@/lib/crypto";
 
 const TRELLO_API_URL = "https://api.trello.com/1";
@@ -11,7 +11,7 @@ export class TrelloService {
     }
 
     private async getCreds() {
-        const prisma = getPrismaClient(this.workspaceId);
+        
         const integration = await prisma.integration.findFirst({
             where: { workspaceId: this.workspaceId, provider: "trello" },
         });

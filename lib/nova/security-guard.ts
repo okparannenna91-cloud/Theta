@@ -43,13 +43,12 @@ export class SecurityGuard {
       return false;
     }
 
-    const { getPrismaClient } = await import("../prisma");
+    const { prisma } = await import("../prisma");
 
     const membership = await cacheGetOrSet(
       cacheKey("member", workspaceId, userId),
       async () => {
-        const db = getPrismaClient(workspaceId);
-        return db.workspaceMember.findFirst({
+        return prisma.workspaceMember.findFirst({
           where: { workspaceId, userId, status: "active" },
         });
       },

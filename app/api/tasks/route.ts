@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient, prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds, canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
@@ -54,13 +54,12 @@ export async function GET(req: Request) {
       );
     }
 
-    const db = getPrismaClient(workspaceId);
     const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
     let projectWhere: any = { id: { in: accessibleProjectIds } };
 
     // If teamId is provided, we only show tasks from projects belonging to that team
     if (teamId) {
-      const membership = await db.teamMember.findUnique({
+      const membership = await prisma.teamMember.findUnique({
         where: {
           teamId_userId: { teamId, userId: user.id },
         },
@@ -71,7 +70,7 @@ export async function GET(req: Request) {
       projectWhere.teamId = teamId;
     }
 
-    const tasks = await db.task.findMany({
+    const tasks = await prisma.task.findMany({
       where: {
         workspaceId: workspaceId as string,
         project: projectWhere,
@@ -138,15 +137,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const db = getPrismaClient(data.workspaceId);
-
     // Find the correct statusId (Relationship Consistency Fix)
-    const statusRecord = await db.status.findFirst({
+    const statusRecord = await prisma.status.findFirst({
         where: { 
             workspaceId: data.workspaceId,
             name: { equals: data.status, mode: 'insensitive' }
         }
-    }) || await db.status.findFirst({
+    }) || await prisma.status.findFirst({
         where: { 
             workspaceId: data.workspaceId,
             name: { equals: 'Todo', mode: 'insensitive' }
@@ -155,7 +152,7 @@ export async function POST(req: Request) {
 
     // Verify project belongs to workspace if provided
     if (data.projectId) {
-      const project = await db.project.findFirst({
+      const project = await prisma.project.findFirst({
         where: {
           id: data.projectId,
           workspaceId: data.workspaceId,
@@ -195,7 +192,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
-    const task = await db.task.create({
+    const task = await prisma.task.create({
       data: {
         title: data.title,
         description: data.description,

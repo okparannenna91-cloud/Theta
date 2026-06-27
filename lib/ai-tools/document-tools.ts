@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { DocumentIntelligence } from "@/lib/nova/document-intelligence";
 import { PROMPT_TEMPLATES } from "@/lib/constants/templates";
 import { type ToolContext, type ToolModule, enforce, auditToolExecution, requireToolApproval } from "./index";
@@ -14,15 +14,14 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
       execute: async ({ query }: Record<string, unknown>) => {
         await enforce(ctx, "read", "workspace");
         await auditToolExecution(workspaceId, user.id, "search_workspace", { query });
-        const db = getPrismaClient(workspaceId);
         const { getAccessibleProjectIds } = await import("../project-permissions");
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
         const q = query as string;
         const [tasks, docs, comments, activities] = await Promise.all([
-          db.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, OR: [{ title: { contains: q } }, { description: { contains: q } }] }, take: 5, select: { id: true, title: true, status: true } }),
-          db.document.findMany({ where: { workspaceId, AND: [{ OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }] }, { OR: [{ title: { contains: q } }, { content: { contains: q } }] }] }, take: 5, select: { id: true, title: true } }),
-          db.comment.findMany({ where: { task: { workspaceId, projectId: { in: accessibleProjectIds } }, content: { contains: q } }, take: 3, include: { user: { select: { name: true } }, task: { select: { title: true } } } }),
-          db.activity.findMany({ where: { workspaceId, OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }] }, take: 5, orderBy: { createdAt: 'desc' }, select: { action: true, entityType: true, createdAt: true, metadata: true } })
+          prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, OR: [{ title: { contains: q } }, { description: { contains: q } }] }, take: 5, select: { id: true, title: true, status: true } }),
+          prisma.document.findMany({ where: { workspaceId, AND: [{ OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }] }, { OR: [{ title: { contains: q } }, { content: { contains: q } }] }] }, take: 5, select: { id: true, title: true } }),
+          prisma.comment.findMany({ where: { task: { workspaceId, projectId: { in: accessibleProjectIds } }, content: { contains: q } }, take: 3, include: { user: { select: { name: true } }, task: { select: { title: true } } } }),
+          prisma.activity.findMany({ where: { workspaceId, OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }] }, take: 5, orderBy: { createdAt: 'desc' }, select: { action: true, entityType: true, createdAt: true, metadata: true } })
         ]);
         return { results: { tasks: tasks.map(t => ({ id: t.id, title: t.title, status: t.status })), documents: docs.map(d => ({ id: d.id, title: d.title })), comments: comments.map(c => ({ user: c.user.name, task: c.task?.title, text: c.content })), activity: activities.map(a => ({ action: a.action, type: a.entityType, time: a.createdAt })) } };
       }
@@ -34,8 +33,7 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
         await enforce(ctx, "write", "document");
         await auditToolExecution(workspaceId, user.id, "create_document", { title });
         const analysis = DocumentIntelligence.analyze(title as string, content as string);
-        const db = getPrismaClient(workspaceId);
-        const result = await db.$transaction(async (tx) => {
+        const result = await prisma.$transaction(async (tx) => {
           const doc = await tx.document.create({ data: { title: title as string, content: content as string, workspaceId, userId: user.id, tags: analysis.suggestedLinks } });
           if (analysis.extractedTasks.length > 0) {
             const firstProject = await tx.project.findFirst({ where: { workspaceId } });
@@ -59,8 +57,7 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
       execute: async ({ id }: Record<string, unknown>) => {
         await enforce(ctx, "read", "document");
         await auditToolExecution(workspaceId, user.id, "read_document", { id });
-        const db = getPrismaClient(workspaceId);
-        const doc = await db.document.findUnique({ where: { id: id as string } });
+        const doc = await prisma.document.findUnique({ where: { id: id as string } });
         if (!doc) return { found: false, message: "Document not found." };
         return { found: true, title: doc.title, content: doc.content };
       }
@@ -71,8 +68,7 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
       execute: async ({ id }: Record<string, unknown>) => {
         await requireToolApproval("delete_document", { id });
         await enforce(ctx, "delete", "document");
-        const db = getPrismaClient(workspaceId);
-        await db.document.delete({ where: { id: id as string } });
+        await prisma.document.delete({ where: { id: id as string } });
         return { success: true, message: "Document deleted." };
       }
     },

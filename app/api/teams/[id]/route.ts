@@ -22,46 +22,29 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { findAcrossShards } = await import("@/lib/prisma");
-        const teamResult = await findAcrossShards<any>("team", { id: params.id });
+        const team = await prisma.team.findUnique({ where: { id: params.id } });
 
-        if (!teamResult.data) {
+        if (!team) {
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
 
-        const db = teamResult.db;
-        const team = teamResult.data;
-
-        // Verify workspace access
         const { verifyWorkspaceAccess } = await import("@/lib/workspace");
         const hasAccess = await verifyWorkspaceAccess(user.id, team.workspaceId);
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Aggregate unique member count from both shards
-        const shardMembers = await db.teamMember.findMany({ 
-            where: { teamId: params.id }, 
-            select: { userId: true, role: true } 
-        });
-        
-        const primaryMembers = await prisma.teamMember.findMany({ 
+        const members = await prisma.teamMember.findMany({ 
             where: { teamId: params.id }, 
             select: { userId: true, role: true } 
         });
 
-        const allMembers = [...shardMembers, ...primaryMembers];
-        const uniqueUserIds = new Set(allMembers.map(m => m.userId));
-        const membersCount = uniqueUserIds.size;
-
-        // Find current user's role
-        const userMembership = allMembers.find(m => m.userId === user.id);
-        const userRole = userMembership?.role || "member";
+        const userMembership = members.find(m => m.userId === user.id);
 
         return NextResponse.json({
             ...team,
-            membersCount,
-            userRole,
+            membersCount: members.length,
+            userRole: userMembership?.role || "member",
         });
     } catch (error) {
         return NextResponse.json({ error: "Internal server error" }, { status: 500 });
@@ -78,15 +61,7 @@ export async function PATCH(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { findAcrossShards } = await import("@/lib/prisma");
-        const teamResult = await findAcrossShards<any>("team", { id: params.id });
-
-        if (!teamResult.data) {
-            return NextResponse.json({ error: "Team not found" }, { status: 404 });
-        }
-
-        const db = teamResult.db;
-        const team = await db.team.findUnique({
+        const team = await prisma.team.findUnique({
             where: { id: params.id },
             include: {
                 members: {
@@ -99,7 +74,6 @@ export async function PATCH(
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
 
-        // Check if user is team admin or workspace admin
         const isTeamAdmin = team.members[0]?.role === "admin";
         const isWorkspaceAdm = await isWorkspaceAdmin(user.id, team.workspaceId);
 
@@ -110,7 +84,7 @@ export async function PATCH(
         const body = await req.json();
         const data = updateTeamSchema.parse(body);
 
-        const updatedTeam = await db.team.update({
+        const updatedTeam = await prisma.team.update({
             where: { id: params.id },
             data,
         });
@@ -144,22 +118,16 @@ export async function DELETE(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { findAcrossShards } = await import("@/lib/prisma");
-        const teamResult = await findAcrossShards<any>("team", { id: params.id });
+        const team = await prisma.team.findUnique({ where: { id: params.id } });
 
-        if (!teamResult.data) {
+        if (!team) {
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
-        
-        const db = teamResult.db;
-        const team = teamResult.data;
 
-        // Check permissions: Workspace Owner/Admin OR Team Owner
         const { getWorkspaceMemberRole } = await import("@/lib/workspace");
         const wsRole = await getWorkspaceMemberRole(user.id, team.workspaceId);
         
-        // Find user's role within the team on this shard
-        const teamMembership = await db.teamMember.findUnique({
+        const teamMembership = await prisma.teamMember.findUnique({
             where: {
                 teamId_userId: {
                     teamId: params.id,
@@ -176,25 +144,15 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden: You do not have permission to delete this team." }, { status: 403 });
         }
 
-        console.log(`[Team DELETE] Deleting team ${params.id} from shard...`);
+        console.log(`[Team DELETE] Deleting team ${params.id}...`);
         
-        // 1. Delete members from shard
-        await db.teamMember.deleteMany({ where: { teamId: params.id } });
-        
-        // 2. Delete members from primary (legacy)
         await prisma.teamMember.deleteMany({ where: { teamId: params.id } });
-
-        // 3. Delete all chat messages for this team (Consistency Fix)
-        await db.chatMessage.deleteMany({ where: { teamId: params.id } });
-
-        // 4. Nullify project teamId (Relationship Consistency)
-        await db.project.updateMany({
+        await prisma.chatMessage.deleteMany({ where: { teamId: params.id } });
+        await prisma.project.updateMany({
             where: { teamId: params.id },
             data: { teamId: null }
         });
-
-        // 4. Delete the team itself
-        await db.team.delete({
+        await prisma.team.delete({
             where: { id: params.id },
         });
 

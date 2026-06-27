@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 
@@ -34,17 +34,16 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        const db = getPrismaClient(workspaceId);
         const [automations, count] = await Promise.all([
-            db.automation.findMany({
+            prisma.automation.findMany({
                 where: { workspaceId },
                 orderBy: { createdAt: "desc" },
             }),
-            db.automation.count({ where: { workspaceId } })
+            prisma.automation.count({ where: { workspaceId } })
         ]);
 
         const { getPlanLimits } = await import("@/lib/plan-limits");
-        const workspace = await db.workspace.findUnique({
+        const workspace = await prisma.workspace.findUnique({
             where: { id: workspaceId },
             select: { plan: true }
         });
@@ -86,16 +85,15 @@ export async function POST(req: Request) {
         }
 
         // Check plan limits strictly
-        const db = getPrismaClient(data.workspaceId);
         try {
-            const count = await db.automation.count({ where: { workspaceId: data.workspaceId } });
+            const count = await prisma.automation.count({ where: { workspaceId: data.workspaceId } });
             const { enforcePlanLimit } = await import("@/lib/plan-limits");
             await enforcePlanLimit(data.workspaceId, "automations", count);
         } catch (error: any) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
 
-        const automation = await db.automation.create({
+        const automation = await prisma.automation.create({
             data: {
                 name: data.name,
                 trigger: data.trigger,

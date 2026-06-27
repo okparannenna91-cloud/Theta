@@ -1,4 +1,4 @@
-import { getPrismaClient } from "../prisma";
+import { prisma } from "../prisma";
 import { MODEL_STACK, MODEL_SELECTION_STRATEGIES, MODEL_SELECTION_RULES, getModelForComplexity, type ModelProvider, type TaskComplexity } from "./constitution/ai-models";
 
 export {
@@ -23,8 +23,8 @@ export interface ActiveModelConfig {
 
 export class AiModelsIntelligence {
   public static async getActiveModelStack(workspaceId: string): Promise<ActiveModelConfig[]> {
-    const db = getPrismaClient(workspaceId);
-    const configs = await db.aiModelConfig.findMany({
+    
+    const configs = await prisma.aiModelConfig.findMany({
       where: { workspaceId, isEnabled: true },
       orderBy: { priority: "asc" },
     });
@@ -47,8 +47,8 @@ export class AiModelsIntelligence {
     apiKeyRef: string,
     priority: number
   ): Promise<ActiveModelConfig> {
-    const db = getPrismaClient(workspaceId);
-    const config = await db.aiModelConfig.upsert({
+    
+    const config = await prisma.aiModelConfig.upsert({
       where: { workspaceId_provider: { workspaceId, provider } },
       create: { workspaceId, provider, modelName, apiKeyRef, priority },
       update: { modelName, apiKeyRef, priority },
@@ -66,16 +66,16 @@ export class AiModelsIntelligence {
   }
 
   public static async toggleProvider(workspaceId: string, provider: string, isEnabled: boolean): Promise<void> {
-    const db = getPrismaClient(workspaceId);
-    await db.aiModelConfig.updateMany({
+    
+    await prisma.aiModelConfig.updateMany({
       where: { workspaceId, provider },
       data: { isEnabled },
     });
   }
 
   public static async incrementUsage(workspaceId: string, provider: string): Promise<void> {
-    const db = getPrismaClient(workspaceId);
-    await db.aiModelConfig.updateMany({
+    
+    await prisma.aiModelConfig.updateMany({
       where: { workspaceId, provider },
       data: {
         usageCount: { increment: 1 },

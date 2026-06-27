@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient, prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
 
@@ -50,13 +50,12 @@ export async function GET(req: Request) {
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
 
         const searchTerm = query.trim();
-        const db = getPrismaClient(workspaceId);
 
         // Search projects using $text if possible, fallback to contains
         let projects: any[] = [];
         try {
             // @ts-ignore - findRaw is available on the model
-            projects = await db.project.findRaw({
+            projects = await prisma.project.findRaw({
                 filter: {
                     workspaceId: { $oid: workspaceId },
                     $text: { $search: searchTerm }
@@ -68,7 +67,7 @@ export async function GET(req: Request) {
             projects = projects.filter(p => accessibleProjectIds.includes(p.id));
         } catch (e) {
             // Fallback if no text index exists
-            projects = await db.project.findMany({
+            projects = await prisma.project.findMany({
                 where: {
                     workspaceId: workspaceId as string,
                     id: { in: accessibleProjectIds },
@@ -86,7 +85,7 @@ export async function GET(req: Request) {
         let tasks: any[] = [];
         try {
             // @ts-ignore
-            tasks = await db.task.findRaw({
+            tasks = await prisma.task.findRaw({
                 filter: {
                     workspaceId: { $oid: workspaceId },
                     $text: { $search: searchTerm }
@@ -97,7 +96,7 @@ export async function GET(req: Request) {
             
             // Resolve project names for tasks (standard Prisma)
             const projectIds = [...new Set(tasks.map(t => t.projectId).filter(Boolean).map(p => p?.$oid || p))];
-            const resolvedProjects = await db.project.findMany({
+            const resolvedProjects = await prisma.project.findMany({
                 where: { id: { in: projectIds as string[] } },
                 select: { id: true, name: true }
             });
@@ -111,7 +110,7 @@ export async function GET(req: Request) {
                 return accessibleProjectIds.includes(taskProjectId);
             });
         } catch (e) {
-            tasks = await db.task.findMany({
+            tasks = await prisma.task.findMany({
                 where: {
                     workspaceId: workspaceId as string,
                     projectId: { in: accessibleProjectIds },

@@ -1,4 +1,4 @@
-import { getPrismaClient } from "../prisma";
+import { prisma } from "../prisma";
 import { logger } from "../logger";
 import { canAccessProject, canAccessProjectResource } from "../project-permissions";
 import { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, getContextPriority, type ContextSource } from "./constitution/context";
@@ -53,20 +53,20 @@ export interface ResolvedContext {
 export class ContextSystem {
   public static async getActiveContext(options: ContextOptions) {
     const { workspaceId, userId, projectId, taskId, documentId } = options;
-    const db = getPrismaClient(workspaceId);
+    
 
     const [workspace, project, task, document, user] = await Promise.all([
-      getCachedOrFetch(`workspace:${workspaceId}`, () => db.workspace.findUnique({ where: { id: workspaceId } })),
+      getCachedOrFetch(`workspace:${workspaceId}`, () => prisma.workspace.findUnique({ where: { id: workspaceId } })),
       projectId ? getCachedOrFetch(`project:${projectId}`, async () => {
         if (userId) {
           const access = await canAccessProject(userId, projectId, workspaceId);
           if (!access.hasAccess) return null;
         }
-        return db.project.findUnique({ where: { id: projectId } });
+        return prisma.project.findUnique({ where: { id: projectId } });
       }) : null,
-      taskId ? db.task.findUnique({ where: { id: taskId }, include: { subtasks: true } }) : null,
-      documentId ? db.document.findUnique({ where: { id: documentId } }) : null,
-      userId ? db.user.findUnique({ where: { id: userId }, select: { name: true } }) : null,
+      taskId ? prisma.task.findUnique({ where: { id: taskId }, include: { subtasks: true } }) : null,
+      documentId ? prisma.document.findUnique({ where: { id: documentId } }) : null,
+      userId ? prisma.user.findUnique({ where: { id: userId }, select: { name: true } }) : null,
     ]);
 
     if (task && task.projectId && userId) {
@@ -137,8 +137,8 @@ export class ContextSystem {
       const { structured, promptString } = await this.getActiveContext({ workspaceId, userId });
       const tokenCount = promptString.split(/\s+/).length;
 
-      const db = getPrismaClient(workspaceId);
-      const snapshot = await db.aiContextSnapshot.create({
+      
+      const snapshot = await prisma.aiContextSnapshot.create({
         data: {
           workspaceId,
           userId,
@@ -160,8 +160,8 @@ export class ContextSystem {
     options: { conversationId?: string; limit?: number } = {}
   ): Promise<Array<{ id: string; source: string; tokenCount: number; createdAt: Date }>> {
     try {
-      const db = getPrismaClient(workspaceId);
-      const snapshots = await db.aiContextSnapshot.findMany({
+      
+      const snapshots = await prisma.aiContextSnapshot.findMany({
         where: {
           workspaceId,
           ...(options.conversationId ? { conversationId: options.conversationId } : {}),

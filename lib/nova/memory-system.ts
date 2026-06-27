@@ -1,5 +1,5 @@
 import { redis } from "../redis/client";
-import { getPrismaClient } from "../prisma";
+import { prisma } from "../prisma";
 import { logger } from "../logger";
 import { mem0 } from "../mem0";
 import { MEMORY_TIERS, MEMORY_TYPES, MEMORY_RULES, MEMORY_USER_CONTROLS, type MemoryType, type MemoryTier } from "./constitution/memory";
@@ -50,8 +50,8 @@ export class MemorySystem {
     const trimmedContent = content.slice(0, 10000);
 
     try {
-      const db = getPrismaClient(workspaceId);
-      await db.aiMemory.upsert({
+      
+      await prisma.aiMemory.upsert({
         where: { userId_key: { userId, key } },
         create: { userId, workspaceId, key, content: trimmedContent },
         update: { content: trimmedContent, workspaceId },
@@ -76,12 +76,12 @@ export class MemorySystem {
     const memories: Record<string, string> = {};
 
     try {
-      const db = getPrismaClient(workspaceId);
+      
       const where: { userId: string; workspaceId?: string } = { userId };
       if (workspaceId) {
         where.workspaceId = workspaceId;
       }
-      const records = await db.aiMemory.findMany({ where, take: maxMemories, orderBy: { updatedAt: "desc" } });
+      const records = await prisma.aiMemory.findMany({ where, take: maxMemories, orderBy: { updatedAt: "desc" } });
       for (const rec of records) {
         memories[rec.key] = rec.content;
       }

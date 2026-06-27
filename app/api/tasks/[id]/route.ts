@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { findAcrossShards } from "@/lib/prisma";
-import { Task } from "@prisma/client";
+import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel } from "@/lib/ably";
@@ -48,34 +47,12 @@ export async function PATCH(
     const body = await req.json();
     const data = updateSchema.parse(body);
 
-    const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId");
-
-    let task: Task | null = null;
-    let db: any = null;
-
-    if (workspaceId) {
-        const { getPrismaClient } = await import("@/lib/prisma");
-        db = getPrismaClient(workspaceId);
-        task = await db.task.findUnique({ where: { id: params.id } });
-        
-        if (!task) {
-            const searchResult = await findAcrossShards<Task>("task", { id: params.id }, { workspaceId });
-            task = searchResult.data;
-            db = searchResult.db;
-        }
-    } else {
-        const searchResult = await findAcrossShards<Task>("task", { id: params.id });
-        task = searchResult.data;
-        db = searchResult.db;
-    }
+    const task = await prisma.task.findUnique({ where: { id: params.id } });
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    // Verify workspace access (Workspace records are on Shard 1 / primary)
-    const { prisma } = await import("@/lib/prisma");
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -111,7 +88,7 @@ export async function PATCH(
 
     // Resolve statusId and handle completion logic (Analytics & State Integrity Fix)
     if (data.status) {
-        const statusRecord = await db.status.findFirst({
+        const statusRecord = await prisma.status.findFirst({
             where: { 
                 workspaceId: task.workspaceId,
                 name: { equals: data.status, mode: 'insensitive' }
@@ -134,7 +111,7 @@ export async function PATCH(
         }
     }
 
-    const updated = await db.task.update({
+    const updated = await prisma.task.update({
       where: { id: params.id },
       data: updateData,
       include: {
@@ -161,14 +138,12 @@ export async function PATCH(
       await publishToChannel(projectChannel, "task:updated", updated);
     }
 
-    // If this task has a parent, recursively update the parent's progress/duration
     if (updated.parentId) {
-      await updateParentTask(updated.parentId, task.workspaceId, db);
+      await updateParentTask(updated.parentId, task.workspaceId);
     }
 
-    // If the parentId was CHANGED, update the OLD parent too (Relationship State Fix)
     if (data.parentId !== undefined && task.parentId && data.parentId !== task.parentId) {
-      await updateParentTask(task.parentId, task.workspaceId, db);
+      await updateParentTask(task.parentId, task.workspaceId);
     }
 
     // Log Activity
@@ -241,34 +216,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId");
-
-    let task: Task | null = null;
-    let db: any = null;
-
-    if (workspaceId) {
-        const { getPrismaClient } = await import("@/lib/prisma");
-        db = getPrismaClient(workspaceId);
-        task = await db.task.findUnique({ where: { id: params.id } });
-        
-        if (!task) {
-            const searchResult = await findAcrossShards<Task>("task", { id: params.id });
-            task = searchResult.data;
-            db = searchResult.db;
-        }
-    } else {
-        const searchResult = await findAcrossShards<Task>("task", { id: params.id });
-        task = searchResult.data;
-        db = searchResult.db;
-    }
+    const task = await prisma.task.findUnique({ where: { id: params.id } });
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
-    // Verify workspace access
-    const { prisma } = await import("@/lib/prisma");
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -289,17 +242,16 @@ export async function DELETE(
     }
 
     // Manual Cascade: Recursively delete all child tasks (subtasks)
-    await db.task.deleteMany({
+    await prisma.task.deleteMany({
       where: { parentId: params.id },
     });
 
-    await db.task.delete({
+    await prisma.task.delete({
       where: { id: params.id },
     });
 
-    // If this task had a parent, update it now (Consistency Fix)
     if (task.parentId) {
-      await updateParentTask(task.parentId, task.workspaceId, db);
+      await updateParentTask(task.parentId, task.workspaceId);
     }
 
     // Notify via Ably
@@ -335,8 +287,8 @@ export async function DELETE(
   }
 }
 
-async function updateParentTask(parentId: string, workspaceId: string, db: any) {
-  const children = await db.task.findMany({
+async function updateParentTask(parentId: string, workspaceId: string) {
+  const children = await prisma.task.findMany({
     where: { parentId },
     select: { progress: true, startDate: true, dueDate: true }
   });
@@ -355,7 +307,7 @@ async function updateParentTask(parentId: string, workspaceId: string, db: any) 
     if (child.dueDate && (!maxEnd || child.dueDate > maxEnd)) maxEnd = child.dueDate;
   }
 
-  const updatedParent = await db.task.update({
+  const updatedParent = await prisma.task.update({
     where: { id: parentId },
     data: {
       progress: avgProgress,
@@ -365,13 +317,11 @@ async function updateParentTask(parentId: string, workspaceId: string, db: any) 
     }
   });
 
-  // Notify parent update
   const workspaceChannel = getWorkspaceChannel(workspaceId);
   await publishToChannel(workspaceChannel, "task:updated", updatedParent);
 
-  // Recurse up the tree
   if (updatedParent.parentId) {
-    await updateParentTask(updatedParent.parentId, workspaceId, db);
+    await updateParentTask(updatedParent.parentId, workspaceId);
   }
 }
 

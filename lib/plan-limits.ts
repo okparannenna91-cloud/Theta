@@ -311,6 +311,7 @@ export async function enforcePlanLimit(
         where: { id: workspaceId },
         select: {
             plan: true,
+            subscriptionStatus: true,
             billingStatus: true,
             members: {
                 where: { role: "owner" },
@@ -327,9 +328,10 @@ export async function enforcePlanLimit(
 
     if (!workspace) throw new Error("Workspace not found");
 
+    const billingStatus = workspace.subscriptionStatus ?? workspace.billingStatus;
 
     // 2. Strict Billing Check: Deactivated workspaces can't create anything
-    if (workspace.billingStatus === "deactivated") {
+    if (billingStatus === "deactivated") {
         throw new Error("Your workspace has been deactivated due to billing issues. Please update your payment method.");
     }
 

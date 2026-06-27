@@ -1,4 +1,4 @@
-import { prisma, getPrismaClient } from "./prisma";
+import { prisma } from "./prisma";
 import { User } from "@prisma/client";
 import { logger } from "./logger";
 import { cacheGetOrSet, cacheKey } from "@/lib/cache";
@@ -79,6 +79,11 @@ export async function verifyWorkspaceAccess(
 
 /**
  * Create a new workspace for a user
+ *
+ * Uses a two-step create to avoid Prisma MongoDB nested-create issues:
+ * 1. Create workspace document
+ * 2. Create membership document separately
+ * 3. If membership fails, rollback by deleting the workspace
  */
 export async function createWorkspace(
   userId: string,
@@ -101,41 +106,65 @@ export async function createWorkspace(
       counter++;
     }
 
+    logger.info(`[createWorkspace] Step 1: Creating workspace: name="${name}", slug="${slug}", userId="${userId}"`);
+
+    // Step 1: Create workspace document (no nested membership create)
     const workspace = await prisma.workspace.create({
       data: {
         name,
         slug,
         plan,
-        members: {
-          create: {
-            userId,
-            role: "owner",
-          },
-        },
-      },
-      include: {
-        members: true,
       },
     });
 
-    // Create default statuses on the correct shard (where tasks will live)
+    logger.info(`[createWorkspace] Workspace created: id="${workspace.id}", slug="${workspace.slug}"`);
+
+    // Step 2: Create membership document separately
     try {
-      const db = getPrismaClient(workspace.id);
-      await db.status.createMany({
+      await prisma.workspaceMember.create({
+        data: {
+          workspaceId: workspace.id,
+          userId,
+          role: "owner",
+        },
+      });
+      logger.info(`[createWorkspace] Membership created: workspaceId="${workspace.id}", userId="${userId}", role="owner"`);
+    } catch (memberError) {
+      // Rollback: delete the workspace if membership creation fails
+      logger.error(`[createWorkspace] Membership creation failed, rolling back workspace "${workspace.id}":`, memberError);
+      try {
+        await prisma.workspace.delete({ where: { id: workspace.id } });
+        logger.warn(`[createWorkspace] Workspace "${workspace.id}" deleted after rollback`);
+      } catch (rollbackError) {
+        logger.error(`[createWorkspace] Rollback delete also failed for workspace "${workspace.id}":`, rollbackError);
+      }
+      throw new Error(`Failed to create workspace membership: ${(memberError as Error).message}`);
+    }
+
+    // Step 3: Create default statuses
+    try {
+      await prisma.status.createMany({
         data: [
           { workspaceId: workspace.id, name: "Todo", color: "#64748b", order: 0 },
           { workspaceId: workspace.id, name: "In Progress", color: "#3b82f6", order: 1 },
           { workspaceId: workspace.id, name: "Done", color: "#22c55e", order: 2 },
         ]
       });
+      logger.info(`[createWorkspace] Default statuses created for workspace "${workspace.id}"`);
     } catch (statusError) {
-      console.error("Failed to create default statuses on shard:", statusError);
-      // We don't throw here to avoid failing workspace creation if status setup fails
+      logger.error(`[createWorkspace] Failed to create default statuses for workspace "${workspace.id}":`, statusError);
     }
 
-    return workspace;
+    // Fetch final workspace with members included for the response
+    const result = await prisma.workspace.findUnique({
+      where: { id: workspace.id },
+      include: { members: true },
+    });
+
+    logger.info(`[createWorkspace] Complete: id="${workspace.id}", name="${name}", members=${result?.members?.length || 0}`);
+    return result;
   } catch (error) {
-    logger.error("Create workspace error:", error);
+    logger.error("[createWorkspace] Error:", error);
     throw error;
   }
 }
@@ -162,11 +191,12 @@ export async function getUserWorkspaces(userId: string) {
     });
 
     if (memberships.length === 0) {
-      logger.warn(`No workspace memberships found for user ${userId}`);
+      logger.warn(`[getUserWorkspaces] No workspace memberships found for user ${userId}`);
       return [];
     }
 
-    // Fetch project counts from correct shards
+    logger.info(`[getUserWorkspaces] Found ${memberships.length} memberships for user ${userId}`);
+
     // Use allSettled so one bad member doesn't crash the entire list
     const results = await Promise.allSettled(
       memberships.map(async (m) => {
@@ -178,8 +208,7 @@ export async function getUserWorkspaces(userId: string) {
         const workspaceId = m.workspaceId;
         let projectsCount = 0;
         try {
-          const db = getPrismaClient(workspaceId);
-          projectsCount = await db.project.count({
+          projectsCount = await prisma.project.count({
             where: { workspaceId },
           });
           logger.debug(`Workspace ${workspaceId} (${m.workspace.name}): ${projectsCount} projects`);
@@ -212,9 +241,11 @@ export async function getUserWorkspaces(userId: string) {
       }
     }
 
+    logger.info(`[getUserWorkspaces] Returning ${workspacesWithCounts.length} workspaces for user ${userId}`);
+
     return workspacesWithCounts;
   } catch (error) {
-    logger.error("Get user workspaces error:", error);
+    logger.error("[getUserWorkspaces] Error:", error);
     return [];
   }
 }
@@ -322,81 +353,53 @@ export async function deleteWorkspace(workspaceId: string, userId: string) {
       throw new Error("You must have at least one workspace. Create another one before deleting this one.");
     }
 
-    // Multi-shard cleanup: Delete all workspace-scoped data across all shards
-    // This is necessary because Cascade deletes don't work across different DB clusters
-    const { getPrismaClient } = await import("./prisma");
-    const shards = [1, 2, 3, 4].map(i => {
-        // We use a try-catch for each shard to ensure one failure doesn't block the rest
-        try {
-            // This is a bit hacky but works given our getPrismaClient logic
-            // We need to target each shard's connection specifically
-            // Since our hashing is based on workspaceId, we can't easily "iterate shards" via getPrismaClient(workspaceId)
-            // But we have access to the underlying prismaShardX clients in prisma.ts
-            return true;
-        } catch(e) { return false; }
-    });
+    // Delete all workspace-scoped data
+    const where = { workspaceId };
 
-    // Actually, a better way is to iterate over the actual shards we have initialized
-    const { prismaShard1, prismaShard2, prismaShard3 } = await import("./prisma");
-    const allShards = [prismaShard1, prismaShard2, prismaShard3].filter(Boolean);
+    const [tasks, boards, forms, teams] = await Promise.all([
+        prisma.task.findMany({ where, select: { id: true } }),
+        prisma.board.findMany({ where, select: { id: true } }),
+        prisma.form.findMany({ where, select: { id: true } }),
+        prisma.team.findMany({ where, select: { id: true } }),
+    ]);
 
-    await Promise.all(allShards.map(async (shard: any) => {
-        try {
-            // Delete workspace-scoped entities on this shard
-            const where = { workspaceId };
-            
-            // 1. Fetch parent IDs for entities that have children without workspaceId
-            const [tasks, boards, forms, teams] = await Promise.all([
-                shard.task.findMany({ where, select: { id: true } }),
-                shard.board.findMany({ where, select: { id: true } }),
-                shard.form.findMany({ where, select: { id: true } }),
-                shard.team.findMany({ where, select: { id: true } }),
-            ]);
+    const taskIds = tasks.map((t: any) => t.id);
+    const boardIds = boards.map((b: any) => b.id);
+    const formIds = forms.map((f: any) => f.id);
+    const teamIds = teams.map((t: any) => t.id);
 
-            const taskIds = tasks.map((t: any) => t.id);
-            const boardIds = boards.map((b: any) => b.id);
-            const formIds = forms.map((f: any) => f.id);
-            const teamIds = teams.map((t: any) => t.id);
+    await Promise.all([
+        taskIds.length > 0 ? prisma.subtask.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
+        taskIds.length > 0 ? prisma.comment.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
+        taskIds.length > 0 ? prisma.timeLog.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
+        taskIds.length > 0 ? prisma.taskDependency.deleteMany({ 
+            where: { OR: [{ taskId: { in: taskIds } }, { predecessorId: { in: taskIds } }] } 
+        }) : Promise.resolve(),
+        boardIds.length > 0 ? prisma.column.deleteMany({ where: { boardId: { in: boardIds } } }) : Promise.resolve(),
+        formIds.length > 0 ? prisma.formResponse.deleteMany({ where: { formId: { in: formIds } } }) : Promise.resolve(),
+        teamIds.length > 0 ? prisma.teamMember.deleteMany({ where: { teamId: { in: teamIds } } }) : Promise.resolve(),
+    ]);
 
-            // 2. Delete child entities first
-            await Promise.all([
-                taskIds.length > 0 ? shard.subtask.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
-                taskIds.length > 0 ? shard.comment.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
-                taskIds.length > 0 ? shard.timeLog.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
-                taskIds.length > 0 ? shard.taskDependency.deleteMany({ 
-                    where: { OR: [{ taskId: { in: taskIds } }, { predecessorId: { in: taskIds } }] } 
-                }) : Promise.resolve(),
-                boardIds.length > 0 ? shard.column.deleteMany({ where: { boardId: { in: boardIds } } }) : Promise.resolve(),
-                formIds.length > 0 ? shard.formResponse.deleteMany({ where: { formId: { in: formIds } } }) : Promise.resolve(),
-                teamIds.length > 0 ? shard.teamMember.deleteMany({ where: { teamId: { in: teamIds } } }) : Promise.resolve(),
-            ]);
+    await Promise.all([
+        prisma.project.deleteMany({ where }),
+        prisma.task.deleteMany({ where }),
+        prisma.team.deleteMany({ where }),
+        prisma.board.deleteMany({ where }),
+        prisma.chatMessage.deleteMany({ where }),
+        prisma.activity.deleteMany({ where }),
+        prisma.notification.deleteMany({ where }),
+        prisma.tag.deleteMany({ where }),
+        prisma.status.deleteMany({ where }),
+        prisma.automation.deleteMany({ where }),
+        prisma.document.deleteMany({ where }),
+        prisma.calendarEvent.deleteMany({ where }),
+        prisma.invite.deleteMany({ where }),
+        prisma.integration.deleteMany({ where }),
+        prisma.billingLog.deleteMany({ where }),
+        prisma.form.deleteMany({ where }),
+    ]);
 
-            // 3. Delete workspace-scoped entities
-            await Promise.all([
-                shard.project.deleteMany({ where }),
-                shard.task.deleteMany({ where }),
-                shard.team.deleteMany({ where }),
-                shard.board.deleteMany({ where }),
-                shard.chatMessage.deleteMany({ where }),
-                shard.activity.deleteMany({ where }),
-                shard.notification.deleteMany({ where }),
-                shard.tag.deleteMany({ where }),
-                shard.status.deleteMany({ where }),
-                shard.automation.deleteMany({ where }),
-                shard.document.deleteMany({ where }),
-                shard.calendarEvent.deleteMany({ where }),
-                shard.invite.deleteMany({ where }),
-                shard.integration.deleteMany({ where }),
-                shard.billingLog.deleteMany({ where }),
-                shard.form.deleteMany({ where }),
-                shard.projectTeam.deleteMany({ where }),
-            ]);
-        } catch (shardError) {
-            logger.error(`Failed to cleanup shard during workspace deletion:`, shardError);
-        }
-    }));
-
-    // Finally, delete the workspace metadata from Shard 1
+    // Finally, delete the workspace metadata
     return await prisma.workspace.delete({
       where: { id: workspaceId },
     });

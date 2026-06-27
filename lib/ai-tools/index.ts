@@ -11,7 +11,7 @@ import { buildTeamTools } from "./team-tools";
 import { buildSearchTools } from "./search-tools";
 import { telemetry } from "@/lib/nova/telemetry";
 import { getAblyChannel } from "@/lib/ably-server";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { AgentFramework } from "@/lib/nova/agent-framework";
 import { mem0 } from "@/lib/mem0";
 import { logger } from "@/lib/logger";
@@ -38,9 +38,7 @@ export async function auditToolExecution(
   params: Record<string, unknown>
 ): Promise<void> {
   try {
-    const { getPrismaClient } = await import("@/lib/prisma");
-    const db = getPrismaClient(workspaceId);
-    await db.activity.create({
+    await prisma.activity.create({
       data: {
         action: "NOVA_TOOL_EXECUTION",
         entityType: "AI_TOOL",
@@ -158,8 +156,8 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
     ...buildWorkspaceTools(ctx),
     ...buildDocumentTools(ctx),
     ...buildAutomationTools(ctx),
-    ...buildTeamTools(),
-    ...buildSearchTools(),
+    ...buildTeamTools(ctx),
+    ...buildSearchTools(ctx),
 
     dispatch_ui_action: {
       description: 'Dispatch a direct UI action to the client.',
@@ -175,10 +173,9 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       inputSchema: z.object({ boardId: z.string(), columns: z.array(z.object({ id: z.string().optional(), name: z.string(), order: z.number() })) }),
       execute: async ({ boardId, columns }: Record<string, unknown>) => {
         await enforce(ctx, "write", "project");
-        const db = getPrismaClient(workspaceId);
         const colList = columns as Array<{ id?: string; name: string; order: number }>;
         await Promise.all(colList.map((col) =>
-          col.id ? db.column.update({ where: { id: col.id }, data: { name: col.name, order: col.order } }) : db.column.create({ data: { name: col.name, order: col.order, boardId: boardId as string } })
+          col.id ? prisma.column.update({ where: { id: col.id }, data: { name: col.name, order: col.order } }) : prisma.column.create({ data: { name: col.name, order: col.order, boardId: boardId as string } })
         ));
         return { success: true, message: `Updated board layout for **${boardId}**.` };
       }
@@ -188,8 +185,7 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       inputSchema: z.object({ taskId: z.string().optional(), projectId: z.string().optional() }),
       execute: async ({ taskId }: Record<string, unknown>) => {
         await enforce(ctx, "read", "project");
-        const db = getPrismaClient(workspaceId);
-        if (taskId) { await db.task.findUnique({ where: { id: taskId as string }, include: { subtasks: true } }); }
+        if (taskId) { await prisma.task.findUnique({ where: { id: taskId as string }, include: { subtasks: true } }); }
         return { risks: ["High dependency on external API", "Overlapping deadlines", "Resource bottleneck"], mitigation: "Consider breaking down the task further." };
       }
     },
@@ -199,10 +195,9 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       execute: async ({ userId: targetUserId }: Record<string, unknown>) => {
         await enforce(ctx, "read", "workspace");
         await auditToolExecution(workspaceId, user.id, "generate_standup", { userId: targetUserId });
-        const db = getPrismaClient(workspaceId);
         const [activity, tasks] = await Promise.all([
-          db.activity.findMany({ where: { userId: targetUserId as string, workspaceId }, take: 5, orderBy: { createdAt: 'desc' } }),
-          db.task.findMany({ where: { workspaceId, status: "in_progress" } })
+          prisma.activity.findMany({ where: { userId: targetUserId as string, workspaceId }, take: 5, orderBy: { createdAt: 'desc' } }),
+          prisma.task.findMany({ where: { workspaceId, status: "in_progress" } })
         ]);
         return { yesterday: activity.map((a: { action: string }) => a.action), today: tasks.map((t: { title: string }) => t.title), blockers: ["None reported by system"] };
       }
@@ -212,7 +207,6 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       inputSchema: z.object({ projectId: z.string().optional() }),
       execute: async ({ projectId: pId }: Record<string, unknown>) => {
         await enforce(ctx, "read", "task");
-        const db = getPrismaClient(workspaceId);
         const { getAccessibleProjectIds } = await import("../project-permissions");
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
         const targetProjectIds = pId
@@ -222,8 +216,8 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
           return { suggestions: ["No accessible projects found."] };
         }
         const [overdue, stalled] = await Promise.all([
-          db.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, dueDate: { lt: new Date() }, status: { not: "done" } }, take: 3 }),
-          db.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, status: "in_progress", updatedAt: { lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } }, take: 3 })
+          prisma.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, dueDate: { lt: new Date() }, status: { not: "done" } }, take: 3 }),
+          prisma.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, status: "in_progress", updatedAt: { lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } }, take: 3 })
         ]);
         return { suggestions: [
           overdue.length > 0 ? `You have **${overdue.length}** overdue tasks.` : "No overdue tasks.",
@@ -237,11 +231,10 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       execute: async () => {
         await enforce(ctx, "read", "workspace");
         await auditToolExecution(workspaceId, user.id, "generate_daily_brief", {});
-        const db = getPrismaClient(workspaceId);
         const [overdue, upcoming, activities] = await Promise.all([
-          db.task.findMany({ where: { workspaceId, userId: user.id, dueDate: { lt: new Date() }, status: { not: "done" } }, take: 5 }),
-          db.task.findMany({ where: { workspaceId, userId: user.id, dueDate: { gte: new Date() } }, orderBy: { dueDate: 'asc' }, take: 5 }),
-          db.activity.findMany({ where: { workspaceId }, take: 5, orderBy: { createdAt: 'desc' } })
+          prisma.task.findMany({ where: { workspaceId, userId: user.id, dueDate: { lt: new Date() }, status: { not: "done" } }, take: 5 }),
+          prisma.task.findMany({ where: { workspaceId, userId: user.id, dueDate: { gte: new Date() } }, orderBy: { dueDate: 'asc' }, take: 5 }),
+          prisma.activity.findMany({ where: { workspaceId }, take: 5, orderBy: { createdAt: 'desc' } })
         ]);
         return { brief: { critical: overdue.map((t: { title: string }) => t.title), onDeck: upcoming.map((t: { title: string }) => t.title), teamPulse: activities.map((a: { action: string; entityType: string }) => `${a.action} ${a.entityType}`) }, recommendation: overdue.length > 0 ? "Focus on clearing blockers." : "Schedule looks clear." };
       }
@@ -252,13 +245,12 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       execute: async ({ topic, projectId: pId }: Record<string, unknown>) => {
         await enforce(ctx, "read", "project", { projectId: pId as string | undefined });
         await auditToolExecution(workspaceId, user.id, "generate_meeting_prep", { topic, projectId: pId });
-        const db = getPrismaClient(workspaceId);
         const { getAccessibleProjectIds } = await import("../project-permissions");
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
         const targetProjectIds = pId
           ? (accessibleProjectIds.includes(pId as string) ? [pId as string] : [])
           : accessibleProjectIds;
-        const tasks = await db.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, status: "in_progress" }, take: 5 });
+        const tasks = await prisma.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, status: "in_progress" }, take: 5 });
         return { agenda: ["Status update", "Blockers review", "Resource allocation", "Action items"], context: tasks.map((t: { title: string }) => t.title) };
       }
     },
@@ -273,8 +265,7 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       execute: async ({ title, messages }: Record<string, unknown>) => {
         await enforce(ctx, "write", "workspace");
         await auditToolExecution(workspaceId, user.id, "save_conversation", { title });
-        const db = getPrismaClient(workspaceId);
-        const conversation = await db.aiConversation.create({ data: { title: title as string, workspaceId, userId: user.id, messages: { create: messages as Array<{ role: string; content: string }> } } });
+        const conversation = await prisma.aiConversation.create({ data: { title: title as string, workspaceId, userId: user.id, messages: { create: messages as Array<{ role: string; content: string }> } } });
         return { success: true, id: conversation.id };
       }
     },
@@ -283,8 +274,7 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       inputSchema: z.object({}),
       execute: async () => {
         await enforce(ctx, "read", "workspace");
-        const db = getPrismaClient(workspaceId);
-        const active = await db.integration.findMany({ where: { workspaceId } });
+        const active = await prisma.integration.findMany({ where: { workspaceId } });
         const { AVAILABLE_INTEGRATIONS } = await import("@/lib/constants/templates");
         return { active: active.map((i: { provider: string }) => i.provider), available: [...AVAILABLE_INTEGRATIONS] };
       }
@@ -298,7 +288,6 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
         if (plans.length === 0) {
           return { message: `No specialized agents matched objective: "**${objective}**". Consider using more specific keywords (e.g., sprint, task, report, document, risk, automate).`, agents: [] };
         }
-        const db = getPrismaClient(workspaceId);
         const results: Array<{ agentId: string; agentName: string; result: string }> = [];
         for (const plan of plans) {
           const agent = AgentFramework.getAgent(plan.agentId);
@@ -318,7 +307,7 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
             }
           }
           if (agent) {
-            await db.activity.create({
+            await prisma.activity.create({
               data: {
                 action: "AGENT_WORKFLOW_STEP",
                 entityType: "AGENT",
@@ -347,8 +336,7 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
         if (!/^[a-zA-Z0-9_\-.\s]+$/.test(key as string)) {
           return { success: false, message: "Invalid key: only letters, numbers, spaces, hyphens, underscores, and periods allowed." };
         }
-        const db = getPrismaClient(workspaceId);
-        const existingCount = await db.aiMemory.count({ where: { userId: user.id } });
+        const existingCount = await prisma.aiMemory.count({ where: { userId: user.id } });
         if (existingCount >= 100) {
           return { success: false, message: "Memory limit reached (max 100 preferences). Clear some before saving more." };
         }
@@ -357,7 +345,7 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
           await mem0.add([{ role: "user", content: `User preference: ${key} = ${value}` }], { user_id: user.id });
           mem0Synced = true;
         } catch (e) { logger.warn("Mem0 sync failed:", e); }
-        await db.aiMemory.upsert({ where: { userId_key: { userId: user.id, key: key as string } }, update: { content: value as string }, create: { userId: user.id, key: key as string, content: value as string } });
+        await prisma.aiMemory.upsert({ where: { userId_key: { userId: user.id, key: key as string } }, update: { content: value as string }, create: { userId: user.id, key: key as string, content: value as string } });
         return { success: true, message: `Remembered: **${key}**${mem0Synced ? "" : " (memory sync unavailable)"}` };
       }
     },

@@ -1,4 +1,4 @@
-import { getPrismaClient } from "../prisma";
+import { prisma } from "../prisma";
 import { SEARCH_DOMAINS, SEARCH_TYPES, SEARCH_RANKING_PRINCIPLES, SEARCH_INTELLIGENCE_RULES, type SearchDomain, type SearchType } from "./constitution/search-standards";
 
 export { SEARCH_DOMAINS, SEARCH_TYPES, SEARCH_RANKING_PRINCIPLES, SEARCH_INTELLIGENCE_RULES, type SearchDomain, type SearchType } from "./constitution/search-standards";
@@ -67,8 +67,8 @@ export class SearchIntelligence {
     filters?: Record<string, unknown>
   ): Promise<string | null> {
     try {
-      const db = getPrismaClient(workspaceId);
-      const saved = await db.savedSearch.create({
+      
+      const saved = await prisma.savedSearch.create({
         data: { workspaceId, userId, name, query, domain, searchType, filters: JSON.parse(JSON.stringify(filters ?? {})) },
       });
       return saved.id;
@@ -83,8 +83,8 @@ export class SearchIntelligence {
     userId: string
   ): Promise<Array<{ id: string; name: string; query: string; domain: string; searchType: string; isPinned: boolean }>> {
     try {
-      const db = getPrismaClient(workspaceId);
-      return await db.savedSearch.findMany({
+      
+      return await prisma.savedSearch.findMany({
         where: { workspaceId, userId },
         orderBy: [{ isPinned: "desc" }, { updatedAt: "desc" }],
         select: { id: true, name: true, query: true, domain: true, searchType: true, isPinned: true },
@@ -97,8 +97,8 @@ export class SearchIntelligence {
 
   public static async deleteSavedSearch(workspaceId: string, searchId: string): Promise<boolean> {
     try {
-      const db = getPrismaClient(workspaceId);
-      await db.savedSearch.delete({ where: { id: searchId } });
+      
+      await prisma.savedSearch.delete({ where: { id: searchId } });
       return true;
     } catch (error) {
       console.warn("[SearchIntelligence] Failed to delete saved search:", error);
@@ -108,8 +108,8 @@ export class SearchIntelligence {
 
   public static async togglePinSearch(workspaceId: string, searchId: string, isPinned: boolean): Promise<boolean> {
     try {
-      const db = getPrismaClient(workspaceId);
-      await db.savedSearch.update({ where: { id: searchId }, data: { isPinned } });
+      
+      await prisma.savedSearch.update({ where: { id: searchId }, data: { isPinned } });
       return true;
     } catch (error) {
       console.warn("[SearchIntelligence] Failed to toggle pin:", error);

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 
 export async function POST(req: Request) {
@@ -20,9 +20,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        const db = getPrismaClient(workspaceId);
-
-        await db.teamMember.update({
+        await prisma.teamMember.update({
             where: {
                 teamId_userId: {
                     teamId,

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
     const payload = await request.text();
@@ -42,29 +42,17 @@ export async function POST(request: NextRequest) {
             if (!resourceGid) continue;
 
             // Find integration by resourceGid stored in metadata/config
-            const { prismaShard1, prismaShard2, prismaShard3 } = await import("@/lib/prisma");
-            const shards = [prismaShard1, prismaShard2, prismaShard3];
-
-            let integration = null;
-            let workspaceId = null;
-
-            for (const shard of shards) {
-                if (!shard) continue;
-                // @ts-ignore
-                integration = await shard.integration.findFirst({
-                    where: {
-                        provider: "asana",
-                        OR: [
-                            { metadata: { equals: { projectGid: resourceGid } } },
-                            { config: { equals: { projectGid: resourceGid } } }
-                        ]
-                    }
-                });
-                if (integration) {
-                    workspaceId = integration.workspaceId;
-                    break;
+            const integration = await prisma.integration.findFirst({
+                where: {
+                    provider: "asana",
+                    OR: [
+                        { metadata: { equals: { projectGid: resourceGid } } },
+                        { config: { equals: { projectGid: resourceGid } } }
+                    ]
                 }
-            }
+            });
+
+            const workspaceId = integration?.workspaceId;
 
             if (workspaceId) {
                 const { createActivity } = await import("@/lib/activity");

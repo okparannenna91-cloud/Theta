@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { enforcePlanLimit } from "@/lib/plan-limits";
 
 export async function POST(req: Request) {
@@ -11,7 +11,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const prisma = getPrismaClient(workspaceId);
+
 
         // Check limits
         try {

@@ -1,4 +1,4 @@
-import { prisma, getPrismaClient } from "./prisma";
+import { prisma } from "./prisma";
 import { cacheGetOrSet, cacheKey } from "@/lib/cache";
 
 export type ProjectVisibility = "private" | "team_access" | "workspace_visible";
@@ -28,30 +28,16 @@ export async function canAccessProject(
   workspaceId?: string
 ): Promise<ProjectAccessResult> {
   try {
-    const db = workspaceId ? getPrismaClient(workspaceId) : null;
-
-    let project: any = null;
-
-    if (db) {
-      project = await db.project.findUnique({
-        where: { id: projectId },
-        select: {
-          id: true,
-          workspaceId: true,
-          userId: true,
-          teamId: true,
-          visibility: true,
-        },
-      });
-    }
-
-    if (!project) {
-      const { findAcrossShards } = await import("./prisma");
-      const result = await findAcrossShards<any>("project", {
-        id: projectId,
-      });
-      project = result.data;
-    }
+    const project: any = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: {
+        id: true,
+        workspaceId: true,
+        userId: true,
+        teamId: true,
+        visibility: true,
+      },
+    });
 
     if (!project) {
       return { hasAccess: false, reason: "Project not found" };
@@ -59,7 +45,6 @@ export async function canAccessProject(
 
     const targetWorkspaceId = project.workspaceId;
 
-    // Check workspace membership and role
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -73,27 +58,22 @@ export async function canAccessProject(
       return { hasAccess: false, reason: "Not a workspace member" };
     }
 
-    // Workspace Owner or Admin always have access
     if (membership.role === "owner" || membership.role === "admin") {
       return { hasAccess: true };
     }
 
-    // Direct project member (creator/owner)
     if (project.userId === userId) {
       return { hasAccess: true };
     }
 
-    // Check team membership through linked teams
-    const projectDb = db || getPrismaClient(targetWorkspaceId);
-
-    const projectTeams = await projectDb.projectTeam.findMany({
+    const projectTeams = await prisma.projectTeam.findMany({
       where: { projectId: project.id },
       select: { teamId: true },
     });
 
     if (projectTeams.length > 0) {
       const teamIds = projectTeams.map((pt: any) => pt.teamId);
-      const teamMember = await projectDb.teamMember.findFirst({
+      const teamMember = await prisma.teamMember.findFirst({
         where: {
           teamId: { in: teamIds },
           userId,
@@ -105,9 +85,8 @@ export async function canAccessProject(
       }
     }
 
-    // Also check the legacy teamId field on the project
     if (project.teamId) {
-      const teamMember = await projectDb.teamMember.findUnique({
+      const teamMember = await prisma.teamMember.findUnique({
         where: {
           teamId_userId: {
             teamId: project.teamId,
@@ -121,18 +100,15 @@ export async function canAccessProject(
       }
     }
 
-    // For workspace_visible projects, all workspace members have access
     const visibility = project.visibility || "private";
     if (visibility === "workspace_visible") {
       return { hasAccess: true };
     }
 
-    // For team_access, only team members get access (already checked above)
     if (visibility === "team_access") {
       return { hasAccess: false, reason: "Not a member of a linked team" };
     }
 
-    // Private project - no access
     return { hasAccess: false, reason: "No direct project access" };
   } catch (error) {
     console.error("canAccessProject error:", error);
@@ -152,8 +128,6 @@ export async function getAccessibleProjectIds(
     cacheKey("accessible", userId, workspaceId),
     async () => {
       try {
-        const db = getPrismaClient(workspaceId);
-
         const membership = await prisma.workspaceMember.findUnique({
           where: {
             workspaceId_userId: { workspaceId, userId },
@@ -163,7 +137,7 @@ export async function getAccessibleProjectIds(
         if (!membership) return [];
 
         if (membership.role === "owner" || membership.role === "admin") {
-          const allProjects = await db.project.findMany({
+          const allProjects = await prisma.project.findMany({
             where: { workspaceId },
             select: { id: true },
           });
@@ -171,9 +145,9 @@ export async function getAccessibleProjectIds(
         }
 
         const [ownProjects, teamMemberships, visibleProjects] = await Promise.all([
-          db.project.findMany({ where: { workspaceId, userId }, select: { id: true } }),
-          db.teamMember.findMany({ where: { userId }, select: { teamId: true } }),
-          db.project.findMany({ where: { workspaceId, visibility: "workspace_visible" }, select: { id: true } }),
+          prisma.project.findMany({ where: { workspaceId, userId }, select: { id: true } }),
+          prisma.teamMember.findMany({ where: { userId }, select: { teamId: true } }),
+          prisma.project.findMany({ where: { workspaceId, visibility: "workspace_visible" }, select: { id: true } }),
         ]);
 
         const ownProjectIds = ownProjects.map((p: any) => p.id);
@@ -185,8 +159,8 @@ export async function getAccessibleProjectIds(
 
         if (teamIds.length > 0) {
           const [teamLinked, legacyLinked] = await Promise.all([
-            db.projectTeam.findMany({ where: { teamId: { in: teamIds } }, select: { projectId: true } }),
-            db.project.findMany({ where: { workspaceId, teamId: { in: teamIds } }, select: { id: true } }),
+            prisma.projectTeam.findMany({ where: { teamId: { in: teamIds } }, select: { projectId: true } }),
+            prisma.project.findMany({ where: { workspaceId, teamId: { in: teamIds } }, select: { id: true } }),
           ]);
           teamLinkedProjectIds = teamLinked.map((pt: any) => pt.projectId);
           legacyTeamProjectIds = legacyLinked.map((p: any) => p.id);

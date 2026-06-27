@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { decrypt, encrypt } from "@/lib/crypto";
 
 const BITBUCKET_API_URL = "https://api.bitbucket.org/2.0";
@@ -11,7 +11,7 @@ export class BitbucketService {
     }
 
     private async getIntegration() {
-        const prisma = getPrismaClient(this.workspaceId);
+        
         const integration = await prisma.integration.findFirst({
             where: {
                 workspaceId: this.workspaceId,
@@ -40,7 +40,7 @@ export class BitbucketService {
     }
 
     private async refreshAccessToken(integrationId: string, refreshTokenStr: string): Promise<string> {
-        const prisma = getPrismaClient(this.workspaceId);
+        
 
         const clientId = process.env.BITBUCKET_CLIENT_ID;
         const clientSecret = process.env.BITBUCKET_CLIENT_SECRET;

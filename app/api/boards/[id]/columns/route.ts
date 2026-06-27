@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { findAcrossShards } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { Board } from "@prisma/client";
 import { z } from "zod";
 import { publishToChannel, getBoardChannel } from "@/lib/ably";
@@ -27,14 +27,12 @@ export async function POST(
         const body = await req.json();
         const data = columnSchema.parse(body);
 
-        const { data: board, db } = await findAcrossShards<any>("board", { id: params.id });
+        const board = await prisma.board.findUnique({ where: { id: params.id } });
 
         if (!board) {
             return NextResponse.json({ error: "Board not found" }, { status: 404 });
         }
 
-        // Verify workspace access (Workspace records are on Shard 1 / primary)
-        const { prisma } = await import("@/lib/prisma");
         const membership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
@@ -48,12 +46,11 @@ export async function POST(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Enforce plan limits (blocks deactivated workspaces)
         const { enforcePlanLimit } = await import("@/lib/plan-limits");
-        const columnCount = await (db.column.count as any)({ where: { boardId: params.id } });
+        const columnCount = await prisma.column.count({ where: { boardId: params.id } });
         await enforcePlanLimit(board.workspaceId, "columns", columnCount);
 
-        const column = await (db.column.create as any)({
+        const column = await prisma.column.create({
             data: {
                 name: data.name,
                 order: data.order,

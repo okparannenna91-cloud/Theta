@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 
 export async function GET(
@@ -14,8 +14,7 @@ export async function GET(
         }
 
         // Verify workspace access
-        const db = getPrismaClient(params.id);
-        const membership = await db.workspaceMember.findUnique({
+        const membership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
                     workspaceId: params.id,
@@ -28,7 +27,7 @@ export async function GET(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        const members = await db.workspaceMember.findMany({
+        const members = await prisma.workspaceMember.findMany({
             where: {
                 workspaceId: params.id,
             },

@@ -28,35 +28,46 @@ export function useWorkspace() {
   const [fallbackWorkspace, setFallbackWorkspace] = useState<any>(null);
   const [fallbackLoading, setFallbackLoading] = useState(false);
 
+  // Sync active workspace from localStorage only when we have valid list data
+  const queryCompleted = !isLoading && workspaces !== undefined;
   useEffect(() => {
+    if (!queryCompleted) return;
+
     if (workspaces && workspaces.length > 0) {
       const savedId = localStorage.getItem("activeWorkspaceId");
       const isValidSavedId = workspaces.find((w: any) => w.id === savedId);
-      
+
       if (savedId && isValidSavedId) {
         if (activeWorkspaceId !== savedId) setActiveWorkspaceId(savedId);
-      } else {
-        const firstWorkspaceId = workspaces[0].id;
-        if (!activeWorkspaceId) {
-            setActiveWorkspaceId(firstWorkspaceId);
-            localStorage.setItem("activeWorkspaceId", firstWorkspaceId);
-        }
+      } else if (!activeWorkspaceId) {
+        const firstId = workspaces[0].id;
+        setActiveWorkspaceId(firstId);
+        localStorage.setItem("activeWorkspaceId", firstId);
       }
     }
-  }, [workspaces, activeWorkspaceId]);
+  }, [workspaces, activeWorkspaceId, queryCompleted]);
 
+  // Fallback: fetch single workspace when list is empty but we have an active ID
+  const shouldFallback = queryCompleted && (!workspaces || workspaces.length === 0) && activeWorkspaceId && !fallbackWorkspace;
   useEffect(() => {
-    if ((!workspaces || workspaces.length === 0) && activeWorkspaceId && !fallbackWorkspace) {
-      setFallbackLoading(true);
-      fetch(`/api/workspaces/${activeWorkspaceId}`)
-        .then((res) => res.ok ? res.json() : null)
-        .then((data) => {
-          if (data) setFallbackWorkspace(data);
-        })
-        .catch(() => {})
-        .finally(() => setFallbackLoading(false));
+    if (!shouldFallback) return;
+
+    setFallbackLoading(true);
+    fetch(`/api/workspaces/${activeWorkspaceId}`)
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data) setFallbackWorkspace(data);
+      })
+      .catch(() => {})
+      .finally(() => setFallbackLoading(false));
+  }, [shouldFallback]);
+
+  // Clear fallback when the main list query returns valid data
+  useEffect(() => {
+    if (workspaces && workspaces.length > 0 && fallbackWorkspace) {
+      setFallbackWorkspace(null);
     }
-  }, [workspaces, activeWorkspaceId, fallbackWorkspace]);
+  }, [workspaces, fallbackWorkspace]);
 
   const switchWorkspace = (id: string) => {
     if (!id || typeof id !== "string") return;

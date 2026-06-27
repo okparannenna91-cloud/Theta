@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
     try {
@@ -17,10 +17,9 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
         const since = new Date(Date.now() - hours * 60 * 60 * 1000);
 
-        const events = await db.activity.findMany({
+        const events = await prisma.activity.findMany({
             where: {
                 workspaceId,
                 entityType: "AI_STREAM",

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { encrypt, verifyOAuthState } from "@/lib/crypto";
 
 export async function GET(request: NextRequest) {
@@ -52,7 +52,7 @@ export async function GET(request: NextRequest) {
         const { access_token, refresh_token, expires_in } = data;
         const expiresAt = expires_in ? new Date(Date.now() + expires_in * 1000) : null;
 
-        const prisma = getPrismaClient(workspaceId);
+
 
         // Save or update the integration
         await prisma.integration.upsert({

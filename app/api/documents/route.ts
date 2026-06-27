@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds, requireProjectAccess, canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
@@ -39,9 +39,8 @@ export async function GET(req: Request) {
       );
     }
 
-    const db = getPrismaClient(workspaceId);
     const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
-    const documents = await db.document.findMany({
+    const documents = await prisma.document.findMany({
       where: {
         workspaceId,
         archived: false,
@@ -94,9 +93,7 @@ export async function POST(req: Request) {
     const docCount = await prisma.document.count({ where: { workspaceId: data.workspaceId, archived: false } });
     await enforcePlanLimit(data.workspaceId, "documents", docCount);
 
-    const db = getPrismaClient(data.workspaceId);
-
-    const document = await db.document.create({
+    const document = await prisma.document.create({
       data: {
         title: data.title,
         content: data.content || "",
@@ -166,10 +163,8 @@ export async function DELETE(req: Request) {
       );
     }
 
-    const db = getPrismaClient(workspaceId);
-
     // Fetch the document to verify project-level access
-    const document = await db.document.findUnique({
+    const document = await prisma.document.findUnique({
       where: { id },
       select: { projectId: true, userId: true },
     });
@@ -189,7 +184,7 @@ export async function DELETE(req: Request) {
       }
     }
 
-    await db.document.delete({
+    await prisma.document.delete({
       where: { id }
     });
 

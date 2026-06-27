@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, getPrismaClient, prismaShard1, prismaShard2, prismaShard3 } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds, requireProjectAccess } from "@/lib/project-permissions";
 import { publishToChannel, getChatChannel } from "@/lib/ably";
 import { z } from "zod";
-
-// Fetch and create team-specific chat messages
 
 const objectIdSchema = z.string().regex(/^[a-fA-F0-9]{24}$/, "Invalid ObjectId format");
 
@@ -36,110 +34,67 @@ export async function GET(req: Request) {
         const workspaceId = searchParams.get("workspaceId")?.trim();
         const teamId = searchParams.get("teamId")?.trim();
 
-        // Determine workspaceId and DB shard
         let effectiveWorkspaceId = workspaceId;
-        
-        // If workspaceId is missing but teamId is present, try to derive it
+
         if (!effectiveWorkspaceId && teamId) {
-            const { findAcrossShards } = await import("@/lib/prisma");
-            const teamLookup = await findAcrossShards<any>("team", { id: teamId });
-            if (teamLookup.data) {
-                effectiveWorkspaceId = teamLookup.data.workspaceId;
+            const teamLookup = await prisma.team.findUnique({ where: { id: teamId }, select: { workspaceId: true } });
+            if (teamLookup) {
+                effectiveWorkspaceId = teamLookup.workspaceId;
             }
         }
 
         if (!effectiveWorkspaceId) {
-            return NextResponse.json({ error: "workspaceId or teamId is required to resolve shard" }, { status: 400 });
+            return NextResponse.json({ error: "workspaceId or teamId is required" }, { status: 400 });
         }
 
-        // FINAL NUCLEAR BYPASS: Parallel shard scan with timeout to prevent hangs
-        const shards = [
-            { name: "Shard 1", client: prismaShard1 },
-            { name: "Shard 2", client: prismaShard2 },
-            { name: "Shard 3", client: prismaShard3 },
-        ];
-
-        const scanShard = async (shard: any) => {
-            if (!shard.client) return [];
-            try {
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error("Timeout")), 3000)
-                );
-                
-                // TOTAL BYPASS: Fetch without 'where' to ensure visibility (matching debug/db)
-                const queryPromise = (shard.client as any).chatMessage.findMany({
-                    take: 500,
-                    orderBy: { createdAt: "desc" },
-                    include: {
-                        replyTo: { select: { id: true, content: true, userId: true } }
-                    }
-                });
-
-                const results: any = await Promise.race([queryPromise, timeoutPromise]);
-                return results.map((m: any) => ({ ...m, shard: shard.name }));
-            } catch (e) {
-                console.error(`[Chat Bypass] Shard ${shard.name} failed or timed out`);
-                return [];
-            }
-        };
-
-        const allResults = await Promise.all(shards.map(scanShard));
-        let allMessagesRaw = allResults.flat();
-
-        // Perform strict JS-side filtering to bypass Prisma/Mongo type issues
-        if (effectiveWorkspaceId) {
-            allMessagesRaw = allMessagesRaw.filter(m => String(m.workspaceId) === String(effectiveWorkspaceId));
-        }
-
-        // Filter by accessible project IDs
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, effectiveWorkspaceId);
-        allMessagesRaw = allMessagesRaw.filter(m => {
-          if (!m.projectId) return true;
-          return accessibleProjectIds.includes(String(m.projectId));
+
+        const messagesRaw = await prisma.chatMessage.findMany({
+            where: {
+                workspaceId: effectiveWorkspaceId,
+                ...(teamId ? { teamId } : {}),
+                ...(teamId ? {} : {
+                    OR: [
+                        { projectId: null },
+                        { projectId: { in: accessibleProjectIds } }
+                    ]
+                }),
+                deletedAt: null,
+            },
+            take: 50,
+            orderBy: { createdAt: "desc" },
+            include: {
+                replyTo: { select: { id: true, content: true, userId: true } }
+            }
         });
 
-        if (teamId) {
-            allMessagesRaw = allMessagesRaw.filter(m => String(m.teamId) === String(teamId));
-        }
-        
-        // Filter out deleted messages
-        allMessagesRaw = allMessagesRaw.filter(m => !m.deletedAt);
+        messagesRaw.reverse();
 
-        // Sort and limit
-        const finalMessagesRaw = allMessagesRaw.sort((a, b) => 
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        ).slice(0, 50);
-
-        // Reverse for chronological UI
-        finalMessagesRaw.reverse();
-
-        // Attach users
-        const uniqueUserIds = [...new Set(finalMessagesRaw.map((m: any) => m.userId))] as string[];
+        const uniqueUserIds = [...new Set(messagesRaw.map(m => m.userId))] as string[];
         const users = await prisma.user.findMany({
             where: { id: { in: uniqueUserIds } },
             select: { id: true, name: true, imageUrl: true }
         });
 
-        const messages = finalMessagesRaw.map((m: any) => ({
+        const messages = messagesRaw.map(m => ({
             ...m,
             user: users.find(u => u.id === m.userId) || null
         }));
 
         const { getPlanLimits } = await import("@/lib/plan-limits");
         const workspace = await prisma.workspace.findUnique({
-            where: { id: effectiveWorkspaceId as string },
+            where: { id: effectiveWorkspaceId },
             select: { plan: true }
         });
         const limits = getPlanLimits((workspace?.plan as any) || "free");
 
-        // Get unread info
         let lastReadAt = null;
         if (teamId) {
-            const { findAcrossShards } = await import("@/lib/prisma");
-            const membership = await findAcrossShards<any>("teamMember", {
-                teamId_userId: { teamId, userId: user.id }
+            const membership = await prisma.teamMember.findUnique({
+                where: { teamId_userId: { teamId, userId: user.id } },
+                select: { lastReadAt: true }
             });
-            lastReadAt = membership.data?.lastReadAt;
+            lastReadAt = membership?.lastReadAt;
         }
 
         return NextResponse.json({
@@ -167,13 +122,11 @@ export async function POST(req: Request) {
 
         const body = await req.json();
 
-        // Determine workspaceId – required for shard routing
         let targetWorkspaceId: string | undefined = body.workspaceId;
         if (!targetWorkspaceId && body.teamId) {
-            const { findAcrossShards } = await import("@/lib/prisma");
-            const teamLookup = await findAcrossShards<any>("team", { id: body.teamId });
-            if (teamLookup.data) {
-                targetWorkspaceId = teamLookup.data.workspaceId;
+            const teamLookup = await prisma.team.findUnique({ where: { id: body.teamId }, select: { workspaceId: true } });
+            if (teamLookup) {
+                targetWorkspaceId = teamLookup.workspaceId;
             }
         }
         if (!targetWorkspaceId) {
@@ -181,26 +134,11 @@ export async function POST(req: Request) {
         }
 
         const data = chatSchema.parse({ ...body, workspaceId: targetWorkspaceId });
-        const db = getPrismaClient(data.workspaceId);
         
         if (data.teamId) {
-            let teamMember = await db.teamMember.findUnique({
+            const teamMember = await prisma.teamMember.findUnique({
                 where: { teamId_userId: { teamId: data.teamId, userId: user.id } }
             });
-
-            if (!teamMember) {
-                teamMember = await prisma.teamMember.findUnique({
-                    where: { teamId_userId: { teamId: data.teamId, userId: user.id } }
-                });
-            }
-
-            if (!teamMember) {
-                const { findAcrossShards } = await import("@/lib/prisma");
-                const result = await findAcrossShards<any>("teamMember", {
-                    teamId_userId: { teamId: data.teamId, userId: user.id }
-                });
-                teamMember = result.data;
-            }
 
             if (!teamMember) {
                 return NextResponse.json({ error: "Forbidden: not a team member" }, { status: 403 });
@@ -217,7 +155,7 @@ export async function POST(req: Request) {
           }
         }
 
-        const messageRaw = await db.chatMessage.create({
+        const messageRaw = await prisma.chatMessage.create({
             data: {
                 content: data.content,
                 workspaceId: data.workspaceId,
@@ -258,7 +196,6 @@ export async function PATCH(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const messageId = searchParams.get("id");
-        const workspaceId = searchParams.get("workspaceId");
 
         if (!messageId) {
             return NextResponse.json({ error: "Missing message id" }, { status: 400 });
@@ -267,23 +204,12 @@ export async function PATCH(req: Request) {
         const body = await req.json();
         const { isPinned } = body;
 
-        let db: any;
-        let message: any;
-
-        if (workspaceId) {
-            db = getPrismaClient(workspaceId);
-            message = await db.chatMessage.findUnique({ where: { id: messageId } });
-        } else {
-            const { findAcrossShards } = await import("@/lib/prisma");
-            const result = await findAcrossShards<any>("chatMessage", { id: messageId });
-            message = result.data;
-            db = result.db;
-        }
+        const message = await prisma.chatMessage.findUnique({ where: { id: messageId } });
 
         if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
         if (message.userId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        const updated = await db.chatMessage.update({
+        const updated = await prisma.chatMessage.update({
             where: { id: messageId },
             data: { isPinned: isPinned !== undefined ? isPinned : !message.isPinned },
         });
@@ -308,21 +234,19 @@ export async function DELETE(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const messageId = searchParams.get("id");
-        const workspaceId = searchParams.get("workspaceId");
 
-        if (!messageId || !workspaceId) {
-            return NextResponse.json({ error: "Missing parameters" }, { status: 400 });
+        if (!messageId) {
+            return NextResponse.json({ error: "Missing message id" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
-        const message = await db.chatMessage.findUnique({
+        const message = await prisma.chatMessage.findUnique({
             where: { id: messageId }
         });
 
         if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
         if (message.userId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        const deleted = await db.chatMessage.update({
+        const deleted = await prisma.chatMessage.update({
             where: { id: messageId },
             data: { deletedAt: new Date() }
         });

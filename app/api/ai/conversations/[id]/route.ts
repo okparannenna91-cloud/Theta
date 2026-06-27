@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(
     req: Request,
@@ -19,9 +19,7 @@ export async function GET(
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
-
-        const conversation = await db.aiConversation.findUnique({
+        const conversation = await prisma.aiConversation.findUnique({
             where: {
                 id: params.id,
             },
@@ -61,9 +59,7 @@ export async function PATCH(
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
-
-        const conversation = await db.aiConversation.update({
+        const conversation = await prisma.aiConversation.update({
             where: {
                 id: params.id,
                 userId: user.id,
@@ -95,9 +91,7 @@ export async function DELETE(
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
-
-        await db.aiConversation.delete({
+        await prisma.aiConversation.delete({
             where: {
                 id: params.id,
                 userId: user.id,

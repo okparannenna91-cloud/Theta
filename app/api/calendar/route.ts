@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { canCreateCalendarEvent, getPlanLimitMessage } from "@/lib/plan-limits";
 import { getAccessibleProjectIds, canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
@@ -33,14 +33,12 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
-
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
-        const projectTeams = await db.projectTeam.findMany({
+        const projectTeams = await prisma.projectTeam.findMany({
           where: { projectId: { in: accessibleProjectIds } },
           select: { teamId: true },
         });
-        const legacyTeamProjects = await db.project.findMany({
+        const legacyTeamProjects = await prisma.project.findMany({
           where: { id: { in: accessibleProjectIds }, teamId: { not: null } },
           select: { teamId: true },
         });
@@ -52,7 +50,7 @@ export async function GET(req: Request) {
         ];
         
         const [events, count] = await Promise.all([
-            db.calendarEvent.findMany({
+            prisma.calendarEvent.findMany({
                 where: {
                     workspaceId,
                     OR: [
@@ -64,7 +62,7 @@ export async function GET(req: Request) {
                 },
                 orderBy: { start: "asc" }
             }),
-            db.calendarEvent.count({ where: { workspaceId } })
+            prisma.calendarEvent.count({ where: { workspaceId } })
         ]);
 
         const { getPlanLimits } = await import("@/lib/plan-limits");
@@ -112,9 +110,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
 
-        const db = getPrismaClient(data.workspaceId);
-
-        const event = await db.calendarEvent.create({
+        const event = await prisma.calendarEvent.create({
             data: {
                 ...data,
                 userId: user.id,

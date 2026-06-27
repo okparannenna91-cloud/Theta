@@ -1,4 +1,4 @@
-import { getPrismaClient } from "../prisma";
+import { prisma } from "../prisma";
 import { TASK_QUALITY_STANDARDS, TASK_CREATION_FLOW, TASK_INTELLIGENCE_CAPABILITIES } from "./constitution/task-standards";
 import { STATUS_DONE } from "../constants/status";
 import { logger } from "../logger";
@@ -32,7 +32,7 @@ export class TaskIntelligence {
     title: string,
     description?: string
   ): Promise<TaskRecommendation> {
-    const db = getPrismaClient(workspaceId);
+    
 
     let priority: "low" | "medium" | "high" | "urgent" = "medium";
     const lowercaseTitle = title.toLowerCase();
@@ -51,11 +51,11 @@ export class TaskIntelligence {
 
     try {
       const [members, similarTasks] = await Promise.all([
-        db.workspaceMember.findMany({
+        prisma.workspaceMember.findMany({
           where: { workspaceId, status: "active" },
           include: { user: { include: { tasks: { where: { status: { not: STATUS_DONE } } } } } },
         }),
-        db.task.findMany({
+        prisma.task.findMany({
           where: {
             workspaceId,
             title: { contains: title.substring(0, 30) },
@@ -92,7 +92,7 @@ export class TaskIntelligence {
     taskId: string,
     predecessorId: string
   ): Promise<boolean> {
-    const db = getPrismaClient(workspaceId);
+    
 
     try {
       const visited = new Set<string>();
@@ -102,7 +102,7 @@ export class TaskIntelligence {
         if (visited.has(currentId)) return false;
         visited.add(currentId);
 
-        const dependencies = await db.taskDependency.findMany({
+        const dependencies = await prisma.taskDependency.findMany({
           where: { taskId: currentId },
         });
 
@@ -124,8 +124,8 @@ export class TaskIntelligence {
     taskId: string
   ): Promise<TaskHealthStatus | null> {
     try {
-      const db = getPrismaClient(workspaceId);
-      const task = await db.task.findUnique({
+      
+      const task = await prisma.task.findUnique({
         where: { id: taskId },
         include: { predecessors: true },
       });
@@ -155,8 +155,8 @@ export class TaskIntelligence {
     title: string
   ): Promise<DuplicateCheckResult> {
     try {
-      const db = getPrismaClient(workspaceId);
-      const similarTasks = await db.task.findMany({
+      
+      const similarTasks = await prisma.task.findMany({
         where: {
           workspaceId,
           title: { contains: title.substring(0, 40) },

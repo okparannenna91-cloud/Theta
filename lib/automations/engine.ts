@@ -1,4 +1,4 @@
-import { getPrismaClient, prisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { notifyWorkspaceMembers } from "@/lib/notifications";
 
 export type AutomationTrigger = "TASK_CREATED" | "TASK_STATUS_UPDATED";
@@ -27,20 +27,16 @@ export async function processAutomations(
 
         if (rules.length === 0) return;
 
-        const db = getPrismaClient(workspaceId);
-
         for (const rule of rules) {
             try {
-                // Execute actions
                 switch (rule.action) {
                     case "SET_STATUS":
                         if (rule.actionValue) {
-                            // Find the statusId for the target name
-                            const targetStatus = await db.status.findFirst({
+                            const targetStatus = await prisma.status.findFirst({
                                 where: { workspaceId, name: { equals: rule.actionValue, mode: 'insensitive' } }
                             });
                             
-                            await db.task.update({
+                            await prisma.task.update({
                                 where: { id: context.taskId },
                                 data: { 
                                     status: rule.actionValue,
@@ -52,7 +48,7 @@ export async function processAutomations(
 
                     case "SET_PRIORITY":
                         if (rule.actionValue) {
-                            await db.task.update({
+                            await prisma.task.update({
                                 where: { id: context.taskId },
                                 data: { priority: rule.actionValue.toLowerCase() }
                             });

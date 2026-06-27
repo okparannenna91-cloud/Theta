@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
     try {
@@ -16,13 +16,10 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Missing workspaceId" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
-        const { prisma } = await import("@/lib/prisma");
-
         // Fetch all integrations for this workspace from shards
         // AND workspace metadata from primary Shard 1
         const [integrations, workspace] = await Promise.all([
-            db.integration.findMany({
+            prisma.integration.findMany({
                 where: { workspaceId },
                 orderBy: { createdAt: "desc" },
             }),
@@ -79,8 +76,6 @@ export async function DELETE(req: Request) {
         if (!integrationId || !workspaceId) {
             return NextResponse.json({ error: "Missing integrationId or workspaceId" }, { status: 400 });
         }
-
-        const prisma = getPrismaClient(workspaceId);
 
         await prisma.integration.delete({
             where: { id: integrationId, workspaceId }

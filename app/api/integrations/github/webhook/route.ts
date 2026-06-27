@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
     const payload = await request.text();
@@ -29,35 +29,20 @@ export async function POST(request: NextRequest) {
         // GitHub webhooks don't usually include our workspaceId, 
         // but the integration record in our DB should have the repo info in config/metadata
 
-        // For MVP, we might search across all integrations for this repo ID
-        const { prismaShard1, prismaShard2, prismaShard3 } = await import("@/lib/prisma");
-        const shards = [prismaShard1, prismaShard2, prismaShard3];
-
-        let integration = null;
-        let workspaceId = null;
-
         const repoId = data.repository?.id?.toString();
         if (!repoId) return NextResponse.json({ message: "No repo ID found" });
 
-        for (const shard of shards) {
-            if (!shard) continue;
-            // @ts-ignore
-            integration = await shard.integration.findFirst({
-                where: {
-                    provider: "github",
-                    // We assume we stored tracked repo IDs in metadata or config
-                    OR: [
-                        { metadata: { equals: { repoId: repoId } } },
-                        { config: { equals: { repoId: repoId } } }
-                    ]
-
-                }
-            });
-            if (integration) {
-                workspaceId = integration.workspaceId;
-                break;
+        const integration = await prisma.integration.findFirst({
+            where: {
+                provider: "github",
+                OR: [
+                    { metadata: { equals: { repoId: repoId } } },
+                    { config: { equals: { repoId: repoId } } }
+                ]
             }
-        }
+        });
+
+        const workspaceId = integration?.workspaceId;
 
         if (!workspaceId) {
             return NextResponse.json({ message: "No workspace linked to this repository" });

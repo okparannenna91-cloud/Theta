@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
 
@@ -22,8 +22,6 @@ export async function GET(req: Request) {
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied to workspace" }, { status: 403 });
         }
-
-        const db = getPrismaClient(workspaceId);
 
         // Get accessible project IDs for filtering notifications by project access
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
@@ -60,7 +58,7 @@ export async function GET(req: Request) {
         }
 
         const [notifications, total, unreadCount] = await Promise.all([
-            db.notification.findMany({
+            prisma.notification.findMany({
                 where,
                 orderBy: [
                     { pinned: "desc" },
@@ -69,8 +67,8 @@ export async function GET(req: Request) {
                 skip,
                 take
             }),
-            db.notification.count({ where }),
-            db.notification.count({ where: { workspaceId, userId: user.id, read: false, archived: false } })
+            prisma.notification.count({ where }),
+            prisma.notification.count({ where: { workspaceId, userId: user.id, read: false, archived: false } })
         ]);
 
         // Post-filter notifications whose metadata references an inaccessible project
@@ -110,10 +108,8 @@ export async function PATCH(req: Request) {
         const body = await req.json();
         const { notificationId, markAllAsRead, archived, pinned, read } = body;
 
-        const db = getPrismaClient(workspaceId);
-
         if (markAllAsRead) {
-            await db.notification.updateMany({
+            await prisma.notification.updateMany({
                 where: { workspaceId, userId: user.id, read: false, archived: false },
                 data: { read: true }
             });
@@ -122,7 +118,7 @@ export async function PATCH(req: Request) {
 
         if (notificationId) {
             // Verify notification ownership
-            const notification = await db.notification.findUnique({
+            const notification = await prisma.notification.findUnique({
                 where: { id: notificationId }
             });
 
@@ -139,7 +135,7 @@ export async function PATCH(req: Request) {
             if (archived !== undefined) data.archived = archived;
             if (pinned !== undefined) data.pinned = pinned;
 
-            const updated = await db.notification.update({
+            const updated = await prisma.notification.update({
                 where: { id: notificationId },
                 data
             });
@@ -170,10 +166,8 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: "Access denied to workspace" }, { status: 403 });
         }
 
-        const db = getPrismaClient(workspaceId);
-
         // Verify notification ownership
-        const notification = await db.notification.findUnique({
+        const notification = await prisma.notification.findUnique({
             where: { id: notificationId }
         });
 
@@ -185,7 +179,7 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: "Forbidden: You don't own this notification" }, { status: 403 });
         }
 
-        await db.notification.delete({
+        await prisma.notification.delete({
             where: { id: notificationId }
         });
 

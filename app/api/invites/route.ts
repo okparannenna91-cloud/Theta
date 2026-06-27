@@ -24,13 +24,10 @@ export async function POST(req: Request) {
         const body = await req.json();
         // Determine workspaceId – required for permission checks and shard routing
         let targetWorkspaceId: string | undefined = body.workspaceId;
-        // If missing, attempt to derive from teamId
         if (!targetWorkspaceId && body.teamId) {
-            const { findAcrossShards } = await import("@/lib/prisma");
-            const teamLookup = await findAcrossShards<any>("team", { id: body.teamId });
-            if (teamLookup.data) {
-                targetWorkspaceId = teamLookup.data.workspaceId;
-                console.log(`[Invite POST] Derived workspaceId=${targetWorkspaceId} from teamId=${body.teamId}`);
+            const teamLookup = await prisma.team.findUnique({ where: { id: body.teamId }, select: { workspaceId: true } });
+            if (teamLookup) {
+                targetWorkspaceId = teamLookup.workspaceId;
             }
         }
         if (!targetWorkspaceId) {
@@ -43,18 +40,15 @@ export async function POST(req: Request) {
         
         let isTeamAdmin = false;
         if (data.teamId) {
-            const { getPrismaClient } = await import("@/lib/prisma");
-            const db = getPrismaClient(targetWorkspaceId);
-            const team = await db.team.findUnique({
+            const team = await prisma.team.findUnique({
                 where: { id: data.teamId }
             });
             
-            // CROSS-TENANT INJECTION FIX: Ensure team belongs to workspace
             if (team && team.workspaceId !== targetWorkspaceId) {
                 return NextResponse.json({ error: "Invalid team for this workspace" }, { status: 400 });
             }
 
-            const teamMember = await db.teamMember.findUnique({
+            const teamMember = await prisma.teamMember.findUnique({
                 where: {
                     teamId_userId: {
                         teamId: data.teamId,
@@ -130,9 +124,7 @@ export async function POST(req: Request) {
         
         let teamName: string | undefined;
         if (data.teamId) {
-            const { getPrismaClient } = await import("@/lib/prisma");
-            const db = getPrismaClient(data.workspaceId);
-            const team = await db.team.findUnique({
+            const team = await prisma.team.findUnique({
                 where: { id: data.teamId },
                 select: { name: true }
             });
@@ -261,9 +253,7 @@ export async function DELETE(req: Request) {
         
         let isTeamAdmin = false;
         if (invite.teamId) {
-            const { getPrismaClient } = await import("@/lib/prisma");
-            const db = getPrismaClient(invite.workspaceId);
-            const teamMember = await db.teamMember.findUnique({
+            const teamMember = await prisma.teamMember.findUnique({
                 where: {
                     teamId_userId: {
                         teamId: invite.teamId,
@@ -309,9 +299,7 @@ export async function PATCH(req: Request) {
         // Fetch team name if applicable
         let teamName: string | undefined;
         if (invite.teamId) {
-            const { getPrismaClient } = await import("@/lib/prisma");
-            const db = getPrismaClient(invite.workspaceId);
-            const team = await db.team.findUnique({
+            const team = await prisma.team.findUnique({
                 where: { id: invite.teamId },
                 select: { name: true }
             });

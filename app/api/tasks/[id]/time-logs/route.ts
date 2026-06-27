@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { findAcrossShards } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { Task } from "@prisma/client";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
@@ -23,25 +23,23 @@ export async function POST(
         const body = await req.json();
         const { duration, description } = timeLogSchema.parse(body);
 
-        const { data: task, db } = await findAcrossShards<Task>("task", { id: params.id });
+        const task = await prisma.task.findUnique({ where: { id: params.id } });
         if (!task) {
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
         }
 
-        // Verify workspace access
         const { verifyWorkspaceAccess } = await import("@/lib/workspace");
         const hasAccess = await verifyWorkspaceAccess(user.id, task.workspaceId);
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Verify project access
         const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
         if (!hasProjectAccess) {
             return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
         }
 
-        const timeLog = await db.timeLog.create({
+        const timeLog = await prisma.timeLog.create({
             data: {
                 duration,
                 description,
@@ -73,25 +71,23 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: task, db } = await findAcrossShards<Task>("task", { id: params.id });
+        const task = await prisma.task.findUnique({ where: { id: params.id } });
         if (!task) {
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
         }
 
-        // Verify workspace access
         const { verifyWorkspaceAccess } = await import("@/lib/workspace");
         const hasAccess = await verifyWorkspaceAccess(user.id, task.workspaceId);
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Verify project access
         const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
         if (!hasProjectAccess) {
             return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
         }
 
-        const rawTimeLogs = await db.timeLog.findMany({
+        const rawTimeLogs = await prisma.timeLog.findMany({
             where: { taskId: params.id },
             orderBy: { createdAt: "desc" },
         });
@@ -101,7 +97,6 @@ export async function GET(
             if (t.userId) userIdsToFetch.add(t.userId);
         });
 
-        const { prisma } = await import("@/lib/prisma");
         const users = await prisma.user.findMany({
             where: { id: { in: Array.from(userIdsToFetch) } },
             select: { id: true, name: true, imageUrl: true }

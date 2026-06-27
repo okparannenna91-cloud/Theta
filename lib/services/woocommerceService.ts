@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { decrypt, encrypt } from "@/lib/crypto";
 
 export class WooCommerceService {
@@ -9,7 +9,7 @@ export class WooCommerceService {
     }
 
     private async getConfigs() {
-        const prisma = getPrismaClient(this.workspaceId);
+        
         const integration = await prisma.integration.findFirst({
             where: {
                 workspaceId: this.workspaceId,

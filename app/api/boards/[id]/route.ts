@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { findAcrossShards } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { Board } from "@prisma/client";
 import { requireProjectAccess } from "@/lib/project-permissions";
 
@@ -14,35 +14,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: board, db } = await findAcrossShards<any>("board", { id: params.id });
-
-    if (!board) {
-      return NextResponse.json({ error: "Board not found" }, { status: 404 });
-    }
-
-    // Verify workspace access (Workspace records are on Shard 1 / primary)
-    const { prisma } = await import("@/lib/prisma");
-    const membership = await prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: {
-          workspaceId: board.workspaceId,
-          userId: user.id,
-        },
-      },
-    });
-
-    if (!membership) {
-      return NextResponse.json({ error: "Access denied" }, { status: 403 });
-    }
-
-    // Check project-level access
-    const accessCheck = await requireProjectAccess(user.id, board.projectId, board.workspaceId);
-    if (!accessCheck.allowed) {
-      return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
-    }
-
-    // Now fetch full details from the shard
-    const fullBoard = await db.board.findUnique({
+    const board = await prisma.board.findUnique({
       where: { id: params.id },
       include: {
         columns: {
@@ -81,7 +53,24 @@ export async function GET(
       return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
 
-    return NextResponse.json(fullBoard);
+    const membership = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: board.workspaceId,
+          userId: user.id,
+        },
+      },
+    });
+
+    if (!membership) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    const accessCheck = await requireProjectAccess(user.id, board.projectId, board.workspaceId);
+    if (!accessCheck.allowed) {
+      return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
+    }
+    return NextResponse.json(board);
   } catch (error) {
     return NextResponse.json(
       { error: "Internal server error" },
@@ -103,14 +92,12 @@ export async function PATCH(
     const body = await req.json();
     const { name, description, icon, isFavorite, visibility } = body;
 
-    const { data: board, db } = await findAcrossShards<any>("board", { id: params.id });
+    const board = await prisma.board.findUnique({ where: { id: params.id } });
 
     if (!board) {
       return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
 
-    // Verify workspace access
-    const { prisma } = await import("@/lib/prisma");
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -124,13 +111,12 @@ export async function PATCH(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    // Check project-level access
     const accessCheck = await requireProjectAccess(user.id, board.projectId, board.workspaceId);
     if (!accessCheck.allowed) {
       return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
     }
 
-    const updatedBoard = await db.board.update({
+    const updatedBoard = await prisma.board.update({
       where: { id: params.id },
       data: {
         ...(name !== undefined && { name }),
@@ -161,14 +147,12 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { data: board, db } = await findAcrossShards<any>("board", { id: params.id });
+    const board = await prisma.board.findUnique({ where: { id: params.id } });
 
     if (!board) {
       return NextResponse.json({ error: "Board not found" }, { status: 404 });
     }
 
-    // Verify workspace access
-    const { prisma } = await import("@/lib/prisma");
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -182,19 +166,17 @@ export async function DELETE(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    // Check project-level access
     const accessCheck = await requireProjectAccess(user.id, board.projectId, board.workspaceId);
     if (!accessCheck.allowed) {
       return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
     }
 
-    // Manual Cascade: Nullify board and column references on tasks
-    await db.task.updateMany({
+    await prisma.task.updateMany({
         where: { boardId: params.id },
         data: { boardId: null, columnId: null }
     });
 
-    await db.board.delete({
+    await prisma.board.delete({
       where: { id: params.id },
     });
 

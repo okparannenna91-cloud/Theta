@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, findAcrossShards } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { Column } from "@prisma/client";
 import { z } from "zod";
 import { publishToChannel, getBoardChannel } from "@/lib/ably";
@@ -30,14 +30,13 @@ export async function PATCH(
         const body = await req.json();
         const data = columnSchema.parse(body);
 
-        const { data: column, db } = await findAcrossShards<any>("column", { id: params.id });
+        const column = await prisma.column.findUnique({ where: { id: params.id } });
 
         if (!column) {
             return NextResponse.json({ error: "Column not found" }, { status: 404 });
         }
 
-        // Fetch board to get workspaceId for auth
-        const board = await db.board.findUnique({
+        const board = await prisma.board.findUnique({
             where: { id: column.boardId },
             select: { workspaceId: true }
         });
@@ -46,7 +45,6 @@ export async function PATCH(
             return NextResponse.json({ error: "Board not found" }, { status: 404 });
         }
 
-        // Verify workspace access (Workspace records are on Shard 1 / primary)
         const membership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
@@ -60,7 +58,7 @@ export async function PATCH(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        const updatedColumn = await db.column.update({
+        const updatedColumn = await prisma.column.update({
             where: { id: params.id },
             data: {
                 ...(data.name !== undefined && { name: data.name }),
@@ -102,14 +100,13 @@ export async function DELETE(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: column, db } = await findAcrossShards<any>("column", { id: params.id });
+        const column = await prisma.column.findUnique({ where: { id: params.id } });
 
         if (!column) {
             return NextResponse.json({ error: "Column not found" }, { status: 404 });
         }
 
-        // Fetch board to get workspaceId for auth
-        const board = await db.board.findUnique({
+        const board = await prisma.board.findUnique({
             where: { id: column.boardId },
             select: { workspaceId: true }
         });
@@ -118,7 +115,6 @@ export async function DELETE(
             return NextResponse.json({ error: "Board not found" }, { status: 404 });
         }
 
-        // Verify workspace access
         const membership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
@@ -132,13 +128,12 @@ export async function DELETE(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Nullify columnId on tasks (Relationship Consistency Fix)
-        await db.task.updateMany({
+        await prisma.task.updateMany({
             where: { columnId: params.id },
             data: { columnId: null }
         });
 
-        await db.column.delete({
+        await prisma.column.delete({
             where: { id: params.id },
         });
 

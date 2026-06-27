@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { enforcePlanLimit } from "@/lib/plan-limits";
 import { signOAuthState } from "@/lib/crypto";
 
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     }
 
     try {
-        const prisma = getPrismaClient(workspaceId);
+
         const currentCount = await prisma.integration.count({
             where: { workspaceId }
         });

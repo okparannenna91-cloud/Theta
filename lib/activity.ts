@@ -1,4 +1,4 @@
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export interface LogActivityProps {
   userId: string;
@@ -23,8 +23,7 @@ export async function logActivity({
   projectId
 }: LogActivityProps) {
   try {
-    const db = getPrismaClient(workspaceId);
-    await db.activity.create({
+    await prisma.activity.create({
       data: {
         userId,
         workspaceId,

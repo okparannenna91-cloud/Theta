@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, findAcrossShards } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { Task, Comment } from "@prisma/client";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
@@ -19,26 +19,24 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: task, db } = await findAcrossShards<Task>("task", { id: params.id });
+        const task = await prisma.task.findUnique({ where: { id: params.id } });
         
         if (!task) {
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
         }
 
-        // Verify workspace access
         const { verifyWorkspaceAccess } = await import("@/lib/workspace");
         const hasAccess = await verifyWorkspaceAccess(user.id, task.workspaceId);
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Verify project access
         const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
         if (!hasProjectAccess) {
             return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
         }
 
-        const rawComments = await (db as any).comment.findMany({
+        const rawComments = await prisma.comment.findMany({
             where: { taskId: params.id },
             orderBy: { createdAt: "desc" },
         });
@@ -80,13 +78,12 @@ export async function POST(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: task, db } = await findAcrossShards<Task>("task", { id: params.id });
+        const task = await prisma.task.findUnique({ where: { id: params.id } });
 
         if (!task) {
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
         }
 
-        // Verify workspace access
         const membership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
@@ -100,7 +97,6 @@ export async function POST(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Verify project access
         const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
         if (!hasProjectAccess) {
             return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
@@ -109,7 +105,7 @@ export async function POST(
         const body = await req.json();
         const data = commentSchema.parse(body);
 
-        const rawComment = await (db as any).comment.create({
+        const rawComment = await prisma.comment.create({
             data: {
                 content: data.content,
                 taskId: params.id,

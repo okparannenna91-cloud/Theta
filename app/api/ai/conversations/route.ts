@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
     try {
@@ -16,9 +16,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
-
-        const conversations = await db.aiConversation.findMany({
+        const conversations = await prisma.aiConversation.findMany({
             where: {
                 workspaceId,
                 userId: user.id,
@@ -50,9 +48,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
-
-        const conversation = await db.aiConversation.create({
+        const conversation = await prisma.aiConversation.create({
             data: {
                 workspaceId,
                 userId: user.id,

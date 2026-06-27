@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, findAcrossShards, getPrismaClient } from "@/lib/prisma";
-import { CalendarEvent } from "@prisma/client";
-import { canAccessProjectResource, getAccessibleProjectIds } from "@/lib/project-permissions";
+import { prisma } from "@/lib/prisma";
+import { canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -32,24 +31,20 @@ export async function PATCH(
         const body = await req.json();
         const data = updateSchema.parse(body);
 
-        const { data: event, db } = await findAcrossShards<any>("calendarEvent", { id: eventId });
+        const event = await prisma.calendarEvent.findUnique({ where: { id: eventId } });
 
         if (!event) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
         }
 
-        // Verify workspace access
         const hasAccess = await canAccessProjectResource(user.id, event.workspaceId, null);
         if (!hasAccess) {
           return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Allow event owner or team members to update
         if (event.userId !== user.id) {
-            // If event is linked to a team, check team membership
             if (event.teamId) {
-                const db = getPrismaClient(event.workspaceId);
-                const teamMember = await db.teamMember.findUnique({
+                const teamMember = await prisma.teamMember.findUnique({
                     where: { teamId_userId: { teamId: event.teamId, userId: user.id } }
                 });
                 if (!teamMember) {
@@ -60,11 +55,9 @@ export async function PATCH(
             }
         }
 
-        const updatedEvent = await db.calendarEvent.update({
+        const updatedEvent = await prisma.calendarEvent.update({
             where: { id: eventId },
-            data: {
-                ...data,
-            }
+            data: { ...data, }
         });
 
         return NextResponse.json(updatedEvent);
@@ -89,13 +82,12 @@ export async function DELETE(
 
         const eventId = params.eventId;
 
-        const { data: event, db } = await findAcrossShards<any>("calendarEvent", { id: eventId });
+        const event = await prisma.calendarEvent.findUnique({ where: { id: eventId } });
 
         if (!event) {
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
         }
 
-        // Verify workspace access
         const hasAccess = await canAccessProjectResource(user.id, event.workspaceId, null);
         if (!hasAccess) {
           return NextResponse.json({ error: "Access denied" }, { status: 403 });
@@ -105,7 +97,7 @@ export async function DELETE(
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 
-        await db.calendarEvent.delete({
+        await prisma.calendarEvent.delete({
             where: { id: eventId }
         });
 

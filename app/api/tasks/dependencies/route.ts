@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
@@ -29,8 +29,6 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const db = getPrismaClient(data.workspaceId);
-
     // Prevent circular dependencies (basic check)
     if (data.taskId === data.predecessorId) {
         return NextResponse.json({ error: "Cannot create self-dependency" }, { status: 400 });
@@ -38,8 +36,8 @@ export async function POST(req: Request) {
 
     // Verify project access for both tasks
     const [task, predecessor] = await Promise.all([
-      db.task.findUnique({ where: { id: data.taskId }, select: { projectId: true } }),
-      db.task.findUnique({ where: { id: data.predecessorId }, select: { projectId: true } }),
+      prisma.task.findUnique({ where: { id: data.taskId }, select: { projectId: true } }),
+      prisma.task.findUnique({ where: { id: data.predecessorId }, select: { projectId: true } }),
     ]);
 
     if (!task || !predecessor) {
@@ -52,7 +50,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const dependency = await db.taskDependency.create({
+    const dependency = await prisma.taskDependency.create({
       data: {
         taskId: data.taskId,
         predecessorId: data.predecessorId,
@@ -114,12 +112,10 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const db = getPrismaClient(workspaceId);
-
     // Verify project access for both tasks
     const [task, predecessor] = await Promise.all([
-      db.task.findUnique({ where: { id: taskId }, select: { projectId: true } }),
-      db.task.findUnique({ where: { id: predecessorId }, select: { projectId: true } }),
+      prisma.task.findUnique({ where: { id: taskId }, select: { projectId: true } }),
+      prisma.task.findUnique({ where: { id: predecessorId }, select: { projectId: true } }),
     ]);
 
     if (!task || !predecessor) {
@@ -132,7 +128,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    await db.taskDependency.delete({
+    await prisma.taskDependency.delete({
       where: {
         taskId_predecessorId: {
           taskId,

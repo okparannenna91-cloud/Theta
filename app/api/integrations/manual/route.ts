@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 import { enforcePlanLimit } from "@/lib/plan-limits";
 
@@ -14,7 +14,7 @@ export async function POST(req: Request) {
         const body = await req.json();
         const { workspaceId, provider, accessToken, refreshToken, config } = body;
 
-        const prisma = getPrismaClient(workspaceId);
+
 
         // Check limits
         try {

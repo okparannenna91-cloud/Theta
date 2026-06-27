@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import crypto from "crypto";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 
 export async function POST(request: NextRequest) {
@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: "No workspaceId in callback URL" }, { status: 400 });
         }
 
-        const prisma = getPrismaClient(workspaceId);
+
         const integration = await prisma.integration.findFirst({
             where: {
                 workspaceId,

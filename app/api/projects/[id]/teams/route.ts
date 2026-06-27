@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient, prisma as globalPrisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { requireProjectAccess } from "@/lib/project-permissions";
 import { z } from "zod";
@@ -38,10 +38,8 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
       );
     }
 
-    const db = getPrismaClient(workspaceId);
-    
     // Find project teams
-    const projectTeams = await db.projectTeam.findMany({
+    const projectTeams = await prisma.projectTeam.findMany({
       where: { projectId: params.id },
       include: {
         team: {
@@ -61,7 +59,7 @@ export async function GET(req: Request, { params }: { params: { id: string } }) 
         pt.team?.members?.forEach(m => allUserIds.add(m.userId));
     });
 
-    const users = await globalPrisma.user.findMany({
+    const users = await prisma.user.findMany({
         where: { id: { in: Array.from(allUserIds) } },
         select: { id: true, name: true, imageUrl: true }
     });
@@ -119,12 +117,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       );
     }
 
-    const db = getPrismaClient(workspaceId);
-
     // Create project teams
     const results = await Promise.all(
         teamIds.map(async (teamId) => {
-            return db.projectTeam.upsert({
+            return prisma.projectTeam.upsert({
                 where: {
                     projectId_teamId: {
                         projectId: params.id,
@@ -173,9 +169,7 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
             );
         }
 
-        const db = getPrismaClient(workspaceId);
-
-        await db.projectTeam.delete({
+        await prisma.projectTeam.delete({
             where: {
                 projectId_teamId: {
                     projectId: params.id,

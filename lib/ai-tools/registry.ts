@@ -65,6 +65,15 @@ const TOOL_CATEGORY_MAP: Record<string, ToolCategory> = {
   propose_custom_module: "WORKFLOW",
   // — Integrations —
   list_integrations: "INTEGRATION",
+  // — Team tools —
+  list_team_members: "WORKSPACE",
+  team_performance: "ANALYSIS",
+  team_activity: "ANALYSIS",
+  // — Search tools —
+  saved_searches: "DOCUMENT",
+  save_search: "DOCUMENT",
+  delete_saved_search: "DOCUMENT",
+  pin_search: "DOCUMENT",
   // — Memory & prefs —
   save_conversation: "MEMORY",
   remember_preference: "MEMORY",

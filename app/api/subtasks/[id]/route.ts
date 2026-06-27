@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, findAcrossShards } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -9,13 +9,13 @@ const updateSchema = z.object({
     order: z.number().optional(),
 });
 
-async function recalculateTaskProgress(taskId: string, db: any) {
+async function recalculateTaskProgress(taskId: string) {
     const [subtasks, completedCount] = await Promise.all([
-        db.subtask.count({ where: { taskId } }),
-        db.subtask.count({ where: { taskId, completed: true } }),
+        prisma.subtask.count({ where: { taskId } }),
+        prisma.subtask.count({ where: { taskId, completed: true } }),
     ]);
     const progress = subtasks > 0 ? Math.round((completedCount / subtasks) * 100) : 0;
-    await db.task.update({
+    await prisma.task.update({
         where: { id: taskId },
         data: { progress },
     });
@@ -31,13 +31,13 @@ export async function PATCH(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: subtask, db } = await findAcrossShards<any>("subtask", { id: params.id });
+        const subtask = await prisma.subtask.findUnique({ where: { id: params.id } });
 
         if (!subtask) {
             return NextResponse.json({ error: "Subtask not found" }, { status: 404 });
         }
 
-        const task = await (db as any).task.findUnique({
+        const task = await prisma.task.findUnique({
             where: { id: subtask.taskId },
             select: { workspaceId: true },
         });
@@ -46,7 +46,6 @@ export async function PATCH(
             return NextResponse.json({ error: "Parent task not found" }, { status: 404 });
         }
 
-        // Verify workspace access (Workspace records are on Shard 1 / primary)
         const membership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
@@ -63,12 +62,12 @@ export async function PATCH(
         const body = await req.json();
         const data = updateSchema.parse(body);
 
-        const updated = await (db as any).subtask.update({
+        const updated = await prisma.subtask.update({
             where: { id: params.id },
             data,
         });
 
-        await recalculateTaskProgress(subtask.taskId, db);
+        await recalculateTaskProgress(subtask.taskId);
 
         return NextResponse.json(updated);
     } catch (error) {
@@ -93,13 +92,13 @@ export async function DELETE(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: subtaskToDelete, db: deleteDb } = await findAcrossShards<any>("subtask", { id: params.id });
+        const subtaskToDelete = await prisma.subtask.findUnique({ where: { id: params.id } });
 
         if (!subtaskToDelete) {
             return NextResponse.json({ error: "Subtask not found" }, { status: 404 });
         }
 
-        const taskToUpdate = await (deleteDb as any).task.findUnique({
+        const taskToUpdate = await prisma.task.findUnique({
             where: { id: subtaskToDelete.taskId },
             select: { workspaceId: true },
         });
@@ -108,7 +107,6 @@ export async function DELETE(
             return NextResponse.json({ error: "Parent task not found" }, { status: 404 });
         }
 
-        // Verify workspace access
         const deleteMembership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
@@ -124,11 +122,11 @@ export async function DELETE(
 
         const taskId = subtaskToDelete.taskId;
 
-        await (deleteDb as any).subtask.delete({
+        await prisma.subtask.delete({
             where: { id: params.id },
         });
 
-        await recalculateTaskProgress(taskId, deleteDb);
+        await recalculateTaskProgress(taskId);
 
         return NextResponse.json({ success: true });
     } catch (error) {

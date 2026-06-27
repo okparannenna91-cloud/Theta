@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient, prisma as globalPrisma } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
 import { subDays, isAfter, isBefore, startOfDay, endOfDay, format } from "date-fns";
@@ -26,7 +26,6 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        const db = getPrismaClient(workspaceId);
         const cutoffDate = subDays(new Date(), days);
 
         // Get accessible project IDs for permission filtering
@@ -34,15 +33,15 @@ export async function GET(req: Request) {
 
         // Fetch fundamental data (Relationship & Analytics Accuracy Fix)
         const [projects, tasks, statuses] = await Promise.all([
-            db.project.findMany({
+            prisma.project.findMany({
                 where: { workspaceId, id: { in: accessibleProjectIds } },
                 include: { _count: { select: { tasks: true } } }
             }),
-            db.task.findMany({
+            prisma.task.findMany({
                 where: { workspaceId, projectId: { in: accessibleProjectIds } },
                 include: { project: true }
             }),
-            db.status.findMany({
+            prisma.status.findMany({
                 where: { workspaceId },
                 orderBy: { order: 'asc' }
             })
@@ -101,7 +100,7 @@ export async function GET(req: Request) {
 
         // Resolve user ids globally
         const userIdsToResolve = Array.from(productivityMap.keys());
-        const users = await globalPrisma.user.findMany({
+        const users = await prisma.user.findMany({
             where: { id: { in: userIdsToResolve } },
             select: { id: true, name: true, imageUrl: true }
         });
@@ -130,7 +129,7 @@ export async function GET(req: Request) {
             .slice(0, 5); // Top 5
 
         const { getPlanLimits } = await import("@/lib/plan-limits");
-        const workspace = await globalPrisma.workspace.findUnique({
+        const workspace = await prisma.workspace.findUnique({
             where: { id: workspaceId },
             select: { plan: true }
         });

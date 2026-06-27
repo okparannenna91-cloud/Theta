@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -71,6 +72,21 @@ const QUICK_ACTIONS = [
 export function NovaAssistant() {
     const { activeWorkspaceId } = useWorkspace();
     const { showUpgradePrompt } = usePopups();
+    const pathname = usePathname();
+
+    const currentProjectId = pathname?.startsWith("/projects/") ? pathname.split("/")[2]?.split("?")[0] : undefined;
+
+    const pageContext = pathname ? {
+        path: pathname,
+        type: pathname === "/dashboard" ? "dashboard" :
+              pathname.startsWith("/projects/") ? "project" :
+              pathname.startsWith("/tasks") ? "tasks" :
+              pathname.startsWith("/calendar") ? "calendar" :
+              pathname.startsWith("/workspaces") ? "workspaces" :
+              pathname.startsWith("/notifications") ? "notifications" :
+              pathname.startsWith("/settings") ? "settings" :
+              "other",
+    } : undefined;
     const [isOpen, setIsOpen] = useState(false);
     const [isMinimized, setIsMinimized] = useState(false);
     const [input, setInput] = useState("");
@@ -382,6 +398,8 @@ export function NovaAssistant() {
                         prompt: currentInput,
                         workspaceId: activeWorkspaceId,
                         conversationId: convId || undefined,
+                        projectId: currentProjectId,
+                        context: pageContext,
                     }),
                     signal: controller.signal,
                 });

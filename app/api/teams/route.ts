@@ -42,10 +42,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    const { getPrismaClient } = await import("@/lib/prisma");
-    const db = getPrismaClient(workspaceId);
-
-    const teams = await db.team.findMany({
+    const teams = await prisma.team.findMany({
       where: {
         workspaceId,
       },
@@ -115,7 +112,7 @@ export async function GET(req: Request) {
     }));
 
     // Calculate counts
-    const count = await db.team.count({ where: { workspaceId } });
+    const count = await prisma.team.count({ where: { workspaceId } });
     const memberCount = await prisma.workspaceMember.count({ where: { workspaceId } });
     const pendingInvites = await prisma.invite.count({ where: { workspaceId, status: "pending" } });
 
@@ -171,9 +168,6 @@ export async function POST(req: Request) {
       );
     }
 
-    const { getPrismaClient } = await import("@/lib/prisma");
-    const db = getPrismaClient(workspaceId);
-
     // Verify workspace membership (admin/owner to create teams?)
     const membership = await prisma.workspaceMember.findUnique({
       where: {
@@ -205,7 +199,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
-    const team = await db.team.create({
+    const team = await prisma.team.create({
       data: {
         name,
         description,

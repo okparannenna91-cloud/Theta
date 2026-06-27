@@ -1,4 +1,4 @@
-import { getPrismaClient } from "../prisma";
+import { prisma } from "../prisma";
 import { MEETING_PHASES, type MeetingPhase } from "./constitution/meeting-standards";
 
 export { MEETING_PHASES, type MeetingPhase } from "./constitution/meeting-standards";
@@ -114,8 +114,8 @@ export class MeetingIntelligence {
     }
   ): Promise<string | null> {
     try {
-      const db = getPrismaClient(workspaceId);
-      const meeting = await db.meeting.create({
+      
+      const meeting = await prisma.meeting.create({
         data: {
           workspaceId,
           userId,
@@ -140,8 +140,8 @@ export class MeetingIntelligence {
     data: Record<string, unknown>
   ): Promise<boolean> {
     try {
-      const db = getPrismaClient(workspaceId);
-      await db.meeting.update({ where: { id: meetingId }, data });
+      
+      await prisma.meeting.update({ where: { id: meetingId }, data });
       return true;
     } catch (error) {
       console.warn("[MeetingIntelligence] Failed to update meeting:", error);
@@ -154,8 +154,8 @@ export class MeetingIntelligence {
     meetingId: string
   ): Promise<Record<string, unknown> | null> {
     try {
-      const db = getPrismaClient(workspaceId);
-      return await db.meeting.findUnique({ where: { id: meetingId } });
+      
+      return await prisma.meeting.findUnique({ where: { id: meetingId } });
     } catch (error) {
       console.warn("[MeetingIntelligence] Failed to get meeting:", error);
       return null;
@@ -167,8 +167,8 @@ export class MeetingIntelligence {
     options: { phase?: string; limit?: number } = {}
   ): Promise<Array<{ id: string; title: string; status: string; phase: string; createdAt: Date }>> {
     try {
-      const db = getPrismaClient(workspaceId);
-      return await db.meeting.findMany({
+      
+      return await prisma.meeting.findMany({
         where: {
           workspaceId,
           ...(options.phase ? { phase: options.phase } : {}),

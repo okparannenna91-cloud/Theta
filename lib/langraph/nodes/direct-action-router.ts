@@ -1,0 +1,53 @@
+import { executeTool } from "./tool-executor";
+import type { LangGraphToolContext } from "../tools/wrapper";
+import { logger } from "@/lib/logger";
+
+export interface DirectActionResult {
+  handled: boolean;
+  message?: string;
+  error?: string;
+  actionName?: string;
+  durationMs: number;
+}
+
+const HIGH_CONFIDENCE = 0.85;
+
+function detectAction(prompt: string): { action: string; confidence: number; params: Record<string, string | undefined> } | null {
+  const lower = prompt.trim().toLowerCase();
+  let best: { action: string; confidence: number; params: Record<string, string | undefined> } | null = null;
+
+  const patterns: Array<{ action: string; keywords: string[]; confidence: number; extract: (input: string) => Record<string, string | undefined> }> = [
+    { action: "create_task", keywords: ["create", "task"], confidence: 0.95, extract: (i) => { const m = i.match(/create\s+(?:a\s+)?task\s+(?:called\s+)?[""](.+?)[""]/i); return m ? { title: m[1] } : { title: "New task" }; } },
+    { action: "list_tasks", keywords: ["list", "tasks"], confidence: 0.9, extract: () => ({}) },
+    { action: "create_project", keywords: ["create", "project"], confidence: 0.95, extract: (i) => { const m = i.match(/create\s+(?:a\s+)?project\s+(?:called\s+)?[""](.+?)[""]/i); return m ? { name: m[1] } : { name: "New project" }; } },
+    { action: "list_projects", keywords: ["list", "projects"], confidence: 0.9, extract: () => ({}) },
+    { action: "list_members", keywords: ["list", "members"], confidence: 0.9, extract: () => ({}) },
+    { action: "list_workspaces", keywords: ["list", "workspaces"], confidence: 0.85, extract: () => ({}) },
+  ];
+
+  for (const p of patterns) {
+    if (p.keywords.every((kw) => lower.includes(kw))) {
+      if (!best || p.confidence > best.confidence) best = { action: p.action, confidence: p.confidence, params: p.extract(lower) };
+    }
+  }
+  return best;
+}
+
+export async function tryDirectAction(prompt: string, ctx: LangGraphToolContext): Promise<DirectActionResult> {
+  const start = Date.now();
+  try {
+    const match = detectAction(prompt);
+    if (!match || match.confidence < HIGH_CONFIDENCE) return { handled: false, durationMs: Date.now() - start };
+
+    logger.info("[DirectActionRouter] Matched", { action: match.action, confidence: match.confidence });
+    const result = await executeTool(ctx, match.action, match.params as Record<string, unknown>);
+
+    if (result.success) {
+      const msg = typeof result.result === "object" && result.result ? (result.result as any).message || `${match.action} completed.` : `${match.action} completed.`;
+      return { handled: true, message: msg, actionName: match.action, durationMs: Date.now() - start };
+    }
+    return { handled: true, error: result.error, actionName: match.action, durationMs: Date.now() - start };
+  } catch (error: any) {
+    return { handled: true, error: error.message, actionName: "error", durationMs: Date.now() - start };
+  }
+}

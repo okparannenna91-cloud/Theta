@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import * as Ably from "ably";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
 
@@ -40,9 +41,7 @@ export async function GET(req: Request) {
                 capabilities[`workspace:${workspaceId}:project:${projectId}:chat`] = ["subscribe", "publish", "history"];
             }
 
-            // Grant access to team-specific channels the user has membership in
-            const db = (await import("@/lib/prisma")).getPrismaClient(workspaceId);
-            const teamMemberships = await db.teamMember.findMany({
+            const teamMemberships = await prisma.teamMember.findMany({
                 where: { userId: user.id },
                 select: { teamId: true },
             });
@@ -50,19 +49,14 @@ export async function GET(req: Request) {
                 capabilities[`team:${tm.teamId}:chat`] = ["subscribe", "publish", "history"];
             }
         } else if (teamId) {
-            // If only teamId is provided, look up the team
-            const { findAcrossShards } = await import("@/lib/prisma");
-            const teamLookup = await findAcrossShards<any>("team", { id: teamId });
-            if (teamLookup.data) {
-                const wsId = teamLookup.data.workspaceId;
-                // Verify workspace access
+            const teamLookup = await prisma.team.findUnique({ where: { id: teamId }, select: { workspaceId: true } });
+            if (teamLookup) {
+                const wsId = teamLookup.workspaceId;
                 const hasAccess = await verifyWorkspaceAccess(user.id, wsId);
                 if (!hasAccess) {
                     return NextResponse.json({ error: "Access denied" }, { status: 403 });
                 }
-                // Verify team membership
-                const tmDb = (await import("@/lib/prisma")).getPrismaClient(wsId);
-                const teamMember = await tmDb.teamMember.findUnique({
+                const teamMember = await prisma.teamMember.findUnique({
                     where: { teamId_userId: { teamId, userId: user.id } }
                 });
                 if (!teamMember) {
@@ -74,8 +68,7 @@ export async function GET(req: Request) {
                 return NextResponse.json({ error: "Team not found" }, { status: 404 });
             }
         } else {
-            // No scoping requested — grant only workspace-level notifications
-            const memberships = await (await import("@/lib/prisma")).prisma.workspaceMember.findMany({
+            const memberships = await prisma.workspaceMember.findMany({
                 where: { userId: user.id },
                 select: { workspaceId: true },
             });

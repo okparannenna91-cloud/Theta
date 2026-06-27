@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { prisma, findAcrossShards } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
 
@@ -9,13 +9,13 @@ const subtaskSchema = z.object({
     order: z.number().optional(),
 });
 
-async function recalculateTaskProgress(taskId: string, db: any) {
+async function recalculateTaskProgress(taskId: string) {
     const [subtasks, completedCount] = await Promise.all([
-        db.subtask.count({ where: { taskId } }),
-        db.subtask.count({ where: { taskId, completed: true } }),
+        prisma.subtask.count({ where: { taskId } }),
+        prisma.subtask.count({ where: { taskId, completed: true } }),
     ]);
     const progress = subtasks > 0 ? Math.round((completedCount / subtasks) * 100) : 0;
-    await db.task.update({
+    await prisma.task.update({
         where: { id: taskId },
         data: { progress },
     });
@@ -31,26 +31,24 @@ export async function GET(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: task, db } = await findAcrossShards<any>("task", { id: params.id });
+        const task = await prisma.task.findUnique({ where: { id: params.id } });
 
         if (!task) {
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
         }
 
-        // Verify workspace access
         const { verifyWorkspaceAccess } = await import("@/lib/workspace");
         const hasAccess = await verifyWorkspaceAccess(user.id, task.workspaceId);
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Verify project access
         const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
         if (!hasProjectAccess) {
             return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
         }
 
-        const subtasks = await (db as any).subtask.findMany({
+        const subtasks = await prisma.subtask.findMany({
             where: { taskId: params.id },
             orderBy: { order: "asc" },
         });
@@ -75,13 +73,12 @@ export async function POST(
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { data: task, db } = await findAcrossShards<any>("task", { id: params.id });
+        const task = await prisma.task.findUnique({ where: { id: params.id } });
 
         if (!task) {
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
         }
 
-        // Verify workspace access (Workspace records are on Shard 1 / primary)
         const membership = await prisma.workspaceMember.findUnique({
             where: {
                 workspaceId_userId: {
@@ -95,7 +92,6 @@ export async function POST(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Verify project access
         const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
         if (!hasProjectAccess) {
             return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
@@ -104,7 +100,7 @@ export async function POST(
         const body = await req.json();
         const data = subtaskSchema.parse(body);
 
-        const subtask = await (db as any).subtask.create({
+        const subtask = await prisma.subtask.create({
             data: {
                 title: data.title,
                 order: data.order || 0,
@@ -112,7 +108,7 @@ export async function POST(
             },
         });
 
-        await recalculateTaskProgress(params.id, db);
+        await recalculateTaskProgress(params.id);
 
         return NextResponse.json(subtask);
     } catch (error) {

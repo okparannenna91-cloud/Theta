@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { prisma, getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
 
 export async function GET(req: Request) {
@@ -52,12 +52,10 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Access denied to this workspace" }, { status: 403 });
     }
 
-    const db = getPrismaClient(workspaceId);
-
     const [accessibleProjectIds, teamMembershipCheck] = await Promise.all([
       getAccessibleProjectIds(user.id, workspaceId),
       teamId
-        ? db.teamMember.findUnique({ where: { teamId_userId: { teamId, userId: user.id } } })
+        ? prisma.teamMember.findUnique({ where: { teamId_userId: { teamId, userId: user.id } } })
         : Promise.resolve(null),
     ]);
 
@@ -77,30 +75,30 @@ export async function GET(req: Request) {
       projectsCount, tasksCount, teamsCount, recentProjects, recentTasks,
       activities, statuses, taskCounts
     ] = await Promise.all([
-      db.project.count({ where: whereProject }),
-      db.task.count({ where: { ...whereTask, status: { notIn: ["completed", "done"] } } }),
+      prisma.project.count({ where: whereProject }),
+      prisma.task.count({ where: { ...whereTask, status: { notIn: ["completed", "done"] } } }),
       prisma.workspaceMember.count({ where: { workspaceId } }),
-      db.project.findMany({
+      prisma.project.findMany({
         where: whereProject,
         take: 5,
         orderBy: { createdAt: "desc" },
         include: { _count: { select: { tasks: true } } },
       }),
-      db.task.findMany({
+      prisma.task.findMany({
         where: whereTask,
         take: 5,
         orderBy: { createdAt: "desc" },
         include: { project: { select: { name: true } } },
       }),
-      db.activity.findMany({
+      prisma.activity.findMany({
         where: {
           workspaceId,
           createdAt: { gte: sevenDaysAgo },
           OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }]
         }
       }),
-      db.status.findMany({ where: { workspaceId }, orderBy: { order: "asc" } }),
-      db.task.groupBy({
+      prisma.status.findMany({ where: { workspaceId }, orderBy: { order: "asc" } }),
+      prisma.task.groupBy({
         by: ['status', 'priority', 'statusId'],
         where: whereTask,
         _count: true,
@@ -138,7 +136,7 @@ export async function GET(req: Request) {
       return { name: days[d.getDay()], activities: activities.filter(a => new Date(a.createdAt).toDateString() === dayKey).length };
     });
 
-    const rawActivities = await db.activity.findMany({
+    const rawActivities = await prisma.activity.findMany({
       where: {
         workspaceId,
         OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }]

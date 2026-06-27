@@ -1,4 +1,4 @@
-import { getPrismaClient } from "../prisma";
+import { prisma } from "../prisma";
 import { PROJECT_STRUCTURE_STANDARDS, PROJECT_CREATION_FLOW, PROJECT_INTELLIGENCE_CAPABILITIES, PROJECT_MONITORING_AREAS } from "./constitution/project-standards";
 import { STATUS_DONE, STATUS_IN_PROGRESS, STATUS_BLOCKED } from "../constants/status";
 
@@ -37,9 +37,7 @@ export interface ProjectForecast {
 
 export class ProjectIntelligence {
   public static async analyzeHealth(workspaceId: string, projectId: string): Promise<ProjectHealthReport> {
-    const db = getPrismaClient(workspaceId);
-
-    const tasks = await db.task.findMany({
+    const tasks = await prisma.task.findMany({
       where: { projectId },
       include: { predecessors: true },
     });

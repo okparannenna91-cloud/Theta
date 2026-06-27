@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getPrismaClient } from "@/lib/prisma";
+import { prisma } from "@/lib/prisma";
 
 export async function GET(req: Request) {
     try {
@@ -16,9 +16,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
-
-        const memories = await db.aiMemory.findMany({
+        const memories = await prisma.aiMemory.findMany({
             where: { userId: user.id },
             orderBy: { updatedAt: "desc" },
         });
@@ -43,9 +41,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
-
-        const memory = await db.aiMemory.upsert({
+        const memory = await prisma.aiMemory.upsert({
             where: {
                 userId_key: {
                     userId: user.id,
@@ -81,15 +77,14 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
-        const db = getPrismaClient(workspaceId);
         let deleted;
 
         if (id) {
-            deleted = await db.aiMemory.delete({
+            deleted = await prisma.aiMemory.delete({
                 where: { id },
             });
         } else if (key) {
-            deleted = await db.aiMemory.delete({
+            deleted = await prisma.aiMemory.delete({
                 where: {
                     userId_key: {
                         userId: user.id,
