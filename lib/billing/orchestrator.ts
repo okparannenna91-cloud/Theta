@@ -8,7 +8,7 @@ import { registerProviders } from "./providers/register";
 import { CronSummary, BillingInterval } from "./types";
 import { transition } from "./subscription-state-machine";
 import { providerRegistry } from "./providers/registry";
-import { getPlanPriceDynamic, BILLING_PLANS } from "@/lib/billing-plans";
+import { getPlanPriceDynamic, BILLING_PLANS, BILLING_PLAN_LOOKUP } from "@/lib/billing-plans";
 import { logger } from "@/lib/logger";
 
 registerProviders();
@@ -37,7 +37,7 @@ class BillingOrchestrator {
     successUrl: string;
     cancelUrl: string;
   }) {
-    const plan = BILLING_PLANS.find((p) => p.planKey === params.planId);
+    const plan = BILLING_PLAN_LOOKUP[params.planId];
     if (!plan) throw new Error(`Plan not found: ${params.planId}`);
 
     const workspace = await prisma.workspace.findUnique({
