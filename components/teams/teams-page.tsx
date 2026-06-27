@@ -97,7 +97,10 @@ export default function TeamsPage() {
     enabled: !!activeWorkspaceId,
   });
 
-  const teams = Array.isArray(teamsData?.teams) ? teamsData.teams : Array.isArray(teamsData) ? teamsData : [];
+  const teams = useMemo(() =>
+    Array.isArray(teamsData?.teams) ? teamsData.teams : Array.isArray(teamsData) ? teamsData : [],
+    [teamsData]
+  );
   const teamLimits = teamsData?.limits || { max: -1, current: 0 };
   const memberLimits = teamsData?.memberLimits || { max: -1, current: 0 };
   const isTeamLimitReached = teamLimits.max !== -1 && teamLimits.current >= teamLimits.max;

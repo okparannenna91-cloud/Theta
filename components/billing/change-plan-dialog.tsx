@@ -102,12 +102,12 @@ export function ChangePlanDialog({
           {targetPlan.isUpgrade ? (
             <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-sm text-emerald-800">
               <Check className="h-4 w-4 inline mr-1" />
-              You'll get immediate access to all {targetPlan.name} features.
+              You&apos;ll get immediate access to all {targetPlan.name} features.
             </div>
           ) : (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
               <ArrowDown className="h-4 w-4 inline mr-1" />
-              You'll keep your current features until the billing period ends.
+              You&apos;ll keep your current features until the billing period ends.
             </div>
           )}
         </div>
