@@ -23,10 +23,10 @@ function getOpenAIClient(): OpenAI {
   return _openaiClient;
 }
 
-export async function generateWithOpenAI(prompt: string, systemPrompt?: string, signal?: AbortSignal) {
+export async function generateWithOpenAI(prompt: string, systemPrompt?: string, signal?: AbortSignal, model?: string) {
   const client = getOpenAIClient();
   const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: model || "gpt-4o-mini",
     messages: [
       { role: "system", content: systemPrompt || "You are a helpful assistant." },
       { role: "user", content: prompt }
@@ -35,10 +35,10 @@ export async function generateWithOpenAI(prompt: string, systemPrompt?: string, 
   return response.choices[0].message.content;
 }
 
-export async function generateWithVision(prompt: string, imageUrl: string, systemPrompt?: string, signal?: AbortSignal) {
+export async function generateWithVision(prompt: string, imageUrl: string, systemPrompt?: string, signal?: AbortSignal, model?: string) {
   const client = getOpenAIClient();
   const response = await client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: model || "gpt-4o-mini",
     messages: [
       { role: "system", content: systemPrompt || "You are a helpful assistant." },
       {
@@ -56,10 +56,10 @@ export async function generateWithVision(prompt: string, imageUrl: string, syste
   return response.choices[0].message.content;
 }
 
-export async function streamWithOpenAI(prompt: string, systemPrompt?: string, signal?: AbortSignal) {
+export async function streamWithOpenAI(prompt: string, systemPrompt?: string, signal?: AbortSignal, model?: string) {
   const client = getOpenAIClient();
   return await client.chat.completions.create({
-    model: "gpt-4o-mini",
+    model: model || "gpt-4o-mini",
     messages: [
       { role: "system", content: systemPrompt || "You are a helpful assistant." },
       { role: "user", content: prompt }

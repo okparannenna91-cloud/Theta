@@ -1,7 +1,9 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
+
+const WORKSPACE_SWITCH_EVENT = "workspace:switch";
 
 async function fetchWorkspaces() {
   const res = await fetch("/api/workspaces");
@@ -9,13 +11,15 @@ async function fetchWorkspaces() {
   return res.json();
 }
 
+function getInitialWorkspaceId(): string | null {
+  if (typeof window !== "undefined") {
+    return localStorage.getItem("activeWorkspaceId");
+  }
+  return null;
+}
+
 export function useWorkspace() {
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("activeWorkspaceId");
-    }
-    return null;
-  });
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(getInitialWorkspaceId);
 
   const { data: workspaces, isLoading, error } = useQuery({
     queryKey: ["workspaces"],
@@ -27,6 +31,17 @@ export function useWorkspace() {
 
   const [fallbackWorkspace, setFallbackWorkspace] = useState<any>(null);
   const [fallbackLoading, setFallbackLoading] = useState(false);
+
+  // Listen for workspace switch events from other hook instances
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      if (e.detail?.id) {
+        setActiveWorkspaceId(e.detail.id);
+      }
+    };
+    window.addEventListener(WORKSPACE_SWITCH_EVENT, handler as EventListener);
+    return () => window.removeEventListener(WORKSPACE_SWITCH_EVENT, handler as EventListener);
+  }, []);
 
   // Sync active workspace from localStorage only when we have valid list data
   const queryCompleted = !isLoading && workspaces !== undefined;
@@ -69,11 +84,12 @@ export function useWorkspace() {
     }
   }, [workspaces, fallbackWorkspace]);
 
-  const switchWorkspace = (id: string) => {
+  const switchWorkspace = useCallback((id: string) => {
     if (!id || typeof id !== "string") return;
     setActiveWorkspaceId(id);
     localStorage.setItem("activeWorkspaceId", id);
-  };
+    window.dispatchEvent(new CustomEvent(WORKSPACE_SWITCH_EVENT, { detail: { id } }));
+  }, []);
 
   const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId) || fallbackWorkspace || workspaces?.[0] || null;
 

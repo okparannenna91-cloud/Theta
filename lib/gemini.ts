@@ -15,10 +15,10 @@ function getGenAI(): GoogleGenerativeAI {
   return _genAI;
 }
 
-export function getModel() {
-  return getGenAI().getGenerativeModel({ model: "gemini-1.5-flash" });
+export function getModel(model?: string) {
+  return getGenAI().getGenerativeModel({ model: model || "gemini-2.5-flash" });
 }
 
-export function getVisionModel() {
-  return getModel();
+export function getVisionModel(model?: string) {
+  return getModel(model);
 }

@@ -1,16 +1,6 @@
 import { readFile, writeFile, mkdir, readdir } from 'fs/promises'
 import { existsSync } from 'fs'
 import { resolve } from 'path'
-import {
-  runBrowserTask,
-  researchCompany,
-  openCompanyWebsite,
-  analyzeCompany,
-  analyzeRole,
-  determineThetaFit,
-  generateOutreach,
-  type ExecuteResult,
-} from '../../bridge/browser'
 
 const LINKEDIN_ROOT = resolve(process.cwd(), 'LinkedIn')
 
@@ -76,144 +66,72 @@ export async function reviewTheta(): Promise<string> {
   return `## Theta Review\n\n${info}\n\nAlways reference these capabilities when analyzing fit for potential leads.`
 }
 
-export async function discoverLeads(industry: string): Promise<ExecuteResult> {
-  return runBrowserTask(
-    `Research and discover potential leads for Theta in the "${industry}" industry.
+export async function discoverLeads(industry: string): Promise<string> {
+  return `Research and discover potential leads for Theta in the "${industry}" industry. Use web search to find:
+1. Companies that are growing or hiring
+2. Key decision makers (Founders, CEOs, CTOs, PMs)
+3. Companies with multiple teams or projects
+4. Remote-first or distributed teams
+5. Companies showing operational or collaboration challenges
 
-     Look for:
-     1. Companies in the ${industry} space that are growing or hiring
-     2. Key decision makers (Founders, CEOs, CTOs, PMs)
-     3. Companies with multiple teams or projects
-     4. Remote-first or distributed teams
-     5. Companies showing operational or collaboration challenges
-
-     For each lead found, capture:
-     - Company name
-     - Person name and role
-     - Why they might need project management
-     - Theta fit reasoning
-
-     Prioritize quality over quantity.
-     Only include leads where Theta is clearly relevant.
-     Take screenshots of research sources.
-
-     Return a JSON array of leads found.`,
-  )
+Use the websearch tool to find companies, then save leads using the lead tools.`
 }
 
 export async function researchLead(
   companyName: string,
   personName?: string,
   role?: string,
-): Promise<ExecuteResult> {
-  const result = await runBrowserTask(
-    `Deep research the company "${companyName}"${personName ? ` and person "${personName}"` : ''}${role ? ` in role "${role}"` : ''}.
+): Promise<string> {
+  return `Research the company "${companyName}"${personName ? ` and person "${personName}"` : ''}${role ? ` in role "${role}"` : ''}. Use web search to find:
+1. Company overview, size, industry, and team structure
+2. Recent news, funding, growth signals
+3. Their project management needs and challenges
+4. Person's role and background
 
-     Research Plan:
-
-     1. Company Research:
-        - What does ${companyName} do? (products, services, industry)
-        - Company size and structure
-        - Team setup (remote, hybrid, in-office)
-        - Current tools and workflows
-        - Recent news, funding, growth signals
-        - Hiring activity and team expansion
-
-     2. Person Research${personName ? ` (${personName})` : ''}:
-        - Role and responsibilities
-        - Decision-making authority
-        - Their team size and structure
-        - Professional background
-        - Any public posts or content
-
-     3. Theta Fit Assessment:
-        - Does this company manage multiple projects?
-        - Do they have teams that need coordination?
-        - Would Theta's features help them?
-        - Are they the right size for Theta?
-
-     Take screenshots of all sources.
-     Provide a structured analysis.`,
-  )
-
-  if (result.success) {
-    const lead: Partial<Lead> = {
-      name: personName ?? 'Unknown',
-      role: role ?? 'Unknown',
-      company: companyName,
-      companyWebsite: '',
-      linkedinUrl: '',
-      industry: '',
-      companySize: 'Unknown',
-      publicSignals: [],
-      thetaFitAnalysis: result.result ?? 'Analysis pending',
-      confidenceScore: 0.5,
-      suggestedFirstMessage: '',
-      suggestedFollowUp: '',
-      status: 'researched',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }
-
-    const category = await categorizeLead(lead)
-    await saveLead(lead as Lead, category)
-  }
-
-  return result
+After researching, save the lead using saveLead.`
 }
 
-export async function analyzeFit(
-  companyName: string,
-  website: string,
-): Promise<ExecuteResult> {
-  const result = await determineThetaFit(companyName, website)
-
-  if (result.success) {
-    const dir = resolve(LINKEDIN_ROOT, 'tracking')
-    await mkdir(dir, { recursive: true })
-    const filePath = resolve(dir, `${companyName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-fit.json`)
-    await writeFile(filePath, JSON.stringify({
-      company: companyName,
-      website,
-      analysis: result.result,
-      confidence: extractConfidence(result.result),
-      timestamp: new Date().toISOString(),
-    }, null, 2))
-  }
-
-  return result
+export async function analyzeFit(companyName: string, website: string): Promise<string> {
+  const dir = resolve(LINKEDIN_ROOT, 'tracking')
+  await mkdir(dir, { recursive: true })
+  const filePath = resolve(dir, `${companyName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-fit.json`)
+  await writeFile(filePath, JSON.stringify({
+    company: companyName,
+    website,
+    analysis: `Fit analysis pending for ${companyName}. Use web search to research their team size, industry, and project management needs.`,
+    confidence: 0.5,
+    timestamp: new Date().toISOString(),
+  }, null, 2))
+  return `Fit analysis template saved for ${companyName} (${website}). Use web search to gather more information and update the analysis.`
 }
 
-export async function generateLeadOutreach(
-  leadName: string,
-  company: string,
-): Promise<ExecuteResult> {
-  const result = await generateOutreach({
-    companyName: company,
-    targetName: leadName,
-  })
-
-  if (result.success && result.result) {
-    const msgDir = resolve(LINKEDIN_ROOT, 'messages')
-    await mkdir(msgDir, { recursive: true })
-    const filePath = resolve(msgDir, `${company.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${leadName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.md`)
-    await writeFile(filePath, [
-      `# Outreach: ${leadName} @ ${company}`,
-      '',
-      `**Generated:** ${new Date().toISOString()}`,
-      `**Status:** Pending Review`,
-      '',
-      '---',
-      '',
-      result.result,
-      '',
-      '---',
-      '',
-      '*Review before sending. Human approval required.*',
-    ].join('\n'), 'utf-8')
-  }
-
-  return result
+export async function generateLeadOutreach(leadName: string, company: string): Promise<string> {
+  const msgDir = resolve(LINKEDIN_ROOT, 'messages')
+  await mkdir(msgDir, { recursive: true })
+  const filePath = resolve(msgDir, `${company.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}-${leadName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase()}.md`)
+  await writeFile(filePath, [
+    `# Outreach: ${leadName} @ ${company}`,
+    '',
+    `**Generated:** ${new Date().toISOString()}`,
+    `**Status:** Pending Review`,
+    '',
+    '---',
+    '',
+    `Generate a personalized LinkedIn outreach message for ${leadName} at ${company}.`,
+    '',
+    'Rules:',
+    '1. Reference something real about their company or role',
+    '2. Explain why Theta is relevant to their specific situation',
+    '3. Be conversational and human',
+    '4. Do NOT use: "Hope you\'re doing well", "revolutionize", "game changer"',
+    '5. Do NOT ask for a meeting or demo',
+    '6. End with a soft, natural call to action',
+    '',
+    '---',
+    '',
+    '*Review before sending. Human approval required.*',
+  ].join('\n'), 'utf-8')
+  return `Outreach message template saved for ${leadName} at ${company}. Edit the file at ${filePath} with your personalized message.`
 }
 
 export async function saveLead(lead: Lead, category: LeadCategory): Promise<string> {
@@ -274,13 +192,4 @@ async function categorizeLead(lead: Partial<Lead>): Promise<LeadCategory> {
     return CATEGORIES[3]
   }
   return CATEGORIES[0]
-}
-
-function extractConfidence(analysis: string | null | undefined): number {
-  if (!analysis) return 0.5
-  const match = analysis.match(/(\d+)(?:\s*\/\s*10|\s*out\s*of\s*10)/i)
-  if (match) return parseInt(match[1]) / 10
-  const scoreMatch = analysis.match(/confidence[:\s]+(\d+\.?\d*)/i)
-  if (scoreMatch) return parseFloat(scoreMatch[1])
-  return 0.5
 }

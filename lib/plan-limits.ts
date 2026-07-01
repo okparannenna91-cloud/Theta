@@ -2,6 +2,7 @@ export type PlanName = "free" | "growth" | "pro" | "theta_plus";
 
 export interface PlanLimits {
     // Core Resources
+    maxWorkspaces: number;           // -1 = unlimited
     maxProjects: number;              // -1 = unlimited
     maxTasks: number;
     maxTeams: number;
@@ -36,6 +37,7 @@ export interface PlanLimits {
 
 export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
     free: {
+        maxWorkspaces: 3,
         maxProjects: 3,
         maxTasks: 25,
         maxTeams: 1,
@@ -60,6 +62,7 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxChatMessages: 100,
     },
     growth: {
+        maxWorkspaces: -1,
         maxProjects: 15,
         maxTasks: 150,
         maxTeams: 5,
@@ -84,6 +87,7 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxChatMessages: 1000,
     },
     pro: {
+        maxWorkspaces: -1,
         maxProjects: 100,
         maxTasks: -1, // unlimited
         maxTeams: -1,
@@ -108,6 +112,7 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxChatMessages: -1,
     },
     theta_plus: {
+        maxWorkspaces: -1,
         maxProjects: -1,
         maxTasks: -1,
         maxTeams: -1,
@@ -132,6 +137,18 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxChatMessages: -1,
     },
 };
+
+/**
+ * Check if user can create more workspaces
+ */
+export function canCreateWorkspace(
+    plan: PlanName,
+    currentWorkspaceCount: number
+): boolean {
+    const limits = PLAN_LIMITS[plan];
+    if (limits.maxWorkspaces === -1) return true;
+    return currentWorkspaceCount < limits.maxWorkspaces;
+}
 
 /**
  * Check if workspace can create more projects
@@ -251,6 +268,8 @@ export function getPlanLimits(plan: PlanName): PlanLimits {
  */
 export function getPlanLimitMessage(plan: PlanName, feature: string): string {
     switch (feature) {
+        case "workspaces":
+            return "Workspace limit reached. Upgrade your plan to create more workspaces.";
         case "projects":
             return "Project limit reached. Upgrade your plan to create more projects.";
         case "tasks":
@@ -341,6 +360,7 @@ export async function enforcePlanLimit(
     let isAllowed = true;
 
     switch (feature) {
+        case "workspaces": isAllowed = limits.maxWorkspaces === -1 || currentCount < limits.maxWorkspaces; break;
         case "projects": isAllowed = limits.maxProjects === -1 || currentCount < limits.maxProjects; break;
         case "tasks": isAllowed = limits.maxTasks === -1 || currentCount < limits.maxTasks; break;
         case "members": isAllowed = limits.maxMembers === -1 || currentCount < limits.maxMembers; break;

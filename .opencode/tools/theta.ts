@@ -10,47 +10,35 @@ export const review = tool({
 })
 
 export const discover_leads = tool({
-  description: "Discover potential leads for Theta in a specific industry. Uses browser automation to search and identify companies and decision-makers.",
+  description: "Discover potential leads for Theta in a specific industry. Uses web search to identify companies and decision-makers.",
   args: {
     industry: tool.schema.string().describe("Target industry to search for leads (e.g. 'SaaS', 'marketing agencies', 'consulting')"),
   },
   async execute(args) {
-    const result = await agent.discoverLeads(args.industry)
-    if (!result.success) {
-      return JSON.stringify({ error: result.error?.message ?? "Unknown error", details: result.error?.details })
-    }
-    return result.result ?? JSON.stringify({ message: "No leads found" })
+    return await agent.discoverLeads(args.industry)
   },
 })
 
 export const research_lead = tool({
-  description: "Deep research a company and person for Theta fit analysis. Uses browser automation to gather company info, team structure, and growth signals.",
+  description: "Deep research a company and person for Theta fit analysis. Uses web search to gather company info, team structure, and growth signals.",
   args: {
     companyName: tool.schema.string().describe("Company name to research"),
     personName: tool.schema.string().optional().describe("Target person name at the company"),
     role: tool.schema.string().optional().describe("Target person's role"),
   },
   async execute(args) {
-    const result = await agent.researchLead(args.companyName, args.personName, args.role)
-    if (!result.success) {
-      return JSON.stringify({ error: result.error?.message ?? "Unknown error" })
-    }
-    return result.result ?? JSON.stringify({ message: "Research complete" })
+    return await agent.researchLead(args.companyName, args.personName, args.role)
   },
 })
 
 export const analyze_fit = tool({
-  description: "Evaluate how well a company fits Theta's ideal customer profile. Uses browser automation to analyze website and public information.",
+  description: "Evaluate how well a company fits Theta's ideal customer profile. Uses web search to analyze website and public information.",
   args: {
     companyName: tool.schema.string().describe("Company name to analyze"),
     website: tool.schema.string().describe("Company website URL"),
   },
   async execute(args) {
-    const result = await agent.analyzeFit(args.companyName, args.website)
-    if (!result.success) {
-      return JSON.stringify({ error: result.error?.message ?? "Unknown error" })
-    }
-    return result.result ?? JSON.stringify({ message: "Analysis complete" })
+    return await agent.analyzeFit(args.companyName, args.website)
   },
 })
 
@@ -61,11 +49,7 @@ export const generate_outreach = tool({
     company: tool.schema.string().describe("Company name of the lead"),
   },
   async execute(args) {
-    const result = await agent.generateLeadOutreach(args.leadName, args.company)
-    if (!result.success) {
-      return JSON.stringify({ error: result.error?.message ?? "Unknown error" })
-    }
-    return result.result ?? JSON.stringify({ message: "Outreach message generated" })
+    return await agent.generateLeadOutreach(args.leadName, args.company)
   },
 })
 

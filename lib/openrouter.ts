@@ -13,7 +13,7 @@ function combineAbortSignals(...signals: AbortSignal[]): AbortSignal {
 }
 
 export const openrouter = createOpenAI({
-  apiKey: process.env.OPENROUTER,
+  apiKey: process.env.OPENROUTER_API_KEY,
   baseURL: "https://openrouter.ai/api/v1",
   headers: {
     "HTTP-Referer": "https://thetapm.site",
@@ -28,7 +28,7 @@ export async function generateWithOpenRouter(
   modelName?: string,
   signal?: AbortSignal
 ) {
-    const apiKey = process.env.OPENROUTER;
+    const apiKey = process.env.OPENROUTER_API_KEY;
     if (!apiKey) {
         throw new Error("OpenRouter API key missing");
     }
@@ -54,7 +54,7 @@ export async function generateWithOpenRouter(
         messages.push({ role: "user", content: prompt });
     }
 
-    const model = modelName || (imageUrl ? "google/gemini-flash-1.5" : "google/gemini-flash-1.5");
+    const model = modelName || (imageUrl ? "openrouter/free" : "openrouter/free");
 
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort("OpenRouter fetch timeout"), 25000);

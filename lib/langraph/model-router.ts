@@ -31,7 +31,7 @@ function classifyPrompt(prompt: string): TaskCategory {
 
 export function routeModel(prompt: string): RouterConfig {
   const category = classifyPrompt(prompt);
-  const openRouterAvailable = !!process.env.OPENROUTER;
+  const openRouterAvailable = !!process.env.OPENROUTER_API_KEY;
   const openAIAvailable = !!process.env.OPENAI_API_KEY;
   const geminiAvailable = !!process.env.GEMINI_API_KEY;
   const cohereAvailable = !!process.env.COHERE_API_KEY;
@@ -41,92 +41,145 @@ export function routeModel(prompt: string): RouterConfig {
     promptPreview: prompt.substring(0, 80),
   });
 
+  const primaryModel = "openrouter/free";
+  const geminiModel = "gemini-2.5-flash";
+  const cohereModel = "command-a-03-2025";
+  const openaiModel = "gpt-4o-mini";
+
   switch (category) {
     case "chat": {
-      if (geminiAvailable) {
-        return { provider: "gemini", model: "gemini-1.5-flash", reason: "Simple chat routed to Gemini Flash for cost efficiency" };
-      }
       if (openRouterAvailable) {
-        return { provider: "openrouter", model: "google/gemini-flash-1.5", reason: "Simple chat via OpenRouter (Gemini Flash)" };
+        return { provider: "openrouter", model: primaryModel, reason: "Chat routed to OpenRouter" };
+      }
+      if (geminiAvailable) {
+        return { provider: "gemini", model: geminiModel, reason: "Chat via Gemini fallback" };
+      }
+      if (cohereAvailable) {
+        return { provider: "cohere", model: cohereModel, reason: "Chat via Cohere fallback" };
       }
       if (openAIAvailable) {
-        return { provider: "openai", model: "gpt-4o-mini", reason: "Simple chat via OpenAI fallback" };
+        return { provider: "openai", model: openaiModel, reason: "Chat via OpenAI fallback" };
       }
-      return { provider: "openrouter", model: "google/gemini-flash-1.5", reason: "Default chat route" };
+      return { provider: "openrouter", model: primaryModel, reason: "Default chat route" };
     }
 
     case "reasoning": {
-      if (openAIAvailable) {
-        return { provider: "openai", model: "gpt-4o", reason: "Reasoning task routed to OpenAI (GPT-4o)" };
-      }
       if (openRouterAvailable) {
-        return { provider: "openrouter", model: "openai/gpt-4o", reason: "Reasoning task via OpenRouter (GPT-4o)" };
+        return { provider: "openrouter", model: primaryModel, reason: "Reasoning task routed to OpenRouter" };
       }
-      return { provider: "gemini", model: "gemini-1.5-flash", reason: "Reasoning fallback to Gemini" };
+      if (geminiAvailable) {
+        return { provider: "gemini", model: geminiModel, reason: "Reasoning via Gemini fallback" };
+      }
+      if (cohereAvailable) {
+        return { provider: "cohere", model: cohereModel, reason: "Reasoning via Cohere fallback" };
+      }
+      if (openAIAvailable) {
+        return { provider: "openai", model: openaiModel, reason: "Reasoning via OpenAI fallback" };
+      }
+      return { provider: "openrouter", model: primaryModel, reason: "Default reasoning route" };
     }
 
     case "retrieval": {
-      if (cohereAvailable) {
-        return { provider: "cohere", model: "command-a-03-2025", reason: "Retrieval task routed to Cohere (optimized for RAG)" };
+      if (openRouterAvailable) {
+        return { provider: "openrouter", model: primaryModel, reason: "Retrieval routed to OpenRouter" };
       }
       if (geminiAvailable) {
-        return { provider: "gemini", model: "gemini-1.5-flash", reason: "Retrieval fallback to Gemini" };
+        return { provider: "gemini", model: geminiModel, reason: "Retrieval via Gemini fallback" };
       }
-      return { provider: "openrouter", model: "google/gemini-flash-1.5", reason: "Retrieval via OpenRouter fallback" };
+      if (cohereAvailable) {
+        return { provider: "cohere", model: cohereModel, reason: "Retrieval via Cohere fallback" };
+      }
+      if (openAIAvailable) {
+        return { provider: "openai", model: openaiModel, reason: "Retrieval via OpenAI fallback" };
+      }
+      return { provider: "openrouter", model: primaryModel, reason: "Default retrieval route" };
     }
 
     case "action": {
       if (openRouterAvailable) {
-        return { provider: "openrouter", model: "openai/gpt-4o-mini", reason: "Action routed to OpenRouter (GPT-4o-mini)" };
+        return { provider: "openrouter", model: primaryModel, reason: "Action routed to OpenRouter" };
+      }
+      if (geminiAvailable) {
+        return { provider: "gemini", model: geminiModel, reason: "Action via Gemini fallback" };
+      }
+      if (cohereAvailable) {
+        return { provider: "cohere", model: cohereModel, reason: "Action via Cohere fallback" };
       }
       if (openAIAvailable) {
-        return { provider: "openai", model: "gpt-4o-mini", reason: "Action via OpenAI fallback" };
+        return { provider: "openai", model: openaiModel, reason: "Action via OpenAI fallback" };
       }
-      return { provider: "gemini", model: "gemini-1.5-flash", reason: "Action fallback to Gemini" };
+      return { provider: "openrouter", model: primaryModel, reason: "Default action route" };
     }
 
     case "analysis": {
       if (openRouterAvailable) {
-        return { provider: "openrouter", model: "openai/gpt-4o-mini", reason: "Analysis routed to OpenRouter (GPT-4o-mini)" };
+        return { provider: "openrouter", model: primaryModel, reason: "Analysis routed to OpenRouter" };
+      }
+      if (geminiAvailable) {
+        return { provider: "gemini", model: geminiModel, reason: "Analysis via Gemini fallback" };
+      }
+      if (cohereAvailable) {
+        return { provider: "cohere", model: cohereModel, reason: "Analysis via Cohere fallback" };
       }
       if (openAIAvailable) {
-        return { provider: "openai", model: "gpt-4o-mini", reason: "Analysis via OpenAI fallback" };
+        return { provider: "openai", model: openaiModel, reason: "Analysis via OpenAI fallback" };
       }
-      return { provider: "gemini", model: "gemini-1.5-flash", reason: "Analysis fallback to Gemini" };
+      return { provider: "openrouter", model: primaryModel, reason: "Default analysis route" };
     }
 
     case "code": {
-      if (openAIAvailable) {
-        return { provider: "openai", model: "gpt-4o", reason: "Code task routed to OpenAI (GPT-4o)" };
-      }
       if (openRouterAvailable) {
-        return { provider: "openrouter", model: "openai/gpt-4o", reason: "Code task via OpenRouter (GPT-4o)" };
+        return { provider: "openrouter", model: primaryModel, reason: "Code routed to OpenRouter" };
       }
-      return { provider: "gemini", model: "gemini-1.5-flash", reason: "Code fallback to Gemini" };
+      if (geminiAvailable) {
+        return { provider: "gemini", model: geminiModel, reason: "Code via Gemini fallback" };
+      }
+      if (cohereAvailable) {
+        return { provider: "cohere", model: cohereModel, reason: "Code via Cohere fallback" };
+      }
+      if (openAIAvailable) {
+        return { provider: "openai", model: openaiModel, reason: "Code via OpenAI fallback" };
+      }
+      return { provider: "openrouter", model: primaryModel, reason: "Default code route" };
     }
 
     case "creative": {
       if (openRouterAvailable) {
-        return { provider: "openrouter", model: "openai/gpt-4o-mini", reason: "Creative task via OpenRouter (GPT-4o-mini)" };
+        return { provider: "openrouter", model: primaryModel, reason: "Creative routed to OpenRouter" };
+      }
+      if (geminiAvailable) {
+        return { provider: "gemini", model: geminiModel, reason: "Creative via Gemini fallback" };
+      }
+      if (cohereAvailable) {
+        return { provider: "cohere", model: cohereModel, reason: "Creative via Cohere fallback" };
       }
       if (openAIAvailable) {
-        return { provider: "openai", model: "gpt-4o-mini", reason: "Creative via OpenAI fallback" };
+        return { provider: "openai", model: openaiModel, reason: "Creative via OpenAI fallback" };
       }
-      return { provider: "gemini", model: "gemini-1.5-flash", reason: "Creative fallback to Gemini" };
+      return { provider: "openrouter", model: primaryModel, reason: "Default creative route" };
     }
 
     default: {
-      return { provider: "openrouter", model: "google/gemini-flash-1.5", reason: "Default route" };
+      if (openRouterAvailable) {
+        return { provider: "openrouter", model: primaryModel, reason: "Default route" };
+      }
+      if (geminiAvailable) {
+        return { provider: "gemini", model: geminiModel, reason: "Default route via Gemini" };
+      }
+      if (cohereAvailable) {
+        return { provider: "cohere", model: cohereModel, reason: "Default route via Cohere" };
+      }
+      return { provider: "openai", model: openaiModel, reason: "Default route via OpenAI" };
     }
   }
 }
 
 export function getAvailableProviders(): RouterProvider[] {
   const providers: RouterProvider[] = [];
-  if (process.env.OPENROUTER) providers.push("openrouter");
-  if (process.env.OPENAI_API_KEY) providers.push("openai");
+  if (process.env.OPENROUTER_API_KEY) providers.push("openrouter");
   if (process.env.GEMINI_API_KEY) providers.push("gemini");
   if (process.env.COHERE_API_KEY) providers.push("cohere");
+  if (process.env.OPENAI_API_KEY) providers.push("openai");
   return providers;
 }
 
@@ -145,12 +198,12 @@ export async function executeWithProvider(
     }
     case "openai": {
       const { generateWithOpenAI } = await import("@/lib/openai");
-      const result = await generateWithOpenAI(prompt, systemPrompt);
+      const result = await generateWithOpenAI(prompt, systemPrompt, undefined, model);
       return result ?? "";
     }
     case "gemini": {
       const { getModel } = await import("@/lib/gemini");
-      const geminiModel = getModel();
+      const geminiModel = getModel(model);
       const result = await geminiModel.generateContent({
         contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\nUser Prompt: ${prompt}` }] }],
       });
@@ -158,7 +211,7 @@ export async function executeWithProvider(
     }
     case "cohere": {
       const { generateWithCohere } = await import("@/lib/cohere");
-      return generateWithCohere(prompt, systemPrompt);
+      return generateWithCohere(prompt, systemPrompt, undefined, model);
     }
     default: {
       throw new Error(`Unknown provider: ${provider}`);

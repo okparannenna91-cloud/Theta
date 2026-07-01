@@ -80,7 +80,7 @@ export const SERVICE_REGISTRY: ServiceDefinition[] = [
   },
   {
     name: "AI Fallback 1",
-    provider: "Cohere",
+    provider: "Gemini",
     category: "ai",
     purpose: "Fallback execution, Text generation, Workspace intelligence, Summarization",
     responsibilities: [
@@ -90,11 +90,21 @@ export const SERVICE_REGISTRY: ServiceDefinition[] = [
   },
   {
     name: "AI Fallback 2",
+    provider: "Cohere",
+    category: "ai",
+    purpose: "Workspace intelligence, Text generation, Third layer fallback",
+    responsibilities: [
+      "Handle requests when Gemini is unavailable",
+      "Generate text and summaries",
+    ],
+  },
+  {
+    name: "AI Fallback 3",
     provider: "OpenAI",
     category: "ai",
-    purpose: "Critical workflows, High-value tasks, Reliability backup",
+    purpose: "Critical workflows, High-value tasks, Last resort fallback",
     responsibilities: [
-      "Serve as reliability backup",
+      "Serve as last resort reliability backup",
       "Handle critical operations",
     ],
   },

@@ -13,22 +13,25 @@ export const MODEL_STACK: ModelConfig[] = [
     provider: "OPENROUTER",
     layer: "primary",
     purpose: "Default entry point for most AI requests — Model routing, Cost optimization, Provider redundancy",
-    defaultModel: "google/gemini-flash-1.5",
-  },
-  {
-    provider: "COHERE",
-    layer: "secondary",
-    purpose: "Fallback execution, Text generation, Summarization — Maintains reliability if primary routing fails",
-  },
-  {
-    provider: "OPENAI",
-    layer: "emergency",
-    purpose: "Critical workflows, High-value tasks, Reliability backup — Reserved for quality/reliability importance",
+    defaultModel: "openrouter/free",
   },
   {
     provider: "GEMINI",
+    layer: "secondary",
+    purpose: "Fallback execution, Text generation, Summarization — Maintains reliability if primary routing fails",
+    defaultModel: "gemini-2.5-flash",
+  },
+  {
+    provider: "COHERE",
+    layer: "emergency",
+    purpose: "Workspace intelligence, Text generation, Summarization — Third layer fallback",
+    defaultModel: "command-a-03-2025",
+  },
+  {
+    provider: "OPENAI",
     layer: "ultimate",
-    purpose: "Last resort fallback — Native Google Gemini API when all other providers are unavailable",
+    purpose: "Last resort fallback — OpenAI API when all other providers are unavailable",
+    defaultModel: "gpt-4o-mini",
   },
 ];
 
@@ -42,17 +45,17 @@ export const MODEL_SELECTION_STRATEGIES: ModelSelectionStrategy[] = [
   {
     complexity: "SIMPLE",
     description: "Summaries, Rewrites, Formatting",
-    recommendedModels: ["google/gemini-flash-1.5"],
+    recommendedModels: ["openrouter/free"],
   },
   {
     complexity: "REASONING",
     description: "Sprint planning, Dependency analysis, Workflow generation",
-    recommendedModels: ["anthropic/claude-3-5-sonnet", "openai/gpt-4o"],
+    recommendedModels: ["openrouter/free", "gemini-2.5-flash"],
   },
   {
     complexity: "CRITICAL",
     description: "Executive reports, Risk assessments, Project forecasting",
-    recommendedModels: ["openai/gpt-4o"],
+    recommendedModels: ["openrouter/free", "gpt-4o-mini"],
   },
 ];
 
@@ -65,5 +68,5 @@ export const MODEL_SELECTION_RULES: string[] = [
 
 export function getModelForComplexity(complexity: TaskComplexity): string {
   const strategy = MODEL_SELECTION_STRATEGIES.find(s => s.complexity === complexity);
-  return strategy?.recommendedModels[0] ?? MODEL_STACK[0].defaultModel ?? "google/gemini-flash-1.5";
+  return strategy?.recommendedModels[0] ?? MODEL_STACK[0].defaultModel ?? "openrouter/free";
 }

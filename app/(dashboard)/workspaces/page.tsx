@@ -26,7 +26,10 @@ export default function WorkspacesPage() {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ name }),
             });
-            if (!res.ok) throw new Error("Failed to create workspace");
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to create workspace");
+            }
             return res.json();
         },
         onSuccess: async (newWorkspace) => {
@@ -60,6 +63,9 @@ export default function WorkspacesPage() {
     };
 
     const handleDelete = (id: string) => { deleteMutation.mutate(id); };
+
+    const freeWorkspaces = workspaces?.filter((w: any) => w.plan === "free") || [];
+    const freeLimitReached = freeWorkspaces.length >= 3;
 
     if (isLoading) {
         return (
@@ -100,9 +106,14 @@ export default function WorkspacesPage() {
                         Manage your organizations and environments
                     </p>
                 </div>
-                <Button onClick={() => setIsOpen(true)}>
-                    <Plus className="h-4 w-4 mr-2" /> Create Workspace
-                </Button>
+                <div className="flex items-center gap-3">
+                    {freeLimitReached && (
+                        <p className="text-xs text-muted-foreground">Free plan limit reached (3 max)</p>
+                    )}
+                    <Button onClick={() => setIsOpen(true)} disabled={freeLimitReached}>
+                        <Plus className="h-4 w-4 mr-2" /> Create Workspace
+                    </Button>
+                </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -149,13 +160,23 @@ export default function WorkspacesPage() {
                     </Card>
                 ))}
 
-                <button onClick={() => setIsOpen(true)}
-                    className="h-full min-h-[160px] border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors p-6">
-                    <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
-                        <Plus className="h-5 w-5" />
+                {freeLimitReached ? (
+                    <div className="h-full min-h-[160px] border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-3 text-muted-foreground p-6">
+                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                            <Building2 className="h-5 w-5" />
+                        </div>
+                        <span className="text-sm font-medium text-center">Free plan limit reached</span>
+                        <span className="text-xs text-muted-foreground text-center">Upgrade a workspace to create more</span>
                     </div>
-                    <span className="text-sm font-medium">Create New Workspace</span>
-                </button>
+                ) : (
+                    <button onClick={() => setIsOpen(true)}
+                        className="h-full min-h-[160px] border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-3 text-muted-foreground hover:text-primary hover:border-primary/50 transition-colors p-6">
+                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                            <Plus className="h-5 w-5" />
+                        </div>
+                        <span className="text-sm font-medium">Create New Workspace</span>
+                    </button>
+                )}
             </div>
 
             <div className="mt-8 p-5 rounded-lg border bg-muted/30">

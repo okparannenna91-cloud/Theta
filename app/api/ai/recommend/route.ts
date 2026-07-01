@@ -6,7 +6,7 @@ import { createOpenAI } from "@ai-sdk/openai";
 import { z } from "zod";
 
 const openrouter = createOpenAI({
-  apiKey: process.env.OPENROUTER,
+  apiKey: process.env.OPENROUTER_API_KEY,
   baseURL: "https://openrouter.ai/api/v1",
   headers: {
     "HTTP-Referer": "https://thetapm.site",
@@ -36,7 +36,7 @@ If none of the projects fit, return "no-project".`;
         // Use a simpler approach for now since I can't easily do experimental_generateObject without knowing the exact version
         // I'll just use generateText and parse or similar
         const responseText = (await generateText({
-            model: openrouter("openai/gpt-4o-mini"),
+            model: openrouter("openrouter/free"),
             system: "You are a metadata recommender. Return ONLY a JSON object with keys 'priority' and 'projectId'.",
             prompt: prompt,
         })).text;

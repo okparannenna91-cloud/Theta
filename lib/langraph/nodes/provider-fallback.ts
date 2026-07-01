@@ -7,7 +7,7 @@ export async function executeWithFallback(
   systemPrompt: string,
   primaryConfig: RouterConfig,
 ): Promise<string> {
-  const fallbackOrder = ["cohere", "openai", "gemini"] as const;
+  const fallbackOrder = ["gemini", "cohere", "openai"] as const;
 
   // Try primary
   try {
@@ -22,8 +22,8 @@ export async function executeWithFallback(
   const health = new ProviderHealth();
   const available: string[] = [];
   for (const p of fallbackOrder) {
-    const envKey = { cohere: "COHERE_API_KEY", openai: "OPENAI_API_KEY", gemini: "GEMINI_API_KEY" }[p];
-    const providerName = { cohere: "Cohere", openai: "OpenAI", gemini: "Gemini" }[p];
+    const envKey = { gemini: "GEMINI_API_KEY", cohere: "COHERE_API_KEY", openai: "OPENAI_API_KEY" }[p];
+    const providerName = { gemini: "Gemini", cohere: "Cohere", openai: "OpenAI" }[p];
     if (process.env[envKey] && health.isAvailable(providerName as ProviderName)) available.push(p);
   }
 

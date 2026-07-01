@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getUserWorkspaces } from "@/lib/workspace";
+import { canCreateWorkspace, getPlanLimitMessage } from "@/lib/plan-limits";
+import { prisma } from "@/lib/prisma";
 
 export async function GET() {
     try {
@@ -31,6 +33,21 @@ export async function POST(req: Request) {
         const { name } = await req.json();
         if (!name) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
+        }
+
+        // Count user's existing free-plan workspaces
+        const freeWorkspaceCount = await prisma.workspaceMember.count({
+            where: {
+                userId: user.id,
+                workspace: { plan: "free" },
+            },
+        });
+
+        if (!canCreateWorkspace("free", freeWorkspaceCount)) {
+            return NextResponse.json(
+                { error: getPlanLimitMessage("free", "workspaces") },
+                { status: 403 }
+            );
         }
 
         const { createWorkspace } = await import("@/lib/workspace");

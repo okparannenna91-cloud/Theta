@@ -327,35 +327,15 @@ Optimize for learning and customer validation above all else.
 
 ## Tools Reference
 
-The following functions are available in `.opencode/skills/theta-growth-engineer/agent.ts` for programmatic use:
+The following tools are available for use:
 
-| Function | Description |
-|----------|-------------|
-| `getThetaInfo()` | Returns Theta's current version, URL, and capabilities |
-| `reviewTheta()` | Returns a formatted Theta review for context |
-| `discoverLeads(industry)` | Browses the web to discover leads in a target industry |
-| `researchLead(companyName, personName?, role?)` | Deep researches a company and person |
-| `analyzeFit(companyName, website)` | Evaluates Theta fit and saves analysis |
-| `generateLeadOutreach(leadName, company)` | Generates personalized outreach message |
-| `saveLead(lead, category)` | Saves a lead to the LinkedIn directory |
-| `readLead(company, name)` | Reads a lead from storage |
-| `listLeads(category?)` | Lists all leads, optionally filtered by category |
-| `categorizeLead(lead)` | Determines the best category for a lead |
+| Tool | Description |
+|------|-------------|
+| `theta_review` | Review Theta's current capabilities |
+| `theta_discover_leads` | Discover leads in an industry |
+| `theta_research_lead` | Research a company and person |
+| `theta_analyze_fit` | Evaluate Theta fit for a company |
+| `theta_generate_outreach` | Generate personalized outreach |
+| `theta_list_leads` | List saved leads |
 
-These functions are also exposed as callable tools (prefixed `theta_*`) that you can invoke directly instead of writing import statements.
-
-Available tools:
-- `theta_review` — Review Theta's current capabilities
-- `theta_discover_leads` — Discover leads in an industry
-- `theta_research_lead` — Research a company and person
-- `theta_analyze_fit` — Evaluate Theta fit for a company
-- `theta_generate_outreach` — Generate personalized outreach
-- `theta_list_leads` — List saved leads
-
-When using code, import from the project root:
-
-```typescript
-import { reviewTheta } from './.opencode/skills/theta-growth-engineer/agent'
-```
-
-Always use the tools or agent.ts functions instead of manually implementing browser automation or lead tracking logic.
+Always use these tools instead of manually implementing browser automation or lead tracking logic.

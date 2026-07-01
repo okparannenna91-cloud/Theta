@@ -2,7 +2,7 @@
 description: Discover potential leads in a specific industry niche
 ---
 
-Using the Browser Use bridge, research and discover potential leads for Theta in the "$ARGUMENTS" industry.
+Research and discover potential leads for Theta in the "$ARGUMENTS" industry.
 
 Look for:
 1. Companies that are growing or hiring

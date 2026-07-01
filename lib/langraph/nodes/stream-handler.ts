@@ -14,7 +14,7 @@ export async function executeStream(
   ctx: LangGraphToolContext,
   options?: { model?: string; signal?: AbortSignal; onToken?: (token: string) => void; onFinish?: (text: string) => void },
 ): Promise<StreamResult> {
-  const apiKey = process.env.OPENROUTER;
+  const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("No AI provider API key configured for streaming");
 
   const provider = createOpenAI({
@@ -29,7 +29,7 @@ export async function executeStream(
 
   const collected: string[] = [];
   const result = await streamText({
-    model: provider(options?.model || "openai/gpt-4o-mini"),
+    model: provider(options?.model || "openrouter/free"),
     system: systemPrompt,
     prompt,
     tools: Object.keys(toolDefs).length > 0 ? toolDefs : undefined,

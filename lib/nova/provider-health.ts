@@ -13,7 +13,7 @@ export class ProviderHealth {
   private providers: Map<ProviderName, ProviderState> = new Map();
 
   constructor() {
-    for (const name of ["OpenRouter", "Cohere", "OpenAI", "Gemini"] as ProviderName[]) {
+    for (const name of ["OpenRouter", "Gemini", "Cohere", "OpenAI"] as ProviderName[]) {
       this.providers.set(name, {
         name,
         circuitState: "CLOSED",
