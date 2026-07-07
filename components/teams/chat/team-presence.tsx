@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import Image from "next/image";
 import { Users, Circle, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -48,7 +49,7 @@ export default function TeamPresence({
           >
             <div className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-[10px] font-semibold text-foreground overflow-hidden">
               {u.imageUrl ? (
-                <img src={u.imageUrl} alt={u.name || ""} className="w-full h-full object-cover" />
+                <Image src={u.imageUrl} alt={u.name || ""} width={32} height={32} className="object-cover w-full h-full" />
               ) : (
                 (u.name || "U").slice(0, 2).toUpperCase()
               )}

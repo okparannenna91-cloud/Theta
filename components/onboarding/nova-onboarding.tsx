@@ -511,7 +511,7 @@ export function NovaOnboarding({ onComplete }: NovaOnboardingProps) {
                                     </div>
                                     <div>
                                         <h2 className="text-lg font-bold text-foreground">Workspace Blueprint</h2>
-                                        <p className="text-xs text-muted-foreground">Nova's plan for your workspace</p>
+                                        <p className="text-xs text-muted-foreground">Nova&apos;s plan for your workspace</p>
                                     </div>
                                 </div>
 
