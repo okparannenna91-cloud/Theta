@@ -17,7 +17,7 @@ model Workspace {
   paystackAuthCode     String?
   subscriptionId       String?
   billingProvider      String?  // paystack, ivno
-  ivnoOrderId          String?   @unique
+  ivnoOrderId          String?
   billingStatus        String   @default("active") // active, past_due, canceled, deactivated
   billingEmail         String?
   nextBillingDate      DateTime?
