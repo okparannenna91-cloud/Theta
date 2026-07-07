@@ -113,25 +113,16 @@ const INTENT_CATEGORY_MAP: Record<NovaIntent, ToolCategory[]> = {
   READ: ["TASK", "PROJECT", "DOCUMENT", "WORKSPACE", "INTEGRATION", "ANALYSIS", "MEMORY"],
   UPDATE: ["TASK", "PROJECT", "WORKSPACE", "DOCUMENT", "MEMORY", "UI"],
   DELETE: ["TASK", "PROJECT", "DOCUMENT", "WORKSPACE"],
-  ANALYZE: ["ANALYSIS", "TASK", "PROJECT", "DOCUMENT", "WORKSPACE"],
+  ANALYZE: ["ANALYSIS", "MEMORY"],
   SEARCH: ["DOCUMENT", "TASK", "PROJECT", "WORKSPACE", "ANALYSIS"],
   AUTOMATE: ["WORKFLOW", "AGENT", "TASK"],
-  REPORT: ["ANALYSIS", "WORKSPACE", "TASK", "PROJECT"],
+  REPORT: ["ANALYSIS", "MEMORY"],
   IMPORT: ["WORKFLOW", "INTEGRATION"],
   EXPORT: ["WORKSPACE", "ANALYSIS"],
 };
 
 export function categoriesForIntent(intent: NovaIntent): ToolCategory[] {
   return INTENT_CATEGORY_MAP[intent] ?? ALL_CATEGORIES;
-}
-
-export function countToolsByCategory(tools: Record<string, unknown>): Record<ToolCategory, number> {
-  const counts: Record<string, number> = {};
-  for (const name of Object.keys(tools)) {
-    const cat = getToolCategory(name);
-    if (cat) counts[cat] = (counts[cat] || 0) + 1;
-  }
-  return counts as Record<ToolCategory, number>;
 }
 
 export const ALL_TOOL_NAMES = Object.keys(TOOL_CATEGORY_MAP);

@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { requireProjectAccess } from "@/lib/project-permissions";
+import { requireProjectAccess, requireProjectWriteAccess } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const updateSchema = z.object({
   name: z.string().min(1).optional(),
   description: z.string().optional(),
-  color: z.string().optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Color must be a valid hex color").optional(),
+  coverImage: z.string().url("Cover image must be a valid URL").optional().or(z.literal("")),
   visibility: z.enum(["private", "team_access", "workspace_visible"]).optional(),
+  teamId: z.string().optional().nullable(),
 });
 export async function GET(
   req: Request,
@@ -144,7 +146,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const access = await requireProjectAccess(user.id, project.id, project.workspaceId);
+    const access = await requireProjectWriteAccess(user.id, project.id, project.workspaceId);
     if (!access.allowed) {
       return NextResponse.json(
         { error: access.error!.message },
@@ -194,6 +196,7 @@ export async function DELETE(
       );
     }
 
+    // Check delete permission: workspace owner/admin, project creator, or projectTeams full_access
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -203,8 +206,25 @@ export async function DELETE(
       },
     });
 
-    if (!membership || (membership.role !== "owner" && membership.role !== "admin" && project.userId !== user.id)) {
-      return NextResponse.json({ error: "Access denied. Only project creators or workspace admins can delete projects." }, { status: 403 });
+    const isWorkspaceAdmin = membership && (membership.role === "owner" || membership.role === "admin");
+    const isProjectCreator = project.userId === user.id;
+
+    if (!isWorkspaceAdmin && !isProjectCreator) {
+      // Check if user has full_access via projectTeams
+      const projectTeam = await prisma.projectTeam.findFirst({
+        where: {
+          projectId: params.id,
+          role: "full_access",
+          team: {
+            members: {
+              some: { userId: user.id },
+            },
+          },
+        },
+      });
+      if (!projectTeam) {
+        return NextResponse.json({ error: "Access denied. Only project creators or workspace admins can delete projects." }, { status: 403 });
+      }
     }
 
     await prisma.task.deleteMany({

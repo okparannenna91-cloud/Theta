@@ -1,6 +1,6 @@
 "use client";
 
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type Language } from "@/lib/i18n";
 import {
     Select,
     SelectContent,
@@ -18,7 +18,7 @@ export function LanguageSwitcher() {
             <Globe className="h-4 w-4 text-muted-foreground" />
             <Select
                 value={language}
-                onValueChange={(val: any) => setLanguage(val)}
+                onValueChange={(val: string) => setLanguage(val as Language)}
             >
                 <SelectTrigger className="w-[120px] h-9 text-xs">
                     <SelectValue />

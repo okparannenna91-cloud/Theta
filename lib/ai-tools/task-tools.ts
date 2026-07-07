@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { STATUS_TODO, STATUS_DONE } from "@/lib/constants/status";
 import { TaskIntelligence } from "@/lib/nova/task-intelligence";
 import { type ToolContext, type ToolModule, enforce, requireToolApproval } from "./index";
+import { updateParentTask } from "@/lib/task-utils";
 
 interface TaskIntelligenceRecommendation {
   priority?: string;
@@ -64,13 +65,38 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ taskId: z.string(), status: z.string().optional(), priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(), title: z.string().optional(), assigneeId: z.string().optional() }),
       execute: async ({ taskId, status, priority, title, assigneeId }: Record<string, unknown>) => {
         await enforce(ctx, "write", "task");
-        const existingTask = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true } });
-        if (existingTask) {
-          const { canAccessProjectResource } = await import("../project-permissions");
-          const hasAccess = await canAccessProjectResource(user.id, workspaceId, existingTask.projectId);
-          if (!hasAccess) return { error: "Access denied to this task's project." };
+        const existingTask = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true, parentId: true, workspaceId: true, status: true } });
+        if (!existingTask) return { error: "Task not found." };
+        const { canAccessProjectResource } = await import("../project-permissions");
+        const hasAccess = await canAccessProjectResource(user.id, workspaceId, existingTask.projectId);
+        if (!hasAccess) return { error: "Access denied to this task's project." };
+
+        const updateData: any = {};
+        if (status) updateData.status = status as string;
+        if (priority) updateData.priority = priority as string;
+        if (title) updateData.title = title as string;
+        if (assigneeId) updateData.userId = assigneeId as string;
+
+        // Completion detection (matching API route logic)
+        if (status) {
+          const completionKeywords = ['done', 'complete', 'finished', 'approved'];
+          const isNowCompleted = completionKeywords.some(kw => (status as string).toLowerCase().includes(kw));
+          const wasCompleted = completionKeywords.some(kw => (existingTask.status || '').toLowerCase().includes(kw));
+          if (isNowCompleted && !wasCompleted) {
+            updateData.completedAt = new Date();
+            updateData.progress = 100;
+          } else if (!isNowCompleted && wasCompleted) {
+            updateData.completedAt = null;
+          }
         }
-        const task = await prisma.task.update({ where: { id: taskId as string }, data: { ...(status ? { status: status as string } : {}), ...(priority ? { priority: priority as string } : {}), ...(title ? { title: title as string } : {}), ...(assigneeId ? { userId: assigneeId as string } : {}) } });
+
+        const task = await prisma.task.update({ where: { id: taskId as string }, data: updateData });
+
+        // Cascade to parent
+        if (existingTask.parentId) {
+          await updateParentTask(existingTask.parentId, existingTask.workspaceId);
+        }
+
         await prisma.activity.create({ data: { action: "UPDATED", entityType: "TASK", entityId: task.id, workspaceId, userId: user.id, projectId: task.projectId, metadata: JSON.parse(JSON.stringify({ source: "NOVA_AI", updates: { status, priority, title } })) } });
         return { success: true, message: `Updated task **${task.title}**` };
       }
@@ -81,13 +107,29 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
       execute: async ({ taskId }: Record<string, unknown>) => {
         await requireToolApproval("delete_task", { taskId });
         await enforce(ctx, "delete", "task");
-        const existingTask = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true } });
-        if (existingTask) {
-          const { canAccessProjectResource } = await import("../project-permissions");
-          const hasAccess = await canAccessProjectResource(user.id, workspaceId, existingTask.projectId);
-          if (!hasAccess) return { error: "Access denied to this task's project." };
+        const existingTask = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true, parentId: true, workspaceId: true } });
+        if (!existingTask) return { error: "Task not found." };
+        const { canAccessProjectResource } = await import("../project-permissions");
+        const hasAccess = await canAccessProjectResource(user.id, workspaceId, existingTask.projectId);
+        if (!hasAccess) return { error: "Access denied to this task's project." };
+
+        // Recursively delete descendants
+        async function deleteDescendants(parentId: string) {
+          const children = await prisma.task.findMany({ where: { parentId }, select: { id: true } });
+          for (const child of children) {
+            await deleteDescendants(child.id);
+          }
+          await prisma.task.deleteMany({ where: { parentId } });
         }
+        await deleteDescendants(taskId as string);
+
         const task = await prisma.task.delete({ where: { id: taskId as string } });
+
+        // Update parent progress
+        if (existingTask.parentId) {
+          await updateParentTask(existingTask.parentId, existingTask.workspaceId);
+        }
+
         await prisma.activity.create({ data: { action: "DELETED", entityType: "TASK", entityId: taskId as string, workspaceId, userId: user.id, metadata: { source: "NOVA_AI", title: task.title } } });
         return { success: true, message: `Deleted task **${task.title}**` };
       }
@@ -155,8 +197,8 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
         await enforce(ctx, "write", "task");
         const task = await prisma.task.findUnique({ where: { id: taskId as string } });
         if (!task) return { found: false, message: "Task not found." };
-        const existingMetadata = typeof task.attachments === 'object' && task.attachments ? task.attachments : {};
-        await prisma.task.update({ where: { id: taskId as string }, data: { attachments: { ...(existingMetadata as Record<string, unknown>), customFields: JSON.parse(JSON.stringify(fields)) } } });
+        const existingMetadata = typeof task.customFieldMetadata === 'object' && task.customFieldMetadata ? task.customFieldMetadata : {};
+        await prisma.task.update({ where: { id: taskId as string }, data: { customFieldMetadata: { ...(existingMetadata as Record<string, unknown>), customFields: JSON.parse(JSON.stringify(fields)) } } });
         return { success: true, message: `Updated custom fields for task **${task.title}**.` };
       }
     },

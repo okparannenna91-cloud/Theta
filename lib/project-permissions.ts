@@ -177,7 +177,7 @@ export async function getAccessibleProjectIds(
         return [];
       }
     },
-    30,
+    5,
   );
 }
 
@@ -237,4 +237,108 @@ export async function requireProjectAccess(
   }
 
   return { allowed: true };
+}
+
+const ROLE_WEIGHTS: Record<string, number> = {
+  owner: 100,
+  admin: 50,
+  member: 10,
+};
+
+export function hasMinRole(userRole: string, requiredRole: string): boolean {
+  const userWeight = ROLE_WEIGHTS[userRole] ?? 0;
+  const requiredWeight = ROLE_WEIGHTS[requiredRole] ?? 0;
+  return userWeight >= requiredWeight;
+}
+
+export async function getProjectRole(
+  userId: string,
+  projectId: string,
+  workspaceId: string
+): Promise<string | null> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { workspaceId: true, userId: true },
+  });
+  if (!project) return null;
+
+  const membership = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId: project.workspaceId, userId } },
+  });
+
+  if (membership && hasMinRole(membership.role, "admin")) return "admin";
+
+  if (project.userId === userId) return "admin";
+
+  return membership?.role || null;
+}
+
+export async function requireProjectWriteAccess(
+  userId: string,
+  projectId: string,
+  workspaceId?: string
+): Promise<{ allowed: boolean; error?: { status: number; message: string } }> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { workspaceId: true, userId: true },
+  });
+  if (!project) {
+    return { allowed: false, error: { status: 404, message: "Project not found" } };
+  }
+
+  const wsId = workspaceId || project.workspaceId;
+  const role = await getProjectRole(userId, projectId, wsId);
+
+  if (!role) {
+    return { allowed: false, error: { status: 403, message: "Access denied" } };
+  }
+
+  if (hasMinRole(role, "admin")) return { allowed: true };
+
+  const projectTeam = await prisma.projectTeam.findFirst({
+    where: {
+      projectId,
+      role: { in: ["full_access", "editor"] },
+      team: { members: { some: { userId } } },
+    },
+  });
+
+  if (projectTeam) return { allowed: true };
+
+  return { allowed: false, error: { status: 403, message: "Write access denied" } };
+}
+
+export async function requireProjectAdminAccess(
+  userId: string,
+  projectId: string,
+  workspaceId?: string
+): Promise<{ allowed: boolean; error?: { status: number; message: string } }> {
+  const project = await prisma.project.findUnique({
+    where: { id: projectId },
+    select: { workspaceId: true, userId: true },
+  });
+  if (!project) {
+    return { allowed: false, error: { status: 404, message: "Project not found" } };
+  }
+
+  const wsId = workspaceId || project.workspaceId;
+  const role = await getProjectRole(userId, projectId, wsId);
+
+  if (!role) {
+    return { allowed: false, error: { status: 403, message: "Access denied" } };
+  }
+
+  if (hasMinRole(role, "admin")) return { allowed: true };
+
+  const projectTeam = await prisma.projectTeam.findFirst({
+    where: {
+      projectId,
+      role: "full_access",
+      team: { members: { some: { userId } } },
+    },
+  });
+
+  if (projectTeam) return { allowed: true };
+
+  return { allowed: false, error: { status: 403, message: "Admin access denied" } };
 }

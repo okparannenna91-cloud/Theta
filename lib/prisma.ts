@@ -37,9 +37,21 @@ const createPrismaClient = () => {
     log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
   });
 
-  client.$connect().catch((err) => {
-    logger.error("CRITICAL: Prisma failed to connect:", err.message);
-  });
+  let connected = false;
+  client.$connect()
+    .then(() => { connected = true; })
+    .catch((err) => {
+      logger.error("CRITICAL: Prisma failed to connect:", err.message);
+    });
+
+  const disconnect = () => {
+    if (connected) {
+      client.$disconnect().catch(() => {});
+    }
+  };
+  process.on('beforeExit', disconnect);
+  process.on('SIGINT', () => { disconnect(); process.exit(0); });
+  process.on('SIGTERM', () => { disconnect(); process.exit(0); });
 
   return client;
 };

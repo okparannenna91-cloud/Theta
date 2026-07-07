@@ -16,7 +16,7 @@ const Avatar = React.forwardRef<HTMLDivElement, AvatarProps>(
     return (
       <div ref={ref} className={cn("relative flex shrink-0 overflow-hidden rounded-full", className)} {...props}>
         {src ? (
-          <Image src={src} alt={alt || ""} fill className="object-cover" />
+          <Image src={src} alt={alt || ""} fill sizes="2.5rem" className="object-cover" />
         ) : fallback ? (
           <AvatarFallback>{fallback}</AvatarFallback>
         ) : null}

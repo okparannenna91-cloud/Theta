@@ -3,6 +3,7 @@ import { addHours, differenceInHours } from "date-fns";
 import { DunningLevel, RetryResult, SubscriptionStatus } from "../types";
 import { transition } from "../subscription-state-machine";
 import { providerRegistry } from "../providers/registry";
+import { getPlanPrice } from "@/lib/billing-plans";
 import { logger } from "@/lib/logger";
 
 export class DunningService {
@@ -58,9 +59,16 @@ export class DunningService {
 
     try {
       const provider = providerRegistry.get(workspace.billingProvider ?? "");
+
+      // Ivno creates payment URLs, not charges — skip retry and notify
+      if (provider.id === "ivno") {
+        return await this.escalateDunning(workspaceId, "Ivno requires manual payment via payment URL — auto-retry not supported");
+      }
+
+      const planPrice = getPlanPrice(workspace.plan, (workspace.billingInterval as any) ?? "monthly", 0, (workspace.currency as any) ?? "USD");
       const chargeResult = await provider.chargeCustomer(
         workspace.providerCustomerId ?? "",
-        workspace.plan === "free" ? 0 : 1,
+        workspace.plan === "free" ? 0 : planPrice,
         workspace.currency ?? "USD",
         { offSession: true, description: `Dunning retry #${workspace.retryCount + 1}` }
       );

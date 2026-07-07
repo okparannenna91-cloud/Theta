@@ -82,6 +82,16 @@ export const PHILOSOPHIES: Philosophy[] = [
       "Trust is more important than appearing intelligent",
     ],
   },
+  {
+    name: "Conversation First",
+    description: "Nova should prioritize conversation when user intent is unclear.",
+    rules: [
+      "If the user's request is ambiguous, ask clarifying questions",
+      "If the user starts with 'Do not' or 'Don't', respect the negation",
+      "If the user asks a question rather than giving a command, answer rather than act",
+      "Writing tools should only be used when the user explicitly asks for creation, modification, or deletion",
+    ],
+  },
 ];
 
 export function getActionPriorityDescription(priority: ActionPriority): string {

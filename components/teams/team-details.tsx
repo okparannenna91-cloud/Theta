@@ -27,13 +27,7 @@ import {
     Hash,
     Calendar,
     BarChart3,
-    Zap,
     Link2,
-    ExternalLink,
-    UserCheck,
-    UserX,
-    Eye,
-    EyeOff,
     BadgeCheck,
     Wifi,
     WifiOff,
@@ -168,7 +162,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
         onSuccess: (updatedTeam) => {
             setTeam({ ...team, ...updatedTeam });
             toast.success("Team updated successfully");
-            queryClient.invalidateQueries({ queryKey: ["teams"] });
+            queryClient.invalidateQueries({ queryKey: ["teams", team.workspaceId] });
         },
         onError: () => toast.error("Failed to update team"),
     });
@@ -180,7 +174,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
         },
         onSuccess: () => {
             toast.success("Team deleted");
-            queryClient.invalidateQueries({ queryKey: ["teams"] });
+            queryClient.invalidateQueries({ queryKey: ["teams", team.workspaceId] });
             onBack();
         },
     });
@@ -251,7 +245,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
         onSuccess: () => {
             toast.success("Member removed");
             queryClient.invalidateQueries({ queryKey: ["team-members"] });
-            queryClient.invalidateQueries({ queryKey: ["teams"] });
+            queryClient.invalidateQueries({ queryKey: ["teams", team.workspaceId] });
         },
     });
 
@@ -267,6 +261,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
         onSuccess: () => {
             toast.success("Role updated");
             queryClient.invalidateQueries({ queryKey: ["team-members"] });
+            queryClient.invalidateQueries({ queryKey: ["teams", team.workspaceId] });
         },
     });
 
@@ -1106,7 +1101,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                         <CardFooter className="flex justify-between border-t pt-6">
                                             <Button
                                                 variant="destructive"
-                                                disabled={!isOwner}
+                                                disabled={!isAdmin}
                                                 onClick={() => {
                                                     showConfirm({
                                                         title: "Total Annihilation",

@@ -38,19 +38,24 @@ export async function GET(
 
         const users = await prisma.user.findMany({
             where: { id: { in: uniqueUserIds } },
-            select: { id: true, name: true, email: true, imageUrl: true }
+            select: { id: true, name: true, email: true, imageUrl: true, lastActiveAt: true }
         });
 
         const userMap = new Map(users.map(u => [u.id, u]));
         const members = membersRaw.map((m: any) => {
             const userProfile = userMap.get(m.userId);
+            const isOnline = userProfile?.lastActiveAt 
+                ? (Date.now() - new Date(userProfile.lastActiveAt).getTime()) < 5 * 60 * 1000
+                : false;
             return {
                 ...m,
-                user: userProfile || {
+                user: userProfile ? { ...userProfile, isOnline } : {
                     id: m.userId,
                     name: "Unknown Member",
                     email: "",
-                    imageUrl: null
+                    imageUrl: null,
+                    lastActiveAt: null,
+                    isOnline: false
                 }
             };
         });
@@ -148,7 +153,7 @@ export async function PATCH(
         const { isWorkspaceAdmin } = await import("@/lib/workspace");
         const isWsAdmin = await isWorkspaceAdmin(user.id, team.workspaceId);
 
-        if (!isWsAdmin && currentUserMember?.role !== "admin") {
+        if (!isWsAdmin && currentUserMember?.role !== "admin" && currentUserMember?.role !== "owner") {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

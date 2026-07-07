@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canCreateCalendarEvent, getPlanLimitMessage } from "@/lib/plan-limits";
+import { getPlanLimits } from "@/lib/plan-limits";
 import { getAccessibleProjectIds, canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
 
@@ -65,7 +65,6 @@ export async function GET(req: Request) {
             prisma.calendarEvent.count({ where: { workspaceId } })
         ]);
 
-        const { getPlanLimits } = await import("@/lib/plan-limits");
         const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { plan: true } });
         const plan = workspace?.plan || "free";
         const limits = getPlanLimits(plan as any);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -41,7 +41,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 
-export function Sidebar() {
+export const Sidebar = memo(function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
@@ -60,9 +60,9 @@ export function Sidebar() {
     { name: t("teams"), href: "/teams", icon: Users },
     { name: t("notifications"), href: "/notifications", icon: Bell },
     { name: t("analytics"), href: "/analytics", icon: TrendingUp },
-    { name: "Apps", href: "/apps", icon: Puzzle },
-    { name: "Gantt Chart", href: "/gantt", icon: BarChart3 },
-    { name: "Timeline", href: "/timeline", icon: GanttChartSquare },
+    { name: t("apps"), href: "/apps", icon: Puzzle },
+    { name: t("gantt_chart"), href: "/gantt", icon: BarChart3 },
+    { name: t("timeline"), href: "/timeline", icon: GanttChartSquare },
     { name: t("activity"), href: "/activity", icon: Activity },
     { name: t("billing"), href: "/billing", icon: CreditCard },
     { name: t("settings"), href: "/settings", icon: Settings },
@@ -74,7 +74,7 @@ export function Sidebar() {
     <>
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b h-14 flex items-center justify-between px-4">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <Image src="/Logo.png" alt="Theta Logo" width={22} height={22} className="rounded" />
+          <Image src="/Logo.png" alt="Theta Logo" width={22} height={22} priority sizes="22px" className="rounded" />
           <span className="text-lg font-semibold text-foreground">Theta</span>
         </Link>
         <div className="flex items-center gap-2">
@@ -106,7 +106,7 @@ export function Sidebar() {
         <div className="flex h-14 items-center px-5 border-b border-sidebar-border">
           <Link href="/dashboard" className="flex items-center gap-2.5">
             <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0 bg-primary/20 flex items-center justify-center">
-              <Image src="/Logo.png" alt="Theta Logo" width={20} height={20} className="object-cover" />
+              <Image src="/Logo.png" alt="Theta Logo" width={20} height={20} priority sizes="20px" className="object-cover" />
             </div>
             <span className="text-base font-semibold text-sidebar-foreground">Theta</span>
           </Link>
@@ -164,7 +164,7 @@ export function Sidebar() {
         <nav className="flex-1 overflow-y-auto py-2 px-2">
           <div className="space-y-0.5">
             {navigation.map((item) => {
-              const isActive = pathname === item.href;
+              const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"));
               return (
                 <Link
                   key={item.name}
@@ -207,4 +207,4 @@ export function Sidebar() {
       </div>
     </>
   );
-}
+});

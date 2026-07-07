@@ -22,7 +22,7 @@ export const BROWSE_TEMPLATES: BrowseTemplate[] = [
   { id: "Agile_Dev", name: "Agile Software Development", category: "Engineering" },
   { id: "Client_Onboarding", name: "Client Success Portal", category: "Sales" },
   { id: "Product_Launch", name: "Product Launch Roadmap", category: "Marketing" },
-  { id: "Sprint_Sprint", name: "Two-Week Sprint Board", category: "Engineering" },
+  { id: "Sprint", name: "Two-Week Sprint Board", category: "Engineering" },
   { id: "Content_Calendar", name: "Content Marketing Calendar", category: "Marketing" },
   { id: "Bug_Tracker", name: "Bug Tracking & QA", category: "Engineering" },
   { id: "HR_Onboarding", name: "HR Employee Onboarding", category: "HR" },

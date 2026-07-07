@@ -38,8 +38,8 @@ export async function POST(req: Request) {
             },
             update: {
                 accessToken: encrypt(consumerKey),
-                refreshToken: encrypt(consumerSecret),
-                config: { siteUrl },
+                refreshToken: null,
+                config: { siteUrl, consumerSecret: encrypt(consumerSecret) },
                 updatedAt: new Date(),
             },
             create: {
@@ -47,8 +47,8 @@ export async function POST(req: Request) {
                 // @ts-ignore
                 provider: "woocommerce",
                 accessToken: encrypt(consumerKey),
-                refreshToken: encrypt(consumerSecret),
-                config: { siteUrl },
+                refreshToken: null,
+                config: { siteUrl, consumerSecret: encrypt(consumerSecret) },
             },
         });
 

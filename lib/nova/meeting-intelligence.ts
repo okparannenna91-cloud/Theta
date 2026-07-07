@@ -141,7 +141,7 @@ export class MeetingIntelligence {
   ): Promise<boolean> {
     try {
       
-      await prisma.meeting.update({ where: { id: meetingId }, data });
+      await prisma.meeting.update({ where: { id: meetingId, workspaceId }, data });
       return true;
     } catch (error) {
       console.warn("[MeetingIntelligence] Failed to update meeting:", error);
@@ -155,7 +155,7 @@ export class MeetingIntelligence {
   ): Promise<Record<string, unknown> | null> {
     try {
       
-      return await prisma.meeting.findUnique({ where: { id: meetingId } });
+      return await prisma.meeting.findFirst({ where: { id: meetingId, workspaceId } });
     } catch (error) {
       console.warn("[MeetingIntelligence] Failed to get meeting:", error);
       return null;

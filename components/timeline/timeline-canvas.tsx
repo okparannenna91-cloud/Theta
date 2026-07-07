@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { format, addDays, startOfWeek, endOfWeek, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, eachMonthOfInterval, startOfQuarter, endOfQuarter, isToday, differenceInDays, differenceInMinutes } from "date-fns";
 import { detectCriticalPath } from "@/lib/scheduling/scheduling-engine";
 import { ZoomLevel } from "./timeline-page";
@@ -22,9 +22,25 @@ const VISIBLE_BUFFER = 5;
 
 export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: TimelineCanvasProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
+    const sidebarRef = useRef<HTMLDivElement>(null);
     const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
     const [scrollTop, setScrollTop] = useState(0);
     const [viewportHeight, setViewportHeight] = useState(800);
+    const isSyncingRef = useRef(false);
+
+    // Sync scroll between sidebar and grid
+    const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+        if (isSyncingRef.current) return;
+        isSyncingRef.current = true;
+        const targetScrollTop = e.currentTarget.scrollTop;
+        setScrollTop(targetScrollTop);
+        // Sync the other panel's DOM scroll position
+        const otherPanel = e.currentTarget === sidebarRef.current ? scrollContainerRef.current : sidebarRef.current;
+        if (otherPanel && Math.abs(otherPanel.scrollTop - targetScrollTop) > 1) {
+            otherPanel.scrollTop = targetScrollTop;
+        }
+        isSyncingRef.current = false;
+    }, []);
 
     // Build hierarchy
     const taskTree = useMemo(() => {
@@ -75,10 +91,10 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
         });
     };
 
-    const startDate = startOfMonth(addDays(new Date(), -30));
-    const endDate = endOfMonth(addDays(new Date(), 180));
-    const days = eachDayOfInterval({ start: startDate, end: endDate });
-    const months = eachMonthOfInterval({ start: startDate, end: endDate });
+    const startDate = useMemo(() => startOfMonth(addDays(new Date(), -30)), []);
+    const endDate = useMemo(() => endOfMonth(addDays(new Date(), 180)), []);
+    const days = useMemo(() => eachDayOfInterval({ start: startDate, end: endDate }), [startDate, endDate]);
+    const months = useMemo(() => eachMonthOfInterval({ start: startDate, end: endDate }), [startDate, endDate]);
 
     const cellWidth = useMemo(() => {
         const widths: any = {
@@ -93,7 +109,9 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
     }, [zoomLevel]);
 
     const criticalPath = useMemo(() => {
-        const schedulingTasks = allFlattenedTasks.map(t => ({
+        const flatten = (nodes: any[]): any[] => nodes.flatMap((n: any) => [n, ...flatten(n.children)]);
+        const unfiltered = taskTree.flatMap((nodes) => flatten(nodes));
+        const schedulingTasks = unfiltered.map(t => ({
             id: t.id,
             startDate: t.startDate ? new Date(t.startDate) : null,
             dueDate: t.dueDate ? new Date(t.dueDate) : null,
@@ -106,7 +124,7 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
             })) || []
         }));
         return detectCriticalPath(schedulingTasks);
-    }, [allFlattenedTasks]);
+    }, [taskTree]);
 
     useEffect(() => {
         if (scrollContainerRef.current) {
@@ -123,10 +141,6 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
         return () => window.removeEventListener("resize", handleResize);
     }, [cellWidth, days]);
 
-    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-        setScrollTop(e.currentTarget.scrollTop);
-    };
-
     return (
         <div className="flex h-full border-t border-white/5 overflow-hidden flex-col">
             <div className="flex flex-1 overflow-hidden">
@@ -135,7 +149,7 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
                         <div className="h-24 border-b flex items-center px-8 bg-secondary/20 font-semibold text-[10px] text-muted-foreground/60">
                             Project Architecture
                         </div>
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none" onScroll={handleScroll}>
+                    <div className="flex-1 overflow-y-auto overflow-x-hidden scrollbar-none" ref={sidebarRef} onScroll={handleScroll}>
                         <div style={{ height: allFlattenedTasks.length * ROW_HEIGHT, position: "relative" }}>
                             {visibleTasks.map((task, index) => (
                                 <div 

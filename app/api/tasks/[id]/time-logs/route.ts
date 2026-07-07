@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Task } from "@prisma/client";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
 

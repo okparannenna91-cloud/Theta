@@ -2,16 +2,17 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
-import { canCreateProject, getPlanLimitMessage, PlanName, enforcePlanLimit } from "@/lib/plan-limits";
+import { enforcePlanLimit, getPlanLimits } from "@/lib/plan-limits";
 import { getProjectCount } from "@/lib/usage-tracking";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
+import { createActivity } from "@/lib/activity";
 import { z } from "zod";
 
 const projectSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),
-  color: z.string().optional(),
-  coverImage: z.string().optional(),
+  color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Color must be a valid hex color").optional(),
+  coverImage: z.string().url("Cover image must be a valid URL").optional().or(z.literal("")),
   visibility: z.enum(["private", "team_access", "workspace_visible"]).optional().default("private"),
   teamId: z.string().optional(),
   workspaceId: z.string(),
@@ -115,7 +116,6 @@ export async function GET(req: Request) {
     }));
 
     // Calculate limits
-    const { getPlanLimits } = await import("@/lib/plan-limits");
     const workspace = await prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: { plan: true }
@@ -234,7 +234,6 @@ export async function POST(req: Request) {
     });
 
     // Log activity
-    const { createActivity } = await import("@/lib/activity");
     await createActivity(
       user.id,
       data.workspaceId,

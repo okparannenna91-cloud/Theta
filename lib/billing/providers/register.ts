@@ -10,6 +10,8 @@ export function registerProviders() {
   registered = true;
 
   providerRegistry.register(new PaystackProvider());
-  providerRegistry.register(new FlutterwaveProvider());
+  if (process.env.FLUTTERWAVE_SECRET_KEY) {
+    providerRegistry.register(new FlutterwaveProvider());
+  }
   providerRegistry.register(new IvnoProvider());
 }

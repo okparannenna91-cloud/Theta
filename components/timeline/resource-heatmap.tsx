@@ -42,6 +42,9 @@ export default function ResourceHeatmap({ tasks, startDate, daysCount, cellWidth
         return counts;
     }, [tasks, days, daysCount]);
 
+    const maxWorkload = useMemo(() => Math.max(...workload, 1), [workload]);
+    const overloadThreshold = Math.max(3, Math.ceil(maxWorkload * 0.7));
+
     return (
         <div className="h-20 border-t bg-background/90 backdrop-blur-xl flex z-20 shadow-[0_-10px_30px_rgba(0,0,0,0.05)]">
             {/* Sidebar Label */}
@@ -59,8 +62,8 @@ export default function ResourceHeatmap({ tasks, startDate, daysCount, cellWidth
             <div className="flex-1 overflow-hidden relative">
                 <div className="flex h-full" style={{ width: daysCount * cellWidth }}>
                     {workload.map((count, i) => {
-                        const intensity = Math.min(count / 5, 1); // Normalize: 5 tasks is 100% intensity
-                        const isOverloaded = count >= 5;
+                        const intensity = Math.min(count / overloadThreshold, 1);
+                        const isOverloaded = count >= overloadThreshold;
                         
                         return (
                             <TooltipProvider key={i}>

@@ -4,10 +4,17 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { motion } from "framer-motion";
-import { 
-    LineChart, Line, BarChart, Bar, 
-    XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer 
-} from "recharts";
+import dynamic from "next/dynamic";
+
+const LineChart = dynamic(() => import("recharts").then(m => m.LineChart), { ssr: false });
+const Line = dynamic(() => import("recharts").then(m => m.Line), { ssr: false });
+const BarChart = dynamic(() => import("recharts").then(m => m.BarChart), { ssr: false });
+const Bar = dynamic(() => import("recharts").then(m => m.Bar), { ssr: false });
+const XAxis = dynamic(() => import("recharts").then(m => m.XAxis), { ssr: false });
+const YAxis = dynamic(() => import("recharts").then(m => m.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import("recharts").then(m => m.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => import("recharts").then(m => m.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then(m => m.ResponsiveContainer), { ssr: false });
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +29,7 @@ export default function AnalyticsDashboard() {
     const { showUpgradePrompt } = usePopups();
     const [days, setDays] = useState("30");
 
-    const { data: analytics, isLoading } = useQuery({
+    const { data: analytics, isLoading, error: analyticsError } = useQuery({
         queryKey: ["analytics", activeWorkspaceId, days],
         queryFn: async () => {
             const res = await fetch(`/api/analytics?workspaceId=${activeWorkspaceId}&days=${days}`);
@@ -31,6 +38,20 @@ export default function AnalyticsDashboard() {
         },
         enabled: !!activeWorkspaceId
     });
+
+    if (analyticsError) {
+        return (
+            <div className="p-8 flex flex-col items-center justify-center min-h-[400px]">
+                <div className="h-16 w-16 bg-red-100 dark:bg-red-900/20 rounded-3xl flex items-center justify-center mb-4 text-red-500">
+                    <AlertCircle className="h-8 w-8" />
+                </div>
+                <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Analytics Error</h2>
+                <p className="text-sm text-muted-foreground text-center max-w-md">
+                    Failed to load analytics data. Please try refreshing the page or check your workspace connection.
+                </p>
+            </div>
+        );
+    }
 
     if (isLoading) {
         return (
@@ -54,18 +75,18 @@ export default function AnalyticsDashboard() {
     if (!hasAccess) {
         return (
             <div className="p-4 sm:p-6 lg:p-10 max-w-5xl mx-auto">
-                <Card className="border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 rounded-3xl py-20 flex flex-col items-center justify-center text-center shadow-xl shadow-indigo-500/5">
-                    <div className="h-20 w-20 bg-indigo-100 dark:bg-indigo-900/40 rounded-3xl flex items-center justify-center mb-6 text-indigo-600 shadow-inner">
+                <Card className="border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 rounded-3xl py-20 flex flex-col items-center justify-center text-center shadow-xl shadow-primary/5">
+                    <div className="h-20 w-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-6 text-primary shadow-inner">
                         <Lock className="h-10 w-10" />
                     </div>
-                    <Badge className="bg-indigo-600 mb-4 px-4 py-1.5 font-black uppercase tracking-widest text-[10px]">Premium Feature</Badge>
+                    <Badge className="bg-primary mb-4 px-4 py-1.5 font-black uppercase tracking-widest text-[10px]">Premium Feature</Badge>
                     <h2 className="text-3xl font-black tracking-tight mb-3">Enterprise Velocity Data</h2>
                     <p className="text-muted-foreground text-sm max-w-md mb-10 leading-relaxed font-medium">
                         Advanced analytics, team productivity mapping, and growth velocity charts are available on Growth plans and above.
                     </p>
                     <Button 
                         size="lg" 
-                        className="bg-indigo-600 hover:bg-indigo-700 h-14 px-10 rounded-2xl shadow-xl shadow-indigo-500/20 font-black uppercase tracking-widest text-xs translate-y-0 hover:-translate-y-1 active:translate-y-0 transition-all duration-300"
+                        className="bg-primary hover:bg-primary/90 h-14 px-10 rounded-2xl shadow-xl shadow-primary/20 font-black uppercase tracking-widest text-xs translate-y-0 hover:-translate-y-1 active:translate-y-0 transition-all duration-300"
                         onClick={() => showUpgradePrompt("advanced_analytics")}
                     >
                         <Sparkles className="h-5 w-5 mr-3" />
@@ -77,199 +98,176 @@ export default function AnalyticsDashboard() {
     }
 
     return (
-        <div className="p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto space-y-12 relative selection:bg-indigo-500/30">
-            {/* Neural Mesh Background */}
-            <div className="absolute top-0 right-0 -z-10 w-[800px] h-[800px] bg-indigo-600/5 blur-[120px] rounded-full pointer-events-none animate-pulse" />
-            <div className="absolute bottom-0 left-0 -z-10 w-[600px] h-[600px] bg-purple-600/5 blur-[100px] rounded-full pointer-events-none" />
+        <div className="p-4 sm:p-6 lg:p-10 max-w-7xl mx-auto space-y-12 relative selection:bg-primary/30">
+            {/* Background */}
+            <div className="absolute top-0 right-0 -z-10 w-[800px] h-[800px] bg-primary/5 blur-[120px] rounded-full pointer-events-none animate-pulse" />
+            <div className="absolute bottom-0 left-0 -z-10 w-[600px] h-[600px] bg-primary/5 blur-[100px] rounded-full pointer-events-none" />
 
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-10">
                 <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="space-y-2">
-                    <h1 className="text-5xl sm:text-7xl font-black uppercase tracking-tighter text-slate-900 dark:text-white leading-none">
-                        Neural <span className="text-indigo-600">Analytics</span>
+                    <h1 className="text-4xl font-bold tracking-tight text-foreground leading-none">
+                        Analytics
                     </h1>
                     <div className="flex items-center gap-4">
-                        <div className="h-1.5 w-16 bg-indigo-600 rounded-full" />
-                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.4em] opacity-80">
-                            Workspace Velocity & Performance Diagnostics
+                        <div className="h-1 w-12 bg-primary rounded-full" />
+                        <p className="text-xs text-muted-foreground">
+                            Workspace performance and activity
                         </p>
                     </div>
                 </motion.div>
                 
                 <Select value={days} onValueChange={setDays}>
-                    <SelectTrigger className="w-56 h-14 rounded-2xl shadow-2xl shadow-indigo-500/10 bg-white/40 dark:bg-slate-900/40 backdrop-blur-2xl border-indigo-500/20 font-black uppercase tracking-widest text-[10px]">
+                    <SelectTrigger className="w-44 h-10 rounded-lg">
                         <SelectValue placeholder="Timeframe" />
                     </SelectTrigger>
-                    <SelectContent className="rounded-2xl border-indigo-500/20 bg-white/90 dark:bg-slate-950/90 backdrop-blur-2xl">
-                        <SelectItem value="7">Temporal Window: 7D</SelectItem>
-                        <SelectItem value="30">Temporal Window: 30D</SelectItem>
-                        <SelectItem value="90">Temporal Window: 90D</SelectItem>
+                    <SelectContent className="rounded-lg">
+                        <SelectItem value="7">Last 7 days</SelectItem>
+                        <SelectItem value="30">Last 30 days</SelectItem>
+                        <SelectItem value="90">Last 90 days</SelectItem>
                     </SelectContent>
                 </Select>
             </div>
 
             {/* Top Stat Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-                <Card className="glass-card border-none shadow-2xl shadow-indigo-500/5 rounded-[2.5rem] relative overflow-hidden group p-8">
-                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 group-hover:scale-110 transition-all text-indigo-600"><FolderKanban className="h-16 w-16" /></div>
-                    <CardContent className="p-0">
-                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 mb-6">Total Projects</p>
-                        <p className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white">{analytics?.totals?.projects || 0}</p>
-                        <div className="mt-4 flex items-center gap-2 text-[9px] font-black text-emerald-500 uppercase tracking-widest bg-emerald-500/10 px-3 py-1.5 rounded-xl w-fit">
-                            <Activity className="h-3 w-3" />
-                            System Active
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <Card className="bg-card shadow-sm rounded-lg">
+                    <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Projects</p>
+                            <div className="h-8 w-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                                <FolderKanban className="h-4 w-4 text-primary" />
+                            </div>
+                        </div>
+                        <p className="text-3xl font-bold text-foreground">{analytics?.totals?.projects || 0}</p>
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-card shadow-sm rounded-lg">
+                    <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tasks Completed</p>
+                            <div className="h-8 w-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                                <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                            </div>
+                        </div>
+                        <div className="flex items-baseline gap-2">
+                            <p className="text-3xl font-bold text-emerald-500">{analytics?.totals?.completedTasks || 0}</p>
+                            <span className="text-sm text-muted-foreground">/ {analytics?.totals?.tasks || 0}</span>
                         </div>
                     </CardContent>
                 </Card>
 
-                <Card className="glass-card border-none shadow-2xl shadow-emerald-500/5 rounded-[2.5rem] relative overflow-hidden group p-8">
-                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 group-hover:scale-110 transition-all text-emerald-600"><CheckCircle2 className="h-16 w-16" /></div>
-                    <CardContent className="p-0">
-                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 mb-6">Tasks Completed</p>
-                        <div className="flex items-baseline gap-3">
-                            <p className="text-6xl font-black text-emerald-500 tracking-tighter">{analytics?.totals?.completedTasks || 0}</p>
-                            <span className="text-sm font-black text-slate-400">/ {analytics?.totals?.tasks || 0}</span>
+                <Card className="bg-card shadow-sm rounded-lg">
+                    <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pending Tasks</p>
+                            <div className="h-8 w-8 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                                <ListTodo className="h-4 w-4 text-amber-500" />
+                            </div>
                         </div>
-                        <div className="mt-4 flex items-center gap-2 text-[9px] font-black text-indigo-600 uppercase tracking-widest bg-indigo-500/10 px-3 py-1.5 rounded-xl w-fit">
-                            <Sparkles className="h-3 w-3" />
-                            Target Reached
-                        </div>
+                        <p className="text-3xl font-bold text-foreground">{analytics?.totals?.pendingTasks || 0}</p>
                     </CardContent>
                 </Card>
 
-                <Card className="glass-card border-none shadow-2xl shadow-amber-500/5 rounded-[2.5rem] relative overflow-hidden group p-8">
-                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 group-hover:scale-110 transition-all text-amber-600"><ListTodo className="h-16 w-16" /></div>
-                    <CardContent className="p-0">
-                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 mb-6">Pending Tasks</p>
-                        <p className="text-6xl font-black tracking-tighter text-slate-900 dark:text-white">{analytics?.totals?.pendingTasks || 0}</p>
-                        <div className="mt-4 flex items-center gap-2 text-[9px] font-black text-amber-600 uppercase tracking-widest bg-amber-500/10 px-3 py-1.5 rounded-xl w-fit">
-                            <Clock className="h-3 w-3" />
-                            In Progress
+                <Card className="bg-card shadow-sm rounded-lg">
+                    <CardContent className="p-6">
+                        <div className="flex items-center justify-between mb-4">
+                            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Overdue</p>
+                            <div className="h-8 w-8 rounded-lg bg-red-500/10 flex items-center justify-center">
+                                <AlertCircle className="h-4 w-4 text-red-500" />
+                            </div>
                         </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="glass-card border-none shadow-2xl shadow-red-500/5 rounded-[2.5rem] relative overflow-hidden group p-8">
-                    <div className="absolute top-0 right-0 p-8 opacity-5 group-hover:opacity-20 group-hover:scale-110 transition-all text-red-600"><AlertCircle className="h-16 w-16" /></div>
-                    <CardContent className="p-0">
-                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-slate-400 mb-6">Overdue</p>
-                        <p className="text-6xl font-black text-red-500 tracking-tighter">{analytics?.totals?.overdueTasks || 0}</p>
-                        <div className="mt-4 flex items-center gap-2 text-[9px] font-black text-red-600 uppercase tracking-widest bg-red-500/10 px-3 py-1.5 rounded-xl w-fit">
-                            <AlertCircle className="h-3 w-3" />
-                            Intervention
-                        </div>
+                        <p className="text-3xl font-bold text-red-500">{analytics?.totals?.overdueTasks || 0}</p>
                     </CardContent>
                 </Card>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 {/* Tasks Created vs Completed Chart */}
-                <Card className="glass-card border-none shadow-2xl shadow-indigo-500/5 rounded-[3rem] p-10">
-                    <CardHeader className="p-0 mb-10 flex flex-row items-center justify-between">
-                        <div className="space-y-2">
-                            <CardTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-4">
-                                <div className="h-10 w-10 bg-indigo-600/10 rounded-xl flex items-center justify-center text-indigo-600">
-                                    <Activity className="h-5 w-5" />
-                                </div>
-                                Task Flow Velocity
-                            </CardTitle>
-                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-14">Creation vs Completion Analysis</p>
-                        </div>
+                <Card className="bg-card shadow-sm rounded-lg">
+                    <CardHeader>
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-primary" />
+                            Task Activity
+                        </CardTitle>
+                        <CardDescription>Tasks created vs completed over time</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[400px] p-0">
+                    <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={Array.isArray(analytics?.tasksOverTime) ? analytics.tasksOverTime : []}>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.05} />
-                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: "#94a3b8" }} dy={10} />
-                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: "#94a3b8" }} dx={-10} />
-                                <Tooltip 
-                                    contentStyle={{ borderRadius: "24px", border: "none", backgroundColor: "rgba(15, 23, 42, 0.9)", backdropFilter: "blur(12px)", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", padding: "16px" }}
-                                    itemStyle={{ fontSize: "10px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em" }}
-                                />
-                                <Line type="monotone" dataKey="created" name="CREATED" stroke="#6366f1" strokeWidth={6} dot={false} activeDot={{r: 8, strokeWidth: 0, fill: "#6366f1"}} />
-                                <Line type="monotone" dataKey="completed" name="COMPLETED" stroke="#10b981" strokeWidth={6} dot={false} activeDot={{r: 8, strokeWidth: 0, fill: "#10b981"}} />
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="currentColor" opacity={0.1} />
+                                <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} dy={10} />
+                                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} dx={-10} />
+                                <Tooltip />
+                                <Line type="monotone" dataKey="created" name="Created" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+                                <Line type="monotone" dataKey="completed" name="Completed" stroke="#10b981" strokeWidth={2} dot={false} />
                             </LineChart>
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
 
                 {/* Team Productivity */}
-                <Card className="glass-card border-none shadow-2xl shadow-indigo-500/5 rounded-[3rem] p-10">
-                    <CardHeader className="p-0 mb-10">
-                        <div className="space-y-2">
-                            <CardTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-4">
-                                <div className="h-10 w-10 bg-blue-600/10 rounded-xl flex items-center justify-center text-blue-600">
-                                    <Users className="h-5 w-5" />
-                                </div>
-                                Neural Node Productivity
-                            </CardTitle>
-                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-14">Tasks completed per synchronized node</p>
-                        </div>
+                <Card className="bg-card shadow-sm rounded-lg">
+                    <CardHeader>
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <Users className="h-4 w-4 text-primary" />
+                            Team Productivity
+                        </CardTitle>
+                        <CardDescription>Tasks completed per team member</CardDescription>
                     </CardHeader>
-                    <CardContent className="h-[400px] p-0">
+                    <CardContent className="h-[300px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <BarChart data={Array.isArray(analytics?.teamProductivity) ? analytics.teamProductivity : []} layout="vertical" margin={{ left: 20 }}>
-                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="currentColor" opacity={0.05} />
-                                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: "#94a3b8" }} dy={10} />
-                                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 9, fontWeight: 900, fill: "#94a3b8" }} width={80} />
-                                <Tooltip 
-                                    contentStyle={{ borderRadius: "24px", border: "none", backgroundColor: "rgba(15, 23, 42, 0.9)", backdropFilter: "blur(12px)", boxShadow: "0 25px 50px -12px rgba(0,0,0,0.5)", padding: "16px" }}
-                                    itemStyle={{ fontSize: "10px", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.1em" }}
-                                />
-                                <Bar dataKey="tasksCompleted" name="COMPLETED" fill="#6366f1" radius={[0, 12, 12, 0]} barSize={24} />
+                                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="currentColor" opacity={0.1} />
+                                <XAxis type="number" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} dy={10} />
+                                <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: "#94a3b8" }} width={80} />
+                                <Tooltip />
+                                <Bar dataKey="tasksCompleted" name="Completed" fill="hsl(var(--primary))" radius={[0, 4, 4, 0]} barSize={16} />
                             </BarChart>
                         </ResponsiveContainer>
                     </CardContent>
                 </Card>
 
                 {/* Most Active Projects */}
-                <Card className="glass-card border-none shadow-2xl shadow-indigo-500/5 rounded-[3rem] p-10">
-                    <CardHeader className="p-0 mb-10">
-                        <div className="space-y-2">
-                            <CardTitle className="text-2xl font-black uppercase tracking-tighter flex items-center gap-4">
-                                <div className="h-10 w-10 bg-amber-600/10 rounded-xl flex items-center justify-center text-amber-600">
-                                    <FolderKanban className="h-5 w-5" />
-                                </div>
-                                Active Protocols
-                            </CardTitle>
-                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 ml-14">Projects with peak temporal activity</p>
-                        </div>
+                <Card className="bg-card shadow-sm rounded-lg">
+                    <CardHeader>
+                        <CardTitle className="text-base font-semibold flex items-center gap-2">
+                            <FolderKanban className="h-4 w-4 text-primary" />
+                            Most Active Projects
+                        </CardTitle>
+                        <CardDescription>Projects sorted by activity level</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6 p-0">
+                    <CardContent>
                         {Array.isArray(analytics?.mostActiveProjects) && analytics.mostActiveProjects.length > 0 ? (
                             analytics.mostActiveProjects.map((project: any, i: number) => (
-                                <div key={project.id} className="flex items-center justify-between p-6 bg-white/40 dark:bg-slate-900/40 rounded-2xl border border-indigo-500/5 hover:bg-white dark:hover:bg-slate-900 transition-all duration-500 group">
-                                    <div className="flex items-center gap-6">
-                                        <div className="h-12 w-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center font-black text-slate-500 group-hover:bg-amber-600 group-hover:text-white transition-all duration-500">
-                                            {i + 1}
-                                        </div>
-                                        <div>
-                                            <p className="font-black text-lg tracking-tight uppercase group-hover:text-amber-600 transition-colors">{project.name}</p>
-                                        </div>
+                                <div key={project.id} className="flex items-center justify-between py-3 border-b last:border-0">
+                                    <div className="flex items-center gap-3">
+                                        <span className="text-sm font-medium text-muted-foreground w-6">{i + 1}</span>
+                                        <p className="text-sm font-medium">{project.name}</p>
                                     </div>
-                                    <Badge className="bg-amber-500/10 text-amber-600 border-none font-black uppercase tracking-widest text-[9px] px-4 py-1.5 rounded-full">
-                                        {project.activityCount} TELEMETRY NODES
-                                    </Badge>
+                                    <Badge variant="secondary">{project.activityCount} activities</Badge>
                                 </div>
                             ))
                         ) : (
-                            <div className="p-20 text-center text-slate-400 font-black uppercase tracking-[0.3em] text-xs italic">System diagnostics clear.</div>
+                            <p className="text-sm text-muted-foreground py-8 text-center">No activity data available.</p>
                         )}
                     </CardContent>
                 </Card>
 
-                {/* Completion Rate Gauge */}
-                <Card className="glass-card border-none shadow-2xl shadow-indigo-500/5 rounded-[3rem] p-10 flex flex-col items-center justify-center relative overflow-hidden group">
-                    <div className="absolute top-0 right-0 p-12 opacity-5 group-hover:opacity-10 group-hover:rotate-12 transition-all duration-1000">
-                        <CheckCircle2 className="h-64 w-64 text-indigo-600" />
-                    </div>
-                    <div className="relative z-10 text-center">
-                        <h3 className="text-4xl font-black uppercase tracking-tighter mb-4 leading-none">Operational <br/> Efficiency</h3>
-                        <p className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400 mb-12">Overall Project Execution Matrix</p>
-                        
-                        <div className="text-[120px] font-black text-indigo-600 tracking-tighter leading-none animate-pulse">
-                            {analytics?.totals?.projectCompletionRate}%
+                {/* Completion Rate */}
+                <Card className="bg-card shadow-sm rounded-lg">
+                    <CardHeader>
+                        <CardTitle className="text-base font-semibold">Completion Rate</CardTitle>
+                        <CardDescription>Overall project completion rate</CardDescription>
+                    </CardHeader>
+                    <CardContent className="flex items-center justify-center py-8">
+                        <div className="text-center">
+                            <div className="text-6xl font-bold text-primary">
+                                {analytics?.totals?.projectCompletionRate}%
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-2">of tasks completed</p>
                         </div>
-                    </div>
+                    </CardContent>
                 </Card>
             </div>
         </div>

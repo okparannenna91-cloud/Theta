@@ -14,7 +14,7 @@ export function TimeTracker({ taskId, onTimeLogged }: TimeTrackerProps) {
     const storageKey = `timer_${taskId}`;
     const [isActive, setIsActive] = useState(() => {
         if (typeof window === "undefined") return false;
-        const saved = sessionStorage.getItem(storageKey);
+        const saved = localStorage.getItem(storageKey);
         if (!saved) return false;
         try {
             const parsed = JSON.parse(saved);
@@ -23,7 +23,7 @@ export function TimeTracker({ taskId, onTimeLogged }: TimeTrackerProps) {
     });
     const [seconds, setSeconds] = useState(() => {
         if (typeof window === "undefined") return 0;
-        const saved = sessionStorage.getItem(storageKey);
+        const saved = localStorage.getItem(storageKey);
         if (!saved) return 0;
         try {
             const parsed = JSON.parse(saved);
@@ -36,6 +36,27 @@ export function TimeTracker({ taskId, onTimeLogged }: TimeTrackerProps) {
     });
     const startedAtRef = useRef<number | null>(null);
     const timerRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Sync across tabs using storage event
+    useEffect(() => {
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === storageKey && e.newValue) {
+                try {
+                    const parsed = JSON.parse(e.newValue);
+                    if (!parsed.isActive) {
+                        setIsActive(false);
+                        setSeconds(parsed.seconds || 0);
+                        startedAtRef.current = null;
+                    } else {
+                        setIsActive(true);
+                        startedAtRef.current = parsed.startedAt;
+                    }
+                } catch { /* ignore */ }
+            }
+        };
+        window.addEventListener("storage", handleStorageChange);
+        return () => window.removeEventListener("storage", handleStorageChange);
+    }, [storageKey]);
 
     useEffect(() => {
         if (isActive) {
@@ -54,7 +75,7 @@ export function TimeTracker({ taskId, onTimeLogged }: TimeTrackerProps) {
     useEffect(() => {
         const data = { isActive, seconds, startedAt: startedAtRef.current };
         try {
-            sessionStorage.setItem(storageKey, JSON.stringify(data));
+            localStorage.setItem(storageKey, JSON.stringify(data));
         } catch { /* ignore quota errors */ }
     }, [isActive, seconds, storageKey]);
 
@@ -98,7 +119,7 @@ export function TimeTracker({ taskId, onTimeLogged }: TimeTrackerProps) {
             setSeconds(0);
             setIsActive(false);
             startedAtRef.current = null;
-            try { sessionStorage.removeItem(storageKey); } catch { /* ignore */ }
+            try { localStorage.removeItem(storageKey); } catch { /* ignore */ }
             if (onTimeLogged) onTimeLogged();
         } catch (error) {
             toast.error("Failed to save time log");

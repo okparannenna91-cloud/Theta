@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { logger } from "@/lib/logger";
 import { differenceInDays } from "date-fns";
 
@@ -16,6 +17,11 @@ export async function GET(req: Request) {
 
     if (!workspaceId) {
       return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
+    }
+
+    const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     const workspace = await prisma.workspace.findUnique({
@@ -60,8 +66,6 @@ export async function GET(req: Request) {
       },
       status,
       trialDaysRemaining,
-      isIvnoConfigured: !!(process.env.IVNO_API_KEY && process.env.IVNO_API_SECRET),
-      isPaystackConfigured: !!(process.env.PAYSTACK_SECRET_KEY && process.env.PAYSTACK_PUBLIC_KEY),
       updatedAt: workspace.updatedAt,
     });
   } catch (error: any) {

@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { createIvnoPayment } from "@/lib/ivno";
-import { buildIvnoOrderId } from "@/lib/ivno-billing";
+import { buildIvnoOrderId } from "@/lib/ivno-utils";
 import { BILLING_PLANS, BillingInterval, getPlanPrice } from "@/lib/billing-plans";
 
 // Build a lookup by planKey so we can accept planId = planKey from the frontend

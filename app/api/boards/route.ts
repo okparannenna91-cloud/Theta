@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Project } from "@prisma/client";
-import { canCreateBoard, getPlanLimitMessage } from "@/lib/plan-limits";
+import { getPlanLimits } from "@/lib/plan-limits";
 import { getAccessibleProjectIds, requireProjectAccess } from "@/lib/project-permissions";
 import { z } from "zod";
 
@@ -21,19 +20,11 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const teamId = searchParams.get("teamId");
-    let workspaceId = searchParams.get("workspaceId");
-
-    if (!workspaceId) {
-      const workspace = await prisma.workspaceMember.findFirst({
-        where: { userId: user.id },
-        orderBy: { createdAt: "asc" },
-      });
-      workspaceId = workspace?.workspaceId || null;
-    }
+    const workspaceId = searchParams.get("workspaceId");
 
     if (!workspaceId) {
       return NextResponse.json(
-        { error: "workspaceId is required and no default found" },
+        { error: "workspaceId is required" },
         { status: 400 }
       );
     }
@@ -93,7 +84,6 @@ export async function GET(req: Request) {
       orderBy: { createdAt: "desc" },
     });
 
-    const { getPlanLimits } = await import("@/lib/plan-limits");
     const workspace = await prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: { plan: true }

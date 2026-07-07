@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { requireProjectAccess } from "@/lib/project-permissions";
 import { publishToChannel, getBoardChannel } from "@/lib/ably";
 
 const groupSchema = z.object({
@@ -37,6 +38,11 @@ export async function GET(
 
         if (!membership) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        const accessCheck = await requireProjectAccess(user.id, board.projectId, board.workspaceId);
+        if (!accessCheck.allowed) {
+            return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
         }
 
         const groups = await prisma.groups.findMany({
@@ -83,6 +89,11 @@ export async function POST(
 
         if (!membership) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        const accessCheck = await requireProjectAccess(user.id, board.projectId, board.workspaceId);
+        if (!accessCheck.allowed) {
+            return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
         }
 
         const { enforcePlanLimit } = await import("@/lib/plan-limits");

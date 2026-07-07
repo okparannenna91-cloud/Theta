@@ -1,7 +1,38 @@
 import { prisma } from "./prisma";
-import { User } from "@prisma/client";
 import { logger } from "./logger";
-import { cacheGetOrSet, cacheKey } from "@/lib/cache";
+import { cacheGetOrSet, cacheKey, cacheInvalidate, cacheInvalidatePattern } from "@/lib/cache";
+
+// L1: Proper TypeScript interfaces for workspace objects
+export interface WorkspaceWithCounts {
+    id: string;
+    name: string;
+    slug: string;
+    plan: string;
+    role: string;
+    createdAt: Date;
+    updatedAt: Date;
+    _count: {
+        members: number;
+        projects: number;
+    };
+}
+
+export interface WorkspaceMemberResponse {
+    id: string;
+    name: string | null;
+    email: string;
+    imageUrl: string | null;
+    role: string;
+}
+
+export interface CreateWorkspaceResult {
+    id: string;
+    name: string;
+    slug: string;
+    plan: string;
+    members: any[];
+    [key: string]: any;
+}
 
 /**
  * Get the current user's default or specified workspace
@@ -43,6 +74,33 @@ export async function getCurrentWorkspace(
   } catch (error) {
       logger.error("Get current workspace error:", error);
     return null;
+  }
+}
+
+/**
+ * Require the user to be an owner or admin of the workspace (for billing mutations).
+ */
+export async function requireWorkspaceAdmin(
+  userId: string,
+  workspaceId: string
+): Promise<boolean> {
+  try {
+    const membership = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId,
+          userId,
+        },
+      },
+      select: { role: true },
+    });
+
+    if (!membership) return false;
+    const role = membership.role.toLowerCase();
+    return role === "owner" || role === "admin";
+  } catch (error) {
+    logger.error("Require workspace admin error:", error);
+    return false;
   }
 }
 
@@ -90,83 +148,127 @@ export async function createWorkspace(
   name: string,
   plan: string = "free"
 ) {
-  try {
-    // Generate a unique slug from the name
-    const baseSlug = name
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "");
+  // Generate a unique slug from the name
+  const baseSlug = name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 
-    let slug = baseSlug;
-    let counter = 1;
+  const finalBaseSlug = baseSlug || "workspace";
 
-    // Ensure slug is unique
-    while (await prisma.workspace.findUnique({ where: { slug } })) {
-      slug = `${baseSlug}-${counter}`;
-      counter++;
+  let slug = finalBaseSlug;
+  let counter = 1;
+  const MAX_SLUG_RETRIES = 1000;
+
+  // Ensure slug is unique (with max retry to prevent infinite loops)
+  while (counter <= MAX_SLUG_RETRIES) {
+    try {
+      const existing = await prisma.workspace.findUnique({ where: { slug } });
+      if (!existing) break;
+    } catch (findError: any) {
+      logger.error(`[createWorkspace] Slug uniqueness check failed for "${slug}": code=${findError.code}, message=${findError.message}`);
+      throw new Error(
+        `Database error during slug check. Prisma error code: ${findError.code || "unknown"}. ` +
+        `Message: ${findError.message || findError}`
+      );
     }
+    slug = `${finalBaseSlug}-${counter}`;
+    counter++;
+  }
 
-    logger.info(`[createWorkspace] Step 1: Creating workspace: name="${name}", slug="${slug}", userId="${userId}"`);
+  if (counter > MAX_SLUG_RETRIES) {
+    throw new Error(`Unable to generate unique slug for workspace "${name}" after ${MAX_SLUG_RETRIES} attempts`);
+  }
 
-    // Step 1: Create workspace document (no nested membership create)
-    const workspace = await prisma.workspace.create({
+  logger.info(`[createWorkspace] Step 1: Creating workspace: name="${name}", slug="${slug}", userId="${userId}"`);
+
+  // Step 1: Create workspace document (no nested membership create)
+  let workspace: any;
+  try {
+    workspace = await prisma.workspace.create({
       data: {
         name,
         slug,
         plan,
       },
     });
+  } catch (createError: any) {
+    logger.error(`[createWorkspace] Step 1 FAILED - workspace create error: code=${createError.code}, message=${createError.message}`, createError);
+    throw new Error(
+      `Failed to create workspace document. Prisma error code: ${createError.code || "unknown"}. ` +
+      `Message: ${createError.message || createError}`
+    );
+  }
 
-    logger.info(`[createWorkspace] Workspace created: id="${workspace.id}", slug="${workspace.slug}"`);
+  logger.info(`[createWorkspace] Workspace created: id="${workspace.id}", slug="${workspace.slug}"`);
 
-    // Step 2: Create membership document separately
+  // Step 2: Create membership document separately
+  try {
+    await prisma.workspaceMember.create({
+      data: {
+        workspaceId: workspace.id,
+        userId,
+        role: "owner",
+      },
+    });
+    logger.info(`[createWorkspace] Membership created: workspaceId="${workspace.id}", userId="${userId}", role="owner"`);
+  } catch (memberError: any) {
+    // Rollback: delete the workspace if membership creation fails
+    logger.error(`[createWorkspace] Step 2 FAILED - Membership creation failed, rolling back workspace "${workspace.id}": code=${memberError.code}, message=${memberError.message}`, memberError);
     try {
-      await prisma.workspaceMember.create({
-        data: {
-          workspaceId: workspace.id,
-          userId,
-          role: "owner",
-        },
-      });
-      logger.info(`[createWorkspace] Membership created: workspaceId="${workspace.id}", userId="${userId}", role="owner"`);
-    } catch (memberError) {
-      // Rollback: delete the workspace if membership creation fails
-      logger.error(`[createWorkspace] Membership creation failed, rolling back workspace "${workspace.id}":`, memberError);
-      try {
-        await prisma.workspace.delete({ where: { id: workspace.id } });
-        logger.warn(`[createWorkspace] Workspace "${workspace.id}" deleted after rollback`);
-      } catch (rollbackError) {
-        logger.error(`[createWorkspace] Rollback delete also failed for workspace "${workspace.id}":`, rollbackError);
-      }
-      throw new Error(`Failed to create workspace membership: ${(memberError as Error).message}`);
+      await prisma.workspace.delete({ where: { id: workspace.id } });
+      logger.warn(`[createWorkspace] Workspace "${workspace.id}" deleted after rollback`);
+    } catch (rollbackError: any) {
+      logger.error(`[createWorkspace] Rollback delete also failed for workspace "${workspace.id}": code=${rollbackError.code}, message=${rollbackError.message}`, rollbackError);
     }
+    throw new Error(
+      `Failed to create workspace membership. Prisma error code: ${memberError.code || "unknown"}. ` +
+      `Message: ${memberError.message || memberError}`
+    );
+  }
 
-    // Step 3: Create default statuses
+  // Step 3: Create default statuses
+  try {
+    await prisma.status.createMany({
+      data: [
+        { workspaceId: workspace.id, name: "Todo", color: "#64748b", order: 0 },
+        { workspaceId: workspace.id, name: "In Progress", color: "#3b82f6", order: 1 },
+        { workspaceId: workspace.id, name: "Done", color: "#22c55e", order: 2 },
+      ]
+    });
+    logger.info(`[createWorkspace] Default statuses created for workspace "${workspace.id}"`);
+  } catch (statusError: any) {
+    logger.error(`[createWorkspace] Step 3 FAILED - default statuses for workspace "${workspace.id}": code=${statusError.code}, message=${statusError.message}`, statusError);
+    // Rollback: delete workspace and membership if status creation fails
     try {
-      await prisma.status.createMany({
-        data: [
-          { workspaceId: workspace.id, name: "Todo", color: "#64748b", order: 0 },
-          { workspaceId: workspace.id, name: "In Progress", color: "#3b82f6", order: 1 },
-          { workspaceId: workspace.id, name: "Done", color: "#22c55e", order: 2 },
-        ]
-      });
-      logger.info(`[createWorkspace] Default statuses created for workspace "${workspace.id}"`);
-    } catch (statusError) {
-      logger.error(`[createWorkspace] Failed to create default statuses for workspace "${workspace.id}":`, statusError);
+      await prisma.workspaceMember.deleteMany({ where: { workspaceId: workspace.id } });
+      await prisma.workspace.delete({ where: { id: workspace.id } });
+    } catch (rollbackError: any) {
+      logger.error(`[createWorkspace] Rollback after status failure also failed for workspace "${workspace.id}": code=${rollbackError.code}, message=${rollbackError.message}`, rollbackError);
     }
+    throw new Error(
+      `Failed to create default statuses for workspace. Prisma error code: ${statusError.code || "unknown"}. ` +
+      `Message: ${statusError.message || statusError}`
+    );
+  }
 
-    // Fetch final workspace with members included for the response
-    const result = await prisma.workspace.findUnique({
+  // Step 4: Fetch final workspace with members included for the response
+  let result: any;
+  try {
+    result = await prisma.workspace.findUnique({
       where: { id: workspace.id },
       include: { members: true },
     });
-
-    logger.info(`[createWorkspace] Complete: id="${workspace.id}", name="${name}", members=${result?.members?.length || 0}`);
-    return result;
-  } catch (error) {
-    logger.error("[createWorkspace] Error:", error);
-    throw error;
+  } catch (fetchError: any) {
+    logger.error(`[createWorkspace] Step 4 FAILED - final fetch for workspace "${workspace.id}": code=${fetchError.code}, message=${fetchError.message}`, fetchError);
+    throw new Error(
+      `Failed to fetch created workspace. Prisma error code: ${fetchError.code || "unknown"}. ` +
+      `Message: ${fetchError.message || fetchError}`
+    );
   }
+
+  logger.info(`[createWorkspace] Complete: id="${workspace.id}", name="${name}", members=${result?.members?.length || 0}`);
+  return result;
 }
 
 /**
@@ -197,53 +299,35 @@ export async function getUserWorkspaces(userId: string) {
 
     logger.info(`[getUserWorkspaces] Found ${memberships.length} memberships for user ${userId}`);
 
-    // Use allSettled so one bad member doesn't crash the entire list
-    const results = await Promise.allSettled(
-      memberships.map(async (m) => {
-        if (!m.workspace) {
-          logger.warn(`Skipping orphaned workspace member record: memberId=${m.id}, workspaceId=${m.workspaceId}`);
-          return null;
-        }
+    // Batch fetch project counts for all workspaces in a single query
+    const workspaceIds = memberships.map(m => m.workspaceId);
+    const projectCounts = await prisma.project.groupBy({
+      by: ["workspaceId"],
+      where: { workspaceId: { in: workspaceIds } },
+      _count: { id: true },
+    });
+    const projectCountMap = new Map(projectCounts.map(pc => [pc.workspaceId, pc._count.id]));
 
-        const workspaceId = m.workspaceId;
-        let projectsCount = 0;
-        try {
-          projectsCount = await prisma.project.count({
-            where: { workspaceId },
-          });
-          logger.debug(`Workspace ${workspaceId} (${m.workspace.name}): ${projectsCount} projects`);
-        } catch (countError) {
-          logger.error(`Failed to fetch project count for workspace ${workspaceId} on its shard:`, countError);
-        }
-
-        return {
-          id: m.workspace.id,
-          name: m.workspace.name,
-          slug: m.workspace.slug,
-          plan: m.workspace.plan,
-          role: m.role,
-          createdAt: m.workspace.createdAt,
-          updatedAt: m.workspace.updatedAt,
-          _count: {
-            members: m.workspace._count?.members || 0,
-            projects: projectsCount,
-          },
-        };
-      })
-    );
-
-    const workspacesWithCounts: any[] = [];
-    for (const result of results) {
-      if (result.status === "fulfilled" && result.value !== null) {
-        workspacesWithCounts.push(result.value);
-      } else if (result.status === "rejected") {
-        logger.error("Failed to process workspace member:", result.reason);
+    return memberships.map((m) => {
+      if (!m.workspace) {
+        logger.warn(`Skipping orphaned workspace member record: memberId=${m.id}, workspaceId=${m.workspaceId}`);
+        return null;
       }
-    }
 
-    logger.info(`[getUserWorkspaces] Returning ${workspacesWithCounts.length} workspaces for user ${userId}`);
-
-    return workspacesWithCounts;
+      return {
+        id: m.workspace.id,
+        name: m.workspace.name,
+        slug: m.workspace.slug,
+        plan: m.workspace.plan,
+        role: m.role,
+        createdAt: m.workspace.createdAt,
+        updatedAt: m.workspace.updatedAt,
+        _count: {
+          members: m.workspace._count?.members || 0,
+          projects: projectCountMap.get(m.workspaceId) || 0,
+        },
+      };
+    }).filter(Boolean);
   } catch (error) {
     logger.error("[getUserWorkspaces] Error:", error);
     return [];
@@ -325,7 +409,7 @@ export async function getWorkspaceMembers(workspaceId: string) {
 /**
  * Delete a workspace
  */
-export async function deleteWorkspace(workspaceId: string, userId: string) {
+export async function deleteWorkspace(workspaceId: string, userId: string, forceDelete = false) {
   try {
     // Verify user is the owner
     const membership = await prisma.workspaceMember.findUnique({
@@ -349,60 +433,61 @@ export async function deleteWorkspace(workspaceId: string, userId: string) {
       },
     });
 
-    if (otherWorkspaces.length === 0) {
-      throw new Error("You must have at least one workspace. Create another one before deleting this one.");
+    if (otherWorkspaces.length === 0 && !forceDelete) {
+      throw new Error("This is your only workspace. Set forceDelete=true to confirm deletion.");
     }
 
-    // Delete all workspace-scoped data
+    // Delete all workspace-scoped data - schema cascades handle child records
     const where = { workspaceId };
 
-    const [tasks, boards, forms, teams] = await Promise.all([
-        prisma.task.findMany({ where, select: { id: true } }),
-        prisma.board.findMany({ where, select: { id: true } }),
-        prisma.form.findMany({ where, select: { id: true } }),
-        prisma.team.findMany({ where, select: { id: true } }),
-    ]);
+    // Task dependencies need special handling due to self-referencing relations
+    const taskIds = (await prisma.task.findMany({ where, select: { id: true } })).map(t => t.id);
+    if (taskIds.length > 0) {
+        await prisma.taskDependency.deleteMany({
+            where: { OR: [{ taskId: { in: taskIds } }, { predecessorId: { in: taskIds } }] }
+        });
+    }
 
-    const taskIds = tasks.map((t: any) => t.id);
-    const boardIds = boards.map((b: any) => b.id);
-    const formIds = forms.map((f: any) => f.id);
-    const teamIds = teams.map((t: any) => t.id);
+    // Delete project-scoped data that needs explicit handling
+    const projectIds = (await prisma.project.findMany({ where, select: { id: true } })).map(p => p.id);
+    if (projectIds.length > 0) {
+        await prisma.projectTeam.deleteMany({ where: { projectId: { in: projectIds } } });
+    }
 
-    await Promise.all([
-        taskIds.length > 0 ? prisma.subtask.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
-        taskIds.length > 0 ? prisma.comment.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
-        taskIds.length > 0 ? prisma.timeLog.deleteMany({ where: { taskId: { in: taskIds } } }) : Promise.resolve(),
-        taskIds.length > 0 ? prisma.taskDependency.deleteMany({ 
-            where: { OR: [{ taskId: { in: taskIds } }, { predecessorId: { in: taskIds } }] } 
-        }) : Promise.resolve(),
-        boardIds.length > 0 ? prisma.column.deleteMany({ where: { boardId: { in: boardIds } } }) : Promise.resolve(),
-        formIds.length > 0 ? prisma.formResponse.deleteMany({ where: { formId: { in: formIds } } }) : Promise.resolve(),
-        teamIds.length > 0 ? prisma.teamMember.deleteMany({ where: { teamId: { in: teamIds } } }) : Promise.resolve(),
-    ]);
-
-    await Promise.all([
-        prisma.project.deleteMany({ where }),
-        prisma.task.deleteMany({ where }),
-        prisma.team.deleteMany({ where }),
-        prisma.board.deleteMany({ where }),
-        prisma.chatMessage.deleteMany({ where }),
-        prisma.activity.deleteMany({ where }),
-        prisma.notification.deleteMany({ where }),
-        prisma.tag.deleteMany({ where }),
-        prisma.status.deleteMany({ where }),
-        prisma.automation.deleteMany({ where }),
-        prisma.document.deleteMany({ where }),
-        prisma.calendarEvent.deleteMany({ where }),
-        prisma.invite.deleteMany({ where }),
-        prisma.integration.deleteMany({ where }),
-        prisma.billingLog.deleteMany({ where }),
-        prisma.form.deleteMany({ where }),
-    ]);
+    // Delete remaining workspace-scoped data (cascades handle the rest)
+    await prisma.workspaceMember.deleteMany({ where });
+    await prisma.project.deleteMany({ where });
+    await prisma.task.deleteMany({ where });
+    await prisma.team.deleteMany({ where });
+    await prisma.board.deleteMany({ where });
+    await prisma.chatMessage.deleteMany({ where });
+    await prisma.activity.deleteMany({ where });
+    await prisma.notification.deleteMany({ where });
+    await prisma.tag.deleteMany({ where });
+    await prisma.status.deleteMany({ where });
+    await prisma.automation.deleteMany({ where });
+    await prisma.document.deleteMany({ where });
+    await prisma.calendarEvent.deleteMany({ where });
+    await prisma.invite.deleteMany({ where });
+    await prisma.integration.deleteMany({ where });
+    await prisma.billingLog.deleteMany({ where });
+    await prisma.form.deleteMany({ where });
+    await prisma.savedSearch.deleteMany({ where });
+    await prisma.evolutionTracking.deleteMany({ where });
+    await prisma.paymentMethod.deleteMany({ where });
+    await prisma.creditBalance.deleteMany({ where });
+    await prisma.subscription.deleteMany({ where });
+    await prisma.invoice.deleteMany({ where });
 
     // Finally, delete the workspace metadata
-    return await prisma.workspace.delete({
+    const deleted = await prisma.workspace.delete({
       where: { id: workspaceId },
     });
+
+    // M2: Invalidate cache after deletion
+    await cacheInvalidatePattern(`cache:member:${workspaceId}:*`);
+
+    return deleted;
   } catch (error) {
     logger.error("Delete workspace error:", error);
     throw error;

@@ -48,7 +48,7 @@ export default function AcceptInviteClient({ token, workspaceName }: { token: st
                 <Button 
                     onClick={handleAccept} 
                     disabled={isLoading}
-                    className="w-full rounded-full py-6 text-base font-semibold bg-indigo-600 hover:bg-indigo-700 shadow-xl shadow-indigo-600/20"
+                    className="w-full rounded-full py-6 text-base font-semibold bg-primary hover:bg-primary/90 shadow-xl shadow-primary/20"
                 >
                     {isLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : (
                         <>

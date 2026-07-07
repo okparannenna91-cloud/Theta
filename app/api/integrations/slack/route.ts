@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getUserWorkspaces } from "@/lib/workspace";
 import { getSlackAuthUrl } from "@/lib/integrations/slack";
+import { generateCodeVerifier } from "@/lib/crypto";
 
 export async function GET(req: Request) {
     try {
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
 
         // Verify user belongs to this workspace
         const workspaces = await getUserWorkspaces(user.id);
-        const hasAccess = workspaces.some(w => w.id === workspaceId);
+        const hasAccess = workspaces.some(w => w?.id === workspaceId);
 
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied to workspace" }, { status: 403 });
@@ -37,7 +38,9 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
 
-        const url = getSlackAuthUrl(workspaceId);
+        // PKCE: generate verifier and pass to auth URL builder
+        const codeVerifier = generateCodeVerifier();
+        const url = getSlackAuthUrl(workspaceId, codeVerifier);
         return NextResponse.redirect(url);
     } catch (error) {
         console.error("Slack integration error:", error);

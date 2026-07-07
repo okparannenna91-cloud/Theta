@@ -20,7 +20,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Calendar as CalendarIcon, Flag, Layout, Type, AlignLeft, Clock, Sparkles, Loader2 as Spinner, X, Trash2, Palette, AlertCircle } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Sparkles, Loader2 as Spinner, X, Trash2, Palette, AlertCircle, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 
 import { useAbly } from "@/hooks/use-ably";
@@ -50,6 +50,8 @@ interface TaskDialogProps {
 export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogProps) {
     const queryClient = useQueryClient();
     const taskIdRef = useRef(task?.id);
+    const lastPropUpdateRef = useRef(Date.now());
+    const lastAblyUpdateRef = useRef(0);
     const [title, setTitle] = useState(task?.title || "");
     const [description, setDescription] = useState(task?.description || "");
     const [status, setStatus] = useState(task?.status || "todo");
@@ -59,17 +61,23 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     );
     const [estimatedHours, setEstimatedHours] = useState(task?.estimatedHours || 0);
     const [progress, setProgress] = useState(task?.progress || 0);
-    const [dependencyIds, setDependencyIds] = useState<string[]>(task?.dependencyIds || []);
     const [isSummarizing, setIsSummarizing] = useState(false);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [summary, setSummary] = useState<string | null>(null);
+    const [riskAnalysis, setRiskAnalysis] = useState<string | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [color, setColor] = useState(task?.color || "");
+    const [lastSaved, setLastSaved] = useState<Date | null>(null);
 
     const taskChannel = task?.id ? getTaskChannel(workspaceId, task.id) : null;
 
     useAbly(taskChannel, "task:updated", (updatedTask) => {
         if (updatedTask.id === task.id && updatedTask.id === taskIdRef.current) {
+            // Only apply Ably updates if they arrived after the last prop update
+            const now = Date.now();
+            if (now < lastPropUpdateRef.current) return; // Prop update in progress
+            lastAblyUpdateRef.current = now;
             setTitle(updatedTask.title);
             setDescription(updatedTask.description || "");
             setStatus(updatedTask.status);
@@ -91,6 +99,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     useEffect(() => {
         if (task) {
             taskIdRef.current = task.id;
+            lastPropUpdateRef.current = Date.now();
             setTitle(task.title);
             setDescription(task.description || "");
             setStatus(task.status);
@@ -98,8 +107,8 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             setDueDate(task.dueDate ? new Date(task.dueDate) : undefined);
             setEstimatedHours(task.estimatedHours || 0);
             setProgress(task.progress || 0);
-            setDependencyIds(task.dependencyIds || []);
             setColor(task.color || "");
+            setShowDeleteConfirm(false);
         }
     }, [task]);
 
@@ -116,7 +125,10 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
             queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
-            toast.success("Task updated");
+            setLastSaved(new Date());
+        },
+        onError: (error: any) => {
+            toast.error(error.message || "Failed to update task");
         },
     });
 
@@ -180,7 +192,7 @@ Last Description: ${description}`;
                     <div className="flex items-center gap-4">
                         <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 text-primary text-[10px] font-semibold">
                             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-                            Synced
+                            {updateMutation.isPending ? "Saving..." : lastSaved ? "Saved" : "Synced"}
                         </div>
                         <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
                             <Trash2 className="h-3.5 w-3.5" />
@@ -229,7 +241,7 @@ Last Description: ${description}`;
                                     <Palette className="h-4 w-4 text-primary" />
                                     <h3 className="text-lg font-semibold tracking-tight">Attachments</h3>
                                 </div>
-                                <TaskAttachments taskId={task.id} workspaceId={workspaceId} attachments={task.attachments || []} />
+                                <TaskAttachments taskId={task.id} workspaceId={workspaceId} attachments={task.fieldValues?.attachments || []} />
                             </div>
 
                             <hr className="border-border/10 my-8" />
@@ -237,14 +249,14 @@ Last Description: ${description}`;
                             {/* Comments */}
                             <div className="space-y-6">
                                 <div className="flex items-center gap-3">
-                                    <Type className="h-4 w-4 text-primary" />
+                                    <MessageSquare className="h-4 w-4 text-primary" />
                                     <h3 className="text-lg font-semibold tracking-tight">Comments</h3>
                                 </div>
                                 <TaskComments taskId={task.id} workspaceId={workspaceId} />
                             </div>
 
                             {/* Activity */}
-                            <div className="space-y-6 pt-12 opacity-50 hover:opacity-100 transition-opacity">
+                            <div className="space-y-6 pt-12">
                                 <div className="flex items-center gap-3">
                                     <Clock className="h-4 w-4 text-primary" />
                                     <h3 className="text-lg font-semibold tracking-tight">Activity</h3>
@@ -282,6 +294,7 @@ Last Description: ${description}`;
                                                 <SelectItem value="low" className="rounded-md text-xs p-3 cursor-pointer text-emerald-500">Low</SelectItem>
                                                 <SelectItem value="medium" className="rounded-md text-xs p-3 cursor-pointer text-amber-500">Medium</SelectItem>
                                                 <SelectItem value="high" className="rounded-md text-xs p-3 cursor-pointer text-red-500">High</SelectItem>
+                                                <SelectItem value="urgent" className="rounded-md text-xs p-3 cursor-pointer text-red-600">Urgent</SelectItem>
                                             </SelectContent>
                                         </Select>
                                     </div>
@@ -322,6 +335,9 @@ Last Description: ${description}`;
                                                 onChange={(e) => {
                                                     const val = parseInt(e.target.value) || 0;
                                                     setEstimatedHours(val);
+                                                }}
+                                                onBlur={(e) => {
+                                                    const val = parseInt(e.currentTarget.value) || 0;
                                                     handleUpdate("estimatedHours", val);
                                                 }}
                                                 className="h-11 bg-background border rounded-lg text-xs shadow-sm text-center hover:border-primary/30 transition-colors"
@@ -337,6 +353,9 @@ Last Description: ${description}`;
                                                 onChange={(e) => {
                                                     const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
                                                     setProgress(val);
+                                                }}
+                                                onBlur={(e) => {
+                                                    const val = Math.min(100, Math.max(0, parseInt(e.currentTarget.value) || 0));
                                                     handleUpdate("progress", val);
                                                 }}
                                                 className="h-11 bg-background border rounded-lg text-xs shadow-sm text-center hover:border-primary/30 transition-colors"
@@ -390,22 +409,39 @@ Last Description: ${description}`;
                                         variant="outline"
                                         className="w-full h-12 justify-start gap-3 bg-destructive/5 hover:bg-destructive border-none hover:text-destructive-foreground text-destructive font-semibold text-xs rounded-lg transition-all group"
                                         onClick={async () => {
-                                            setIsSummarizing(true);
+                                            setIsAnalyzing(true);
                                             try {
                                                 const prompt = `/risks Analyze potential risks for this task: ${title}`;
                                                 const text = await generateAiText({ prompt, workspaceId });
-                                                setSummary(text);
+                                                setRiskAnalysis(text);
                                             } catch (error: any) {
                                                 toast.error(error.message || "Risk analysis failed.");
                                             } finally {
-                                                setIsSummarizing(false);
+                                                setIsAnalyzing(false);
                                             }
                                         }}
-                                        disabled={isSummarizing}
+                                        disabled={isAnalyzing}
                                     >
                                         <AlertCircle className="h-4 w-4 group-hover:scale-110 transition-transform" />
                                         Risk Analysis
                                     </Button>
+
+                                    {riskAnalysis && (
+                                        <div className="overflow-hidden">
+                                            <div className="p-5 mt-4 bg-destructive/10 text-foreground rounded-lg relative">
+                                                <button onClick={() => setRiskAnalysis(null)} className="absolute top-4 right-4 text-muted-foreground/50 hover:text-foreground transition-colors">
+                                                    <X className="h-4 w-4" />
+                                                </button>
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <AlertCircle className="h-3.5 w-3.5 text-destructive" />
+                                                    <span className="text-xs font-semibold text-destructive">Risk Analysis</span>
+                                                </div>
+                                                <p className="text-xs leading-relaxed text-muted-foreground">
+                                                    {riskAnalysis}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     {summary && (
                                         <div className="overflow-hidden">

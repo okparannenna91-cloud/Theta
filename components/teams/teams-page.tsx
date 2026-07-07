@@ -11,10 +11,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Plus, Users, UserPlus, Loader2, ArrowLeft, Shield, Activity, Hash, CheckCircle2,
-  Clock, Sparkles, Crown, MoreHorizontal, Copy, Check, ExternalLink, Search, SlidersHorizontal,
-  ArrowUpDown, LayoutGrid, List, ChevronDown, X, BadgeCheck, Zap, Eye, EyeOff
+  Plus, Users, UserPlus, Loader2, Shield, Crown,
+  Copy, Check, ExternalLink, Search,
+  ArrowUpDown, ChevronDown, X, BadgeCheck, Zap
 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { TeamDetails } from "./team-details";
 import Image from "next/image";
@@ -45,7 +46,7 @@ async function createTeam(data: { name: string; description?: string; workspaceI
   return res.json();
 }
 
-async function sendInvite(data: { workspaceId: string; email: string; role: string }) {
+async function sendInvite(data: { workspaceId: string; email: string; role: string; teamId?: string }) {
   const res = await fetch("/api/invites", {
     method: "POST", headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
@@ -91,7 +92,7 @@ export default function TeamsPage() {
   const { activeWorkspaceId } = useWorkspace();
   const { showUpgradePrompt } = usePopups();
 
-  const { data: teamsData, isLoading } = useQuery({
+  const { data: teamsData, isLoading, isError } = useQuery({
     queryKey: ["teams", activeWorkspaceId],
     queryFn: () => fetchTeams(activeWorkspaceId),
     enabled: !!activeWorkspaceId,
@@ -107,7 +108,7 @@ export default function TeamsPage() {
   const isMemberLimitReached = memberLimits.max !== -1 && memberLimits.current >= memberLimits.max;
 
   const totalMembers = useMemo(() =>
-    teams.reduce((sum: number, t: any) => sum + (t.membersCount || 1), 0),
+    teams.reduce((sum: number, t: any) => sum + (t.membersCount || 0), 0),
     [teams]
   );
 
@@ -156,7 +157,7 @@ export default function TeamsPage() {
     e.preventDefault();
     if (!activeWorkspaceId) { toast.error("Workspace ID missing"); return; }
     if (isMemberLimitReached) { showUpgradePrompt("members"); return; }
-    inviteMutation.mutate({ workspaceId: activeWorkspaceId, email: inviteEmail, role: inviteRole });
+    inviteMutation.mutate({ workspaceId: activeWorkspaceId, email: inviteEmail, role: inviteRole, teamId: selectedTeam?.id });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -194,6 +195,21 @@ export default function TeamsPage() {
     );
   }
 
+  if (isError) {
+    return (
+      <div className="max-w-7xl mx-auto pb-12">
+        <div className="flex flex-col items-center justify-center gap-4 py-24">
+          <div className="rounded-full bg-destructive/10 p-4">
+            <Users className="h-8 w-8 text-destructive" />
+          </div>
+          <h2 className="text-lg font-semibold">Failed to load teams</h2>
+          <p className="text-sm text-muted-foreground">There was an error fetching your teams. Please try again.</p>
+          <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
+        </div>
+      </div>
+    );
+  }
+
   if (selectedTeam && view === "details") {
     return (
       <div className="max-w-7xl mx-auto">
@@ -208,7 +224,7 @@ export default function TeamsPage() {
       <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 mb-8">
         <div>
           <div className="flex items-center gap-3 mb-2">
-            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary/20 to-indigo-500/20 border border-primary/10 flex items-center justify-center">
+            <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/10 flex items-center justify-center">
               <Users className="h-5 w-5 text-primary" />
             </div>
             <h1 className="text-3xl font-bold text-foreground tracking-tight">Teams</h1>
@@ -392,7 +408,7 @@ export default function TeamsPage() {
             </>
           ) : (
             <>
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/10 to-indigo-500/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
+              <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mx-auto mb-6">
                 <Users className="h-8 w-8 text-primary" />
               </div>
               <h3 className="text-lg font-semibold mb-2">No teams yet</h3>
@@ -424,19 +440,15 @@ export default function TeamsPage() {
                   onClick={() => { setSelectedTeam(team); setView("details"); }}
                   className="group relative border shadow-sm hover:shadow-lg hover:border-primary/30 transition-all duration-300 cursor-pointer overflow-hidden rounded-2xl bg-card h-full flex flex-col"
                 >
-                  {/* Accent gradient bar */}
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-indigo-500 to-primary/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                  {/* Accent bar */}
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-primary/50 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
                   <CardContent className="p-6 flex flex-col flex-1">
                     {/* Top section */}
                     <div className="flex items-start justify-between mb-5">
                       <div className="flex items-center gap-4 min-w-0">
-                        <div className={cn(
-                          "h-14 w-14 rounded-2xl border flex items-center justify-center shrink-0 group-hover:text-white transition-all duration-300 shadow-sm",
-                          "bg-gradient-to-br from-primary/10 to-indigo-500/10 border-primary/20",
-                          "group-hover:from-primary group-hover:to-indigo-600"
-                        )}>
-                          <Users className="h-7 w-7 text-primary group-hover:text-white transition-colors" />
+                        <div className="h-14 w-14 rounded-2xl border bg-primary/10 border-primary/20 flex items-center justify-center shrink-0 text-primary group-hover:bg-primary group-hover:text-white transition-all duration-300 shadow-sm">
+                          <Users className="h-7 w-7 group-hover:text-white transition-colors" />
                         </div>
                         <div className="min-w-0">
                           <h3 className="text-base font-semibold truncate group-hover:text-primary transition-colors max-w-[160px] flex items-center gap-2">
@@ -455,7 +467,7 @@ export default function TeamsPage() {
                                 Archived
                               </span>
                             )}
-                            {(team.membersCount || 1) <= 1 && team.userRole === "member" && !team.status && (
+                            {(team.membersCount || 0) <= 1 && team.userRole === "member" && team.status !== "archived" && (
                               <span className="inline-flex items-center rounded-md bg-sky-500/10 px-2 py-0.5 text-[11px] font-medium text-sky-600 border border-sky-500/20">
                                 Solo
                               </span>
@@ -514,7 +526,7 @@ export default function TeamsPage() {
                           )}
                         </div>
                         <span className="text-xs text-muted-foreground font-medium tabular-nums">
-                          {team.membersCount || 1} member{(team.membersCount || 1) !== 1 ? "s" : ""}
+                          {team.membersCount || 0} member{(team.membersCount || 0) !== 1 ? "s" : ""}
                         </span>
                       </div>
 
@@ -574,7 +586,7 @@ export default function TeamsPage() {
         <DialogContent className="sm:max-w-[500px] rounded-2xl">
           <DialogHeader>
             <div className="flex items-center gap-3 mb-2">
-              <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary/10 to-indigo-500/10 border border-primary/20 flex items-center justify-center">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
                 <Users className="h-5 w-5 text-primary" />
               </div>
               <DialogTitle className="text-xl font-semibold">New Team</DialogTitle>
@@ -620,17 +632,20 @@ export default function TeamsPage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="role" className="text-sm font-medium">Role</Label>
-              <select id="role"
-                className="flex h-11 w-full rounded-xl border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
-                <option value="member">Member - Can view and participate</option>
-                <option value="admin">Admin - Can manage team settings</option>
-              </select>
+              <Select value={inviteRole} onValueChange={setInviteRole}>
+                <SelectTrigger className="h-11 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl">
+                  <SelectItem value="member">Member - Can view and participate</SelectItem>
+                  <SelectItem value="admin">Admin - Can manage team settings</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="flex items-start gap-3 p-4 rounded-xl bg-indigo-500/5 border border-indigo-500/10">
-              <Shield className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 p-4 rounded-xl bg-primary/5 border border-primary/10">
+              <Shield className="h-5 w-5 text-primary shrink-0 mt-0.5" />
               <div className="text-xs text-muted-foreground">
-                <p className="font-medium text-indigo-600 dark:text-indigo-400 mb-1">Security Notice</p>
+                <p className="font-medium text-primary mb-1">Security Notice</p>
                 <p>Invited members will have access to team projects, boards, and chat. Their role determines what they can manage.</p>
               </div>
             </div>

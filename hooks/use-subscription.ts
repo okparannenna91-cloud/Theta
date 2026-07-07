@@ -44,7 +44,7 @@ export function useSubscription() {
       };
     },
     enabled: !!activeWorkspaceId,
-    refetchInterval: 30000,
+    refetchInterval: 120000, // 2 min – subscription state changes infrequently
   });
 
   const cancelMutation = useMutation({

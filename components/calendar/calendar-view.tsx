@@ -14,7 +14,6 @@ import {
   isSameDay, 
   isToday, 
   parseISO,
-  addDays,
   differenceInMinutes,
   isSameMonth
 } from "date-fns";
@@ -22,20 +21,14 @@ import {
   ChevronLeft, 
   ChevronRight, 
   Plus, 
-  Search, 
-  Filter, 
-  MoreHorizontal, 
   Calendar as CalendarIcon,
   Clock,
-  MapPin,
   Users,
-  Tag,
   Repeat,
   AlertCircle,
-  CheckCircle2,
-  Sparkles,
-  Zap,
-  Bell
+  Bell,
+  Trash2,
+  Sparkles
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -44,10 +37,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { 
   DndContext, 
   DragOverlay, 
-  closestCenter, 
   closestCorners,
   KeyboardSensor, 
   PointerSensor, 
@@ -58,7 +51,6 @@ import {
 } from "@dnd-kit/core";
 import { sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { toast } from "sonner";
-import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
 import { FadeIn } from "@/components/common/motion-wrapper";
 import { cn } from "@/lib/utils";
@@ -76,7 +68,7 @@ interface CalendarEvent {
     teamId?: string;
 }
 
-function DraggableEvent({ event }: { event: CalendarEvent }) {
+function DraggableEvent({ event, onClick }: { event: CalendarEvent; onClick?: (event: CalendarEvent) => void }) {
     const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
         id: event.id,
         data: { event },
@@ -92,6 +84,7 @@ function DraggableEvent({ event }: { event: CalendarEvent }) {
             ref={setNodeRef}
             {...listeners}
             {...attributes}
+            onClick={(e) => { e.stopPropagation(); onClick?.(event); }}
             className={cn(
                 "text-[10px] px-3 py-1.5 rounded-lg border shadow-sm",
                 "flex items-center gap-2 truncate hover:shadow-md transition-all duration-300 cursor-grab active:cursor-grabbing group",
@@ -164,13 +157,14 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
     const [isTeamEvent, setIsTeamEvent] = useState(false);
     const [recurrence, setRecurrence] = useState("none");
     const [eventColor, setEventColor] = useState("#4f46e5");
+    const [allDay, setAllDay] = useState(false);
 
     const { showUpgradePrompt } = usePopups();
     const queryClient = useQueryClient();
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
     // Fetch events
-    const { data: calendarData, isLoading } = useQuery({
+    const { data: calendarData, isLoading, isError } = useQuery({
         queryKey: ["calendar-events", workspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/calendar?workspaceId=${workspaceId}`);
@@ -218,7 +212,25 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
         setIsTeamEvent(false);
         setRecurrence("none");
         setEventColor("#4f46e5");
+        setAllDay(false);
         setEditingEvent(null);
+        setSelectedDate(null);
+    };
+
+    const handleEventClick = (event: CalendarEvent) => {
+        setEditingEvent(event);
+        setTitle(event.title);
+        setDescription(event.description || "");
+        const start = parseISO(event.start);
+        const end = parseISO(event.end);
+        setStartTime(format(start, "HH:mm"));
+        setEndTime(format(end, "HH:mm"));
+        setIsTeamEvent(!!event.teamId);
+        setRecurrence(event.recurrence || "none");
+        setEventColor(event.color || "#4f46e5");
+        setAllDay(event.allDay);
+        setSelectedDate(start);
+        setIsEventDialogOpen(true);
     };
 
     const handleDayClick = (day: Date) => {
@@ -226,6 +238,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
             showUpgradePrompt("calendar_events");
             return;
         }
+        resetForm();
         setSelectedDate(day);
         setIsEventDialogOpen(true);
     };
@@ -235,12 +248,22 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
         if (!selectedDate) return;
 
         const start = new Date(selectedDate);
-        const [h1, m1] = startTime.split(":").map(Number);
-        start.setHours(h1, m1);
-
         const end = new Date(selectedDate);
-        const [h2, m2] = endTime.split(":").map(Number);
-        end.setHours(h2, m2);
+
+        if (allDay) {
+            start.setHours(0, 0, 0, 0);
+            end.setHours(23, 59, 0, 0);
+        } else {
+            const [h1, m1] = startTime.split(":").map(Number);
+            start.setHours(h1, m1);
+            const [h2, m2] = endTime.split(":").map(Number);
+            end.setHours(h2, m2);
+        }
+
+        if (start >= end) {
+            toast.error("End time must be after start time");
+            return;
+        }
 
         upsertMutation.mutate({
             id: editingEvent?.id,
@@ -249,12 +272,26 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
             start: start.toISOString(),
             end: end.toISOString(),
             workspaceId,
+            allDay,
             recurrence,
             color: eventColor,
             type: isTeamEvent ? "meeting" : "event",
-            teamId: isTeamEvent ? undefined : undefined
         });
     };
+
+    const deleteMutation = useMutation({
+        mutationFn: async (eventId: string) => {
+            const res = await fetch(`/api/calendar/${eventId}`, { method: "DELETE" });
+            if (!res.ok) throw new Error("Failed to delete event");
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+            setIsEventDialogOpen(false);
+            resetForm();
+            toast.success("Event deleted");
+        },
+        onError: (err: Error) => toast.error(err.message),
+    });
 
     const handleDragStart = (event: any) => {
         const { active } = event;
@@ -299,13 +336,30 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
         return eventList.filter((event: CalendarEvent) => isSameDay(parseISO(event.start), day));
     };
 
+    const upcomingEvents = useMemo(() => 
+        (events as CalendarEvent[])
+            .filter((e: CalendarEvent) => new Date(e.start) >= new Date())
+            .sort((a: CalendarEvent, b: CalendarEvent) => new Date(a.start).getTime() - new Date(b.start).getTime()),
+        [events]
+    );
+
+    if (isError) {
+        return (
+            <div className="flex flex-col items-center justify-center gap-4 py-24">
+                <div className="rounded-full bg-destructive/10 p-4">
+                    <AlertCircle className="h-8 w-8 text-destructive" />
+                </div>
+                <h2 className="text-lg font-semibold">Failed to load events</h2>
+                <p className="text-sm text-muted-foreground">There was an error fetching your calendar events.</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8 pb-40 relative">
             <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
                 <div>
-                    <h1 className="text-4xl sm:text-5xl font-semibold tracking-tight leading-none mb-4">
-                        Calendar
-                    </h1>
                     <div className="flex items-center gap-4">
                         <div className="h-1 w-12 bg-primary rounded-full" />
                         <p className="text-sm font-medium text-muted-foreground">
@@ -348,19 +402,19 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                         </div>
 
                         <div className="grid grid-cols-7">
-                            {calendarDays.map((day, i) => {
-                                const dayEvents = getEventsForDay(day);
-                                return (
-                                    <DroppableDay
-                                        key={i}
-                                        day={day}
-                                        i={i}
+            {calendarDays.map((day, i) => {
+                                 const dayEvents = getEventsForDay(day);
+                                 return (
+                                     <DroppableDay
+                                         key={day.toISOString()}
+                                         day={day}
+                                         i={i}
                                         isCurrentMonth={isSameMonth(day, monthStart)}
                                         isToday={isSameDay(day, new Date())}
                                         onClick={handleDayClick}
                                     >
                                         {dayEvents.slice(0, 3).map((event) => (
-                                            <DraggableEvent key={event.id} event={event} />
+                                            <DraggableEvent key={event.id} event={event} onClick={handleEventClick} />
                                         ))}
                                         {dayEvents.length > 3 && (
                                             <div className="text-[10px] font-medium text-muted-foreground pl-2">
@@ -401,9 +455,9 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                             </div>
                         </CardHeader>
                         <CardContent className="p-6 pt-2">
-                            {events && events.length > 0 ? (
+                            {upcomingEvents.length > 0 ? (
                                 <div className="space-y-4">
-                                    {(events as CalendarEvent[]).filter((e: CalendarEvent) => new Date(e.start) >= new Date()).slice(0, 5).map((event: CalendarEvent) => (
+                                    {upcomingEvents.slice(0, 5).map((event: CalendarEvent) => (
                                         <div key={event.id} className="flex items-center justify-between p-4 rounded-lg bg-card/40 border hover:bg-muted/60 transition-all duration-300 group/item">
                                             <div className="flex items-center gap-6">
                                                 <div className="h-14 w-14 rounded-xl bg-card flex flex-col items-center justify-center border shadow-sm group-hover/item:scale-110 transition-transform">
@@ -447,10 +501,9 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                         </CardHeader>
                         <CardContent className="p-6 pt-2">
                             <div className="space-y-4">
-                                {events && (events as CalendarEvent[]).filter((e: CalendarEvent) => new Date(e.start) >= new Date()).length > 0 ? (
+                                {upcomingEvents.length > 0 ? (
                                     (() => {
-                                        const nextEvent = (events as CalendarEvent[]).filter((e: CalendarEvent) => new Date(e.start) >= new Date())
-                                            .sort((a: CalendarEvent, b: CalendarEvent) => new Date(a.start).getTime() - new Date(b.start).getTime())[0];
+                                        const nextEvent = upcomingEvents[0];
                                         return (
                                             <div className="p-6 rounded-xl bg-amber-500/5 border border-amber-500/10 relative overflow-hidden group/alert">
                                                 <div className="absolute top-0 right-0 p-4 opacity-10 group-hover/alert:scale-125 transition-transform duration-700">
@@ -482,7 +535,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                 </FadeIn>
             </div>
 
-            <Dialog open={isEventDialogOpen} onOpenChange={setIsEventDialogOpen}>
+            <Dialog open={isEventDialogOpen} onOpenChange={(open) => { setIsEventDialogOpen(open); if (!open) { resetForm(); } }}>
                 <DialogContent className="sm:max-w-[500px] rounded-xl border bg-background/80 backdrop-blur-3xl p-8 shadow-2xl">
                     <DialogHeader className="mb-8">
                         <DialogTitle className="text-2xl font-semibold tracking-tight">
@@ -503,16 +556,39 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                                 className="h-12 rounded-lg bg-background/50 border text-base"
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-6">
-                            <div className="space-y-3">
-                                <Label className="text-xs font-medium text-muted-foreground ml-1">Start</Label>
-                                <Input type="time" value={startTime} onChange={(e: any) => setStartTime(e.target.value)} className="h-12 rounded-lg bg-background/50 border" />
-                            </div>
-                            <div className="space-y-3">
-                                <Label className="text-xs font-medium text-muted-foreground ml-1">End</Label>
-                                <Input type="time" value={endTime} onChange={(e: any) => setEndTime(e.target.value)} className="h-12 rounded-lg bg-background/50 border" />
-                            </div>
+                        <div className="space-y-3">
+                            <Label className="text-xs font-medium text-muted-foreground ml-1">Description</Label>
+                            <Textarea
+                                placeholder="Event description..."
+                                value={description}
+                                onChange={(e: any) => setDescription(e.target.value)}
+                                className="rounded-lg bg-background/50 border min-h-[80px]"
+                            />
                         </div>
+                        <div className="flex items-center justify-between p-4 rounded-lg bg-muted/30 border">
+                            <div className="space-y-1">
+                                <p className="text-sm font-semibold">All-day event</p>
+                                <p className="text-xs text-muted-foreground">Event spans the entire day.</p>
+                            </div>
+                            <input 
+                                type="checkbox" 
+                                checked={allDay} 
+                                onChange={(e: any) => setAllDay(e.target.checked)} 
+                                className="h-5 w-5 rounded border-muted bg-background/50 text-primary focus:ring-primary cursor-pointer" 
+                            />
+                        </div>
+                        {!allDay && (
+                            <div className="grid grid-cols-2 gap-6">
+                                <div className="space-y-3">
+                                    <Label className="text-xs font-medium text-muted-foreground ml-1">Start</Label>
+                                    <Input type="time" value={startTime} onChange={(e: any) => setStartTime(e.target.value)} className="h-12 rounded-lg bg-background/50 border" />
+                                </div>
+                                <div className="space-y-3">
+                                    <Label className="text-xs font-medium text-muted-foreground ml-1">End</Label>
+                                    <Input type="time" value={endTime} onChange={(e: any) => setEndTime(e.target.value)} className="h-12 rounded-lg bg-background/50 border" />
+                                </div>
+                            </div>
+                        )}
                         
                         <div className="space-y-3">
                             <Label className="text-xs font-medium text-muted-foreground ml-1">Color</Label>
@@ -532,6 +608,24 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                             </div>
                         </div>
 
+                        <div className="space-y-3">
+                            <Label className="text-xs font-medium text-muted-foreground ml-1">Recurrence</Label>
+                            <Select value={recurrence} onValueChange={setRecurrence}>
+                                <SelectTrigger className="h-12 rounded-lg bg-background/50 border">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="none">Does not repeat</SelectItem>
+                                    <SelectItem value="daily">Daily</SelectItem>
+                                    <SelectItem value="weekdays">Every weekday (Mon-Fri)</SelectItem>
+                                    <SelectItem value="weekly">Weekly</SelectItem>
+                                    <SelectItem value="biweekly">Every 2 weeks</SelectItem>
+                                    <SelectItem value="monthly">Monthly</SelectItem>
+                                    <SelectItem value="yearly">Yearly</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+
                         <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/10">
                             <div className="space-y-1">
                                 <p className="text-sm font-semibold">Team Event</p>
@@ -546,8 +640,25 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                         </div>
 
                         <div className="flex items-center gap-4 pt-4">
-                            <Button type="button" variant="ghost" className="flex-1 h-12 rounded-lg font-medium text-sm" onClick={() => setIsEventDialogOpen(false)}>Cancel</Button>
-                            <Button type="submit" className="flex-[2] h-12 rounded-lg font-medium text-sm bg-primary hover:bg-primary/90 shadow-md">Save Event</Button>
+                            {editingEvent && (
+                                <Button 
+                                    type="button" 
+                                    variant="destructive" 
+                                    className="h-12 rounded-lg font-medium text-sm"
+                                    onClick={() => {
+                                        if (confirm("Delete this event?")) {
+                                            deleteMutation.mutate(editingEvent.id);
+                                        }
+                                    }}
+                                    disabled={deleteMutation.isPending}
+                                >
+                                    <Trash2 className="h-4 w-4 mr-2" /> Delete
+                                </Button>
+                            )}
+                            <Button type="button" variant="ghost" className="flex-1 h-12 rounded-lg font-medium text-sm" onClick={() => { setIsEventDialogOpen(false); resetForm(); }}>Cancel</Button>
+                            <Button type="submit" disabled={upsertMutation.isPending} className="flex-[2] h-12 rounded-lg font-medium text-sm bg-primary hover:bg-primary/90 shadow-md">
+                                {upsertMutation.isPending ? "Saving..." : (editingEvent ? "Update" : "Save")} Event
+                            </Button>
                         </div>
                     </form>
                 </DialogContent>

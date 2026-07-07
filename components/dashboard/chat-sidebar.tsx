@@ -3,38 +3,67 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import * as Ably from "ably";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, Send, X, Loader2, User } from "lucide-react";
+import { MessageSquare, Send, X, Loader2, User, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUser } from "@clerk/nextjs";
 
+interface ChatMessage {
+    id: string;
+    content: string;
+    userId: string;
+    user?: { name?: string; imageUrl?: string };
+    createdAt: string;
+}
+
 export function ChatSidebar({ workspaceId }: { workspaceId?: string }) {
     const { user } = useUser();
     const [isOpen, setIsOpen] = useState(false);
     const [message, setMessage] = useState("");
-    const [messages, setMessages] = useState<any[]>([]);
+    const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
+    const [connectionError, setConnectionError] = useState<string | null>(null);
     const ablyRef = useRef<Ably.Realtime | null>(null);
     const channelRef = useRef<Ably.RealtimeChannel | null>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
 
+    const ablyFetchToken = useCallback(async () => {
+        if (!workspaceId) throw new Error("No workspace selected");
+        const res = await fetch(`/api/ably/token?workspaceId=${encodeURIComponent(workspaceId)}`);
+        if (!res.ok) throw new Error("Failed to fetch Ably token");
+        return res.json();
+    }, [workspaceId]);
+
     const connectAbly = useCallback(async () => {
         try {
             setIsLoading(true);
-            const res = await fetch("/api/ably/token");
-            const tokenRequest = await res.json();
+            setConnectionError(null);
 
             const ably = new Ably.Realtime({
-                authCallback: async (data, callback) => {
-                    callback(null, tokenRequest);
+                authCallback: async (_data, callback) => {
+                    try {
+                        const freshToken = await ablyFetchToken();
+                        callback(null, freshToken);
+                    } catch (err) {
+                        callback(String(err), null);
+                    }
                 }
             });
 
             ably.connection.on("connected", () => {
                 setIsConnected(true);
                 setIsLoading(false);
+            });
+
+            ably.connection.on("failed", () => {
+                setConnectionError("Connection failed. Check your network and try again.");
+                setIsLoading(false);
+            });
+
+            ably.connection.on("disconnected", () => {
+                setConnectionError("Connection lost. Attempting to reconnect...");
             });
 
             const channelName = `workspace:${workspaceId}:chat`;
@@ -54,13 +83,15 @@ export function ChatSidebar({ workspaceId }: { workspaceId?: string }) {
                 setMessages(history);
             }
         } catch (error) {
-            console.error("Ably connection error:", error);
+            const msg = error instanceof Error ? error.message : "Failed to connect to chat";
+            setConnectionError(msg);
             setIsLoading(false);
         }
     }, [workspaceId]);
 
     useEffect(() => {
         if (isOpen && workspaceId && !ablyRef.current) {
+            setConnectionError(null);
             connectAbly();
         }
         return () => {
@@ -82,10 +113,16 @@ export function ChatSidebar({ workspaceId }: { workspaceId?: string }) {
         if (!message.trim() || !workspaceId) return;
 
         const content = message;
-        setMessage("");
+
+        if (content.startsWith("/nova ")) {
+            const novaPrompt = content.slice(6);
+            setMessage("");
+            window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: novaPrompt } }));
+            return;
+        }
 
         try {
-            await fetch("/api/chat", {
+            const res = await fetch("/api/chat", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
@@ -93,6 +130,9 @@ export function ChatSidebar({ workspaceId }: { workspaceId?: string }) {
                     workspaceId,
                 }),
             });
+            if (res.ok) {
+                setMessage("");
+            }
         } catch (error) {
             console.error("Failed to send message:", error);
         }
@@ -124,11 +164,30 @@ export function ChatSidebar({ workspaceId }: { workspaceId?: string }) {
                                         Workspace Chat
                                     </CardTitle>
                                 </div>
-                                <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsOpen(false)}>
-                                    <X className="h-4 w-4" />
-                                </Button>
+                                <div className="flex items-center gap-2">
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="h-8 w-8 text-indigo-600 hover:text-indigo-800"
+                                        onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "" } }))}
+                                        title="Ask Nova"
+                                    >
+                                        <Sparkles className="h-4 w-4" />
+                                    </Button>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setIsOpen(false)}>
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </CardHeader>
                             <CardContent className="flex-1 flex flex-col p-0 overflow-hidden">
+                                {connectionError && (
+                                    <div className="px-4 py-2 bg-red-50 border-b border-red-100">
+                                        <p className="text-xs text-red-600 flex items-center gap-1">
+                                            <span className="inline-block w-1.5 h-1.5 rounded-full bg-red-500" />
+                                            {connectionError}
+                                        </p>
+                                    </div>
+                                )}
                                 <div className="flex-1 p-4 overflow-y-auto" ref={scrollRef}>
                                     <div className="space-y-4">
                                         {messages.map((msg, i) => {
@@ -159,7 +218,7 @@ export function ChatSidebar({ workspaceId }: { workspaceId?: string }) {
                                 <div className="p-4 border-t bg-white">
                                     <form onSubmit={sendMessage} className="flex gap-2">
                                         <Input
-                                            placeholder="Type a message..."
+                                            placeholder="Type a message... (/nova to ask AI)"
                                             value={message}
                                             onChange={(e) => setMessage(e.target.value)}
                                             className="bg-slate-50 border-none focus-visible:ring-indigo-500"

@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Task, Comment } from "@prisma/client";
 import { canAccessProjectResource } from "@/lib/project-permissions";
+import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { z } from "zod";
 
 const commentSchema = z.object({
-    content: z.string().min(1),
+    content: z.string().min(1).max(5000),
 });
 
 export async function GET(
@@ -25,7 +25,6 @@ export async function GET(
             return NextResponse.json({ error: "Task not found" }, { status: 404 });
         }
 
-        const { verifyWorkspaceAccess } = await import("@/lib/workspace");
         const hasAccess = await verifyWorkspaceAccess(user.id, task.workspaceId);
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
@@ -42,7 +41,7 @@ export async function GET(
         });
 
         const userIdsToFetch = new Set<string>();
-        rawComments.forEach((c: any) => {
+        rawComments.forEach((c: { userId: string }) => {
             if (c.userId) userIdsToFetch.add(c.userId);
         });
 
@@ -50,10 +49,10 @@ export async function GET(
             where: { id: { in: Array.from(userIdsToFetch) } },
             select: { id: true, name: true, imageUrl: true }
         });
-        
+
         const userMap = new Map(users.map(u => [u.id, u]));
 
-        const comments = rawComments.map((c: any) => ({
+        const comments = rawComments.map((c: { userId: string; [key: string]: unknown }) => ({
             ...c,
             user: userMap.get(c.userId) || null
         }));
@@ -125,6 +124,18 @@ export async function POST(
 
         const { publishToChannel, getTaskChannel } = await import("@/lib/ably");
         await publishToChannel(getTaskChannel(task.workspaceId, params.id), "comment:created", comment);
+
+        // Log activity
+        const { logActivity } = await import("@/lib/activity");
+        await logActivity({
+            userId: user.id,
+            workspaceId: task.workspaceId,
+            action: "comment_created",
+            entityType: "comment",
+            entityId: rawComment.id,
+            metadata: { taskId: params.id, taskTitle: task.title, content: data.content.substring(0, 200) },
+            projectId: task.projectId || undefined,
+        });
 
         // Notify workspace members
         const { notifyWorkspaceMembers } = await import("@/lib/notifications");

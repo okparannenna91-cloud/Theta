@@ -12,9 +12,11 @@ export async function GET(request: NextRequest) {
 
     try {
         let workspaceId: string;
+        let codeVerifier: string | undefined;
         try {
             const payload = verifyOAuthState(state);
             workspaceId = payload.workspaceId;
+            codeVerifier = payload.codeVerifier as string | undefined;
         } catch {
             return NextResponse.json({ error: "Invalid state parameter" }, { status: 400 });
         }
@@ -30,6 +32,11 @@ export async function GET(request: NextRequest) {
         const params = new URLSearchParams();
         params.append("grant_type", "authorization_code");
         params.append("code", code);
+
+        // PKCE: include code_verifier in token exchange
+        if (codeVerifier) {
+            params.append("code_verifier", codeVerifier);
+        }
 
         const auth = Buffer.from(`${clientId}:${clientSecret}`).toString("base64");
 

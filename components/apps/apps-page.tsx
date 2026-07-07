@@ -15,10 +15,11 @@ import { usePopups } from "@/components/popups/popup-manager";
 import { cn } from "@/lib/utils";
 import {
     GitHubLogo, BitbucketLogo, SlackLogo, AsanaLogo,
-    TrelloLogo, FigmaLogo, CanvaLogo, WooCommerceLogo
+    TrelloLogo, FigmaLogo, CanvaLogo, WooCommerceLogo,
+    GoogleWorkspaceLogo
 } from "@/components/apps/app-logos";
 
-const CATEGORIES = ["All", "Communication", "Development", "Design", "Productivity", "E-commerce"];
+const CATEGORIES = ["All", "Communication", "Development", "Design", "Productivity", "E-commerce", "Google"];
 
 const PROVIDERS = [
     {
@@ -62,6 +63,12 @@ const PROVIDERS = [
         description: "Access and share your Canva designs directly within your project workspace.",
         Logo: CanvaLogo, bg: "bg-[#00C4CC]", iconColor: "text-white",
         canSync: false, linkOnly: true, badge: null,
+    },
+    {
+        id: "google", name: "Google Workspace", category: "Google",
+        description: "Connect Calendar, Gmail, Drive, Docs, Sheets, Meet, Contacts, Chat, Tasks, Forms, and Slides.",
+        Logo: GoogleWorkspaceLogo, bg: "bg-white", iconColor: "",
+        canSync: false, linkOnly: false, badge: "Popular",
     },
     {
         id: "woocommerce", name: "WooCommerce", category: "E-commerce",

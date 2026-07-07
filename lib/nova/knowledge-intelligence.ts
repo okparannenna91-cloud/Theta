@@ -82,6 +82,14 @@ export class KnowledgeIntelligence {
     relation: string
   ): Promise<void> {
     
+    // TENANT ISOLATION: Verify source and target entities belong to this workspace
+    const [sourceDoc] = await Promise.all([
+      prisma.document.findFirst({ where: { id: sourceId, workspaceId }, select: { id: true } }),
+      ...targetIds.map(id => prisma.document.findFirst({ where: { id, workspaceId }, select: { id: true } })),
+    ]);
+    if (!sourceDoc) {
+      throw new Error("Entity link failed: source entity not found in this workspace");
+    }
 
     for (const targetId of targetIds) {
       try {

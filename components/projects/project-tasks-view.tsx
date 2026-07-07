@@ -2,9 +2,8 @@
 
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Card } from "@/components/ui/card";
-import { Circle, CheckCircle2, MoreVertical, Plus } from "lucide-react";
+import { Circle, CheckCircle2, MoreVertical } from "lucide-react";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { cn } from "@/lib/utils";
 
@@ -32,13 +31,14 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["projects"] });
+            queryClient.invalidateQueries({ queryKey: ["project", project.id] });
             toast.success("Task updated");
         },
     });
 
     const handleToggleDone = (e: React.MouseEvent, task: any) => {
         e.stopPropagation();
-        const newStatus = (task.status === "done" || task.status === "completed") ? "todo" : "done";
+        const newStatus = (task.status === "done") ? "todo" : "done";
         updateMutation.mutate({ id: task.id, data: { status: newStatus } });
     };
 
@@ -61,7 +61,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                                 onClick={(e) => handleToggleDone(e, task)}
                                 className="hover:scale-110 transition-transform active:scale-95 z-10"
                             >
-                                {task.status === "done" || task.status === "completed" ? (
+                                {task.status === "done" ? (
                                     <CheckCircle2 className="h-5 w-5 text-emerald-500" />
                                 ) : (
                                     <Circle className="h-5 w-5 text-slate-300 hover:text-emerald-500/50" />
@@ -69,7 +69,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                             </button>
 
                             <div className="flex-1 min-w-0">
-                                <h4 className={cn("text-sm font-bold truncate group-hover:text-primary transition-colors", (task.status === "done" || task.status === "completed") && "line-through text-muted-foreground opacity-50")}>{task.title}</h4>
+                                <h4 className={cn("text-sm font-bold truncate group-hover:text-primary transition-colors", (task.status === "done") && "line-through text-muted-foreground opacity-50")}>{task.title}</h4>
                                 <div className="flex items-center gap-3 mt-1">
                                     <Badge variant="outline" className="text-[9px] font-semibold bg-muted border-none px-2">
                                         {task.priority || "Medium"}

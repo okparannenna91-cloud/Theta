@@ -57,9 +57,9 @@ export function CommandPalette() {
 
   const handleAskNova = () => {
     runCommand(() => {
-        navigator.clipboard.writeText(search);
+        window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: search } }));
         toast.info("Nova assistant ready", {
-            description: "Your prompt has been copied. Click the Nova button to paste it."
+            description: `Asked Nova: "${search}"`
         });
     });
   };

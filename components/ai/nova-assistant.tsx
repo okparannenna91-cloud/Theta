@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Send, X, Loader2, Bot, User, Trash2, Maximize2, Minimize2, ArrowUpCircle, Mic, Paperclip, FileIcon, Volume2, MessageSquare, History, Zap, ClipboardList, FileEdit, Calculator, Search, Pin, Brain, Terminal, Activity as ActivityIcon, Plus, ListTodo, BookOpen, Eraser, Settings2, CheckCircle2 } from "lucide-react";
+import { Sparkles, Send, X, Loader2, Bot, User, Trash2, Maximize2, Minimize2, Mic, Paperclip, FileIcon, Volume2, MessageSquare, History, Zap, ClipboardList, FileEdit, Calculator, Search, Brain, Terminal, Activity as ActivityIcon, Plus, ListTodo, BookOpen, Eraser, Pin } from "lucide-react";
+import { ActivityStatus } from "@/components/ai/activity-status";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -107,6 +108,7 @@ export function NovaAssistant() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const scrollRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
+    const lastPromptRef = useRef("");
     const [activeTab, setActiveTab] = useState("chat");
     const [showSlashMenu, setShowSlashMenu] = useState(false);
 
@@ -278,6 +280,20 @@ export function NovaAssistant() {
         }
     }, [input]);
 
+    useEffect(() => {
+        const handler = (e: Event) => {
+            const detail = (e as CustomEvent).detail;
+            if (detail?.prompt) {
+                setInput(detail.prompt);
+                if (!isOpen) setIsOpen(true);
+                if (isMinimized) setIsMinimized(false);
+                setActiveTab("chat");
+            }
+        };
+        window.addEventListener("nova:open", handler);
+        return () => window.removeEventListener("nova:open", handler);
+    }, [isOpen, isMinimized]);
+
     const startListening = () => {
         if (!('webkitSpeechRecognition' in window)) {
             toast.error("Speech recognition not supported in this browser.");
@@ -384,6 +400,7 @@ export function NovaAssistant() {
         setInput("");
         setAttachedFiles([]);
         setAttachments(uploadedAttachments);
+        lastPromptRef.current = currentInput;
         setIsLoading(true);
 
         try {
@@ -418,24 +435,15 @@ export function NovaAssistant() {
                 let accumulatedResponse = "";
                 let streamEnded = false;
                 let chunkCount = 0;
+                let messageAppended = false;
 
                 setIsStreaming(true);
-
-                setMessages((prev) => [...prev, {
-                    role: "nova",
-                    content: "",
-                    timestamp: new Date(),
-                }]);
 
                 if (reader) {
                     while (true) {
                         const { done, value } = await reader.read();
                         if (done) {
                             streamEnded = true;
-                            console.log("[Nova-Client] Stream ended", {
-                                chunkCount,
-                                accumulatedLength: accumulatedResponse.length,
-                            });
                             break;
                         }
 
@@ -443,46 +451,33 @@ export function NovaAssistant() {
                         chunkCount++;
                         accumulatedResponse += chunk;
 
-                        if (chunkCount === 1) {
-                            console.log("[Nova-Client] First chunk received", {
-                                chunkLength: chunk.length,
+                        if (!messageAppended) {
+                            messageAppended = true;
+                            setMessages((prev) => [...prev, {
+                                role: "nova",
+                                content: accumulatedResponse,
+                                timestamp: new Date(),
+                            }]);
+                        } else {
+                            setMessages((prev) => {
+                                const newMessages = [...prev];
+                                const lastMessage = newMessages[newMessages.length - 1];
+                                if (lastMessage && lastMessage.role === "nova") {
+                                    lastMessage.content = accumulatedResponse;
+                                }
+                                return newMessages;
                             });
                         }
-
-                        setMessages((prev) => {
-                            const newMessages = [...prev];
-                            const lastMessage = newMessages[newMessages.length - 1];
-                            if (lastMessage && lastMessage.role === "nova") {
-                                lastMessage.content = accumulatedResponse;
-                            }
-                            return newMessages;
-                        });
                     }
                 }
 
-                if (!accumulatedResponse) {
-                    console.warn("[Nova-Client] Zero-content response", {
-                        streamEnded,
-                        chunkCount,
-                        readerPresent: !!reader,
-                        status: res.status,
-                        statusText: res.statusText,
-                        contentType: res.headers?.get("content-type"),
-                    });
-                    setMessages((prev) => {
-                        const newMessages = [...prev];
-                        const lastMsg = newMessages[newMessages.length - 1];
-                        if (lastMsg && lastMsg.role === "nova" && !lastMsg.content) {
-                            lastMsg.content = "Nova could not generate a response. Check logs.";
-                        }
-                        return newMessages;
-                    });
-                } else {
-                    console.log("[Nova-Client] Response received", {
-                        chunkCount,
-                        responseLength: accumulatedResponse.length,
-                        preview: accumulatedResponse.substring(0, 100),
-                    });
+                if (!messageAppended) {
+                    const fallbackContent = accumulatedResponse || "Nova could not generate a response. Check logs.";
+                    setMessages((prev) => [...prev, {
+                        role: "nova",
+                        content: fallbackContent,
+                        timestamp: new Date(),
+                    }]);
                 }
             } finally {
                 clearTimeout(fetchTimeout);
@@ -705,19 +700,18 @@ export function NovaAssistant() {
                                             </div>
                                         </motion.div>
                                     ))}
-                                    {isLoading && !isStreaming && (
+                                    {(isLoading || isStreaming) && (
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             className="flex justify-start"
                                         >
                                             <div className="flex gap-2 items-center bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 rounded-2xl rounded-tl-sm px-3.5 py-2.5 sm:px-4 sm:py-3 shadow-sm">
-                                                <div className="flex gap-1">
-                                                    <span className="w-1.5 h-1.5 bg-primary rounded-full animate-bounce [animation-delay:-0.3s]"></span>
-                                                    <span className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-bounce [animation-delay:-0.15s]"></span>
-                                                    <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-bounce"></span>
-                                                </div>
-                                                <span className="text-[11px] sm:text-xs font-medium text-muted-foreground">Thinking...</span>
+                                                <ActivityStatus
+                                                    prompt={lastPromptRef.current}
+                                                    isLoading={isLoading}
+                                                    isStreaming={isStreaming}
+                                                />
                                             </div>
                                         </motion.div>
                                     )}

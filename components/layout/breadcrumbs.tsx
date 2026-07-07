@@ -10,7 +10,7 @@ export function Breadcrumbs() {
     const pathname = usePathname();
     const paths = pathname.split("/").filter((path) => path !== "");
 
-    if (paths.length === 0) return null;
+    if (paths.length === 0 || (paths.length === 1 && paths[0] === "dashboard")) return null;
 
     return (
         <nav className="flex items-center space-x-2 text-xs font-medium text-muted-foreground mb-4">

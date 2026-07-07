@@ -23,10 +23,21 @@ export async function POST(req: Request) {
         const { valid, invite } = await getInviteByToken(token);
         if (valid && invite) {
             const { enforcePlanLimit } = await import("@/lib/plan-limits");
-            const memberCount = await prisma.workspaceMember.count({
-                where: { workspaceId: invite.workspaceId }
+            // Check if user is already a member to avoid overcounting
+            const existingMember = await prisma.workspaceMember.findUnique({
+                where: {
+                    workspaceId_userId: {
+                        workspaceId: invite.workspaceId,
+                        userId: user.id,
+                    },
+                },
             });
-            await enforcePlanLimit(invite.workspaceId, "members", memberCount + 1);
+            if (!existingMember) {
+                const memberCount = await prisma.workspaceMember.count({
+                    where: { workspaceId: invite.workspaceId }
+                });
+                await enforcePlanLimit(invite.workspaceId, "members", memberCount + 1);
+            }
         }
 
         const result = await acceptInvite(token, user.id);

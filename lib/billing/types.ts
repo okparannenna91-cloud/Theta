@@ -48,6 +48,7 @@ export interface CronSummary {
   dunning: { processed: number; succeeded: number; deactivated: number; failed: number };
   trialExpiration: number;
   subscriptionExpiration: number;
+  dataRetentionCleaned: number;
 }
 
 export interface ChangePlanResult {

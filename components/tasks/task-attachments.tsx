@@ -1,14 +1,17 @@
 "use client";
 
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { FileText, Image as ImageIcon, Film, Music, Archive, File, Trash2, Download, ExternalLink, Paperclip } from "lucide-react";
+import { FileText, Image as ImageIcon, Film, Music, Archive, File, Trash2, Download, ExternalLink, Paperclip, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FileUpload } from "@/components/common/file-upload";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 
 interface Attachment {
     url: string;
+    secure_url?: string;
     publicId: string;
     originalName: string;
     mimeType: string;
@@ -25,13 +28,15 @@ interface TaskAttachmentsProps {
 
 export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskAttachmentsProps) {
     const queryClient = useQueryClient();
+    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+    const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
     const updateTaskMutation = useMutation({
         mutationFn: async (updatedAttachments: Attachment[]) => {
             const res = await fetch(`/api/tasks/${taskId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ attachments: updatedAttachments }),
+                body: JSON.stringify({ fieldValues: { attachments: updatedAttachments } }),
             });
             if (!res.ok) throw new Error("Failed to update attachments");
             return res.json();
@@ -45,7 +50,7 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
 
     const handleUploadComplete = (data: any) => {
         const newAttachment: Attachment = {
-            url: data.url,
+            url: data.secure_url || data.url,
             publicId: data.publicId,
             originalName: data.originalName,
             mimeType: data.mimeType,
@@ -58,19 +63,50 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
         updateTaskMutation.mutate(updated);
     };
 
-    const handleDelete = (publicId: string) => {
-        const updated = attachments.filter((a) => a.publicId !== publicId);
+    const handleDelete = async (attachment: Attachment) => {
+        setDeleteConfirm(null);
+
+        try {
+            await fetch("/api/upload", {
+                method: "DELETE",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    publicId: attachment.publicId,
+                    workspaceId,
+                }),
+            });
+        } catch (e) {
+            // Continue with removal from task even if Cloudinary delete fails
+        }
+
+        const updated = attachments.filter((a) => a.publicId !== attachment.publicId);
         updateTaskMutation.mutate(updated);
+    };
+
+    const handleDownload = async (attachment: Attachment) => {
+        try {
+            const res = await fetch(`/api/download?publicId=${attachment.publicId}&workspaceId=${workspaceId}`);
+            if (!res.ok) throw new Error("Download failed");
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = attachment.originalName;
+            a.click();
+            URL.revokeObjectURL(url);
+        } catch {
+            window.open(attachment.secure_url || attachment.url, "_blank");
+        }
     };
 
     const getIcon = (category: string) => {
         switch (category) {
-            case "image": return <ImageIcon className="h-4 w-4 text-emerald-500" />;
-            case "video": return <Film className="h-4 w-4 text-indigo-500" />;
-            case "audio": return <Music className="h-4 w-4 text-pink-500" />;
-            case "document": return <FileText className="h-4 w-4 text-blue-500" />;
-            case "archive": return <Archive className="h-4 w-4 text-amber-500" />;
-            default: return <File className="h-4 w-4 text-slate-500" />;
+            case "image": return <ImageIcon className="h-4 w-4 text-emerald-500" aria-label="Image" />;
+            case "video": return <Film className="h-4 w-4 text-indigo-500" aria-label="Video" />;
+            case "audio": return <Music className="h-4 w-4 text-pink-500" aria-label="Audio" />;
+            case "document": return <FileText className="h-4 w-4 text-blue-500" aria-label="Document" />;
+            case "archive": return <Archive className="h-4 w-4 text-amber-500" aria-label="Archive" />;
+            default: return <File className="h-4 w-4 text-slate-500" aria-label="File" />;
         }
     };
 
@@ -100,7 +136,10 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
                 {attachments.map((attachment) => (
                     <div key={attachment.publicId} className="group relative border border-slate-200 dark:border-slate-800 rounded-xl p-3 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all hover:border-indigo-500/30">
                         <div className="flex items-start gap-3">
-                            <div className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/20 transition-colors">
+                            <div
+                                className="p-2 bg-slate-50 dark:bg-slate-800 rounded-lg group-hover:bg-indigo-50 dark:group-hover:bg-indigo-900/20 transition-colors cursor-pointer"
+                                onClick={() => attachment.category === "image" && setLightboxUrl(attachment.secure_url || attachment.url)}
+                            >
                                 {getIcon(attachment.category)}
                             </div>
                             <div className="flex-1 min-w-0">
@@ -111,26 +150,49 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
                                     <span className="text-[10px] font-medium text-muted-foreground uppercase">{attachment.category}</span>
                                     <span className="text-slate-200 dark:text-slate-800 text-[10px] opacity-30">•</span>
                                     <span className="text-[10px] text-muted-foreground">{formatBytes(attachment.size)}</span>
+                                    <span className="text-slate-200 dark:text-slate-800 text-[10px] opacity-30">•</span>
+                                    <span className="text-[10px] text-muted-foreground">{formatDistanceToNow(new Date(attachment.createdAt), { addSuffix: true })}</span>
                                 </div>
                             </div>
                         </div>
 
                         <div className="flex items-center gap-1 mt-3 pt-3 border-t border-slate-50 dark:border-slate-800 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <a
-                                href={attachment.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
+                            {attachment.category === "image" ? (
+                                <button
+                                    onClick={() => setLightboxUrl(attachment.secure_url || attachment.url)}
+                                    className="inline-flex items-center justify-center h-7 w-7 text-muted-foreground hover:text-indigo-600 rounded-md hover:bg-accent transition-colors"
+                                    aria-label="Preview image"
+                                >
+                                    <ImageIcon className="h-3.5 w-3.5" />
+                                </button>
+                            ) : null}
+                            <button
+                                onClick={() => handleDownload(attachment)}
                                 className="inline-flex items-center justify-center h-7 w-7 text-muted-foreground hover:text-indigo-600 rounded-md hover:bg-accent transition-colors"
+                                aria-label="Download file"
+                            >
+                                <Download className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                                onClick={() => window.open(attachment.secure_url || attachment.url, "_blank")}
+                                className="inline-flex items-center justify-center h-7 w-7 text-muted-foreground hover:text-indigo-600 rounded-md hover:bg-accent transition-colors"
+                                aria-label="Open in new tab"
                             >
                                 <ExternalLink className="h-3.5 w-3.5" />
-                            </a>
+                            </button>
                             <Button
                                 size="icon"
                                 variant="ghost"
                                 className="h-7 w-7 text-muted-foreground hover:text-red-600 ml-auto"
-                                onClick={() => handleDelete(attachment.publicId)}
+                                onClick={() => setDeleteConfirm(attachment.publicId)}
+                                disabled={updateTaskMutation.isPending}
+                                aria-label="Delete attachment"
                             >
-                                <Trash2 className="h-3.5 w-3.5" />
+                                {updateTaskMutation.isPending && deleteConfirm === attachment.publicId ? (
+                                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                )}
                             </Button>
                         </div>
                     </div>
@@ -142,6 +204,49 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
                     className="h-full flex items-center justify-center"
                 />
             </div>
+
+            <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+                <DialogContent onClose={() => setDeleteConfirm(null)}>
+                    <DialogHeader>
+                        <DialogTitle>Delete Attachment</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this attachment? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={() => {
+                                const attachment = attachments.find((a) => a.publicId === deleteConfirm);
+                                if (attachment) handleDelete(attachment);
+                            }}
+                            disabled={updateTaskMutation.isPending}
+                        >
+                            {updateTaskMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : null}
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!lightboxUrl} onOpenChange={(open) => !open && setLightboxUrl(null)}>
+                <DialogContent onClose={() => setLightboxUrl(null)} className="max-w-4xl">
+                    <div className="relative w-full flex items-center justify-center">
+                        {lightboxUrl && (
+                            <img
+                                src={lightboxUrl}
+                                alt="Preview"
+                                className="max-w-full max-h-[80vh] object-contain rounded-lg"
+                            />
+                        )}
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -3,18 +3,11 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import {
-    Calculator,
-    Calendar,
-    CreditCard,
     Settings,
-    Smile,
-    User,
     Search,
     CheckSquare,
     FolderKanban,
-    Columns,
     Users,
-    Bell,
     TrendingUp,
 } from "lucide-react";
 
@@ -40,15 +33,17 @@ export function CommandSearch() {
     const router = useRouter();
     const { activeWorkspaceId } = useWorkspace();
 
-    const { data: results, isLoading } = useQuery({
+    const { data: results, isLoading, error, isError } = useQuery({
         queryKey: ["search", activeWorkspaceId, debouncedQuery],
         queryFn: async () => {
             if (!debouncedQuery || debouncedQuery.length < 2) return null;
-            const res = await fetch(`/api/search?workspaceId=${activeWorkspaceId}&q=${debouncedQuery}`);
+            const url = `/api/search?workspaceId=${encodeURIComponent(activeWorkspaceId!)}&q=${encodeURIComponent(debouncedQuery)}`;
+            const res = await fetch(url);
             if (!res.ok) throw new Error("Search failed");
             return res.json();
         },
         enabled: open && !!activeWorkspaceId && debouncedQuery.length >= 2,
+        placeholderData: (prev) => prev,
     });
 
     React.useEffect(() => {
@@ -87,7 +82,17 @@ export function CommandSearch() {
                     onValueChange={setQuery}
                 />
                 <CommandList>
-                    <CommandEmpty>{isLoading ? "Searching..." : "No results found."}</CommandEmpty>
+                    <CommandEmpty>
+                        {isError ? (
+                            <span className="text-red-500">Search failed. Please try again.</span>
+                        ) : isLoading ? (
+                            "Searching..."
+                        ) : debouncedQuery.length < 2 ? (
+                            "Type at least 2 characters to search"
+                        ) : (
+                            "No results found."
+                        )}
+                    </CommandEmpty>
                     
                     {results && (
                         <>

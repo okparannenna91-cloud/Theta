@@ -64,8 +64,8 @@ export class ContextSystem {
         }
         return prisma.project.findUnique({ where: { id: projectId } });
       }) : null,
-      taskId ? prisma.task.findUnique({ where: { id: taskId }, include: { subtasks: true } }) : null,
-      documentId ? prisma.document.findUnique({ where: { id: documentId } }) : null,
+      taskId ? prisma.task.findFirst({ where: { id: taskId, workspaceId }, include: { subtasks: true } }) : null,
+      documentId ? prisma.document.findFirst({ where: { id: documentId, workspaceId } }) : null,
       userId ? prisma.user.findUnique({ where: { id: userId }, select: { name: true } }) : null,
     ]);
 

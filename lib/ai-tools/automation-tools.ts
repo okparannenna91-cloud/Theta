@@ -15,7 +15,9 @@ export function buildAutomationTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ name: z.string(), trigger: z.string(), action: z.string(), config: z.record(z.any()) }),
       execute: async ({ name, trigger, action, config }: Record<string, unknown>) => {
         await enforce(ctx, "admin", "workspace");
-        const automation = await prisma.automation.create({ data: { name: name as string, trigger: trigger as string, action: action as string, actionValue: JSON.stringify(config), workspaceId, active: true } });
+        const cfg = config as Record<string, unknown>;
+        const rawValue = String(cfg.status || cfg.priority || cfg.assignee || cfg.value || Object.values(cfg)[0] || '');
+        const automation = await prisma.automation.create({ data: { name: name as string, trigger: trigger as string, action: action as string, actionValue: rawValue, workspaceId, active: true } });
         try {
           await inngest.send({ name: "automation/created", data: { automationId: automation.id, workspaceId } });
         } catch (e) { logger.warn("Failed to notify Inngest of automation creation:", e); }

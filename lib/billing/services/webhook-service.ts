@@ -22,13 +22,14 @@ class WebhookService {
 
     const secret = PROVIDER_SECRETS[provider];
 
-    if (secret) {
-      const isValid = await providerInstance.verifyWebhookSignature(rawBody, signature, secret);
-      if (!isValid) {
-        throw new WebhookSignatureError();
-      }
-    } else {
-      logger.warn(`[Webhook] No secret configured for ${provider}, signature verification disabled`);
+    if (!secret) {
+      logger.error(`[Webhook] No secret configured for ${provider} — rejecting event`);
+      throw new WebhookSignatureError();
+    }
+
+    const isValid = await providerInstance.verifyWebhookSignature(rawBody, signature, secret);
+    if (!isValid) {
+      throw new WebhookSignatureError();
     }
 
     const event = await providerInstance.parseWebhookEvent(rawBody);

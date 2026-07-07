@@ -12,9 +12,21 @@ export interface DirectActionResult {
 
 const HIGH_CONFIDENCE = 0.85;
 
+const NEGATION_PATTERNS = [
+  /\b(?:don't|do not|never|stop|avoid|cease)\s+(?:create|make|add|delete|remove|update|edit|modify|change|list|show|find)\b/i,
+  /\b(?:not|n't)\s+(?:to\s+)?(?:create|make|add|delete|remove|update|edit|modify|change|list|show|find)\b/i,
+];
+
+function hasNegation(prompt: string): boolean {
+  return NEGATION_PATTERNS.some(p => p.test(prompt));
+}
+
 function detectAction(prompt: string): { action: string; confidence: number; params: Record<string, string | undefined> } | null {
-  const lower = prompt.trim().toLowerCase();
+  const trimmed = prompt.trim();
+  const lower = trimmed.toLowerCase();
   let best: { action: string; confidence: number; params: Record<string, string | undefined> } | null = null;
+
+  if (hasNegation(trimmed)) return null;
 
   const patterns: Array<{ action: string; keywords: string[]; confidence: number; extract: (input: string) => Record<string, string | undefined> }> = [
     { action: "create_task", keywords: ["create", "task"], confidence: 0.95, extract: (i) => { const m = i.match(/create\s+(?:a\s+)?task\s+(?:called\s+)?[""](.+?)[""]/i); return m ? { title: m[1] } : { title: "New task" }; } },

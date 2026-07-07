@@ -3,12 +3,25 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
+import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { getPlanLimits, enforcePlanLimit } from "@/lib/plan-limits";
+
+const TRIGGER_VALUES = [
+    "TASK_CREATED", "TASK_COMPLETED", "SPRINT_STARTED", "SPRINT_COMPLETED",
+    "FORM_SUBMITTED", "DOCUMENT_UPDATED", "USER_INVITED", "TASK_OVERDUE", "MEMBER_ADDED",
+] as const;
+
+const ACTION_VALUES = [
+    "CREATE_TASK", "ASSIGN_USER", "SEND_EMAIL", "UPDATE_STATUS",
+    "GENERATE_REPORT", "NOTIFY_TEAM", "CREATE_PROJECT", "SEND_NOTIFICATION",
+    "NOTIFY_CHANNEL", "SET_ASSIGNEE", "SET_STATUS", "SET_PRIORITY",
+] as const;
 
 const automationSchema = z.object({
     name: z.string().min(1),
-    trigger: z.string(),
+    trigger: z.enum(TRIGGER_VALUES),
     condition: z.string().optional(),
-    action: z.string(),
+    action: z.enum(ACTION_VALUES),
     actionValue: z.string().optional(),
     workspaceId: z.string(),
 });
@@ -28,7 +41,6 @@ export async function GET(req: Request) {
         }
 
         // Verify workspace access
-        const { verifyWorkspaceAccess } = await import("@/lib/workspace");
         const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
@@ -37,12 +49,11 @@ export async function GET(req: Request) {
         const [automations, count] = await Promise.all([
             prisma.automation.findMany({
                 where: { workspaceId },
-                orderBy: { createdAt: "desc" },
+                orderBy: { createdAt: "asc" },
             }),
             prisma.automation.count({ where: { workspaceId } })
         ]);
 
-        const { getPlanLimits } = await import("@/lib/plan-limits");
         const workspace = await prisma.workspace.findUnique({
             where: { id: workspaceId },
             select: { plan: true }
@@ -78,20 +89,16 @@ export async function POST(req: Request) {
         const data = automationSchema.parse(body);
 
         // Verify workspace access
-        const { verifyWorkspaceAccess } = await import("@/lib/workspace");
         const hasAccess = await verifyWorkspaceAccess(user.id, data.workspaceId);
         if (!hasAccess) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // Check plan limits strictly
-        try {
-            const count = await prisma.automation.count({ where: { workspaceId: data.workspaceId } });
-            const { enforcePlanLimit } = await import("@/lib/plan-limits");
+        // Check plan limits strictly with TOCTOU-safe transaction
+        await prisma.$transaction(async (tx) => {
+            const count = await tx.automation.count({ where: { workspaceId: data.workspaceId } });
             await enforcePlanLimit(data.workspaceId, "automations", count);
-        } catch (error: any) {
-            return NextResponse.json({ error: error.message }, { status: 403 });
-        }
+        });
 
         const automation = await prisma.automation.create({
             data: {

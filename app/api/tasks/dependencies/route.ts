@@ -5,6 +5,7 @@ import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 import { z } from "zod";
 import { publishToChannel, getWorkspaceChannel } from "@/lib/ably";
+import { TaskIntelligence } from "@/lib/nova/task-intelligence";
 
 const dependencySchema = z.object({
   taskId: z.string(),
@@ -13,6 +14,56 @@ const dependencySchema = z.object({
   type: z.enum(["FS", "SS", "FF", "SF"]).default("FS"),
   lag: z.number().default(0),
 });
+
+export async function GET(req: Request) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(req.url);
+    const workspaceId = searchParams.get("workspaceId");
+    const taskId = searchParams.get("taskId");
+
+    if (!workspaceId || !taskId) {
+      return NextResponse.json({ error: "workspaceId and taskId are required" }, { status: 400 });
+    }
+
+    const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    const task = await prisma.task.findUnique({ where: { id: taskId }, select: { projectId: true } });
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    const hasProjectAccess = await canAccessProjectResource(user.id, workspaceId, task.projectId);
+    if (!hasProjectAccess) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    const dependencies = await prisma.taskDependency.findMany({
+      where: {
+        OR: [
+          { taskId },
+          { predecessorId: taskId },
+        ],
+      },
+      include: {
+        task: { select: { id: true, title: true, status: true } },
+        predecessor: { select: { id: true, title: true, status: true } },
+      },
+    });
+
+    return NextResponse.json(dependencies);
+  } catch (error) {
+    console.error("Get dependencies error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
 
 export async function POST(req: Request) {
   try {
@@ -29,9 +80,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
-    // Prevent circular dependencies (basic check)
+    // Prevent circular dependencies using graph traversal
     if (data.taskId === data.predecessorId) {
         return NextResponse.json({ error: "Cannot create self-dependency" }, { status: 400 });
+    }
+    const hasCycle = await TaskIntelligence.hasDependencyCycle(data.workspaceId, data.taskId, data.predecessorId);
+    if (hasCycle) {
+        return NextResponse.json({ error: "Circular dependency detected" }, { status: 400 });
     }
 
     // Verify project access for both tasks

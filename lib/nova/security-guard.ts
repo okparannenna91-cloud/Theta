@@ -16,30 +16,37 @@ export interface PermissionCheckOptions {
 
 const MAX_ENFORCE_FAILURES = 10;
 const ENFORCE_WINDOW_SECONDS = 60;
+// TENANT ISOLATION: Scope failure tracking by workspace+userId
 const enforceFailures: Map<string, { count: number; windowStart: number }> = new Map();
 
-function isEnforceLocked(userId: string): boolean {
-  const record = enforceFailures.get(userId);
+function enforceLockKey(userId: string, workspaceId: string): string {
+  return `${workspaceId}:${userId}`;
+}
+
+function isEnforceLocked(userId: string, workspaceId: string): boolean {
+  const key = enforceLockKey(userId, workspaceId);
+  const record = enforceFailures.get(key);
   if (!record) return false;
   if (Date.now() - record.windowStart > ENFORCE_WINDOW_SECONDS * 1000) {
-    enforceFailures.delete(userId);
+    enforceFailures.delete(key);
     return false;
   }
   return record.count >= MAX_ENFORCE_FAILURES;
 }
 
-function recordEnforceFailure(userId: string): void {
-  const record = enforceFailures.get(userId) || { count: 0, windowStart: Date.now() };
+function recordEnforceFailure(userId: string, workspaceId: string): void {
+  const key = enforceLockKey(userId, workspaceId);
+  const record = enforceFailures.get(key) || { count: 0, windowStart: Date.now() };
   record.count++;
-  enforceFailures.set(userId, record);
+  enforceFailures.set(key, record);
 }
 
 export class SecurityGuard {
   public static async validate(options: PermissionCheckOptions): Promise<boolean> {
     const { userId, workspaceId, action, resourceType, projectId } = options;
 
-    if (isEnforceLocked(userId)) {
-      logger.error(`Security lock active for user ${userId} — too many failures`);
+    if (isEnforceLocked(userId, workspaceId)) {
+      logger.error(`Security lock active for user ${userId} in workspace ${workspaceId} — too many failures`);
       return false;
     }
 
@@ -52,7 +59,7 @@ export class SecurityGuard {
           where: { workspaceId, userId, status: "active" },
         });
       },
-      30,
+      5, // TENANT ISOLATION: Reduced from 30s to 5s cache TTL for faster membership revocation
     );
 
     if (!membership) {
@@ -85,10 +92,10 @@ export class SecurityGuard {
   }
 
   public static async enforce(options: PermissionCheckOptions): Promise<void> {
-    const { userId } = options;
+    const { userId, workspaceId } = options;
     const isAllowed = await this.validate(options);
     if (!isAllowed) {
-      recordEnforceFailure(userId);
+      recordEnforceFailure(userId, workspaceId);
       throw new Error(
         `Security Exception: Unauthorized access to ${options.action} on ${options.resourceType}`
       );

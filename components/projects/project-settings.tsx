@@ -78,6 +78,7 @@ export function ProjectSettings({ project }: ProjectSettingsProps) {
             }
         },
         onSuccess: () => {
+             queryClient.invalidateQueries({ queryKey: ["projects", project.workspaceId] });
              toast.success("Project deleted successfully");
              router.push("/projects");
         },

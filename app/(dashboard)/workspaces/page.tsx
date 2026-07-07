@@ -117,7 +117,7 @@ export default function WorkspacesPage() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {workspaces?.map((ws: any) => (
+                {workspaces && workspaces.length > 0 ? workspaces?.map((ws: any) => (
                     <Card key={ws.id}
                         className={`border shadow-sm transition-all hover:shadow-md cursor-pointer ${activeWorkspaceId === ws.id ? "ring-2 ring-primary border-primary" : "hover:border-primary/30"}`}>
                         <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
@@ -158,7 +158,15 @@ export default function WorkspacesPage() {
                             </CardContent>
                         </div>
                     </Card>
-                ))}
+                )) : (
+                    <div className="h-full min-h-[160px] border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-3 text-muted-foreground p-6 col-span-full">
+                        <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                            <Building2 className="h-5 w-5" />
+                        </div>
+                        <span className="text-sm font-medium text-center">You haven&apos;t joined any workspaces yet</span>
+                        <span className="text-xs text-muted-foreground text-center">Create a workspace or accept an invite to get started</span>
+                    </div>
+                )}
 
                 {freeLimitReached ? (
                     <div className="h-full min-h-[160px] border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-3 text-muted-foreground p-6">

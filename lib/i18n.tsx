@@ -10,7 +10,7 @@ import zh from "../locales/zh.json";
 import ja from "../locales/ja.json";
 import ru from "../locales/ru.json";
 
-type Language = "en" | "es" | "fr" | "de" | "zh" | "ar" | "ja" | "ru";
+export type Language = "en" | "es" | "fr" | "de" | "zh" | "ar" | "ja" | "ru";
 
 const translations: Record<Language, any> = {
     en,

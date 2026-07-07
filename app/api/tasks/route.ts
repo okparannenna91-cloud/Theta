@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds, canAccessProjectResource } from "@/lib/project-permissions";
+import { getTaskCount } from "@/lib/usage-tracking";
+import { getPlanLimits } from "@/lib/plan-limits";
 import { z } from "zod";
 import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel } from "@/lib/ably";
 
@@ -10,7 +12,7 @@ const taskSchema = z.object({
   title: z.string().min(1),
   description: z.string().optional(),
   status: z.string().default("todo"),
-  priority: z.string().default("medium"),
+  priority: z.enum(["none", "low", "medium", "high", "urgent"]).default("medium"),
   workspaceId: z.string(),
   projectId: z.string().optional(),
   boardId: z.string().optional(),
@@ -37,6 +39,12 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const workspaceId = searchParams.get("workspaceId");
     const teamId = searchParams.get("teamId");
+    const search = searchParams.get("search");
+    const status = searchParams.get("status");
+    const priority = searchParams.get("priority");
+    const assigneeId = searchParams.get("assigneeId");
+    const page = parseInt(searchParams.get("page") || "1", 10);
+    const limit = parseInt(searchParams.get("limit") || "50", 10);
 
     if (!workspaceId) {
       return NextResponse.json(
@@ -70,27 +78,48 @@ export async function GET(req: Request) {
       projectWhere.teamId = teamId;
     }
 
-    const tasks = await prisma.task.findMany({
-      where: {
-        workspaceId: workspaceId as string,
-        project: projectWhere,
-      },
-      include: {
-        project: {
-          select: {
-            id: true,
-            name: true,
-          },
-        },
-        predecessors: true,
-        successors: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const taskWhere: any = {
+      workspaceId: workspaceId as string,
+      project: projectWhere,
+    };
 
-    const { getTaskCount } = await import("@/lib/usage-tracking");
-    const { getPlanLimits } = await import("@/lib/plan-limits");
-    
+    // Search/filter params
+    if (search) {
+      taskWhere.OR = [
+        { title: { contains: search, mode: 'insensitive' } },
+        { description: { contains: search, mode: 'insensitive' } },
+      ];
+    }
+    if (status) {
+      taskWhere.status = { equals: status, mode: 'insensitive' };
+    }
+    if (priority) {
+      taskWhere.priority = priority;
+    }
+    if (assigneeId) {
+      taskWhere.userId = assigneeId;
+    }
+
+    const [tasks, totalCount] = await Promise.all([
+      prisma.task.findMany({
+        where: taskWhere,
+        include: {
+          project: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+          predecessors: true,
+          successors: true,
+        },
+        orderBy: { createdAt: "desc" },
+        skip: (page - 1) * limit,
+        take: limit,
+      }),
+      prisma.task.count({ where: taskWhere }),
+    ]);
+
     const [count, workspace] = await Promise.all([
         getTaskCount(workspaceId),
         prisma.workspace.findUnique({
@@ -103,6 +132,12 @@ export async function GET(req: Request) {
 
     return NextResponse.json({
         tasks,
+        pagination: {
+          page,
+          limit,
+          total: totalCount,
+          totalPages: Math.ceil(totalCount / limit),
+        },
         limits: {
             max: planLimits.maxTasks,
             current: count,
@@ -259,10 +294,8 @@ export async function POST(req: Request) {
       "created",
       "task",
       task.id,
-      {
-        taskTitle: task.title,
-        projectId: task.projectId,
-      }
+      { taskTitle: task.title },
+      task.projectId
     );
 
     // Notify workspace members

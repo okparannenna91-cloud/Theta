@@ -125,7 +125,7 @@ export function ColumnValue({ column, value, task, onChange }: {
       return (
         <Badge className={cn(
           "text-[10px] font-bold px-2 py-0.5 rounded-md border-none",
-          value === "done" || value === "completed" ? "bg-emerald-500/10 text-emerald-600" :
+          value === "done" ? "bg-emerald-500/10 text-emerald-600" :
           value === "in_progress" || value === "in-progress" ? "bg-amber-500/10 text-amber-600" :
           value === "todo" ? "bg-slate-500/10 text-slate-600" :
           "bg-indigo-500/10 text-indigo-600"

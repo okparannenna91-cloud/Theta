@@ -5,6 +5,7 @@ import { BitbucketService } from "@/lib/services/bitbucketService";
 import { AsanaService } from "@/lib/services/asanaService";
 import { TrelloService } from "@/lib/services/trelloService";
 import { WooCommerceService } from "@/lib/services/woocommerceService";
+import { GoogleCalendarService } from "@/lib/services/google/calendarService";
 
 export async function POST(req: Request) {
     try {
@@ -42,6 +43,10 @@ export async function POST(req: Request) {
                 const woo = new WooCommerceService(workspaceId);
                 const products = await woo.getProducts();
                 result = { count: products.length };
+                break;
+            case "google":
+                const google = new GoogleCalendarService(workspaceId);
+                result = await google.listEvents();
                 break;
             default:
                 throw new Error("Provider not supported for sync");

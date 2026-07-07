@@ -30,7 +30,7 @@ export function buildSearchTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ searchId: z.string() }),
       execute: async ({ searchId }: Record<string, unknown>) => {
         await enforce(ctx, "delete", "workspace");
-        const success = await SearchIntelligence.deleteSavedSearch(workspaceId, searchId as string);
+        const success = await SearchIntelligence.deleteSavedSearch(workspaceId, searchId as string, user.id);
         return { success, message: success ? "Saved search deleted." : "Failed to delete saved search." };
       }
     },
@@ -39,7 +39,7 @@ export function buildSearchTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ searchId: z.string(), isPinned: z.boolean() }),
       execute: async ({ searchId, isPinned }: Record<string, unknown>) => {
         await enforce(ctx, "write", "workspace");
-        const success = await SearchIntelligence.togglePinSearch(workspaceId, searchId as string, isPinned as boolean);
+        const success = await SearchIntelligence.togglePinSearch(workspaceId, searchId as string, isPinned as boolean, user.id);
         return { success, message: `Search ${isPinned ? "pinned" : "unpinned"}.` };
       }
     },

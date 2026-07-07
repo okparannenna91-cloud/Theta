@@ -116,22 +116,44 @@ export function detectCriticalPath(tasks: TaskData[]): Set<string> {
 
     // 1. Forward Pass: Calculate Early Start (ES) and Early Finish (EF)
     const processed = new Set<string>();
+    const processing = new Set<string>();
     function forwardPass(taskId: string) {
         if (processed.has(taskId)) return;
+        if (processing.has(taskId)) {
+            console.warn(`Circular dependency detected in forward pass at task ${taskId}`);
+            return;
+        }
+        processing.add(taskId);
         const task = taskMap.get(taskId);
-        if (!task) return;
+        if (!task) { processing.delete(taskId); return; }
 
         let maxEF = 0;
+        let maxConstraint = 0;
         task.predecessors.forEach(dep => {
             forwardPass(dep.predecessorId);
             const pred = taskMap.get(dep.predecessorId);
-            if (pred) {
-                maxEF = Math.max(maxEF, pred.earlyFinish + dep.lagMinutes);
+            if (!pred) return;
+
+            switch (dep.type) {
+                case "SS": // Start-to-Start: task ES depends on pred ES
+                    maxConstraint = Math.max(maxConstraint, pred.earlyStart + dep.lagMinutes);
+                    break;
+                case "FF": // Finish-to-Finish: task EF depends on pred EF, derive ES
+                    maxConstraint = Math.max(maxConstraint, pred.earlyFinish + dep.lagMinutes - task.durationMinutes);
+                    break;
+                case "SF": // Start-to-Finish: task EF depends on pred ES
+                    maxConstraint = Math.max(maxConstraint, pred.earlyStart + dep.lagMinutes - task.durationMinutes);
+                    break;
+                case "FS": // Finish-to-Start (Default)
+                default:
+                    maxEF = Math.max(maxEF, pred.earlyFinish + dep.lagMinutes);
+                    break;
             }
         });
 
-        task.earlyStart = maxEF;
-        task.earlyFinish = maxEF + task.durationMinutes;
+        task.earlyStart = Math.max(maxEF, maxConstraint);
+        task.earlyFinish = task.earlyStart + task.durationMinutes;
+        processing.delete(taskId);
         processed.add(taskId);
     }
     tasks.forEach(t => forwardPass(t.id));
@@ -141,10 +163,16 @@ export function detectCriticalPath(tasks: TaskData[]): Set<string> {
 
     // 3. Backward Pass: Calculate Late Start (LS) and Late Finish (LF)
     const backwardProcessed = new Set<string>();
+    const backwardProcessing = new Set<string>();
     function backwardPass(taskId: string) {
         if (backwardProcessed.has(taskId)) return;
+        if (backwardProcessing.has(taskId)) {
+            console.warn(`Circular dependency detected in backward pass at task ${taskId}`);
+            return;
+        }
+        backwardProcessing.add(taskId);
         const task = taskMap.get(taskId);
-        if (!task) return;
+        if (!task) { backwardProcessing.delete(taskId); return; }
 
         // Find successors (tasks that have this task as a predecessor)
         const successors = tasks.filter(t => t.predecessors.some(p => p.predecessorId === taskId));
@@ -157,14 +185,29 @@ export function detectCriticalPath(tasks: TaskData[]): Set<string> {
                 backwardPass(succTask.id);
                 const succ = taskMap.get(succTask.id);
                 const dep = succTask.predecessors.find(p => p.predecessorId === taskId);
-                if (succ && dep) {
-                    minLS = Math.min(minLS, succ.lateStart - dep.lagMinutes);
+                if (!succ || !dep) return;
+
+                switch (dep.type) {
+                    case "SS": // Start-to-Start: succ LS depends on this task's LS
+                        minLS = Math.min(minLS, succ.lateStart - dep.lagMinutes);
+                        break;
+                    case "FF": // Finish-to-Finish: succ LF depends on this task's LF
+                        minLS = Math.min(minLS, succ.lateFinish - dep.lagMinutes);
+                        break;
+                    case "SF": // Start-to-Finish: succ LF depends on this task's LS
+                        minLS = Math.min(minLS, succ.lateFinish - dep.lagMinutes + task.durationMinutes);
+                        break;
+                    case "FS": // Finish-to-Start (Default)
+                    default:
+                        minLS = Math.min(minLS, succ.lateStart - dep.lagMinutes);
+                        break;
                 }
             });
             task.lateFinish = minLS;
         }
 
         task.lateStart = task.lateFinish - task.durationMinutes;
+        backwardProcessing.delete(taskId);
         backwardProcessed.add(taskId);
     }
     tasks.forEach(t => backwardPass(t.id));

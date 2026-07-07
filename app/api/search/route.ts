@@ -3,6 +3,33 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
+import { logger } from "@/lib/logger";
+
+interface ProjectResult {
+  id: string;
+  name: string;
+  description?: string | null;
+  color?: string | null;
+  [key: string]: unknown;
+}
+
+interface TaskResult {
+  id: string;
+  title: string;
+  description?: string | null;
+  project?: { id: string; name: string } | null;
+  [key: string]: unknown;
+}
+
+function extractId(raw: unknown): string {
+  if (!raw) return "";
+  if (typeof raw === "string") return raw;
+  if (typeof raw === "object") {
+    const obj = raw as Record<string, unknown>;
+    return String((obj.$oid as string) ?? obj._id ?? obj.id ?? "");
+  }
+  return String(raw);
+}
 
 export async function GET(req: Request) {
     try {
@@ -49,27 +76,32 @@ export async function GET(req: Request) {
         // Get accessible project IDs for permission filtering
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
 
-        const searchTerm = query.trim();
+        const searchTerm = query.trim().replace(/[\$\{\}\(\)\[\]]/g, ""); // sanitize: strip MongoDB operators
+        const FETCH_LIMIT = 50; // Fetch more to compensate for post-filter removal
 
         // Search projects using $text if possible, fallback to contains
-        let projects: any[] = [];
+        let projects: ProjectResult[] = [];
         try {
-            // @ts-ignore - findRaw is available on the model
-            projects = await prisma.project.findRaw({
+            const raw = await prisma.$runCommandRaw({
+                find: "Project",
                 filter: {
                     workspaceId: { $oid: workspaceId },
                     $text: { $search: searchTerm }
                 },
-                options: { limit: 10, projection: { name: 1, description: 1, color: 1 } }
+                limit: FETCH_LIMIT,
+                projection: { name: 1, description: 1, color: 1 }
             });
-            // Map mongo IDs to prisma IDs if necessary, or just use as is
-            projects = projects.map(p => ({ ...p, id: p._id?.$oid || p._id }));
-            projects = projects.filter(p => accessibleProjectIds.includes(p.id));
-        } catch (e) {
-            // Fallback if no text index exists
+            const rawList = (raw as any)?.cursor?.firstBatch ?? (raw as any) ?? [];
+            projects = (Array.isArray(rawList) ? rawList : []).map((p: any) => ({
+                id: extractId(p._id),
+                name: p.name || "",
+                description: p.description,
+                color: p.color,
+            })).filter(p => accessibleProjectIds.includes(p.id));
+        } catch {
             projects = await prisma.project.findMany({
                 where: {
-                    workspaceId: workspaceId as string,
+                    workspaceId,
                     id: { in: accessibleProjectIds },
                     OR: [
                         { name: { contains: searchTerm, mode: "insensitive" } },
@@ -82,37 +114,40 @@ export async function GET(req: Request) {
         }
 
         // Search tasks using $text if possible
-        let tasks: any[] = [];
+        let tasks: TaskResult[] = [];
         try {
-            // @ts-ignore
-            tasks = await prisma.task.findRaw({
+            const raw = await prisma.$runCommandRaw({
+                find: "Task",
                 filter: {
                     workspaceId: { $oid: workspaceId },
                     $text: { $search: searchTerm }
                 },
-                options: { limit: 10 }
+                limit: FETCH_LIMIT,
             });
-            tasks = tasks.map(t => ({ ...t, id: t._id?.$oid || t._id }));
-            
-            // Resolve project names for tasks (standard Prisma)
-            const projectIds = [...new Set(tasks.map(t => t.projectId).filter(Boolean).map(p => p?.$oid || p))];
-            const resolvedProjects = await prisma.project.findMany({
-                where: { id: { in: projectIds as string[] } },
-                select: { id: true, name: true }
-            });
-            tasks = tasks.map(t => ({
-                ...t,
-                id: t._id?.$oid || t._id,
-                project: resolvedProjects.find(p => p.id === (t.projectId?.$oid || t.projectId)) || null
+            const rawList = (raw as any)?.cursor?.firstBatch ?? (raw as any) ?? [];
+            const rawTasks = (Array.isArray(rawList) ? rawList : []).map((t: any) => ({
+                id: extractId(t._id),
+                title: t.title || "",
+                description: t.description || "",
+                projectId: extractId(t.projectId ?? t.project_id ?? ""),
             }));
-            tasks = tasks.filter(t => {
-                const taskProjectId = t.projectId?.$oid || t.projectId;
-                return accessibleProjectIds.includes(taskProjectId);
-            });
-        } catch (e) {
+
+            const projectIds = [...new Set(rawTasks.map(t => t.projectId).filter(Boolean))];
+            const resolvedProjects = projectIds.length > 0 ? await prisma.project.findMany({
+                where: { id: { in: projectIds } },
+                select: { id: true, name: true }
+            }) : [];
+
+            tasks = rawTasks
+                .filter(t => accessibleProjectIds.includes(t.projectId))
+                .map(t => ({
+                    ...t,
+                    project: resolvedProjects.find(p => p.id === t.projectId) || null,
+                }));
+        } catch {
             tasks = await prisma.task.findMany({
                 where: {
-                    workspaceId: workspaceId as string,
+                    workspaceId,
                     projectId: { in: accessibleProjectIds },
                     OR: [
                         { title: { contains: searchTerm, mode: "insensitive" } },
@@ -155,7 +190,7 @@ export async function GET(req: Request) {
             members: members.map((m) => ({ ...(m.user || {}), role: m.role })),
         });
     } catch (error) {
-        console.error("Search error:", error);
+        logger.error("Search error:", error);
         return NextResponse.json(
             { error: "Internal server error" },
             { status: 500 }

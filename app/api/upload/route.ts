@@ -3,6 +3,11 @@ import cloudinary from "@/lib/cloudinary";
 import { getCurrentUser } from "@/lib/auth";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { canAccessProjectResource } from "@/lib/project-permissions";
+import { createActivity } from "@/lib/activity";
+import { prisma } from "@/lib/prisma";
+import { getPlanLimits } from "@/lib/plan-limits";
+import { calculateStorageUsed } from "@/lib/usage-tracking";
+import { logger } from "@/lib/logger";
 
 // Supported file types
 const ALLOWED_MIME_TYPES = {
@@ -11,7 +16,6 @@ const ALLOWED_MIME_TYPES = {
     "image/png": { category: "image", extension: "png" },
     "image/gif": { category: "image", extension: "gif" },
     "image/webp": { category: "image", extension: "webp" },
-    "image/svg+xml": { category: "image", extension: "svg" },
 
     // Videos
     "video/mp4": { category: "video", extension: "mp4" },
@@ -56,6 +60,10 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "No file provided" }, { status: 400 });
         }
 
+        if (file.size === 0) {
+            return NextResponse.json({ error: "File is empty. 0-byte files are not allowed." }, { status: 400 });
+        }
+
         // Verify workspace membership
         if (workspaceId) {
             const hasWorkspaceAccess = await verifyWorkspaceAccess(user.id, workspaceId);
@@ -85,10 +93,6 @@ export async function POST(req: Request) {
         let currentMaxFileSize = DEFAULT_MAX_FILE_SIZE;
 
         if (workspaceId) {
-            const { prisma } = await import("@/lib/prisma");
-            const { getPlanLimits, enforcePlanLimit } = await import("@/lib/plan-limits");
-            const { calculateStorageUsed } = await import("@/lib/usage-tracking");
-
             const workspace = await prisma.workspace.findUnique({
                 where: { id: workspaceId },
                 select: { plan: true, subscriptionStatus: true }
@@ -138,8 +142,8 @@ export async function POST(req: Request) {
                 {
                     folder: "theta-uploads",
                     resource_type: resourceType,
-                    // Add original filename as public_id
-                    public_id: `${Date.now()}-${file.name.replace(/\.[^/.]+$/, "")}`,
+                    // Add original filename as public_id with sanitization
+                    public_id: `${Date.now()}-${file.name.replace(/\.[^/.]+$/, "").replace(/[/\\:*?"<>|]/g, "_").trim()}`,
                 },
                 (error, result) => {
                     if (error) reject(error);
@@ -150,7 +154,6 @@ export async function POST(req: Request) {
 
         // Log activity for storage tracking
         if (workspaceId) {
-            const { createActivity } = await import("@/lib/activity");
             await createActivity(
                 user.id,
                 workspaceId,
@@ -179,9 +182,72 @@ export async function POST(req: Request) {
             mimeType: file.type,
         });
     } catch (error) {
-        console.error("Upload error:", error);
+        logger.error("Upload error:", error);
         return NextResponse.json(
             { error: "Failed to upload file. Please try again." },
+            { status: 500 }
+        );
+    }
+}
+
+export async function DELETE(req: Request) {
+    try {
+        const user = await getCurrentUser();
+        if (!user) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { publicId, workspaceId } = await req.json();
+
+        if (!publicId) {
+            return NextResponse.json({ error: "publicId is required" }, { status: 400 });
+        }
+
+        if (!workspaceId) {
+            return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
+        }
+
+        const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        let resourceType: "image" | "raw" | "video" = "raw";
+        try {
+            const info = await cloudinary.api.resource(publicId, { resource_type: "image" });
+            resourceType = "image";
+        } catch {
+            try {
+                const info = await cloudinary.api.resource(publicId, { resource_type: "video" });
+                resourceType = "video";
+            } catch {
+                resourceType = "raw";
+            }
+        }
+
+        const result = await cloudinary.uploader.destroy(publicId, { resource_type: resourceType });
+
+        if (result.result !== "ok") {
+            return NextResponse.json(
+                { error: `Failed to delete file from Cloudinary: ${result.result}` },
+                { status: 500 }
+            );
+        }
+
+        await createActivity(
+            user.id,
+            workspaceId,
+            "file_deletion",
+            "file",
+            publicId,
+            { publicId, size: result.bytes || 0 }
+        );
+
+        return NextResponse.json({ success: true, message: "File deleted successfully" });
+    } catch (error) {
+        logger.error("Delete error:", error);
+        return NextResponse.json(
+            { error: "Failed to delete file" },
             { status: 500 }
         );
     }

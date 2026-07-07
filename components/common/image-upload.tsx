@@ -15,6 +15,7 @@ export function ImageUpload({ value, onChange, onRemove, disabled }: ImageUpload
             value={value}
             onChange={onChange}
             onRemove={onRemove}
+            disabled={disabled}
             accept="image/*"
             maxSize={25}
             category="image"

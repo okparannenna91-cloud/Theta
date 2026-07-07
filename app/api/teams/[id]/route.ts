@@ -74,7 +74,8 @@ export async function PATCH(
             return NextResponse.json({ error: "Team not found" }, { status: 404 });
         }
 
-        const isTeamAdmin = team.members[0]?.role === "admin";
+        const teamMembership = team.members.find(m => m.userId === user.id);
+        const isTeamAdmin = teamMembership?.role === "admin" || teamMembership?.role === "owner";
         const isWorkspaceAdm = await isWorkspaceAdmin(user.id, team.workspaceId);
 
         if (!isTeamAdmin && !isWorkspaceAdm) {
@@ -152,6 +153,7 @@ export async function DELETE(
             where: { teamId: params.id },
             data: { teamId: null }
         });
+        await prisma.projectTeam.deleteMany({ where: { teamId: params.id } });
         await prisma.team.delete({
             where: { id: params.id },
         });

@@ -19,7 +19,7 @@ type PostHogData = {
 export function PostHogInsights() {
   const { activeWorkspaceId } = useWorkspace();
 
-  const { data, isLoading } = useQuery<PostHogData>({
+  const { data, isLoading, error } = useQuery<PostHogData>({
     queryKey: ["posthog-analytics", activeWorkspaceId],
     queryFn: async () => {
       const res = await fetch(
@@ -29,8 +29,16 @@ export function PostHogInsights() {
       return res.json();
     },
     enabled: !!activeWorkspaceId,
-    refetchInterval: 60_000,
+    refetchInterval: 120_000, // 2 min – analytics data doesn't change rapidly
   });
+
+  if (error) {
+    return (
+      <div className="p-4 text-center">
+        <p className="text-xs text-red-500">Failed to load analytics insights</p>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
@@ -43,7 +51,11 @@ export function PostHogInsights() {
   }
 
   if (!data?.configured || !data?.metrics) {
-    return null;
+    return (
+      <div className="p-4 text-center">
+        <p className="text-xs text-slate-400">PostHog is not configured. Set NEXT_PUBLIC_POSTHOG_KEY to enable insights.</p>
+      </div>
+    );
   }
 
   const { metrics, topEvents, activeUsers } = data;

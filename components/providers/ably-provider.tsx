@@ -13,8 +13,16 @@ export function AblyProvider({ children }: { children: React.ReactNode }) {
   const clientRef = useRef<Ably.Realtime | null>(null);
   const [client, setClient] = useState<Ably.Realtime | null>(null);
 
+  const userIdRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (!user) {
+    const currentId = user?.id ?? null;
+
+    // Only reconnect if the user ID actually changed (not on object reference changes)
+    if (currentId === userIdRef.current) return;
+    userIdRef.current = currentId;
+
+    if (!currentId) {
       if (clientRef.current) {
         clientRef.current.connection.close();
         clientRef.current = null;
@@ -23,23 +31,27 @@ export function AblyProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    if (!clientRef.current) {
-      const ablyClient = new Ably.Realtime({
-        authUrl: "/api/ably/token",
-        clientId: user.id,
-      });
-
-      ablyClient.connection.on("connected", () => {
-        console.log("Ably Connected");
-      });
-
-      ablyClient.connection.on("disconnected", () => {
-        console.log("Ably Disconnected");
-      });
-
-      clientRef.current = ablyClient;
-      setClient(ablyClient);
+    if (clientRef.current) {
+      clientRef.current.connection.close();
+      clientRef.current = null;
+      setClient(null);
     }
+
+    const ablyClient = new Ably.Realtime({
+      authUrl: "/api/ably/token",
+      clientId: currentId,
+    });
+
+    ablyClient.connection.on("connected", () => {
+      console.log("Ably Connected");
+    });
+
+    ablyClient.connection.on("disconnected", () => {
+      console.log("Ably Disconnected");
+    });
+
+    clientRef.current = ablyClient;
+    setClient(ablyClient);
 
     return () => {
       if (clientRef.current) {
@@ -48,7 +60,7 @@ export function AblyProvider({ children }: { children: React.ReactNode }) {
         setClient(null);
       }
     };
-  }, [user]);
+  }, [user?.id]); // depend on user.id string instead of user object
 
   return (
     <AblyContext.Provider value={client}>

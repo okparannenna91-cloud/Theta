@@ -2,7 +2,7 @@ import { type NovaIntent, type DecisionStrategy } from "./decision-framework";
 import { categoriesForIntent, type ToolCategory } from "@/lib/ai-tools/registry";
 import { logger } from "@/lib/logger";
 
-export type NovaPath = "CHAT" | "ACTION" | "ANALYSIS";
+export type NovaPath = "CHAT" | "ACTION" | "ANALYSIS" | "CONVERSATION";
 
 export interface RouteDecision {
   path: NovaPath;
@@ -12,6 +12,11 @@ export interface RouteDecision {
   promptSuffix: string;
 }
 
+const NEGATION_PATTERNS = [
+  /\b(?:don't|do not|never|stop|avoid|cease)\s+(?:create|make|add|delete|remove|destroy|erase|purge|update|edit|modify|change|automate|import|export)\b/i,
+  /\b(?:not|n't)\s+(?:to\s+)?(?:create|make|add|delete|remove|destroy|erase|purge|update|edit|modify|change|automate|import|export)\b/i,
+];
+
 function isActionIntent(intent: NovaIntent): boolean {
   return ["CREATE", "UPDATE", "DELETE", "AUTOMATE", "IMPORT", "EXPORT"].includes(intent);
 }
@@ -20,11 +25,20 @@ function isAnalysisIntent(intent: NovaIntent): boolean {
   return ["ANALYZE", "REPORT"].includes(intent);
 }
 
-function isChatPrompt(prompt: string, intent: NovaIntent, strategy: DecisionStrategy): boolean {
-  if (intent !== "READ" && intent !== "SEARCH") return false;
-  if (isActionIntent(intent) || isAnalysisIntent(intent)) return false;
-  const hasEntityRef = /\b(task|project|member|workspace|document|tool|integration|form|board|sprint|epic|billing|subscription)\b/i.test(prompt);
-  return !hasEntityRef;
+function isConversationalPrompt(prompt: string): boolean {
+  const negated = NEGATION_PATTERNS.some(p => p.test(prompt));
+  if (negated) return true;
+
+  const isGreeting = /^(?:hi|hey|hello|thanks|thank you|bye|goodbye|good morning|good afternoon|good evening)\b/i.test(prompt.trim());
+  if (isGreeting) return true;
+
+  const isQuestion = /^(?:what|why|how|when|where|who|is|are|can|could|would|should|does|do|did|has|have|will|shall|may|might)\b/i.test(prompt.trim());
+  if (isQuestion) {
+    const hasExplicitAction = /\b(?:create|make|add|delete|remove|update|edit|modify|change|automate|import|export)\b/i.test(prompt);
+    return !hasExplicitAction;
+  }
+
+  return false;
 }
 
 export function routeRequest(
@@ -36,7 +50,15 @@ export function routeRequest(
 
   let decision: RouteDecision;
 
-  if (isActionIntent(intent)) {
+  if (isConversationalPrompt(prompt)) {
+    decision = {
+      path: "CONVERSATION",
+      toolCategories: [],
+      contextDepth: "minimal",
+      timeoutMs: 30000,
+      promptSuffix: "\n[CONVERSATION MODE] Respond naturally and conversationally. You do NOT have access to any tools in this mode. Do not attempt to create, modify, or delete any data.",
+    };
+  } else if (isActionIntent(intent)) {
     decision = {
       path: "ACTION",
       toolCategories: categoriesForIntent(intent),
@@ -47,18 +69,18 @@ export function routeRequest(
   } else if (isAnalysisIntent(intent)) {
     decision = {
       path: "ANALYSIS",
-      toolCategories: ["ANALYSIS", "TASK", "PROJECT", "DOCUMENT", "WORKSPACE", "MEMORY"],
+      toolCategories: categoriesForIntent(intent),
       contextDepth: "full",
       timeoutMs: 50000,
-      promptSuffix: "\n[ANALYSIS MODE] Provide thorough analysis with data, metrics, and actionable recommendations. Support your analysis with evidence from the workspace.",
+      promptSuffix: "\n[ANALYSIS MODE] Analyze the available information and provide insights with evidence from the workspace.",
     };
-  } else if (isChatPrompt(prompt, intent, strategy)) {
+  } else if (intent === "READ" || intent === "SEARCH") {
     decision = {
       path: "CHAT",
-      toolCategories: ["MEMORY"],
-      contextDepth: "minimal",
-      timeoutMs: 30000,
-      promptSuffix: "\n[CHAT MODE] This is a general conversation. Respond naturally and helpfully. You do not have access to workspace tools in this mode.",
+      toolCategories: categoriesForIntent(intent),
+      contextDepth: "standard",
+      timeoutMs: 50000,
+      promptSuffix: "\n[CHAT MODE] Use tools to read information when explicitly asked. Do not create, update, or delete anything.",
     };
   } else {
     decision = {

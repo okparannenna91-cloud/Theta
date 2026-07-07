@@ -42,7 +42,11 @@ If none of the projects fit, return "no-project".`;
         })).text;
 
         try {
-            const result = JSON.parse(responseText.match(/\{[\s\S]*\}/)?.[0] || "{}");
+            // Try extracting JSON from markdown code block first
+            const codeBlockMatch = responseText.match(/```(?:json)?\s*\n?([\s\S]*?)```/);
+            const jsonStr = codeBlockMatch?.[1]?.trim() || responseText.match(/\{(?:[^{}]|(?!\})\{|(?<=\})\})*?\}/)?.[0];
+            if (!jsonStr) throw new Error("No JSON found in response");
+            const result = JSON.parse(jsonStr);
             return NextResponse.json(result);
         } catch (e) {
             return NextResponse.json({ priority: "medium", projectId: "no-project" });

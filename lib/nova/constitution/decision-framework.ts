@@ -67,9 +67,23 @@ export const DECISION_PRIORITY_ORDER: string[] = [
   "Default system behavior",
 ];
 
+const NEGATION_PATTERNS = [
+  /\b(?:don't|do not|never|stop|avoid|cease)\s+(?:create|make|add|delete|remove|destroy|erase|purge|update|edit|modify|change|automate|import|export)\b/i,
+  /\b(?:not|n't)\s+(?:to\s+)?(?:create|make|add|delete|remove|destroy|erase|purge|update|edit|modify|change|automate|import|export)\b/i,
+];
+
+const QUESTION_PREFIXES = /^(?:what|why|how|when|where|who|is|are|can|could|would|should|does|do|did|has|have|will|shall|may|might)\b/i;
+
 export function intentFromString(input: string): NovaIntent {
-  const lower = input.toLowerCase();
+  const trimmed = input.trim();
+  const lower = trimmed.toLowerCase();
   const hasWord = (w: string) => new RegExp(`\\b${w}\\b`).test(lower);
+
+  const hasNegation = NEGATION_PATTERNS.some(p => p.test(trimmed));
+  if (hasNegation) return "READ";
+
+  const isQuestion = QUESTION_PREFIXES.test(trimmed);
+
   if (hasWord("create") || hasWord("make") || hasWord("add")) return "CREATE";
   if (hasWord("delete") || hasWord("remove") || hasWord("destroy") || hasWord("erase") || hasWord("purge")) return "DELETE";
   if (hasWord("update") || hasWord("edit") || hasWord("modify") || hasWord("change")) return "UPDATE";
@@ -79,5 +93,6 @@ export function intentFromString(input: string): NovaIntent {
   if (hasWord("import")) return "IMPORT";
   if (hasWord("export")) return "EXPORT";
   if (hasWord("read") || hasWord("get") || hasWord("show") || hasWord("list")) return "READ";
+  if (isQuestion) return "SEARCH";
   return "READ";
 }

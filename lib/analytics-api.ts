@@ -25,7 +25,6 @@ async function queryPostHog(query: Record<string, unknown>): Promise<PostHogQuer
           Authorization: `Bearer ${POSTHOG_PERSONAL_API_KEY}`,
         },
         body: JSON.stringify({ query }),
-        next: { revalidate: 300 },
       }
     );
 
@@ -52,25 +51,37 @@ export async function getEventCounts(
   event: string,
   since = "-30d"
 ): Promise<AnalyticsInsight | null> {
-  const query = {
-    kind: "TrendsQuery",
-    series: [{ kind: "EventsNode", event, math: "total" }],
-    date_range: { date_from: since },
-    interval: "day",
-    breakdown: null,
-    properties: [],
-    filter_test_accounts: true,
-  };
+  const [totalResponse, uniqueResponse] = await Promise.all([
+    queryPostHog({
+      kind: "TrendsQuery",
+      series: [{ kind: "EventsNode", event, math: "total" }],
+      date_range: { date_from: since },
+      interval: "day",
+      breakdown: null,
+      properties: [],
+      filter_test_accounts: true,
+    }),
+    queryPostHog({
+      kind: "TrendsQuery",
+      series: [{ kind: "EventsNode", event, math: "dau" }],
+      date_range: { date_from: since },
+      interval: "day",
+      breakdown: null,
+      properties: [],
+      filter_test_accounts: true,
+    }),
+  ]);
 
-  const response = await queryPostHog(query);
-  if (response.error || !response.results?.length) return null;
+  const result = totalResponse.results?.[0] as { count?: number; data?: number[]; dates?: string[]; labels?: string[] } | undefined;
+  const uniqueResult = uniqueResponse.results?.[0] as { count?: number } | undefined;
 
-  const result = response.results[0] as any;
+  if (!result) return null;
+
   return {
     event,
     count: result.count ?? 0,
-    unique_users: result.count ?? 0,
-    trend: (result.data ?? result.timeline ?? []).map((v: number, i: string | number) => ({
+    unique_users: uniqueResult?.count ?? 0,
+    trend: (result.data ?? []).map((v: number, i: number) => ({
       date: result.dates?.[i] || result.labels?.[i] || `day_${i}`,
       count: v,
     })),
@@ -102,7 +113,7 @@ export async function getWorkspaceMetrics(workspaceId: string, since = "-30d") {
 export async function getTopEvents(since = "-30d", limit = 10) {
   const query = {
     kind: "TrendsQuery",
-    series: [{ kind: "EventsNode", event: undefined, math: "total" }],
+    series: [{ kind: "EventsNode", math: "total" } as Record<string, unknown>],
     date_range: { date_from: since },
     breakdown: "$event_type",
     filter_test_accounts: true,
@@ -111,13 +122,28 @@ export async function getTopEvents(since = "-30d", limit = 10) {
   const response = await queryPostHog(query);
   if (response.error || !response.results?.length) return [];
 
-  const events = response.results
-    .map((r: any) => ({
+  const uniqueResponse = await queryPostHog({
+    kind: "TrendsQuery",
+    series: [{ kind: "EventsNode", math: "dau" } as Record<string, unknown>],
+    date_range: { date_from: since },
+    breakdown: "$event_type",
+    filter_test_accounts: true,
+  });
+
+  const uniqueMap = new Map<string, number>();
+  if (uniqueResponse.results) {
+    (uniqueResponse.results as Array<{ label?: string; event?: string; count?: number }>).forEach((r) => {
+      uniqueMap.set(r.label ?? r.event ?? "unknown", r.count ?? 0);
+    });
+  }
+
+  const events = (response.results as Array<{ label?: string; event?: string; count?: number }>)
+    .map((r) => ({
       event: r.label ?? r.event ?? "unknown",
       count: r.count ?? 0,
-      uniqueUsers: r.count ?? 0,
+      uniqueUsers: uniqueMap.get(r.label ?? r.event ?? "unknown") ?? 0,
     }))
-    .sort((a: { count: number }, b: { count: number }) => b.count - a.count)
+    .sort((a, b) => b.count - a.count)
     .slice(0, limit);
 
   return events;
@@ -126,7 +152,7 @@ export async function getTopEvents(since = "-30d", limit = 10) {
 export async function getActiveUsers(since = "-7d") {
   const query = {
     kind: "TrendsQuery",
-    series: [{ kind: "EventsNode", event: undefined, math: "dau" }],
+    series: [{ kind: "EventsNode", math: "dau" } as Record<string, unknown>],
     date_range: { date_from: since },
     interval: "day",
     filter_test_accounts: true,
@@ -135,8 +161,10 @@ export async function getActiveUsers(since = "-7d") {
   const response = await queryPostHog(query);
   if (response.error || !response.results?.length) return [];
 
-  const result = response.results[0] as any;
-  return (result.data ?? []).map((count: number, i: string | number) => ({
+  const result = response.results[0] as { data?: number[]; dates?: string[] } | undefined;
+  if (!result) return [];
+
+  return (result.data ?? []).map((count: number, i: number) => ({
     date: result.dates?.[i] || `day_${i}`,
     active_users: count,
   }));

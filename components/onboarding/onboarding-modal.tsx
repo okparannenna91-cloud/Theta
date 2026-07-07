@@ -85,6 +85,13 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
         },
         {
             id: 4,
+            title: "Meet Nova, your AI assistant",
+            description: "Nova helps you create tasks, answer questions, automate workflows, and analyze your workspace — just ask.",
+            icon: Sparkles,
+            highlight: true,
+        },
+        {
+            id: 5,
             title: "Ready to launch?",
             description: "You're all set to explore your workspace.",
             icon: Zap,
@@ -161,6 +168,38 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                                         </Button>
                                     )}
 
+                                    {step === 4 && (
+                                        <div className="w-full space-y-6">
+                                            <div className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 rounded-2xl p-6 border border-indigo-100 dark:border-indigo-900 text-left">
+                                                <div className="flex items-start gap-4">
+                                                    <Sparkles className="w-10 h-10 text-indigo-600 flex-shrink-0" />
+                                                    <div className="space-y-3">
+                                                        <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                                                            Nova lives in the bottom-right corner of your dashboard. Click the sparkle icon to start a conversation.
+                                                        </p>
+                                                        <div className="space-y-2">
+                                                            <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                                                <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-xs font-bold text-indigo-600">/</span>
+                                                                Use slash commands like <code className="px-2 py-0.5 bg-slate-100 dark:bg-slate-800 rounded text-xs font-mono">/task</code> to create items fast
+                                                            </div>
+                                                            <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                                                <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-xs font-bold text-indigo-600">?</span>
+                                                                Ask questions like "What's my team working on?"
+                                                            </div>
+                                                            <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
+                                                                <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-xs font-bold text-indigo-600">+</span>
+                                                                Generate tasks, specs, and reports from natural language
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <Button onClick={nextStep} className="w-full bg-indigo-600 hover:bg-indigo-700 h-16 rounded-2xl text-lg font-black shadow-lg shadow-indigo-100">
+                                                Got it! <ArrowRight className="ml-2 w-5 h-5" />
+                                            </Button>
+                                        </div>
+                                    )}
+
                                     {step === steps.length && (
                                         <Button
                                             onClick={handleSubmit}
@@ -173,7 +212,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                                 </motion.div>
                             </AnimatePresence>
 
-                            {step > 1 && step < steps.length && !currentStepData.options && (
+                            {step > 1 && step < steps.length && !currentStepData.options && !currentStepData.highlight && (
                                 <div className="mt-10 flex gap-4 w-full">
                                     <Button variant="ghost" onClick={prevStep} className="flex-1 h-14 rounded-xl font-bold">Back</Button>
                                     <Button onClick={nextStep} className="flex-[2] h-14 bg-indigo-600 hover:bg-indigo-700 rounded-xl font-bold">Continue</Button>

@@ -58,11 +58,17 @@ export function InviteMemberDialog({
         },
         onSuccess: (data) => {
             if (data.inviteLink) {
-                navigator.clipboard.writeText(data.inviteLink).catch(() => {});
-                toast.success(
-                    `Invite created! Link copied to clipboard.`,
-                    { description: data.inviteLink, duration: 8000 }
-                );
+                navigator.clipboard.writeText(data.inviteLink).then(() => {
+                    toast.success(
+                        `Invite created! Link copied to clipboard.`,
+                        { description: data.inviteLink, duration: 8000 }
+                    );
+                }).catch(() => {
+                    toast.success(
+                        `Invite created!`,
+                        { description: `Link: ${data.inviteLink}`, duration: 12000 }
+                    );
+                });
             } else {
                 toast.success("Invite sent successfully");
             }
@@ -133,7 +139,7 @@ export function InviteMemberDialog({
                         <Button 
                             type="submit" 
                             disabled={!email || inviteMutation.isPending}
-                            className="rounded-lg bg-primary hover:bg-primary/90 font-semibold text-xs h-12 px-8 shadow-sm"
+                            className="rounded-lg font-semibold text-xs h-12 px-8 shadow-sm"
                         >
                             {inviteMutation.isPending ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />

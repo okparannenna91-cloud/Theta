@@ -25,7 +25,7 @@ export function PostHogChart({
 }: PostHogChartProps) {
   const { activeWorkspaceId } = useWorkspace();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error } = useQuery({
     queryKey: ["posthog-chart", activeWorkspaceId, event, since],
     queryFn: async () => {
       const res = await fetch(
@@ -37,14 +37,26 @@ export function PostHogChart({
     enabled: !!activeWorkspaceId,
   });
 
+  if (error) {
+    return (
+      <div className={cn("flex items-center justify-center text-[10px] text-slate-400", className)} style={{ height }}>
+        Chart data unavailable
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className={cn("animate-pulse rounded-xl bg-slate-100 dark:bg-slate-900", className)} style={{ height }} />
     );
   }
 
-  if (!data?.points?.length || !data.total) {
-    return null;
+  if (!data?.points?.length || typeof data.total !== "number") {
+    return (
+      <div className={cn("flex items-center justify-center text-[10px] text-slate-400", className)} style={{ height }}>
+        No chart data available
+      </div>
+    );
   }
 
   const values = data.points.map((p: { count: number }) => p.count);

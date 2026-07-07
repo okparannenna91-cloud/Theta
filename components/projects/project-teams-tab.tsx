@@ -38,7 +38,7 @@ export function ProjectTeamsTab({ projectId, workspaceId }: ProjectTeamsTabProps
     const [searchQuery, setSearchQuery] = useState("");
     const queryClient = useQueryClient();
 
-    const { data: teams, isLoading } = useQuery({
+    const { data: teams, isLoading, error: teamsError } = useQuery({
         queryKey: ["project-teams", projectId],
         queryFn: async () => {
             const res = await fetch(`/api/projects/${projectId}/teams?workspaceId=${workspaceId}`);
@@ -46,6 +46,14 @@ export function ProjectTeamsTab({ projectId, workspaceId }: ProjectTeamsTabProps
             return res.json();
         }
     });
+
+    if (teamsError) {
+        return (
+            <div className="flex items-center justify-center min-h-[200px]">
+                <p className="text-sm text-muted-foreground">Failed to load teams. Please try again.</p>
+            </div>
+        );
+    }
 
     const unlinkMutation = useMutation({
         mutationFn: async (teamId: string) => {

@@ -46,7 +46,7 @@ export default function NotificationsDashboard() {
     const [activeTab, setActiveTab] = useState("all");
     const { ref, inView } = useInView();
 
-    const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, refetch } = useInfiniteQuery({
+    const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError, refetch } = useInfiniteQuery({
         queryKey: ["notifications", activeWorkspaceId, activeTab],
         queryFn: async ({ pageParam }) => {
             const res = await fetch(`/api/notifications?workspaceId=${activeWorkspaceId}&filter=${activeTab}&skip=${pageParam}&take=20`);
@@ -55,11 +55,11 @@ export default function NotificationsDashboard() {
         },
         initialPageParam: 0,
         getNextPageParam: (lastPage, allPages) => {
-            const currentCount = allPages.length * 20;
-            return lastPage.hasMore ? currentCount : undefined;
+            const totalReturned = allPages.reduce((sum, p) => sum + p.notifications.length, 0);
+            return lastPage.hasMore ? totalReturned : undefined;
         },
         enabled: !!activeWorkspaceId,
-        refetchInterval: 30000
+        refetchInterval: 60000 // 1 min – reduced from 30s
     });
 
     useEffect(() => {
@@ -163,11 +163,18 @@ export default function NotificationsDashboard() {
                     Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} className="h-24 w-full bg-muted/30 animate-pulse rounded-lg" />
                     ))
+                ) : isError ? (
+                    <div className="text-center py-16 border rounded-lg">
+                        <AlertTriangle className="h-10 w-10 text-destructive mx-auto mb-3" />
+                        <p className="text-sm font-medium text-destructive">Failed to load notifications</p>
+                        <p className="text-xs text-muted-foreground mt-1 mb-4">There was an error fetching your notifications. Please try again.</p>
+                        <Button variant="outline" size="sm" className="rounded-lg" onClick={() => refetch()}>Retry</Button>
+                    </div>
                 ) : notifications.length > 0 ? (
                     <>
                         {notifications.map((n: any) => (
                             <div key={n.id}
-                                className={`relative flex items-start gap-4 p-4 rounded-lg border transition-colors hover:border-primary/30 ${!n.read ? "bg-muted/30 border-primary/20" : "bg-background"}`}>
+                                className={`group relative flex items-start gap-4 p-4 rounded-lg border transition-colors hover:border-primary/30 ${!n.read ? "bg-muted/30 border-primary/20" : "bg-background"}`}>
                                 {!n.read && (
                                     <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-primary rounded-r-full" />
                                 )}

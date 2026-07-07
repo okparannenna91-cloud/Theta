@@ -29,11 +29,13 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ message: "Integration not found" }, { status: 404 });
         }
 
-        // WooCommerce verification: use consumer secret stored in refreshToken
-        if (!integration.refreshToken) {
+        // WooCommerce verification: use consumer secret stored in config
+        const wcConfig = integration.config as Record<string, unknown> | null;
+        const consumerSecretField = wcConfig?.consumerSecret as string | undefined;
+        if (!consumerSecretField) {
             return NextResponse.json({ error: "Integration not fully configured" }, { status: 401 });
         }
-        const consumerSecret = decrypt(integration.refreshToken);
+        const consumerSecret = decrypt(consumerSecretField);
         if (!signature) {
             return NextResponse.json({ error: "Missing signature" }, { status: 401 });
         }
@@ -45,9 +47,10 @@ export async function POST(request: NextRequest) {
 
         // Handle events
         if (topic === "order.created") {
-            const { createActivity } = await import("@/lib/activity");
+            const { createActivity, resolveWebhookUserId } = await import("@/lib/activity");
+            const webhookUserId = await resolveWebhookUserId(workspaceId) || "system";
             await createActivity(
-                "system",
+                webhookUserId,
                 workspaceId,
                 "ordered",
                 "woocommerce_store",

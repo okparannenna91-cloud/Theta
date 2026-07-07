@@ -73,7 +73,7 @@ export function PortfolioPage() {
     );
 
     const projectHealth = projects?.map((p: any) => {
-        const completed = p.tasks?.filter((t: any) => t.status === "done" || t.status === "completed").length || 0;
+        const completed = p.tasks?.filter((t: any) => t.status === "done").length || 0;
         const total = p.tasks?.length || 0;
         const progress = total > 0 ? (completed / total) * 100 : 0;
         return { ...p, progress, completed, total };

@@ -44,19 +44,12 @@ export function PostHogProvider({ children }: { children: React.ReactNode }) {
     });
   }, [activeWorkspace, user]);
 
-  // Pageview tracking (PostHog captures automatically, but we enhance it)
+  // Pageview tracking is handled by PostHog's capture_pageview config, no manual capture needed
   useEffect(() => {
     const ph = getPostHogClient();
     if (!ph) return;
-
-    const url = pathname + (searchParams?.toString() ? `?${searchParams.toString()}` : "");
-
-    ph.capture("$pageview", {
-      url,
-      pathname,
-      workspace_id: activeWorkspace?.id || null,
-    });
-  }, [pathname, searchParams, activeWorkspace]);
+    ph.register({ workspace_id: activeWorkspace?.id || null });
+  }, [activeWorkspace]);
 
   return <>{children}</>;
 }

@@ -62,7 +62,6 @@ export async function getCurrentUser() {
         ? `${userName}'s Workspace`
         : "My Workspace";
 
-      const { createWorkspace } = await import("@/lib/workspace");
       await createWorkspace(user.id, workspaceName, "free");
 
       if (user.email) {

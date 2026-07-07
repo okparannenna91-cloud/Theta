@@ -208,7 +208,7 @@ export default function BillingPage() {
                   <ShieldCheck className="h-4 w-4 text-primary" /> Advanced Features
                 </h4>
                 <div className="space-y-3">
-                  {usage?.boots && <UsageMeter {...usage.boots} label="AI Requests" />}
+                  {usage?.nova && <UsageMeter {...usage.nova} label="AI Requests" />}
                   {usage?.storage && <UsageMeter {...usage.storage} label="File Storage" unit="MB" />}
                   {usage?.boards && <UsageMeter {...usage.boards} label="Kanban Boards" />}
                   {usage?.integrations && <UsageMeter {...usage.integrations} label="Integrations" />}

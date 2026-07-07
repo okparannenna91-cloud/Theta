@@ -30,6 +30,36 @@ import { Badge } from "@/components/ui/badge";
 import { useInView } from "react-intersection-observer";
 import { Skeleton } from "@/components/ui/skeleton";
 
+interface ActivityItem {
+    id: string;
+    action: string;
+    entityType: string;
+    entityId: string;
+    createdAt: string;
+    user?: { name: string; imageUrl?: string } | null;
+    project?: { name: string } | null;
+    metadata?: { title?: string };
+}
+
+interface ProjectItem {
+    id: string;
+    name: string;
+}
+
+interface MemberItem {
+    id: string;
+    name: string;
+    imageUrl?: string;
+}
+
+function escapeCsvField(field: string): string {
+    const str = String(field);
+    if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+        return `"${str.replace(/"/g, '""')}"`;
+    }
+    return str;
+}
+
 export default function ActivityPage() {
     const { activeWorkspaceId } = useWorkspace();
     const { ref, inView } = useInView();
@@ -38,7 +68,7 @@ export default function ActivityPage() {
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
     const [selectedType, setSelectedType] = useState<string | null>(null);
 
-    const { data: projectsData } = useQuery({
+    const projectsQuery = useQuery({
         queryKey: ["workspace-projects", activeWorkspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/projects?workspaceId=${activeWorkspaceId}`);
@@ -48,7 +78,7 @@ export default function ActivityPage() {
         enabled: !!activeWorkspaceId
     });
 
-    const { data: membersData } = useQuery({
+    const membersQuery = useQuery({
         queryKey: ["workspace-members", activeWorkspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/workspaces/${activeWorkspaceId}/members`);
@@ -63,7 +93,9 @@ export default function ActivityPage() {
         fetchNextPage,
         hasNextPage,
         isFetchingNextPage,
-        isLoading
+        isLoading,
+        isError,
+        error
     } = useInfiniteQuery({
         queryKey: ["activity-feed", activeWorkspaceId, searchQuery, selectedProject, selectedUser, selectedType],
         queryFn: async ({ pageParam }) => {
@@ -90,11 +122,14 @@ export default function ActivityPage() {
         }
     }, [inView, hasNextPage, fetchNextPage]);
 
-    const activities = useMemo(() => data?.pages.flatMap(page => page.activities) || [], [data?.pages]);
+    const activities = useMemo<ActivityItem[]>(
+        () => data?.pages.flatMap(page => page.activities) || [],
+        [data?.pages]
+    );
 
     const groupedActivities = useMemo(() => {
-        const groups: { date: Date; items: any[] }[] = [];
-        activities.forEach(activity => {
+        const groups: { date: Date; items: ActivityItem[] }[] = [];
+        activities.forEach((activity: ActivityItem) => {
             const date = startOfDay(new Date(activity.createdAt));
             const existingGroup = groups.find(g => isSameDay(g.date, date));
             if (existingGroup) {
@@ -108,7 +143,15 @@ export default function ActivityPage() {
 
     const handleExport = () => {
         const csvContent = "Date,User,Action,Entity,Project\n" +
-            activities.map(a => `${format(new Date(a.createdAt), 'yyyy-MM-dd HH:mm')},${a.user?.name},${a.action},${a.entityType},${a.project?.name || 'N/A'}`).join("\n");
+            activities.map((a: ActivityItem) =>
+                [
+                    escapeCsvField(format(new Date(a.createdAt), 'yyyy-MM-dd HH:mm')),
+                    escapeCsvField(a.user?.name || ''),
+                    escapeCsvField(a.action),
+                    escapeCsvField(a.entityType),
+                    escapeCsvField(a.project?.name || 'N/A')
+                ].join(",")
+            ).join("\n");
         const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -143,13 +186,17 @@ export default function ActivityPage() {
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="h-9 text-xs">
                                 <FolderKanban className="h-3.5 w-3.5 mr-2" />
-                                {selectedProject ? projectsData?.projects?.find((p: any) => p.id === selectedProject)?.name : "All Projects"}
+                                {selectedProject
+                                    ? (projectsQuery.data?.projects as ProjectItem[] | undefined)?.find((p: ProjectItem) => p.id === selectedProject)?.name
+                                    : "All Projects"}
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56">
                             <DropdownMenuItem onClick={() => setSelectedProject(null)}>All Projects</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {projectsData?.projects?.map((p: any) => (
+                            {projectsQuery.isError ? (
+                                <DropdownMenuItem disabled>Failed to load projects</DropdownMenuItem>
+                            ) : (projectsQuery.data?.projects as ProjectItem[] | undefined)?.map((p: ProjectItem) => (
                                 <DropdownMenuItem key={p.id} onClick={() => setSelectedProject(p.id)}>{p.name}</DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>
@@ -159,13 +206,17 @@ export default function ActivityPage() {
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="h-9 text-xs">
                                 <UserIcon className="h-3.5 w-3.5 mr-2" />
-                                {selectedUser ? membersData?.find((m: any) => m.id === selectedUser)?.name : "All Users"}
+                                {selectedUser
+                                    ? (membersQuery.data as MemberItem[] | undefined)?.find((m: MemberItem) => m.id === selectedUser)?.name
+                                    : "All Users"}
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56">
                             <DropdownMenuItem onClick={() => setSelectedUser(null)}>All Users</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {membersData?.map((m: any) => (
+                            {membersQuery.isError ? (
+                                <DropdownMenuItem disabled>Failed to load members</DropdownMenuItem>
+                            ) : (membersQuery.data as MemberItem[] | undefined)?.map((m: MemberItem) => (
                                 <DropdownMenuItem key={m.id} onClick={() => setSelectedUser(m.id)}>{m.name}</DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>
@@ -175,14 +226,16 @@ export default function ActivityPage() {
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="h-9 text-xs">
                                 <Filter className="h-3.5 w-3.5 mr-2" />
-                                {selectedType || "All Types"}
+                                {selectedType ? selectedType.charAt(0).toUpperCase() + selectedType.slice(1) : "All Types"}
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="start" className="w-56">
                             <DropdownMenuItem onClick={() => setSelectedType(null)}>All Types</DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {["Task", "Project", "Document", "Member", "System"].map(type => (
-                                <DropdownMenuItem key={type} onClick={() => setSelectedType(type)}>{type}</DropdownMenuItem>
+                            {["task", "project", "document", "member", "system"].map(type => (
+                                <DropdownMenuItem key={type} onClick={() => setSelectedType(type)}>
+                                    {type.charAt(0).toUpperCase() + type.slice(1)}
+                                </DropdownMenuItem>
                             ))}
                         </DropdownMenuContent>
                     </DropdownMenu>
@@ -195,7 +248,14 @@ export default function ActivityPage() {
             </div>
 
             <div className="space-y-8">
-                {isLoading ? (
+                {isError ? (
+                    <div className="text-center py-16 border rounded-lg">
+                        <p className="text-sm text-red-500">Failed to load activity. {(error as Error)?.message}</p>
+                        <Button variant="outline" size="sm" className="mt-4" onClick={() => window.location.reload()}>
+                            Try Again
+                        </Button>
+                    </div>
+                ) : isLoading ? (
                     <div className="space-y-6">
                         {Array.from({ length: 4 }).map((_, i) => (
                             <div key={i} className="space-y-3">
@@ -216,7 +276,7 @@ export default function ActivityPage() {
                             </div>
 
                             <div className="space-y-3 pl-4 border-l-2 border-border ml-2">
-                                {group.items.map((activity) => (
+                                {group.items.map((activity: ActivityItem) => (
                                     <div key={activity.id} className="relative">
                                         <div className="absolute -left-[1.35rem] top-5 w-2.5 h-2.5 rounded-full bg-primary border-2 border-background" />
 

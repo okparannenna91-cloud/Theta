@@ -37,8 +37,23 @@ export interface ProjectForecast {
 
 export class ProjectIntelligence {
   public static async analyzeHealth(workspaceId: string, projectId: string): Promise<ProjectHealthReport> {
+    // TENANT ISOLATION: Verify project belongs to workspace
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, workspaceId },
+      select: { id: true },
+    });
+    if (!project) {
+      return {
+        healthScore: 0,
+        status: "CRITICAL",
+        metrics: { totalTasks: 0, completedTasks: 0, overdueTasks: 0, stalledTasks: 0, blockedTasks: 0, completionRate: "0%", overdueRate: "0%", taskCompletionRate: "0%" },
+        risks: [{ type: "SCHEDULE", severity: "CRITICAL", description: "Project not found in this workspace", affectedItems: [] }],
+        recommendation: "Project not found in this workspace.",
+      };
+    }
+
     const tasks = await prisma.task.findMany({
-      where: { projectId },
+      where: { projectId, workspaceId },
       include: { predecessors: true },
     });
 

@@ -1,8 +1,16 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Board } from "@prisma/client";
 import { requireProjectAccess } from "@/lib/project-permissions";
+import { z } from "zod";
+
+const boardUpdateSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
+  icon: z.string().optional(),
+  isFavorite: z.boolean().optional(),
+  visibility: z.enum(["private", "team", "public"]).optional(),
+});
 
 export async function GET(
   req: Request,
@@ -90,7 +98,7 @@ export async function PATCH(
     }
 
     const body = await req.json();
-    const { name, description, icon, isFavorite, visibility } = body;
+    const data = boardUpdateSchema.parse(body);
 
     const board = await prisma.board.findUnique({ where: { id: params.id } });
 
@@ -119,16 +127,19 @@ export async function PATCH(
     const updatedBoard = await prisma.board.update({
       where: { id: params.id },
       data: {
-        ...(name !== undefined && { name }),
-        ...(description !== undefined && { description }),
-        ...(icon !== undefined && { icon }),
-        ...(isFavorite !== undefined && { isFavorite }),
-        ...(visibility !== undefined && { visibility }),
+        ...(data.name !== undefined && { name: data.name }),
+        ...(data.description !== undefined && { description: data.description }),
+        ...(data.icon !== undefined && { icon: data.icon }),
+        ...(data.isFavorite !== undefined && { isFavorite: data.isFavorite }),
+        ...(data.visibility !== undefined && { visibility: data.visibility }),
       },
     });
 
     return NextResponse.json(updatedBoard);
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
     console.error("Update board error:", error);
     return NextResponse.json(
       { error: "Internal server error" },

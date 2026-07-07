@@ -1,5 +1,6 @@
 import { buildTools } from "@/lib/ai-tools";
 import type { ToolContext } from "@/lib/ai-tools";
+import type { ToolCategory } from "@/lib/ai-tools/registry";
 import { DynamicStructuredTool } from "@langchain/core/tools";
 import { z } from "zod";
 
@@ -15,6 +16,18 @@ function toToolContext(ctx: LangGraphToolContext): ToolContext {
     workspaceId: ctx.workspaceId,
     projectId: ctx.projectId,
   };
+}
+
+export function buildLangGraphTools(
+  ctx: LangGraphToolContext,
+  categories?: ToolCategory[]
+): DynamicStructuredTool[] {
+  const aiCtx = toToolContext(ctx);
+  const tools = buildTools(aiCtx, categories);
+  const aiTools = Object.keys(tools).map((name) => buildLangGraphToolWrapper(ctx, name));
+  const { buildServiceTools } = require("./services");
+  const serviceTools = buildServiceTools(ctx);
+  return [...aiTools, ...serviceTools];
 }
 
 export function buildLangGraphToolWrapper(
@@ -58,19 +71,4 @@ export function buildAllLangGraphTools(
   return [...aiTools, ...serviceTools];
 }
 
-export function buildLangGraphToolsForCategories(
-  ctx: LangGraphToolContext,
-  categories: string[]
-): DynamicStructuredTool[] {
-  const { filterToolsByCategories } = require("@/lib/ai-tools/registry");
-  const aiCtx = toToolContext(ctx);
-  const tools = buildTools(aiCtx);
-  const filtered = filterToolsByCategories(tools, categories);
-  const aiTools = Object.keys(filtered).map((name) => buildLangGraphToolWrapper(ctx, name));
-  if (categories.includes("INTEGRATION" as any)) {
-    const { buildServiceTools } = require("./services");
-    const serviceTools = buildServiceTools(ctx);
-    return [...aiTools, ...serviceTools];
-  }
-  return aiTools;
-}
+

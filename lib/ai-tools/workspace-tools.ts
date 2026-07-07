@@ -51,7 +51,7 @@ export function buildWorkspaceTools(ctx: ToolContext): ToolModule {
     },
     create_client_invite: {
       description: 'Invite an external client to a guest portal.',
-      inputSchema: z.object({ email: z.string().email(), projectId: z.string() }),
+      inputSchema: z.object({ email: z.string().email() }),
       execute: async ({ email }: Record<string, unknown>) => {
         await enforce(ctx, "admin", "member");
         await createInvite(workspaceId, email as string, "guest");

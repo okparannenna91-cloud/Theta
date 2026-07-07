@@ -24,7 +24,8 @@ export function rateLimit(options: RateLimitOptions) {
                 if (error.message === 'Rate limit exceeded') {
                     return Promise.reject(error);
                 }
-                return Promise.resolve();
+                // Fail closed: if Redis is down or any other error, reject
+                return Promise.reject(new Error('Rate limit exceeded'));
             }
         },
     };

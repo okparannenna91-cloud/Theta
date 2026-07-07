@@ -228,6 +228,56 @@ export default function SettingsPage() {
           <IntegrationDashboard />
         </section>
 
+        {/* Nova AI */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+              <Sparkles className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold">Nova AI Assistant</h2>
+              <p className="text-xs text-muted-foreground">Configure your AI copilot behavior</p>
+            </div>
+          </div>
+
+          <Card className="border shadow-sm">
+            <CardContent className="p-5 space-y-5">
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Proactive Suggestions</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Allow Nova to surface insights and suggestions automatically</p>
+                </div>
+                <Switch checked />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Auto-Summarize</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">Nova summarizes completed tasks and activity changes</p>
+                </div>
+                <Switch checked />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <Label className="text-sm font-medium">Task Intelligence</Label>
+                  <p className="text-xs text-muted-foreground mt-0.5">AI analyzes tasks to suggest priorities and effort estimates</p>
+                </div>
+                <Switch checked />
+              </div>
+              <div className="border-t pt-4 mt-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start text-xs h-10 rounded-xl"
+                  onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "Show me your recent memories and learnings about my workspace" } }))}
+                >
+                  <Sparkles className="h-3.5 w-3.5 mr-2 text-primary" />
+                  View Nova&apos;s memory & learnings
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
         {/* Enterprise */}
         <section>
           <div className="flex items-center gap-3 mb-4">

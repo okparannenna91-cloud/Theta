@@ -9,7 +9,7 @@ const updateSchema = z.object({
   title: z.string().min(1).optional(),
   description: z.string().optional(),
   status: z.string().optional(),
-  priority: z.string().optional(),
+  priority: z.enum(["none", "low", "medium", "high", "urgent"]).optional(),
   projectId: z.string().optional(),
   boardId: z.string().optional(),
   columnId: z.string().optional(),
@@ -25,6 +25,7 @@ const updateSchema = z.object({
   baselineStartDate: z.string().optional(),
   baselineDueDate: z.string().optional(),
   fieldValues: z.any().optional(),
+  tagIds: z.array(z.string()).optional(),
   location: z.string().optional(),
   email: z.string().optional(),
   phone: z.string().optional(),
@@ -98,9 +99,11 @@ export async function PATCH(
         if (statusRecord) {
             updateData.statusId = statusRecord.id;
             
-            // Completion Logic
-            const isNowCompleted = ['done', 'completed'].includes(data.status.toLowerCase());
-            const wasCompleted = ['done', 'completed'].includes(task.status.toLowerCase());
+            // Completion Logic - match hardcoded names AND custom status names
+            const completionKeywords = ['done', 'complete', 'finished', 'approved'];
+            const isNowCompleted = completionKeywords.includes(data.status.toLowerCase()) ||
+                (statusRecord && completionKeywords.some(kw => statusRecord.name.toLowerCase().includes(kw)));
+            const wasCompleted = completionKeywords.includes(task.status.toLowerCase());
 
             if (isNowCompleted && !wasCompleted) {
                 updateData.completedAt = new Date();
@@ -142,7 +145,10 @@ export async function PATCH(
       await updateParentTask(updated.parentId, task.workspaceId);
     }
 
+    // If parentId was changed or removed, recalculate the old parent's progress
     if (data.parentId !== undefined && task.parentId && data.parentId !== task.parentId) {
+      await updateParentTask(task.parentId, task.workspaceId);
+    } else if (data.parentId === null && task.parentId) {
       await updateParentTask(task.parentId, task.workspaceId);
     }
 
@@ -156,14 +162,25 @@ export async function PATCH(
       task.id,
       {
         taskTitle: updated.title,
-        projectId: updated.projectId,
         changes: Object.keys(data).reduce((acc: any, key) => {
-          if ((data as any)[key] !== (task as any)[key]) {
-            acc[key] = { old: (task as any)[key], new: (data as any)[key] };
+          const oldVal = (task as any)[key];
+          const newVal = (data as any)[key];
+          // Normalize dates for comparison
+          if (oldVal instanceof Date) {
+            if (typeof newVal === 'string') {
+              const newDate = new Date(newVal);
+              if (!isNaN(newDate.getTime()) && oldVal.getTime() === newDate.getTime()) {
+                return acc; // Same date, skip
+              }
+            }
+          }
+          if (oldVal !== newVal) {
+            acc[key] = { old: oldVal, new: newVal };
           }
           return acc;
         }, {}),
-      }
+      },
+      updated.projectId
     );
 
     // Notify members if status changed
@@ -241,10 +258,15 @@ export async function DELETE(
       return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
     }
 
-    // Manual Cascade: Recursively delete all child tasks (subtasks)
-    await prisma.task.deleteMany({
-      where: { parentId: params.id },
-    });
+    // Manual Cascade: Recursively delete all descendant tasks
+    async function deleteDescendants(parentId: string) {
+      const children = await prisma.task.findMany({ where: { parentId }, select: { id: true } });
+      for (const child of children) {
+        await deleteDescendants(child.id);
+      }
+      await prisma.task.deleteMany({ where: { parentId } });
+    }
+    await deleteDescendants(params.id);
 
     await prisma.task.delete({
       where: { id: params.id },
@@ -271,10 +293,8 @@ export async function DELETE(
       "deleted",
       "task",
       task.id,
-      {
-        taskTitle: task.title,
-        projectId: task.projectId,
-      }
+      { taskTitle: task.title },
+      task.projectId
     );
 
     return NextResponse.json({ success: true });

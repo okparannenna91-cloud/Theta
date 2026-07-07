@@ -61,10 +61,13 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
   ];
 
   switch (intent) {
-    case "CHAT":
+    case "CHAT": {
+      const chatPhilosophies = PHILOSOPHIES.filter(p =>
+        ["Context Is Sacred", "Intelligence Should Be Invisible", "Trust Must Be Earned", "Conversation First"].includes(p.name)
+      );
       sections.push(
         buildSection("SECTION 2 — CORE PHILOSOPHY", [
-          ...PHILOSOPHIES.map(p => [
+          ...chatPhilosophies.map(p => [
             `Philosophy: ${p.name}`,
             `  ${p.description}`,
             ...p.rules.map(r => `  • ${r}`),
@@ -98,6 +101,7 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
         ].join("\n")),
       );
       break;
+    }
 
     case "ACTION": {
       const executionPhilosophies = PHILOSOPHIES.filter(p =>
@@ -241,19 +245,16 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
       break;
     }
 
-    case "ANALYSIS":
+    case "ANALYSIS": {
+      const analysisPhilosophies = PHILOSOPHIES.filter(p =>
+        ["Context Is Sacred", "Intelligence Should Be Invisible", "Trust Must Be Earned", "Conversation First"].includes(p.name)
+      );
       sections.push(
         buildSection("SECTION 2 — CORE PHILOSOPHY", [
-          ...PHILOSOPHIES.map(p => [
+          ...analysisPhilosophies.map(p => [
             `Philosophy: ${p.name}`,
             `  ${p.description}`,
             ...p.rules.map(r => `  • ${r}`),
-          ].join("\n")),
-        ].join("\n\n")),
-        buildSection("SECTION 3 — EXECUTION PRINCIPLES", [
-          ...EXECUTION_PRINCIPLES.map(p => [
-            `${p.name}: ${p.description}`,
-            ...p.details.map(d => `  • ${d}`),
           ].join("\n")),
         ].join("\n\n")),
         buildSection("SECTION 4 — DECISION FRAMEWORK", [
@@ -300,42 +301,6 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
           "",
           "Context Window Strategy:",
           ...CONTEXT_WINDOW_STRATEGY.map(s => `  • ${s}`),
-        ].join("\n")),
-        buildSection("SECTION 9 — TASK INTELLIGENCE", [
-          "Task Creation Flow:",
-          ...TASK_CREATION_FLOW.map((s, i) => `  ${i + 1}. ${s}`),
-          "",
-          "Quality Standards:",
-          ...TASK_QUALITY_STANDARDS.map(s => `  • ${s.attribute}: ${s.description}`),
-          "",
-          "Capabilities:",
-          ...TASK_INTELLIGENCE_CAPABILITIES.map(c => `  • ${c.name}: ${c.description}`),
-        ].join("\n")),
-        buildSection("SECTION 10 — PROJECT INTELLIGENCE", [
-          "Project Creation Flow:",
-          ...PROJECT_CREATION_FLOW.map((s, i) => `  ${i + 1}. ${s}`),
-          "",
-          "Structure Standards:",
-          ...PROJECT_STRUCTURE_STANDARDS.map(s => `  • ${s.component}: ${s.description}`),
-          "",
-          "Monitoring Areas:",
-          ...PROJECT_MONITORING_AREAS.map(a => `  • ${a}`),
-          "",
-          "Capabilities:",
-          ...PROJECT_INTELLIGENCE_CAPABILITIES.map(c => `  • ${c.name}: ${c.description}`),
-        ].join("\n")),
-        buildSection("SECTION 11 — DOCUMENT INTELLIGENCE", [
-          "Document Types:",
-          ...DOCUMENT_TYPES.map(d => `  • ${d.type}: ${d.description}`),
-          "",
-          "Understanding Pipeline:",
-          ...DOCUMENT_UNDERSTANDING_PIPELINE.map((s, i) => `  ${i + 1}. ${s}`),
-          "",
-          "Available Actions:",
-          ...DOCUMENT_ACTIONS.map(a => `  • ${a.name}: ${a.description}`),
-          "",
-          "Workspace Link Types:",
-          ...DOCUMENT_WORKSPACE_LINK_TYPES.map(l => `  • ${l}`),
         ].join("\n")),
         buildSection("SECTION 13 — SEARCH INTELLIGENCE", [
           "Search Domains:",
@@ -393,6 +358,8 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
         ].join("\n")),
       );
       break;
+    }
+
   }
 
   sections.push("", `THETA NOVA CONSTITUTION V1 — INTENT: ${intent}`);

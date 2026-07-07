@@ -1,6 +1,6 @@
 import crypto from "crypto";
 import { createIvnoPayment } from "@/lib/ivno";
-import { buildIvnoOrderId } from "@/lib/ivno-billing";
+import { buildIvnoOrderId } from "@/lib/ivno-utils";
 import { BillingProvider, CustomerResult, CheckoutParams, CheckoutResult, PaymentIntentParams, PaymentIntentResult, SubscriptionParams, SubscriptionResult, SubscriptionData, ChargeParams, ChargeResult, RefundResult, PaymentMethodData, InvoiceParams, InvoiceResult, WebhookEvent } from "../billing-provider.interface";
 import { Currency } from "../types";
 import { ProviderNotSupportedError } from "../errors";

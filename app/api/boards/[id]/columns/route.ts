@@ -53,7 +53,7 @@ export async function POST(
         const column = await prisma.column.create({
             data: {
                 name: data.name,
-                order: data.order,
+                order: data.order ?? (await prisma.column.count({ where: { boardId: params.id } })),
                 columnType: data.columnType,
                 settings: data.settings || undefined,
                 width: data.width || 200,

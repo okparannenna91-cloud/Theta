@@ -84,6 +84,7 @@ export async function acceptInvite(token: string, userId: string) {
         },
     });
 
+    let wasNewMember = false;
     if (!existingWorkspaceMember) {
         await prisma.workspaceMember.create({
             data: {
@@ -92,6 +93,7 @@ export async function acceptInvite(token: string, userId: string) {
                 role: invite.role,
             },
         });
+        wasNewMember = true;
     }
 
     // Add user to team (if invite has teamId)
@@ -116,11 +118,13 @@ export async function acceptInvite(token: string, userId: string) {
         }
     }
 
-    // Mark invite as accepted
-    await prisma.invite.update({
-        where: { id: invite.id },
-        data: { acceptedAt: new Date() },
-    });
+    // Only mark invite as accepted if a new membership was actually created
+    if (wasNewMember) {
+        await prisma.invite.update({
+            where: { id: invite.id },
+            data: { acceptedAt: new Date() },
+        });
+    }
 
     // Log the activity
     const { logActivity } = await import("@/lib/activity");
@@ -171,7 +175,7 @@ export async function resendInvite(inviteId: string) {
             token,
             expiresAt,
             status: "pending",
-            createdAt: new Date(), // Reset creation time for visibility
+            updatedAt: new Date(),
         },
     });
 

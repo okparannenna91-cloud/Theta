@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { memo } from "react"
 import { Badge as VibeBadge } from "@vibe/core"
 import { cn } from "@/lib/utils"
 
@@ -16,7 +17,7 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
   count?: number
 }
 
-function Badge({ className, variant = "default", count, children, ...props }: BadgeProps) {
+const Badge = memo(function Badge({ className, variant = "default", count, children, ...props }: BadgeProps) {
   if (count !== undefined) {
     return (
       <VibeBadge
@@ -46,6 +47,6 @@ function Badge({ className, variant = "default", count, children, ...props }: Ba
       {children}
     </span>
   )
-}
+});
 
 export { Badge }

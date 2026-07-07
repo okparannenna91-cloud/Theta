@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { isWorkspaceAdmin } from "@/lib/workspace";
 import { createInvite, resendInvite } from "@/lib/invite";
-import { canAddMember, getPlanLimitMessage } from "@/lib/plan-limits";
+import { canAddMember, getPlanLimitMessage, enforcePlanLimit } from "@/lib/plan-limits";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
@@ -99,7 +99,6 @@ export async function POST(req: Request) {
         });
 
         try {
-            const { enforcePlanLimit } = await import("@/lib/plan-limits");
             await enforcePlanLimit(data.workspaceId, "members", activeMemberCount + pendingInviteCount + emailsToProcess.size - 1); // -1 because limit applies to total after addition
         } catch (error: any) {
             return NextResponse.json({ error: error.message }, { status: 403 });
@@ -191,6 +190,9 @@ export async function GET(req: Request) {
                 orderBy: { createdAt: "asc" },
             });
             workspaceId = defaultMembership?.workspaceId || null;
+            if (workspaceId) {
+                console.warn(`[Invite GET] No workspaceId provided, auto-resolved to ${workspaceId} from first membership`);
+            }
         }
 
         if (!workspaceId) {
@@ -209,6 +211,21 @@ export async function GET(req: Request) {
 
         if (!membership) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        // Only admins can list pending invites (contains email/role data)
+        if (membership.role !== "owner" && membership.role !== "admin") {
+            const teamIdParam = searchParams.get("teamId");
+            if (teamIdParam) {
+                const teamMember = await prisma.teamMember.findUnique({
+                    where: { teamId_userId: { teamId: teamIdParam, userId: user.id } }
+                });
+                if (teamMember?.role !== "admin" && teamMember?.role !== "owner") {
+                    return NextResponse.json({ error: "Access denied" }, { status: 403 });
+                }
+            } else {
+                return NextResponse.json({ error: "Access denied: Only admins can list invites" }, { status: 403 });
+            }
         }
 
         const invites = await prisma.invite.findMany({
@@ -306,9 +323,23 @@ export async function PATCH(req: Request) {
             teamName = team?.name;
         }
 
-        // Verify user is admin of workspace
-        const isAdmin = await isWorkspaceAdmin(user.id, invite.workspaceId);
-        if (!isAdmin) {
+        // Verify user is admin of workspace OR admin of the team linked to the invite
+        const isWsAdmin = await isWorkspaceAdmin(user.id, invite.workspaceId);
+        
+        let isTeamAdmin = false;
+        if (invite.teamId) {
+            const teamMember = await prisma.teamMember.findUnique({
+                where: {
+                    teamId_userId: {
+                        teamId: invite.teamId,
+                        userId: user.id
+                    }
+                }
+            });
+            isTeamAdmin = teamMember?.role === "admin" || teamMember?.role === "owner";
+        }
+
+        if (!isWsAdmin && !isTeamAdmin) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

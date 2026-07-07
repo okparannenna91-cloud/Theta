@@ -28,10 +28,12 @@ export async function GET(req: Request) {
 
         // Decode and verify signed state to prevent CSRF
         let workspaceId: string;
+        let codeVerifier: string | undefined;
         try {
             const { verifyOAuthState } = await import("@/lib/crypto");
             const payload = verifyOAuthState(state);
             workspaceId = payload.workspaceId;
+            codeVerifier = payload.codeVerifier as string | undefined;
         } catch (e) {
             console.error("Invalid state parameter:", state);
             return NextResponse.json({ error: "Invalid state parameter" }, { status: 400 });
@@ -43,10 +45,12 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "You must be an admin to connect integrations" }, { status: 403 });
         }
 
-        // Exchange code for access token
-        const slackData = await exchangeSlackCode(code);
+        // Exchange code for access token (with PKCE code_verifier if available)
+        const slackData = await exchangeSlackCode(code, codeVerifier);
 
-        // Store integration in DB
+        // Store integration in DB with refresh token for token rotation support
+        const expiresAt = slackData.expires_in ? new Date(Date.now() + slackData.expires_in * 1000) : null;
+
         // We look for existing integration to update, or create new
         const existingIntegration = await prisma.integration.findFirst({
             where: {
@@ -60,13 +64,15 @@ export async function GET(req: Request) {
                 where: { id: existingIntegration.id },
                 data: {
                     accessToken: encrypt(slackData.access_token),
+                    refreshToken: slackData.refresh_token ? encrypt(slackData.refresh_token) : undefined,
+                    // @ts-ignore
+                    expiresAt,
                     config: {
                         teamId: slackData.team.id,
                         teamName: slackData.team.name,
                         botUserId: slackData.bot_user_id,
                         scope: slackData.scope,
                     },
-                    refreshToken: undefined // Slack bots typically use non-expiring tokens unless token rotation is enabled
                 }
             });
         } else {
@@ -75,6 +81,9 @@ export async function GET(req: Request) {
                     provider: "slack",
                     workspaceId,
                     accessToken: encrypt(slackData.access_token),
+                    refreshToken: slackData.refresh_token ? encrypt(slackData.refresh_token) : null,
+                    // @ts-ignore
+                    expiresAt,
                     config: {
                         teamId: slackData.team.id,
                         teamName: slackData.team.name,

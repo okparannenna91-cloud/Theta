@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { format, addMonths, subMonths } from "date-fns";
 import { useWorkspace } from "@/hooks/use-workspace";
 import {
-    GanttChartSquare, Calendar, Filter, Plus, ChevronLeft, ChevronRight,
-    Search, Download, Settings2, Clock
+    GanttChartSquare, Filter, Plus, ChevronLeft, ChevronRight,
+    Search, Download, Clock
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,8 +32,13 @@ export default function TimelinePage() {
     const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
     const [filterPriority, setFilterPriority] = useState("all");
     const [filterStatus, setFilterStatus] = useState("all");
+    const [navDate, setNavDate] = useState(new Date());
 
-    const { data: tasksData, isLoading } = useQuery({
+    const navLabel = useMemo(() => format(navDate, "MMMM yyyy"), [navDate]);
+    const goToPrev = () => setNavDate(d => subMonths(d, 1));
+    const goToNext = () => setNavDate(d => addMonths(d, 1));
+
+    const { data: tasksData, isLoading, isError } = useQuery({
         queryKey: ["timeline-tasks", activeWorkspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/tasks?workspaceId=${activeWorkspaceId}`);
@@ -71,6 +77,34 @@ export default function TimelinePage() {
                 <div className="border rounded-lg p-4 min-h-[600px] bg-muted/30">
                     <Skeleton className="h-full w-full rounded-md" />
                 </div>
+            </div>
+        );
+    }
+
+    if (isError) {
+        return (
+            <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center gap-4">
+                <div className="rounded-full bg-destructive/10 p-4">
+                    <GanttChartSquare className="h-8 w-8 text-destructive" />
+                </div>
+                <h2 className="text-lg font-semibold">Failed to load timeline</h2>
+                <p className="text-sm text-muted-foreground">There was an error fetching your tasks. Please try again.</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+        );
+    }
+
+    if (tasks.length === 0) {
+        return (
+            <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center gap-4">
+                <div className="rounded-full bg-muted p-4">
+                    <GanttChartSquare className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h2 className="text-lg font-semibold">No tasks yet</h2>
+                <p className="text-sm text-muted-foreground">Create your first task to see it here.</p>
+                <Button className="text-xs" size="sm" onClick={() => setIsCreateTaskOpen(true)}>
+                    <Plus className="h-3.5 w-3.5 mr-1.5" /> New Task
+                </Button>
             </div>
         );
     }
@@ -161,11 +195,11 @@ export default function TimelinePage() {
             <div className="flex items-center justify-between px-4 lg:px-6 py-2 border-b bg-muted/20">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={goToPrev}>
                             <ChevronLeft className="h-3.5 w-3.5" />
                         </Button>
-                        <span className="text-xs font-medium min-w-[100px] text-center">October 2026</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md">
+                        <span className="text-xs font-medium min-w-[100px] text-center">{navLabel}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={goToNext}>
                             <ChevronRight className="h-3.5 w-3.5" />
                         </Button>
                     </div>

@@ -18,19 +18,22 @@ export class WooCommerceService {
             },
         });
 
-        if (!integration || !integration.accessToken || !integration.refreshToken) {
+        if (!integration || !integration.accessToken || !integration.config) {
             throw new Error("WooCommerce integration not configured correctly");
         }
 
-        const config = integration.config as any;
+        const config = integration.config as Record<string, unknown> | null;
         if (!config?.siteUrl) {
             throw new Error("WooCommerce site URL is missing");
         }
+        if (!config?.consumerSecret) {
+            throw new Error("WooCommerce consumer secret is missing");
+        }
 
         return {
-            siteUrl: config.siteUrl,
+            siteUrl: config.siteUrl as string,
             consumerKey: decrypt(integration.accessToken),
-            consumerSecret: decrypt(integration.refreshToken)
+            consumerSecret: decrypt(config.consumerSecret as string)
         };
     }
 

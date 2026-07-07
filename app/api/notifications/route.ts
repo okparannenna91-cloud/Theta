@@ -57,7 +57,8 @@ export async function GET(req: Request) {
                 break;
         }
 
-        const [notifications, total, unreadCount] = await Promise.all([
+        // Fetch take+1 to detect if there are more pages after post-filtering
+        const [notifications, unreadCount] = await Promise.all([
             prisma.notification.findMany({
                 where,
                 orderBy: [
@@ -65,23 +66,24 @@ export async function GET(req: Request) {
                     { createdAt: "desc" }
                 ],
                 skip,
-                take
+                take: take + 1
             }),
-            prisma.notification.count({ where }),
             prisma.notification.count({ where: { workspaceId, userId: user.id, read: false, archived: false } })
         ]);
 
         // Post-filter notifications whose metadata references an inaccessible project
-        const filteredNotifications = notifications.filter((n: any) => {
+        const allFiltered = notifications.filter((n: any) => {
             if (!n.metadata || !n.metadata.projectId) return true;
             return accessibleProjectIds.includes(n.metadata.projectId);
         });
 
+        const hasMore = allFiltered.length > take;
+        const filteredNotifications = allFiltered.slice(0, take);
+
         return NextResponse.json({ 
             notifications: filteredNotifications, 
-            total: filteredNotifications.length,
             unreadCount,
-            hasMore: skip + take < total
+            hasMore
         });
     } catch (error) {
         console.error("Fetch notifications error:", error);

@@ -309,7 +309,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
             {/* Pinned Bar */}
                 {pinnedMessages.length > 0 && (
                     <div className="bg-amber-500/5 border-b border-amber-500/10 backdrop-blur-xl z-10">
-                        {pinnedMessages.slice(0, 1).map(msg => (
+                        {pinnedMessages.slice(0, 3).map(msg => (
                             <div key={msg.id} className="p-4 px-6 flex items-center justify-between gap-6">
                                 <div className="flex items-center gap-4 min-w-0">
                                     <Pin className="h-4 w-4 text-amber-500 shrink-0" />
@@ -372,7 +372,7 @@ export function TeamChat({ teamId, workspaceId }: TeamChatProps) {
                                                 {msg.replyTo && (
                                                     <div className={cn("mb-3 p-3 rounded-lg text-xs border-l-4", isMe ? "bg-black/10 border-white/30 text-white/70" : "bg-muted border-primary/30 text-muted-foreground")}>
                                                         <div className="font-semibold mb-1 flex items-center gap-2">
-                                                            <Reply className="h-3 w-3" /> Replying to {msg.replyTo.userId === user?.id ? "you" : "user"}
+                                                            <Reply className="h-3 w-3" /> Replying to {msg.replyTo.userId === user?.id ? "you" : (msg.replyTo.user?.name || "User")}
                                                         </div>
                                                         <span className="line-clamp-2 italic">{msg.replyTo.content}</span>
                                                     </div>

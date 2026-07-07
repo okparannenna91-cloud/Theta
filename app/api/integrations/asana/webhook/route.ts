@@ -42,22 +42,24 @@ export async function POST(request: NextRequest) {
             if (!resourceGid) continue;
 
             // Find integration by resourceGid stored in metadata/config
-            const integration = await prisma.integration.findFirst({
-                where: {
-                    provider: "asana",
-                    OR: [
-                        { metadata: { equals: { projectGid: resourceGid } } },
-                        { config: { equals: { projectGid: resourceGid } } }
-                    ]
-                }
+            // TENANT ISOLATION: Filter in-memory since Prisma JSON { equals: ... } requires exact match
+            const asanaIntegrations = await prisma.integration.findMany({
+                where: { provider: "asana" },
             });
 
-            const workspaceId = integration?.workspaceId;
+            const asanaIntegration = asanaIntegrations.find(i => {
+                const meta = i.metadata as Record<string, unknown> | null;
+                const cfg = i.config as Record<string, unknown> | null;
+                return meta?.projectGid === resourceGid || cfg?.projectGid === resourceGid;
+            });
+
+            const workspaceId = asanaIntegration?.workspaceId;
 
             if (workspaceId) {
-                const { createActivity } = await import("@/lib/activity");
+                const { createActivity, resolveWebhookUserId } = await import("@/lib/activity");
+                const webhookUserId = await resolveWebhookUserId(workspaceId) || "system";
                 await createActivity(
-                    "system",
+                    webhookUserId,
                     workspaceId,
                     "updated",
                     "asana_task",

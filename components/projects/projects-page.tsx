@@ -1,25 +1,27 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     Plus, FolderKanban, Trash2, Edit2, MoreVertical,
-    Search, LayoutGrid, List, CheckCircle2, Calendar
+    Search, LayoutGrid, List, CheckCircle2, Calendar, Sparkles, AlertTriangle
 } from "lucide-react";
 import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Image from "next/image";
 import { format } from "date-fns";
 
@@ -40,9 +42,11 @@ export default function ProjectsPage() {
 
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
-  const { showUpgradePrompt } = usePopups();
+  const { showUpgradePrompt, showAISuggestion } = usePopups();
+  const router = useRouter();
+  const projectsSuggested = useRef(false);
 
-  const { data: projectsData, isLoading } = useQuery({
+  const { data: projectsData, isLoading, error: projectsError } = useQuery({
     queryKey: ["projects", activeWorkspaceId],
     queryFn: async () => {
         const url = activeWorkspaceId ? `/api/projects?workspaceId=${activeWorkspaceId}` : "/api/projects";
@@ -75,7 +79,10 @@ export default function ProjectsPage() {
       setDescription("");
       setCoverImage("");
       setVisibility("private");
-      import("sonner").then(({ toast }) => toast.success("Project created successfully"));
+      toast.success("Project created successfully");
+    },
+    onError: (error: any) => {
+      toast.error(error.message || "Failed to create project");
     },
   });
 
@@ -87,8 +94,22 @@ export default function ProjectsPage() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["projects", activeWorkspaceId] });
+      toast.success("Project deleted successfully");
+    },
+    onError: () => {
+      toast.error("Failed to delete project");
     },
   });
+
+  useEffect(() => {
+    if (!projectsSuggested.current && !isLoading && projects.length === 0) {
+      projectsSuggested.current = true;
+      showAISuggestion("Your projects area is empty. I can help you create a project with AI — just describe what you're working on.", {
+        type: "no_projects",
+        workspaceId: activeWorkspaceId,
+      });
+    }
+  }, [isLoading, projects, showAISuggestion, activeWorkspaceId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,6 +145,25 @@ export default function ProjectsPage() {
       return filtered;
   }, [projects, searchQuery, statusFilter, sortBy]);
 
+  if (projectsError) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="max-w-md w-full border shadow-sm">
+          <CardHeader className="text-center">
+            <div className="mx-auto h-10 w-10 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+            </div>
+            <CardTitle className="text-base">Connection Issue</CardTitle>
+            <CardDescription>We couldn&apos;t retrieve your projects. Please try again.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center pb-6">
+            <Button onClick={() => window.location.reload()} variant="outline">Try Again</Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -146,10 +186,16 @@ export default function ProjectsPage() {
             Manage your workspace projects and portfolios
           </p>
         </div>
-        <Button onClick={() => setIsOpen(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          New Project
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button onClick={() => setIsOpen(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            New Project
+          </Button>
+          <Button variant="outline" onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "Create a new project. Help me define the name, description, and goals." } }))} className="gap-2">
+            <Sparkles className="h-4 w-4 text-primary" />
+            Create with AI
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-col lg:flex-row items-center justify-between gap-4 mb-6 p-4 border rounded-lg bg-muted/30">
@@ -168,7 +214,7 @@ export default function ProjectsPage() {
                   <SelectContent>
                       <SelectItem value="all">All Statuses</SelectItem>
                       <SelectItem value="active">Active</SelectItem>
-                      <SelectItem value="completed">Completed</SelectItem>
+                      <SelectItem value="done">Done</SelectItem>
                       <SelectItem value="at risk">At Risk</SelectItem>
                   </SelectContent>
               </Select>
@@ -196,12 +242,28 @@ export default function ProjectsPage() {
       {processedProjects.length === 0 ? (
         <div className="text-center py-16 border rounded-lg">
           <FolderKanban className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
-          <h3 className="text-sm font-semibold mb-2">No projects yet</h3>
-          <p className="text-sm text-muted-foreground mb-4">Create your first project to get started.</p>
-          <Button onClick={() => setIsOpen(true)} variant="outline">
-            <Plus className="h-4 w-4 mr-2" />
-            New Project
-          </Button>
+          {searchQuery ? (
+            <>
+              <h3 className="text-sm font-semibold mb-2">No matching projects</h3>
+              <p className="text-sm text-muted-foreground mb-4">No projects found matching "{searchQuery}". Try a different search term.</p>
+              <Button onClick={() => setSearchQuery("")} variant="outline">Clear Search</Button>
+            </>
+          ) : (
+            <>
+              <h3 className="text-sm font-semibold mb-2">No projects yet</h3>
+              <p className="text-sm text-muted-foreground mb-4">Create your first project to get started.</p>
+              <div className="flex gap-3">
+                <Button onClick={() => setIsOpen(true)} variant="outline">
+                  <Plus className="h-4 w-4 mr-2" />
+                  New Project
+                </Button>
+                <Button onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "Create a new project. Help me define the name, description, and goals." } }))} variant="outline" className="gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Create with AI
+                </Button>
+              </div>
+            </>
+          )}
         </div>
       ) : (
         <div className={viewMode === "grid" ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4" : "space-y-3"}>
@@ -278,23 +340,22 @@ export default function ProjectsPage() {
                       </div>
                     </div>
 
-                    {project.team?.members && project.team.members.length > 0 && (
-                      <div className="flex -space-x-2">
-                        {project.team.members.slice(0, 3).map((member: any) => (
-                          <Avatar key={member.userId} className="h-7 w-7 ring-2 ring-background">
-                            <AvatarImage src={member.user?.imageUrl} />
-                            <AvatarFallback className="text-[10px] font-medium bg-primary text-primary-foreground">{member.user?.name?.[0]}</AvatarFallback>
-                          </Avatar>
-                        ))}
-                        {project.team.members.length > 3 && (
-                          <div className="h-7 w-7 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground">
-                            +{project.team.members.length - 3}
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {viewMode === "list" && (
+                    <div className="flex items-center gap-2">
+                      {project.team?.members && project.team.members.length > 0 && (
+                        <div className="flex -space-x-2">
+                          {project.team.members.slice(0, 3).map((member: any) => (
+                            <Avatar key={member.userId} className="h-7 w-7 ring-2 ring-background">
+                              <AvatarImage src={member.user?.imageUrl} />
+                              <AvatarFallback className="text-[10px] font-medium bg-primary text-primary-foreground">{member.user?.name?.[0]}</AvatarFallback>
+                            </Avatar>
+                          ))}
+                          {project.team.members.length > 3 && (
+                            <div className="h-7 w-7 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-[10px] font-medium text-muted-foreground">
+                              +{project.team.members.length - 3}
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild onClick={(e) => e.preventDefault()}>
                           <Button variant="ghost" size="icon" className="h-8 w-8">
@@ -302,7 +363,7 @@ export default function ProjectsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40">
-                          <DropdownMenuItem onClick={(e) => { e.preventDefault(); }}>
+                          <DropdownMenuItem onClick={(e) => { e.preventDefault(); e.stopPropagation(); router.push(`/projects/${project.id}/settings`); }}>
                             <Edit2 className="h-3.5 w-3.5 mr-2" /> Edit
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={(e) => { e.stopPropagation(); e.preventDefault(); deleteMutation.mutate(project.id); }} className="text-destructive">
@@ -310,7 +371,7 @@ export default function ProjectsPage() {
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
-                    )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -346,26 +407,11 @@ export default function ProjectsPage() {
                 <SelectTrigger className="h-10">
                   <SelectValue placeholder="Select visibility" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="private">
-                    <span className="flex flex-col">
-                      <span>Private</span>
-                      <span className="text-xs text-muted-foreground">Only project members can access</span>
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="team_access">
-                    <span className="flex flex-col">
-                      <span>Team Access</span>
-                      <span className="text-xs text-muted-foreground">All team members can access</span>
-                    </span>
-                  </SelectItem>
-                  <SelectItem value="workspace_visible">
-                    <span className="flex flex-col">
-                      <span>Workspace Visible</span>
-                      <span className="text-xs text-muted-foreground">Everyone in the workspace can see</span>
-                    </span>
-                  </SelectItem>
-                </SelectContent>
+                  <SelectContent>
+                    <SelectItem value="private">Private</SelectItem>
+                    <SelectItem value="team_access">Team Access</SelectItem>
+                    <SelectItem value="workspace_visible">Workspace Visible</SelectItem>
+                  </SelectContent>
               </Select>
             </div>
             <div className="flex justify-end gap-3 pt-2">

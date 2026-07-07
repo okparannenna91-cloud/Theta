@@ -57,7 +57,7 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
       execute: async ({ id }: Record<string, unknown>) => {
         await enforce(ctx, "read", "document");
         await auditToolExecution(workspaceId, user.id, "read_document", { id });
-        const doc = await prisma.document.findUnique({ where: { id: id as string } });
+        const doc = await prisma.document.findFirst({ where: { id: id as string, workspaceId } });
         if (!doc) return { found: false, message: "Document not found." };
         return { found: true, title: doc.title, content: doc.content };
       }
@@ -68,7 +68,7 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
       execute: async ({ id }: Record<string, unknown>) => {
         await requireToolApproval("delete_document", { id });
         await enforce(ctx, "delete", "document");
-        await prisma.document.delete({ where: { id: id as string } });
+        await prisma.document.delete({ where: { id: id as string, workspaceId } });
         return { success: true, message: "Document deleted." };
       }
     },

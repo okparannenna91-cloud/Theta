@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canCreateTeam, getPlanLimitMessage } from "@/lib/plan-limits";
+import { getPlanLimits } from "@/lib/plan-limits";
 import { z } from "zod";
 export const dynamic = "force-dynamic";
 
@@ -105,10 +105,16 @@ export async function GET(req: Request) {
     const teamsWithUsers = teamsWithMergedMembers.map(team => ({
       ...team,
       userRole: team.members.find(m => m.userId === user.id)?.role || "member",
-      members: team.members.map(m => ({
-        ...m,
-        user: userMap.get(m.userId) || null
-      }))
+      members: team.members.map(m => {
+        const userProfile = userMap.get(m.userId);
+        const isOnline = userProfile?.lastActiveAt 
+            ? (Date.now() - new Date(userProfile.lastActiveAt).getTime()) < 5 * 60 * 1000
+            : false;
+        return {
+          ...m,
+          user: userProfile ? { ...userProfile, isOnline } : null
+        };
+      })
     }));
 
     // Calculate counts
@@ -116,7 +122,6 @@ export async function GET(req: Request) {
     const memberCount = await prisma.workspaceMember.count({ where: { workspaceId } });
     const pendingInvites = await prisma.invite.count({ where: { workspaceId, status: "pending" } });
 
-    const { getPlanLimits } = await import("@/lib/plan-limits");
     const workspace = await prisma.workspace.findUnique({
         where: { id: workspaceId },
         select: { plan: true }

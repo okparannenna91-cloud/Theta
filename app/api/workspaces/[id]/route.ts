@@ -55,8 +55,11 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const { searchParams } = new URL(req.url);
+    const forceDelete = searchParams.get("force") === "true";
+
     const workspaceId = params.id;
-    await deleteWorkspace(workspaceId, user.id);
+    await deleteWorkspace(workspaceId, user.id, forceDelete);
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

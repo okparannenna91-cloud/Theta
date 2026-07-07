@@ -32,14 +32,16 @@ export async function POST(request: NextRequest) {
         const repoId = data.repository?.id?.toString();
         if (!repoId) return NextResponse.json({ message: "No repo ID found" });
 
-        const integration = await prisma.integration.findFirst({
-            where: {
-                provider: "github",
-                OR: [
-                    { metadata: { equals: { repoId: repoId } } },
-                    { config: { equals: { repoId: repoId } } }
-                ]
-            }
+        // TENANT ISOLATION: Fetch all GitHub integrations and match in application code
+        // Prisma MongoDB's JSON { equals: ... } requires exact match, so we filter in-memory
+        const githubIntegrations = await prisma.integration.findMany({
+            where: { provider: "github" },
+        });
+
+        const integration = githubIntegrations.find(i => {
+            const meta = i.metadata as Record<string, unknown> | null;
+            const cfg = i.config as Record<string, unknown> | null;
+            return meta?.repoId === repoId || cfg?.repoId === repoId;
         });
 
         const workspaceId = integration?.workspaceId;
@@ -51,9 +53,10 @@ export async function POST(request: NextRequest) {
         // Handle events
         if (event === "push") {
             // Log activity
-            const { createActivity } = await import("@/lib/activity");
+            const { createActivity, resolveWebhookUserId } = await import("@/lib/activity");
+            const webhookUserId = await resolveWebhookUserId(workspaceId) || "system";
             await createActivity(
-                "system", // Action performed by system/webhook
+                webhookUserId,
                 workspaceId,
                 "pushed",
                 "github_repo",

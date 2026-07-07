@@ -4,6 +4,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Sparkles, Rocket, ShieldAlert, AlertTriangle, CreditCard, Info, Trash2, UserPlus, Zap, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { NovaOnboarding } from "@/components/onboarding/nova-onboarding";
 
 type PopupType = 
     | "onboarding" 
@@ -166,7 +167,10 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
         }}>
             {children}
             <AnimatePresence>
-                {activePopup && (
+                {activePopup && activePopup.type === "onboarding" && (
+                    <NovaOnboarding onComplete={() => dismissPopup("onboarding")} />
+                )}
+                {activePopup && activePopup.type !== "onboarding" && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm px-6">
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -186,25 +190,12 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
 
                                 <div className="space-y-3">
                                     <h3 className="text-3xl font-semibold text-slate-900 dark:text-white leading-tight tracking-tight">
-                                        {activePopup.title || (activePopup.type === "onboarding" ? "Welcome to Theta!" : "Action Required")}
+                                        {activePopup.title || "Action Required"}
                                     </h3>
                                     <p className="text-slate-600 dark:text-slate-400 font-bold leading-relaxed">
                                         {activePopup.description}
                                     </p>
                                 </div>
-
-                                {activePopup.type === "onboarding" && (
-                                    <div className="mt-8 space-y-4">
-                                        <div className="flex gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-muted p-4 rounded-2xl border border-primary/20">
-                                            <Sparkles className="w-5 h-5 text-primary flex-shrink-0" />
-                                            <span>Real-time chat and multi-tenant isolation is now live.</span>
-                                        </div>
-                                        <div className="flex gap-4 text-sm font-semibold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm">
-                                            <UserPlus className="w-5 h-5 text-slate-500 flex-shrink-0" />
-                                            <span>Invite your team to get the most out of your workspace.</span>
-                                        </div>
-                                    </div>
-                                )}
 
                                 <div className="mt-12 flex flex-col sm:flex-row gap-4">
                                     <Button 
@@ -215,7 +206,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
                                         variant="outline" 
                                         className="h-14 rounded-2xl font-semibold text-[12px] border-2 order-2 sm:order-1 sm:flex-1"
                                     >
-                                        {activePopup.type === "onboarding" ? "Skip Tour" : (activePopup.type === "destructive" ? "Cancel" : "Dismiss")}
+                                        {activePopup.type === "destructive" ? "Cancel" : "Dismiss"}
                                     </Button>
                                     <Button 
                                         onClick={() => {

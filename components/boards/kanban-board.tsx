@@ -2,9 +2,8 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,39 +17,12 @@ import {
   Edit2,
   Calendar,
   User as UserIcon,
-  Star,
-  Settings,
-  Search,
-  Filter,
-  RefreshCcw,
+
+
   LayoutGrid,
   List as ListIcon,
-  GanttChart as GanttChartIcon,
-  Lock,
   Users as UsersIcon,
-  ChevronRight,
-  ChevronLeft,
-  GripVertical,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  MessageSquare,
-  BarChart3,
-  LayoutDashboard,
   MapPin,
-  FileText,
-  Images,
-  BookOpen,
-  Users,
-  Grid3X3,
-  Zap,
-  Link2,
-  Shield,
-  BrainCircuit,
-  Puzzle,
-  Code,
-  Beaker,
-  Globe
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -77,7 +49,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
-import { format, startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, isSameMonth, isSameDay, addMonths, subMonths, addDays, differenceInDays } from "date-fns";
+import { format, isSameDay } from "date-fns";
 import {
   DndContext,
   closestCorners,
@@ -97,22 +69,7 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import TableView from "@/components/boards/table-view";
-import ChartView from "@/components/boards/chart-view";
-import BoardDashboardView from "@/components/boards/board-dashboard-view";
-import WorkloadView from "@/components/boards/workload-view";
 import MapView from "@/components/boards/map-view";
-import FormView from "@/components/boards/form-view";
-import FilesView from "@/components/boards/files-view";
-import GalleryView from "@/components/boards/gallery-view";
-import DocsView from "@/components/boards/docs-view";
-import AutomationPanel from "@/components/boards/automation-panel";
-import BoardRelationshipsPanel from "@/components/boards/board-relationships-panel";
-import CollaborationPanel from "@/components/boards/collaboration-panel";
-import PermissionsPanel from "@/components/boards/permissions-panel";
-import AIFeaturesPanel from "@/components/boards/ai-features-panel";
-import IntegrationsPanel from "@/components/boards/integrations-panel";
-import DeveloperPanel from "@/components/boards/developer-panel";
-import AdvancedFeaturesPanel from "@/components/boards/advanced-features-panel";
 import FilterSortBar from "@/components/boards/filter-sort-bar";
 import type { FilterConfig, SortConfig, ColumnVisibility, SavedView } from "@/components/boards/filter-sort-bar";
 import { TaskDialog } from "@/components/tasks/task-dialog";
@@ -394,7 +351,10 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const boardChannel = getBoardChannel(activeWorkspaceId || "", boardId);
 
   const handleAblyUpdate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+    // Cancel in-flight optimistic updates before refetching to prevent race conditions
+    queryClient.cancelQueries({ queryKey: ["board", boardId] }).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+    });
   }, [queryClient, boardId]);
 
   const ablyClient = useAbly(boardChannel, "task:created", handleAblyUpdate);
@@ -443,17 +403,21 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     queryFn: () => fetchBoard(boardId),
   });
 
-  const [isEditingBoard, setIsEditingBoard] = useState(false);
-  const [editedDescription, setEditedDescription] = useState(board?.description || "");
-  const [boardVisibility, setBoardVisibility] = useState(board?.visibility || "private");
-
   useEffect(() => {
     if (board) {
       setEditedName(board.name);
-      setEditedDescription(board.description || "");
-      setBoardVisibility(board.visibility || "private");
     }
   }, [board]);
+
+  const selectedTaskId = selectedTask?.id;
+
+  // Keep selectedTask in sync with board data updates
+  useEffect(() => {
+    if (board && selectedTaskId) {
+      const updated = (board as any).tasks?.find((t: any) => t.id === selectedTaskId);
+      if (updated) setSelectedTask(updated);
+    }
+  }, [board, selectedTaskId]);
 
   const updateBoardMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -468,7 +432,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["board", boardId] });
       setIsEditingHeader(false);
-      setIsEditingBoard(false);
       toast.success("Board updated");
     },
   });
@@ -508,6 +471,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               ? { ...t, columnId: newTask.columnId, order: newTask.order }
               : t
           ),
+          columns: (previousBoard as any).columns,
         });
       }
 
@@ -606,6 +570,25 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       if (!res.ok) throw new Error("Failed to update column");
       return res.json();
     },
+    onMutate: async (updatedCol) => {
+      await queryClient.cancelQueries({ queryKey: ["board", boardId] });
+      const previousBoard = queryClient.getQueryData(["board", boardId]);
+      if (previousBoard) {
+        queryClient.setQueryData(["board", boardId], {
+          ...previousBoard,
+          columns: (previousBoard as any).columns.map((c: any) =>
+            c.id === updatedCol.id ? { ...c, ...updatedCol } : c
+          ),
+        });
+      }
+      return { previousBoard };
+    },
+    onError: (err, updatedCol, context) => {
+      if (context?.previousBoard) {
+        queryClient.setQueryData(["board", boardId], context.previousBoard);
+      }
+      toast.error("Failed to update column");
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["board", boardId] });
       setEditingColumn(null);
@@ -645,7 +628,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const tasks = board?.tasks || [];
 
   // Filter tasks
-  const filteredTasks = tasks.filter((task: any) => {
+  const filteredTasks = useMemo(() => tasks.filter((task: any) => {
     const matchesSearch =
       !searchQuery || task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       task.description?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -657,10 +640,10 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     const matchesStatus =
       !filterConfig.status || filterConfig.status === "all" || task.status === filterConfig.status;
     return matchesSearch && matchesPriority && matchesTag && matchesStatus;
-  });
+  }), [tasks, searchQuery, filterConfig]);
 
   // Sort tasks
-  const sortedTasks = [...filteredTasks].sort((a: any, b: any) => {
+  const sortedTasks = useMemo(() => [...filteredTasks].sort((a: any, b: any) => {
     if (!sortConfig) return 0;
     const dir = sortConfig.direction === "asc" ? 1 : -1;
     switch (sortConfig.field) {
@@ -676,9 +659,10 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       }
       case "status": return dir * ((a.status || "").localeCompare(b.status || ""));
       case "createdAt": return dir * (new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      case "assignee": return dir * ((a.assigneeId || "").localeCompare(b.assigneeId || ""));
       default: return 0;
     }
-  });
+  }), [filteredTasks, sortConfig]);
 
   const handleDragStart = (event: any) => {
     const { active } = event;
@@ -693,7 +677,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const handleDragEnd = async (event: any) => {
     if (dragMutationRef.current) return;
     dragMutationRef.current = true;
-    setTimeout(() => { dragMutationRef.current = false; }, 500);
+    setTimeout(() => { dragMutationRef.current = false; }, 1000);
 
     const { active, over } = event;
     setActiveTask(null);
@@ -710,7 +694,13 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
         const oldIndex = columns.findIndex((c: any) => c.id === activeId);
         const newIndex = columns.findIndex((c: any) => c.id === overId);
         const newColumns = arrayMove(columns, oldIndex, newIndex);
-        
+
+        // Cancel pending Ably invalidations before optimistic update
+        await queryClient.cancelQueries({ queryKey: ["board", boardId] });
+
+        // Snapshot previous state for rollback
+        const previousBoard = queryClient.getQueryData(["board", boardId]);
+
         // Optimistic UI update
         queryClient.setQueryData(["board", boardId], {
           ...board,
@@ -718,10 +708,15 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
         });
 
         // Update column orders in DB
-        updateColumnOrders(newColumns).catch((err) => {
+        try {
+          await updateColumnOrders(newColumns);
+        } catch {
+          // Rollback on failure
+          if (previousBoard) {
+            queryClient.setQueryData(["board", boardId], previousBoard);
+          }
           toast.error("Failed to save column order");
-          queryClient.invalidateQueries({ queryKey: ["board", boardId] });
-        });
+        }
       }
       return;
     }
@@ -737,8 +732,8 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       targetColumnIdOffset = overId;
       const columnTasks = tasks.filter((t: any) => t.columnId === targetColumnIdOffset);
       targetOrder = columnTasks.length > 0
-        ? Math.max(...columnTasks.map((t: any) => t.order)) + 10
-        : 10;
+        ? Math.max(...columnTasks.map((t: any) => t.order)) + 100
+        : 100;
     } else {
       const overTask = tasks.find((t: any) => t.id === overId);
       if (!overTask) return;
@@ -746,11 +741,21 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       targetColumnIdOffset = overTask.columnId;
       const columnTasks = tasks
         .filter((t: any) => t.columnId === targetColumnIdOffset)
+        .filter((t: any) => t.id !== activeId)
         .sort((a: any, b: any) => a.order - b.order);
 
-      const oldIndex = columnTasks.findIndex((t: any) => t.id === activeId);
-      const newIndex = columnTasks.findIndex((t: any) => t.id === overId);
-      targetOrder = overTask.order + (newIndex > oldIndex ? 1 : -1);
+      const overIndex = columnTasks.findIndex((t: any) => t.id === overId);
+      if (overIndex === -1) {
+        targetOrder = columnTasks.length > 0
+          ? Math.max(...columnTasks.map((t: any) => t.order)) + 100
+          : 100;
+      } else if (overIndex === 0) {
+        targetOrder = columnTasks[0].order / 2;
+      } else {
+        const beforeOrder = columnTasks[overIndex - 1].order;
+        const afterOrder = columnTasks[overIndex].order;
+        targetOrder = beforeOrder + (afterOrder - beforeOrder) / 2;
+      }
     }
 
     if (targetColumnIdOffset && (targetColumnIdOffset !== activeTaskData.columnId || activeId !== overId)) {
@@ -768,9 +773,9 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     });
   };
 
-  const allTags = Array.from(
+  const allTags = useMemo(() => Array.from(
     new Map(tasks.flatMap((t: any) => t.tags || []).map((tag: any) => [tag.id, tag])).values()
-  ) as any[];
+  ) as any[], [tasks]);
 
   const handleOpenColumnSettings = (column: any) => {
     setEditingColumn(column);
@@ -780,207 +785,327 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   };
 
   return (
-    <div className="h-full bg-background relative flex flex-col">
-      {/* Board Header */}
-      <div className="p-6 sm:p-8 border-b bg-background/40 backdrop-blur-2xl z-40">
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-6">
-          <div className="flex items-center gap-6">
-            <Button variant="ghost" size="icon" onClick={onBack} className="h-12 w-12 rounded-xl hover:bg-primary hover:text-primary-foreground transition-all duration-300 bg-card border shadow-sm group">
-              <ArrowLeft className="h-5 w-5 group-hover:-translate-x-1 transition-transform" />
-            </Button>
-            <div className="space-y-2">
-              <div className="flex items-center gap-4">
-                {isEditingHeader ? (
-                  <Input
-                    className="text-3xl font-semibold h-12 w-80 bg-transparent border-none p-0 focus-visible:ring-0 tracking-tight"
-                    value={editedName}
-                    onChange={(e) => setEditedName(e.target.value)}
-                    onBlur={() => updateBoardMutation.mutate({ name: editedName })}
-                    onKeyDown={(e) => e.key === "Enter" && updateBoardMutation.mutate({ name: editedName })}
-                    autoFocus
-                  />
-                ) : (
-                  <h1
-                    className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground cursor-pointer hover:text-primary transition-colors leading-none"
-                    onClick={() => setIsEditingHeader(true)}
-                  >
-                    {board?.name}
-                  </h1>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={cn("h-10 w-10 rounded-lg", board?.isFavorite ? "text-amber-400" : "text-muted-foreground")}
-                  onClick={toggleFavorite}
-                >
-                  <Star className={cn("h-5 w-5", board?.isFavorite && "fill-current")} />
-                </Button>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="h-1 w-12 bg-primary rounded-full" />
-                <div className="flex items-center gap-4 text-xs font-medium text-muted-foreground">
-                  <p>Board</p>
-                  <div className="flex items-center gap-1">
-                    {board?.visibility === "private" ? <Lock className="h-3 w-3" /> : <UsersIcon className="h-3 w-3" />}
-                    <span>{board?.visibility}</span>
-                  </div>
-                  {presenceUsers.length > 0 && (
-                    <div className="flex items-center -space-x-2 ml-4">
-                      {presenceUsers.map((user: any) => (
-                        <div 
-                          key={user.id} 
-                          className="h-7 w-7 rounded-full border-2 border-background bg-muted shadow-sm overflow-hidden transition-all hover:scale-110 hover:z-10"
-                          title={user.name}
-                        >
-                           <Image src={user.avatar} className="h-full w-full object-cover" alt={user.name} width={28} height={28} />
-                        </div>
-                      ))}
-                      <div className="h-7 w-7 rounded-full border-2 border-background bg-primary flex items-center justify-center text-[8px] text-primary-foreground font-semibold z-20 shadow-sm">
-                         {presenceUsers.length}
-            </div>
+    <>
+      <div className="px-6 sm:px-8 py-3 border-b bg-muted/20">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1 min-w-0">
+            <FilterSortBar
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              filterConfig={filterConfig}
+              onFilterChange={setFilterConfig}
+              sortConfig={sortConfig}
+              onSortChange={setSortConfig}
+              columns={columns.map((c: any) => ({ id: c.id, name: c.name, columnType: c.columnType }))}
+              columnVisibility={columnVisibility}
+              onColumnVisibilityChange={setColumnVisibility}
+              allTags={allTags}
+              savedViews={savedViews}
+              onSaveView={(name) => {
+                const newView: SavedView = {
+                  id: crypto.randomUUID(),
+                  name,
+                  filterConfig,
+                  sortConfig,
+                  columnVisibility,
+                };
+                setSavedViews(prev => [...prev, newView]);
+              }}
+              onLoadView={(view) => {
+                setFilterConfig(view.filterConfig);
+                setSortConfig(view.sortConfig);
+                setColumnVisibility(view.columnVisibility);
+              }}
+              onDeleteView={(id) => setSavedViews(prev => prev.filter(v => v.id !== id))}
+              totalTasks={tasks.length}
+              filteredCount={filteredTasks.length}
+            />
           </div>
-        )}
-              </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Sub-components for different views
-
-function BoardCalendar({ tasks, onSelectTask }: { tasks: any[]; onSelectTask: (task: any) => void }) {
-  const [currentDate, setCurrentDate] = useState(new Date());
-  
-  const monthStart = startOfMonth(currentDate);
-  const monthEnd = endOfMonth(monthStart);
-  const startDate = startOfWeek(monthStart);
-  const endDate = endOfWeek(monthEnd);
-  const calendarDays = eachDayOfInterval({ start: startDate, end: endDate });
-
-  const tasksWithDates = tasks.filter((t: any) => t.dueDate);
-
-  return (
-    <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b">
-        <h2 className="text-sm font-semibold text-muted-foreground">{format(currentDate, "MMMM yyyy")}</h2>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => setCurrentDate(subMonths(currentDate, 1))}><ChevronLeft className="h-4 w-4" /></Button>
-          <Button variant="outline" size="sm" onClick={() => setCurrentDate(new Date())}>Today</Button>
-          <Button variant="outline" size="sm" onClick={() => setCurrentDate(addMonths(currentDate, 1))}><ChevronRight className="h-4 w-4" /></Button>
-        </div>
-      </div>
-      <div className="grid grid-cols-7 border-b bg-muted/30">
-        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-          <div key={day} className="py-2 text-center text-[10px] font-semibold text-muted-foreground">{day}</div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 flex-1 overflow-auto">
-        {calendarDays.map((day, i) => {
-          const dayTasks = tasksWithDates.filter((t: any) => isSameDay(new Date(t.dueDate), day));
-          return (
-            <div
-              key={i}
-              className={cn(
-                "min-h-[100px] p-2 border-r border-b group hover:bg-muted/30 transition-colors",
-                !isSameMonth(day, monthStart) && "bg-muted/30 opacity-40",
-                isSameDay(day, new Date()) && "bg-primary/5"
-              )}
-            >
-              <span className={cn(
-                "text-[10px] font-semibold w-5 h-5 flex items-center justify-center rounded-full mb-1",
-                isSameDay(day, new Date()) ? "bg-primary text-primary-foreground" : "text-muted-foreground"
-              )}>
-                {format(day, "d")}
-              </span>
-              <div className="space-y-1">
-                {dayTasks.map(task => {
-                  if (!task || !task.id) return null;
-                  return (
-                    <div
-                      key={task.id}
-                      className="text-[9px] font-medium p-1 rounded-md bg-card border-l-2 border-primary shadow-sm truncate cursor-pointer hover:scale-105 transition-transform"
-                      onClick={() => onSelectTask(task)}
-                    >
-                      {task.title}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-function BoardTimeline({ tasks, onSelectTask }: { tasks: any[]; onSelectTask: (task: any) => void }) {
-  const startDate = startOfWeek(new Date());
-  const days = Array.from({ length: 30 }).map((_, i) => addDays(startDate, i));
-  const tasksWithDates = tasks.filter((t) => t.dueDate).sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-
-  return (
-    <ScrollArea className="flex-1 w-full">
-      <div className="min-w-[1200px] flex flex-col">
-        <div className="flex border-b bg-muted/50 sticky top-0 z-20 backdrop-blur-md">
-          <div className="w-48 sticky left-0 bg-card border-r z-10 px-4 py-3 text-[10px] font-semibold text-muted-foreground">Task Title</div>
-          <div className="flex">
-            {days.map((day) => (
-              <div key={day.toISOString()} className={cn(
-                "w-12 border-r py-3 flex flex-col items-center",
-                (day.getDay() === 0 || day.getDay() === 6) && "bg-muted/20"
-              )}>
-                <span className="text-[8px] text-muted-foreground font-medium">{format(day, "EEE")}</span>
-                <span className="text-[10px] font-semibold">{format(day, "d")}</span>
-              </div>
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1 shrink-0">
+            {[
+              { id: "kanban", icon: LayoutGrid, label: "Board" },
+              { id: "table", icon: ListIcon, label: "Table" },
+              { id: "map", icon: MapPin, label: "Map" },
+            ].map(view => (
+              <Button
+                key={view.id}
+                variant={currentView === view.id ? "default" : "ghost"}
+                size="sm"
+                onClick={() => setCurrentView(view.id)}
+                className="h-8 px-2 text-xs"
+              >
+                <view.icon className="h-3.5 w-3.5 mr-1" />
+                <span className="hidden sm:inline">{view.label}</span>
+              </Button>
             ))}
           </div>
         </div>
+      </div>
 
-        <div className="flex-1">
-          {tasksWithDates.map((task) => {
-            if (!task || !task.id) return null;
-            const taskStart = new Date(task.createdAt);
-            const taskEnd = new Date(task.dueDate);
-            const startOffset = Math.max(0, differenceInDays(taskStart, startDate));
-            const duration = Math.max(1, differenceInDays(taskEnd, taskStart));
+      {/* Batch Actions */}
+      {selectedTaskIds.length > 0 && (
+        <div className="px-6 sm:px-8 py-2 border-b bg-primary/5 flex items-center gap-3">
+          <span className="text-sm font-medium text-muted-foreground">{selectedTaskIds.length} selected</span>
+          <Button variant="destructive" size="sm" onClick={handleBatchDelete}>
+            <Trash2 className="h-4 w-4 mr-1" /> Delete
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => setSelectedTaskIds([])}>
+            Deselect all
+          </Button>
+        </div>
+      )}
 
-            return (
-              <div key={task.id} className="flex border-b group hover:bg-muted/20 transition-colors">
-                <div className="w-48 sticky left-0 bg-card border-r z-10 px-4 py-3 flex items-center min-w-0" onClick={() => onSelectTask(task)}>
-                  <span className="text-xs font-medium truncate group-hover:text-primary transition-colors cursor-pointer">{task.title}</span>
-                </div>
-                <div className="flex relative h-12 w-full">
-                  <div
-                    className={cn(
-                      "absolute top-2.5 h-7 rounded-md flex items-center px-3 shadow-sm border border-black/5 cursor-pointer transition-transform hover:scale-[1.02]",
-                      task.priority === "high" ? "bg-red-500 text-white" :
-                        task.priority === "medium" ? "bg-amber-400 text-white" : "bg-emerald-500 text-white"
-                    )}
-                    style={{
-                      left: `${startOffset * 48}px`,
-                      width: `${duration * 48}px`,
-                      minWidth: "100px"
-                    }}
-                    onClick={() => onSelectTask(task)}
-                  >
-                    <span className="text-[9px] font-semibold truncate">{task.title}</span>
+      {/* Main Content */}
+      <div className="flex-1 overflow-hidden">
+        {currentView === "kanban" && (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCorners}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
+            <div className="h-full flex gap-6 p-6 sm:p-8 overflow-x-auto">
+              {columns.length === 0 ? (
+                <div className="flex items-center justify-center w-full h-full min-h-[400px]">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-muted-foreground mb-2">No columns yet</h3>
+                    <p className="text-sm text-muted-foreground mb-4">Create your first column to get started</p>
+                    <Button onClick={() => setIsColumnDialogOpen(true)}>
+                      <Plus className="h-4 w-4 mr-2" /> Create Column
+                    </Button>
                   </div>
                 </div>
-              </div>
-            );
-          })}
-          {tasksWithDates.length === 0 && (
-            <div className="py-20 flex flex-col items-center justify-center text-muted-foreground italic">
-              <span className="text-sm">No tasks with due dates found.</span>
+              ) : (
+                <>
+                <SortableContext items={columns.map((c: any) => c.id)} strategy={horizontalListSortingStrategy}>
+                {columns.map((column: any) => {
+                  const columnTasks = sortedTasks.filter((t: any) => t.columnId === column.id);
+                  return (
+                    <div key={column.id} className="flex-shrink-0 w-[320px] flex flex-col bg-muted/30 rounded-xl border shadow-sm max-h-full">
+                      {/* Column Header */}
+                      <div className="p-4 border-b bg-card rounded-t-xl flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="w-2 h-8 rounded-full shrink-0" style={{ backgroundColor: column.color || "#4f46e5" }} />
+                          <span className="font-semibold text-sm truncate">{column.name}</span>
+                          <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full font-medium">{columnTasks.length}</span>
+                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                              <MoreVertical className="h-3.5 w-3.5" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleOpenColumnSettings(column)}>
+                              <Edit2 className="h-3.5 w-3.5 mr-2" /> Edit
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => {
+                              setTargetColumnId(column.id);
+                              setIsTaskDialogOpen(true);
+                            }}>
+                              <Plus className="h-3.5 w-3.5 mr-2" /> Add Task
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onClick={() => {
+                                showConfirm({
+                                  title: "Delete Column",
+                                  description: `Delete "${column.name}" and all its tasks?`,
+                                  actionLabel: "Delete",
+                                  destructive: true,
+                                  onAction: () => deleteColumnMutation.mutate(column.id),
+                                });
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+                      {/* Column Tasks */}
+                      <ScrollArea className="flex-1 p-3">
+                        <div className="space-y-3">
+                          {columnTasks.map((task: any) => (
+                            <SortableTask
+                              key={task.id}
+                              task={task}
+                              onClick={() => setSelectedTask(task)}
+                              isSelected={selectedTaskIds.includes(task.id)}
+                              onSelect={(checked) => {
+                                setSelectedTaskIds(prev =>
+                                  checked ? [...prev, task.id] : prev.filter(id => id !== task.id)
+                                );
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </ScrollArea>
+                      {/* Add Task */}
+                      <div className="p-3 border-t">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-start text-muted-foreground hover:text-foreground"
+                          onClick={() => {
+                            setTargetColumnId(column.id);
+                            setIsTaskDialogOpen(true);
+                          }}
+                        >
+                          <Plus className="h-4 w-4 mr-2" /> Add Task
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })}
+                </SortableContext>
+              {/* New Column Button */}
+              {columns.length > 0 && (
+                <div className="flex-shrink-0 w-[320px]">
+                  <Button
+                    variant="outline"
+                    className="w-full h-32 border-2 border-dashed border-border rounded-xl text-muted-foreground hover:text-foreground hover:border-primary/50 transition-all"
+                    onClick={() => setIsColumnDialogOpen(true)}
+                  >
+                    <Plus className="h-5 w-5 mr-2" /> New Column
+                  </Button>
+                </div>
+              )}
+              </>
+            )}
             </div>
-          )}
-        </div>
+            <DragOverlay>
+              {activeTask && (
+                <Card className="p-4 w-[320px] shadow-xl bg-card border-primary/30 rotate-3">
+                  <TaskCardContent task={activeTask} />
+                </Card>
+              )}
+              {activeColumn && (
+                <div className="w-[320px] h-16 rounded-lg bg-card border-2 border-primary/30 shadow-xl flex items-center px-4">
+                  <span className="font-semibold text-sm">{activeColumn.name}</span>
+                </div>
+              )}
+            </DragOverlay>
+          </DndContext>
+        )}
+        {currentView === "table" && (
+          <div className="h-full p-6 sm:p-8 overflow-auto">
+            <TableView
+              boardId={boardId}
+              tasks={sortedTasks}
+              columns={columns}
+              groups={[]}
+              onSelectTask={setSelectedTask}
+              workspaceId={activeWorkspaceId || ""}
+            />
+          </div>
+        )}
+        {currentView === "map" && (
+          <div className="h-full p-6 sm:p-8 overflow-auto">
+            <MapView tasks={sortedTasks} columns={columns} onSelectTask={setSelectedTask} />
+          </div>
+        )}
       </div>
-    </ScrollArea>
+
+      {/* New Column Dialog */}
+      <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New Column</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="new-col-name">Column Name</Label>
+              <Input id="new-col-name" placeholder="e.g., In Progress" value={newColumnName} onChange={(e) => setNewColumnName(e.target.value)} />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsColumnDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => createColumnMutation.mutate(newColumnName)} disabled={!newColumnName || createColumnMutation.isPending}>
+              Create
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Column Settings Dialog */}
+      <Dialog open={!!editingColumn} onOpenChange={(open) => !open && setEditingColumn(null)}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Column Settings</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-col-name">Column Name</Label>
+              <Input id="edit-col-name" value={colName} onChange={(e) => setColName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="col-wip">WIP Limit</Label>
+              <Input id="col-wip" type="number" value={colWip ?? ""} onChange={(e) => setColWip(e.target.value ? parseInt(e.target.value) : null)} placeholder="No limit" />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="col-color">Color</Label>
+              <Input id="col-color" type="color" value={colColor} onChange={(e) => setColColor(e.target.value)} className="h-10 w-full p-1" />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditingColumn(null)}>Cancel</Button>
+            <Button onClick={() => updateColumnMutation.mutate({ id: editingColumn.id, name: colName, wipLimit: colWip, color: colColor })} disabled={!colName}>
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task Creation Dialog */}
+      <Dialog open={isTaskDialogOpen} onOpenChange={(open) => {
+        if (!open) {
+          setIsTaskDialogOpen(false);
+          setTargetColumnId(null);
+          setNewTaskTitle("");
+        }
+      }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Create New Task</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-4">
+            <div className="space-y-2">
+              <Label htmlFor="task-title">Task Title</Label>
+              <Input
+                id="task-title"
+                placeholder="What needs to be done?"
+                value={newTaskTitle}
+                onChange={(e) => setNewTaskTitle(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && targetColumnId && createTaskMutation.mutate(targetColumnId)}
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setIsTaskDialogOpen(false);
+              setTargetColumnId(null);
+              setNewTaskTitle("");
+            }}>Cancel</Button>
+            <Button onClick={() => targetColumnId && createTaskMutation.mutate(targetColumnId)} disabled={!newTaskTitle || !targetColumnId || createTaskMutation.isPending}>
+              Create Task
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Task Detail Sheet */}
+      <TaskDialog
+        task={selectedTask}
+        isOpen={!!selectedTask}
+        onClose={() => {
+          setSelectedTask(null);
+          queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+        }}
+        workspaceId={activeWorkspaceId || ""}
+      />
+  </>
   );
 }
+
+

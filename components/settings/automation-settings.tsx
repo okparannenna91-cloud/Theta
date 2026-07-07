@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { Zap, Plus, Trash2, ArrowRight } from "lucide-react";
+import { Zap, Plus, Trash2, ArrowRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { usePopups } from "@/components/popups/popup-manager";
 
@@ -19,6 +19,7 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
     const [trigger, setTrigger] = useState("TASK_STATUS_UPDATED");
     const [action, setAction] = useState("SET_PRIORITY");
     const [actionValue, setActionValue] = useState("high");
+    const [deletingId, setDeletingId] = useState<string | null>(null);
 
     const queryClient = useQueryClient();
 
@@ -38,24 +39,19 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
 
     const createMutation = useMutation({
         mutationFn: async (data: any) => {
-            if (isLimitReached) {
-                showUpgradePrompt("automations");
-                return;
-            }
-
             const res = await fetch("/api/automations", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ ...data, workspaceId }),
             });
-            
+
             if (!res.ok) {
                 const error = await res.json();
-                if (res.status === 403 && error.error?.includes("limit")) {
+                if (res.status === 403 && (error.error?.includes("limit") || error.error?.includes("limit"))) {
                     showUpgradePrompt("automations");
                     return;
                 }
-                throw new Error(error.error || "Failed to create automation");
+                throw new Error(typeof error.error === 'string' ? error.error : "Failed to create automation");
             }
             return res.json();
         },
@@ -63,12 +59,58 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
             queryClient.invalidateQueries({ queryKey: ["automations", workspaceId] });
             setIsOpen(false);
             setName("");
+            setTrigger("TASK_STATUS_UPDATED");
+            setAction("SET_PRIORITY");
+            setActionValue("high");
             toast.success("Automation rule created");
         },
         onError: (error: any) => {
             toast.error(error.message);
         }
     });
+
+    const toggleMutation = useMutation({
+        mutationFn: async ({ id, active }: { id: string; active: boolean }) => {
+            const res = await fetch(`/api/automations/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ active }),
+            });
+            if (!res.ok) throw new Error("Failed to toggle automation");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["automations", workspaceId] });
+        },
+        onError: (error: any) => {
+            toast.error(error.message);
+        }
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: async (id: string) => {
+            const res = await fetch(`/api/automations/${id}`, {
+                method: "DELETE",
+            });
+            if (!res.ok) throw new Error("Failed to delete automation");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["automations", workspaceId] });
+            toast.success("Automation deleted");
+        },
+        onError: (error: any) => {
+            toast.error(error.message);
+        }
+    });
+
+    const handleCreate = () => {
+        if (isLimitReached) {
+            showUpgradePrompt("automations");
+            return;
+        }
+        createMutation.mutate({ name, trigger, action, actionValue });
+    };
 
     return (
         <div className="space-y-6">
@@ -84,18 +126,23 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
                             <p className="text-xs font-bold">{limits.current} / {limits.max}</p>
                         </div>
                     )}
-                    <Button 
+                    <Button
                         onClick={() => {
                             if (isLimitReached) {
                                 showUpgradePrompt("automations");
                             } else {
                                 setIsOpen(true);
                             }
-                        }} 
+                        }}
                         className="rounded-xl shadow-lg shadow-indigo-200 dark:shadow-none bg-indigo-600 hover:bg-indigo-700"
                         variant={isLimitReached ? "outline" : "default"}
+                        disabled={createMutation.isPending}
                     >
-                        <Zap className="h-4 w-4 mr-2" />
+                        {createMutation.isPending ? (
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                            <Zap className="h-4 w-4 mr-2" />
+                        )}
                         Create Rule
                     </Button>
                 </div>
@@ -120,9 +167,28 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-4">
-                                    <Switch checked={rule.active} />
-                                    <Button variant="ghost" size="icon" className="text-slate-400 hover:text-red-500">
-                                        <Trash2 className="h-4 w-4" />
+                                    <Switch
+                                        checked={rule.active}
+                                        onCheckedChange={(checked) => {
+                                            toggleMutation.mutate({ id: rule.id, active: checked });
+                                        }}
+                                        disabled={toggleMutation.isPending}
+                                    />
+                                    <Button
+                                        variant="ghost"
+                                        size="icon"
+                                        className="text-slate-400 hover:text-red-500"
+                                        onClick={() => {
+                                            setDeletingId(rule.id);
+                                            deleteMutation.mutate(rule.id);
+                                        }}
+                                        disabled={deleteMutation.isPending && deletingId === rule.id}
+                                    >
+                                        {deleteMutation.isPending && deletingId === rule.id ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            <Trash2 className="h-4 w-4" />
+                                        )}
                                     </Button>
                                 </div>
                             </div>
@@ -182,7 +248,12 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
                         </div>
                         <div className="flex justify-end gap-2 pt-4">
                             <Button variant="outline" onClick={() => setIsOpen(false)}>Cancel</Button>
-                            <Button onClick={() => createMutation.mutate({ name, trigger, action, actionValue })}>Save Rule</Button>
+                            <Button onClick={handleCreate} disabled={createMutation.isPending}>
+                                {createMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                ) : null}
+                                Save Rule
+                            </Button>
                         </div>
                     </CardContent>
                 </Card>

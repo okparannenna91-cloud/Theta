@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { invoiceService } from "@/lib/billing/services/invoice-service";
 import { logger } from "@/lib/logger";
 
@@ -17,6 +18,11 @@ export async function GET(req: Request) {
 
     if (!workspaceId) {
       return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
+    }
+
+    const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+    if (!hasAccess) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     const result = await invoiceService.listForWorkspace(workspaceId, limit, offset);

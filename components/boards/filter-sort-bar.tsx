@@ -99,7 +99,8 @@ export default function FilterSortBar({
   }, [filterConfig]);
 
   const clearFilters = () => {
-    onFilterChange({ search: "" });
+    onFilterChange({});
+    onSearchChange("");
     onSortChange(null);
   };
 

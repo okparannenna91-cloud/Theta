@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { format, addMonths, subMonths } from "date-fns";
 import {
     BarChart3,
     Filter,
@@ -23,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import TimelineCanvas from "../timeline/timeline-canvas";
 import PresenceAvatars from "./presence-avatars";
 import { toPng } from "html-to-image";
+import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 
 export default function GanttPage() {
     const { activeWorkspaceId } = useWorkspace();
@@ -30,8 +32,13 @@ export default function GanttPage() {
     const [searchQuery, setSearchQuery] = useState("");
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+    const [navDate, setNavDate] = useState(new Date());
+    const navLabel = useMemo(() => format(navDate, "MMMM yyyy"), [navDate]);
+    const goToPrev = () => setNavDate(d => subMonths(d, 1));
+    const goToNext = () => setNavDate(d => addMonths(d, 1));
 
-    const { data: tasksData, isLoading } = useQuery({
+    const { data: tasksData, isLoading, isError } = useQuery({
         queryKey: ["timeline-tasks", activeWorkspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/tasks?workspaceId=${activeWorkspaceId}`);
@@ -67,6 +74,31 @@ export default function GanttPage() {
         );
     }
 
+    if (isError) {
+        return (
+            <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center gap-4">
+                <div className="rounded-full bg-destructive/10 p-4">
+                    <BarChart3 className="h-8 w-8 text-destructive" />
+                </div>
+                <h2 className="text-lg font-semibold">Failed to load Gantt chart</h2>
+                <p className="text-sm text-muted-foreground">There was an error fetching tasks. Please try again.</p>
+                <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
+            </div>
+        );
+    }
+
+    if (tasks.length === 0) {
+        return (
+            <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center gap-4 p-6">
+                <div className="rounded-full bg-muted p-4">
+                    <BarChart3 className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h2 className="text-lg font-semibold">No tasks to display</h2>
+                <p className="text-sm text-muted-foreground text-center">Create tasks with start and due dates to visualize them on the Gantt chart.</p>
+            </div>
+        );
+    }
+
     return (
         <div className={`flex flex-col overflow-hidden transition-all duration-500 ${isFullScreen ? "fixed inset-0 z-[100] bg-background" : "h-[calc(100vh-100px)]"}`}>
             <header className="flex items-center justify-between px-6 py-4 border-b bg-background/80 backdrop-blur-sm">
@@ -95,7 +127,7 @@ export default function GanttPage() {
                     <Button variant="outline" size="icon" className="h-9 w-9" onClick={() => setIsFullScreen(!isFullScreen)}>
                         {isFullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
                     </Button>
-                    <Button className="h-9 text-xs" onClick={() => {}}>
+                    <Button className="h-9 text-xs" onClick={() => setIsCreateTaskOpen(true)}>
                         <Plus className="h-3.5 w-3.5 mr-2" /> Add Phase
                     </Button>
                 </div>
@@ -104,11 +136,11 @@ export default function GanttPage() {
             <div className="flex items-center justify-between px-6 py-2 border-b bg-muted/20">
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={goToPrev}>
                             <ChevronLeft className="h-3.5 w-3.5" />
                         </Button>
-                        <span className="text-xs font-medium min-w-[120px] text-center">October - December 2026</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md">
+                        <span className="text-xs font-medium min-w-[120px] text-center">{navLabel}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={goToNext}>
                             <ChevronRight className="h-3.5 w-3.5" />
                         </Button>
                     </div>
@@ -141,6 +173,8 @@ export default function GanttPage() {
                     <Download className="h-3.5 w-3.5 mr-1.5" /> {isExporting ? "Exporting..." : "Export PNG"}
                 </Button>
             </footer>
+
+            <CreateTaskDialog isOpen={isCreateTaskOpen} onOpenChange={setIsCreateTaskOpen} />
         </div>
     );
 }

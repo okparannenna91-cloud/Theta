@@ -2,24 +2,13 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canAccessProjectResource } from "@/lib/project-permissions";
+import { recalculateTaskProgress, updateParentTask } from "@/lib/task-utils";
 import { z } from "zod";
 
 const subtaskSchema = z.object({
     title: z.string().min(1),
     order: z.number().optional(),
 });
-
-async function recalculateTaskProgress(taskId: string) {
-    const [subtasks, completedCount] = await Promise.all([
-        prisma.subtask.count({ where: { taskId } }),
-        prisma.subtask.count({ where: { taskId, completed: true } }),
-    ]);
-    const progress = subtasks > 0 ? Math.round((completedCount / subtasks) * 100) : 0;
-    await prisma.task.update({
-        where: { id: taskId },
-        data: { progress },
-    });
-}
 
 export async function GET(
     req: Request,
@@ -109,6 +98,11 @@ export async function POST(
         });
 
         await recalculateTaskProgress(params.id);
+
+        // Cascade progress update to grandparent tasks
+        if (task.parentId) {
+            await updateParentTask(task.parentId, task.workspaceId);
+        }
 
         return NextResponse.json(subtask);
     } catch (error) {

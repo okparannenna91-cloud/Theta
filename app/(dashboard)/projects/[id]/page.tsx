@@ -27,10 +27,12 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { ProjectTasksView } from "@/components/projects/project-tasks-view";
-import KanbanBoard from "@/components/boards/kanban-board";
-import { TimelineView } from "@/components/projects/timeline-view";
-import { GanttChart } from "@/components/projects/gantt-chart";
-import { CalendarView } from "@/components/projects/calendar-view";
+import dynamic from "next/dynamic";
+
+const KanbanBoard = dynamic(() => import("@/components/boards/kanban-board"), { ssr: false });
+const TimelineView = dynamic(() => import("@/components/projects/timeline-view").then(m => ({ default: m.TimelineView })), { ssr: false });
+const GanttChart = dynamic(() => import("@/components/projects/gantt-chart").then(m => ({ default: m.GanttChart })), { ssr: false });
+const CalendarView = dynamic(() => import("@/components/projects/calendar-view").then(m => ({ default: m.CalendarView })), { ssr: false });
 import { InviteMemberDialog } from "@/components/projects/invite-member-dialog";
 import { ProjectTeamsTab } from "@/components/projects/project-teams-tab";
 import { User } from "lucide-react";

@@ -174,6 +174,16 @@ export class SubscriptionService {
     const newStatus = transition("active", "subscription.canceled") as SubscriptionStatus;
     const now = new Date();
 
+    // Notify provider first
+    if (workspace.billingProvider && workspace.providerSubscriptionId) {
+      try {
+        const provider = providerRegistry.get(workspace.billingProvider);
+        await provider.cancelSubscription(workspace.providerSubscriptionId, { cancelAtPeriodEnd: true });
+      } catch (error) {
+        logger.error(`[Subscription] Provider cancel failed for workspace ${workspaceId}: ${error}`);
+      }
+    }
+
     await prisma.workspace.update({
       where: { id: workspaceId },
       data: {
@@ -205,11 +215,21 @@ export class SubscriptionService {
     const newStatus = transition("active", "subscription.canceled") as SubscriptionStatus;
     const now = new Date();
 
+    // Notify provider first
+    if (workspace.billingProvider && workspace.providerSubscriptionId) {
+      try {
+        const provider = providerRegistry.get(workspace.billingProvider);
+        await provider.cancelSubscription(workspace.providerSubscriptionId, { cancelAtPeriodEnd: false });
+      } catch (error) {
+        logger.error(`[Subscription] Provider cancel failed for workspace ${workspaceId}: ${error}`);
+      }
+    }
+
     await prisma.workspace.update({
       where: { id: workspaceId },
       data: {
         subscriptionStatus: newStatus,
-        cancelAtPeriodEnd: true,
+        cancelAtPeriodEnd: false,
         canceledAt: now,
         currentPeriodEnd: now,
       },
@@ -332,11 +352,9 @@ export class SubscriptionService {
       await prisma.workspace.update({
         where: { id: workspaceId },
         data: {
-          providerMetadata: {
-            scheduledPlanKey: newPlanKey,
-            scheduledInterval: newInterval ?? workspace.billingInterval,
-            scheduledEffectiveDate: effectiveDate.toISOString(),
-          } as any,
+          scheduledPlanKey: newPlanKey,
+          scheduledInterval: newInterval ?? workspace.billingInterval,
+          scheduledEffectiveDate: effectiveDate,
         },
       });
 

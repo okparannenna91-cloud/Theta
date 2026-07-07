@@ -49,15 +49,27 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
         const integrationCount = await prisma.integration.count({ where: { workspaceId } });
         const automationCount = await prisma.automation.count({ where: { workspaceId } });
 
-        const storageActivities = await prisma.activity.findMany({
+        const storageUploads = await prisma.activity.findMany({
             where: { workspaceId, action: "file_upload" },
             select: { metadata: true }
         });
 
-        const storageUsed = storageActivities.reduce((acc, curr) => {
+        const storageDeletions = await prisma.activity.findMany({
+            where: { workspaceId, action: "file_deletion" },
+            select: { metadata: true }
+        });
+
+        const uploadedBytes = storageUploads.reduce((acc, curr) => {
             const metadata = curr.metadata as any;
             return acc + (metadata?.size || 0);
-        }, 0) / (1024 * 1024);
+        }, 0);
+
+        const deletedBytes = storageDeletions.reduce((acc, curr) => {
+            const metadata = curr.metadata as any;
+            return acc + (metadata?.size || 0);
+        }, 0);
+
+        const storageUsed = Math.max(0, uploadedBytes - deletedBytes) / (1024 * 1024);
 
         const now = new Date();
         const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -137,7 +149,7 @@ export async function getMemberCount(workspaceId: string): Promise<number> {
 }
 
 export async function calculateStorageUsed(workspaceId: string): Promise<number> {
-    const storageActivities = await prisma.activity.findMany({
+    const storageUploads = await prisma.activity.findMany({
         where: {
             workspaceId,
             action: "file_upload"
@@ -147,10 +159,27 @@ export async function calculateStorageUsed(workspaceId: string): Promise<number>
         }
     });
 
-    const totalBytes = storageActivities.reduce((acc, curr) => {
+    const storageDeletions = await prisma.activity.findMany({
+        where: {
+            workspaceId,
+            action: "file_deletion"
+        },
+        select: {
+            metadata: true
+        }
+    });
+
+    const uploadedBytes = storageUploads.reduce((acc, curr) => {
         const metadata = curr.metadata as any;
         return acc + (metadata?.size || 0);
     }, 0);
+
+    const deletedBytes = storageDeletions.reduce((acc, curr) => {
+        const metadata = curr.metadata as any;
+        return acc + (metadata?.size || 0);
+    }, 0);
+
+    const totalBytes = Math.max(0, uploadedBytes - deletedBytes);
 
     return totalBytes / (1024 * 1024);
 }

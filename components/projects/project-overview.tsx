@@ -203,7 +203,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
                              </div>
                              <div>
                                  <p className="text-xs font-semibold text-slate-400">Duration</p>
-                                 <p className="text-sm font-semibold truncate">3 Months</p>
+                                 <p className="text-sm font-semibold truncate">{project.createdAt ? format(new Date(project.createdAt), "MMM yyyy") : "N/A"}</p>
                              </div>
                         </div>
                     </CardContent>
@@ -214,11 +214,11 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
                     <div className="relative z-10">
                         <p className="text-xs font-semibold text-muted-foreground mb-2">Team Velocity</p>
                         <h2 className="text-5xl font-semibold mb-4 flex items-baseline gap-2">
-                            94 <span className="text-base font-medium opacity-50">%</span>
+                            {progress === 0 ? "—" : Math.round(progress)} <span className="text-base font-medium opacity-50">%</span>
                         </h2>
                         <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-primary/10 border border-primary/20 w-fit">
                              <FileText className="h-3 w-3 text-primary" />
-                             <p className="text-xs font-semibold">Boots AI Forecast</p>
+                                <p className="text-xs font-semibold">Nova AI Forecast</p>
                         </div>
                     </div>
                 </Card>

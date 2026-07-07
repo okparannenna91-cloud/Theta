@@ -33,21 +33,25 @@ export class TaskIntelligence {
     description?: string
   ): Promise<TaskRecommendation> {
     
+    const keywordResult = TaskIntelligence.keywordAnalysis(title, description);
+    let enhancedResult = keywordResult;
 
-    let priority: "low" | "medium" | "high" | "urgent" = "medium";
-    const lowercaseTitle = title.toLowerCase();
-
-    if (lowercaseTitle.includes("fix") || lowercaseTitle.includes("broken") || lowercaseTitle.includes("critical") || lowercaseTitle.includes("crash")) {
-      priority = "high";
-    } else if (lowercaseTitle.includes("urgent") || lowercaseTitle.includes("asap") || lowercaseTitle.includes("blocker")) {
-      priority = "urgent";
-    } else if (lowercaseTitle.includes("refactor") || lowercaseTitle.includes("clean") || lowercaseTitle.includes("minor")) {
-      priority = "low";
+    try {
+      const llmResult = await TaskIntelligence.llmAnalysis(title, description);
+      if (llmResult) {
+        enhancedResult = {
+          ...keywordResult,
+          priority: llmResult.priority ?? keywordResult.priority,
+          estimatedHours: llmResult.estimatedHours ?? keywordResult.estimatedHours,
+          reason: `AI analysis: ${llmResult.reasoning}\n\nFallback: ${keywordResult.reason}`,
+        };
+      }
+    } catch (error) {
+      logger.warn("[TaskIntelligence] LLM analysis unavailable, using keyword fallback:", error);
     }
 
     let suggestedAssigneeId: string | undefined;
-    let reason = `Priority mapped to **${priority}** based on keywords in title.`;
-    let estimatedHours: number | undefined;
+    let reason = enhancedResult.reason;
 
     try {
       const [members, similarTasks] = await Promise.all([
@@ -73,10 +77,6 @@ export class TaskIntelligence {
         reason += ` Suggesting assignment to **${bestCandidate.user?.name || "Team Member"}** who currently has the lightest active workload (${bestCandidate.user?.tasks?.length || 0} active tasks).`;
       }
 
-      if (title.split(" ").length > 5 || (description?.split(" ").length || 0) > 20) {
-        estimatedHours = Math.max(1, Math.ceil((title.split(" ").length + (description?.split(" ").length || 0)) / 10));
-      }
-
       if (similarTasks.length > 0) {
         reason += ` Found ${similarTasks.length} similar existing task(s).`;
       }
@@ -84,7 +84,70 @@ export class TaskIntelligence {
       console.warn("[TaskIntelligence] Failed fetching workloads:", error);
     }
 
-    return { priority, suggestedAssigneeId, reason, estimatedHours };
+    return { priority: enhancedResult.priority, suggestedAssigneeId, reason, estimatedHours: enhancedResult.estimatedHours };
+  }
+
+  private static keywordAnalysis(title: string, description?: string): Pick<TaskRecommendation, "priority" | "estimatedHours" | "reason"> {
+    const lowercaseTitle = title.toLowerCase();
+    const lowercaseDesc = (description || "").toLowerCase();
+
+    let priority: "low" | "medium" | "high" | "urgent" = "medium";
+
+    if (lowercaseTitle.includes("fix") || lowercaseTitle.includes("broken") || lowercaseTitle.includes("critical") || lowercaseTitle.includes("crash") ||
+        lowercaseDesc.includes("fix") || lowercaseDesc.includes("critical") || lowercaseDesc.includes("crash")) {
+      priority = "high";
+    }
+    if (lowercaseTitle.includes("urgent") || lowercaseTitle.includes("asap") || lowercaseTitle.includes("blocker") ||
+        lowercaseDesc.includes("urgent") || lowercaseDesc.includes("asap") || lowercaseDesc.includes("blocker")) {
+      priority = "urgent";
+    }
+    if (lowercaseTitle.includes("refactor") || lowercaseTitle.includes("clean") || lowercaseTitle.includes("minor") ||
+        lowercaseDesc.includes("refactor") || lowercaseDesc.includes("cleanup") || lowercaseDesc.includes("cosmetic")) {
+      priority = "low";
+    }
+
+    let estimatedHours: number | undefined;
+    if (title.split(" ").length > 5 || (description?.split(" ").length || 0) > 20) {
+      estimatedHours = Math.max(1, Math.ceil((title.split(" ").length + (description?.split(" ").length || 0)) / 10));
+    }
+
+    const reason = `Priority mapped to **${priority}** based on keyword analysis of title and description.`;
+    return { priority, estimatedHours, reason };
+  }
+
+  private static async llmAnalysis(title: string, description?: string): Promise<{ priority?: TaskRecommendation["priority"]; estimatedHours?: number; reasoning: string } | null> {
+    const apiKey = process.env.OPENAI_API_KEY;
+    if (!apiKey) return null;
+
+    const { generateWithOpenAI } = await import("@/lib/openai");
+    const prompt = `Analyze this task and provide a priority recommendation and effort estimate.
+
+Title: "${title}"
+Description: "${description || "(no description)"}"
+
+Respond in JSON format:
+{
+  "priority": "low|medium|high|urgent",
+  "estimatedHours": <number or null>,
+  "reasoning": "<brief explanation>"
+}
+
+Consider: urgency, complexity, impact, and keywords. Be conservative with estimates.`;
+
+    const response = await generateWithOpenAI(prompt, "You are a task intelligence analyzer. Respond only with valid JSON.");
+    if (!response) return null;
+
+    try {
+      const parsed = JSON.parse(response);
+      const validPriorities = ["low", "medium", "high", "urgent"];
+      return {
+        priority: validPriorities.includes(parsed.priority) ? parsed.priority : undefined,
+        estimatedHours: typeof parsed.estimatedHours === "number" ? parsed.estimatedHours : undefined,
+        reasoning: parsed.reasoning || "LLM analysis completed.",
+      };
+    } catch {
+      return null;
+    }
   }
 
   public static async hasDependencyCycle(
@@ -104,9 +167,11 @@ export class TaskIntelligence {
 
         const dependencies = await prisma.taskDependency.findMany({
           where: { taskId: currentId },
+          include: { task: { select: { workspaceId: true } } },
         });
 
         for (const dep of dependencies) {
+          if (dep.task?.workspaceId !== workspaceId) return false;
           if (await checkCycle(dep.predecessorId)) return true;
         }
         return false;
@@ -125,8 +190,8 @@ export class TaskIntelligence {
   ): Promise<TaskHealthStatus | null> {
     try {
       
-      const task = await prisma.task.findUnique({
-        where: { id: taskId },
+      const task = await prisma.task.findFirst({
+        where: { id: taskId, workspaceId },
         include: { predecessors: true },
       });
 

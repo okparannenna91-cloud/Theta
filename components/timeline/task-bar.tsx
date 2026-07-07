@@ -1,18 +1,11 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { differenceInDays, startOfDay, addMinutes } from "date-fns";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
-import { Milestone, MoreVertical, Sparkles, AlertCircle, CheckCircle2 } from "lucide-react";
-import { 
-    DropdownMenu, 
-    DropdownMenuContent, 
-    DropdownMenuItem, 
-    DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
+import { Milestone, AlertCircle, CheckCircle2 } from "lucide-react";
 
 interface TaskBarProps {
     task: any;
@@ -22,6 +15,8 @@ interface TaskBarProps {
 }
 
 export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: TaskBarProps) {
+    const [resizeDrag, setResizeDrag] = useState<{ direction: "left" | "right"; deltaX: number } | null>(null);
+
     const { left, width, isMilestone, isSummary, baselineLeft, baselineWidth } = useMemo(() => {
         const start = task.startDate ? new Date(task.startDate) : (task.dueDate ? new Date(task.dueDate) : new Date());
         const end = task.dueDate ? new Date(task.dueDate) : start;
@@ -48,6 +43,12 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
         };
     }, [task, timelineStart, cellWidth]);
 
+    // Apply resize drag offset to visual position
+    const visualLeft = resizeDrag?.direction === "left" ? left + resizeDrag.deltaX : left;
+    const visualWidth = resizeDrag ? (
+        resizeDrag.direction === "left" ? width - resizeDrag.deltaX : width + resizeDrag.deltaX
+    ) : width;
+
     const handleDragEnd = (_: any, info: any) => {
         if (!onUpdate) return;
         const daysMoved = Math.round(info.offset.x / cellWidth);
@@ -72,24 +73,13 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
         const onMouseMove = (moveEvent: MouseEvent) => {
             const deltaX = moveEvent.clientX - startX;
             const daysDelta = Math.round(deltaX / cellWidth);
-
-            if (direction === "left") {
-                const newLeft = initialLeft + daysDelta * cellWidth;
-                const newWidth = initialWidth - daysDelta * cellWidth;
-                if (newWidth >= cellWidth) {
-                    // Update visual state if needed, but for now we'll wait for mouseUp
-                }
-            } else {
-                const newWidth = initialWidth + daysDelta * cellWidth;
-                if (newWidth >= cellWidth) {
-                    // Update visual state
-                }
-            }
+            setResizeDrag({ direction, deltaX: daysDelta * cellWidth });
         };
 
         const onMouseUp = (upEvent: MouseEvent) => {
             document.removeEventListener("mousemove", onMouseMove);
             document.removeEventListener("mouseup", onMouseUp);
+            setResizeDrag(null);
             
             const deltaX = upEvent.clientX - startX;
             const daysDelta = Math.round(deltaX / cellWidth);
@@ -126,9 +116,12 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
                 style={{ left }}
                 className="absolute flex items-center justify-center z-10 cursor-pointer group"
             >
-                <div className="w-6 h-6 bg-primary border-2 border-white dark:border-slate-800 shadow-xl group-hover:scale-125 transition-all">
-                    <div className="-rotate-45 flex items-center justify-center h-full">
-                        <Milestone className="w-2.5 h-2.5 text-white" />
+                <div className="w-6 h-6 bg-primary border-2 border-white dark:border-slate-800 shadow-xl group-hover:scale-125 transition-all overflow-hidden">
+                    <div className="-rotate-45 flex items-center justify-center h-full relative">
+                        <Milestone className="w-2.5 h-2.5 text-white relative z-10" />
+                        {task.progress > 0 && (
+                            <div className="absolute inset-0 bg-white/20" style={{ clipPath: `inset(${100 - Math.min(100, Math.max(0, task.progress))}% 0 0 0)` }} />
+                        )}
                     </div>
                 </div>
             </motion.div>
@@ -138,8 +131,10 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
     if (isSummary) {
         return (
             <div
-                style={{ left, width }}
-                className="absolute h-8 flex flex-col justify-end z-10 pointer-events-none"
+                style={{ left, pointerEvents: "auto" }}
+                className={cn(
+                    "absolute h-8 flex flex-col justify-end z-10 pointer-events-none"
+                )}
             >
                 <div className="h-2 w-full bg-slate-900 dark:bg-slate-200 rounded-sm relative">
                     <div className="absolute left-0 bottom-0 w-1 h-3 bg-slate-900 dark:bg-slate-200 rounded-sm" />
@@ -169,11 +164,12 @@ export default function TaskBar({ task, timelineStart, cellWidth, onUpdate }: Ta
                 drag="x"
                 dragMomentum={false}
                 onDragEnd={handleDragEnd}
-                style={{ left, width, pointerEvents: "auto" }}
+                style={{ left: visualLeft, width: visualWidth, pointerEvents: "auto" }}
                 className={cn(
                     "absolute h-10 rounded-2xl border flex items-center px-4 cursor-grab active:cursor-grabbing group backdrop-blur-xl shadow-lg transition-all",
                     "bg-gradient-to-r",
-                    priorityStyles[task.priority] || "from-slate-500/20 to-slate-400/10 border-white/10"
+                    priorityStyles[task.priority] || "from-slate-500/20 to-slate-400/10 border-white/10",
+                    resizeDrag && "ring-2 ring-primary/50"
                 )}
             >
                 <div className="absolute inset-0 bg-black/5 dark:bg-white/5 rounded-2xl overflow-hidden pointer-events-none">

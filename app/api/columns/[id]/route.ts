@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Column } from "@prisma/client";
 import { z } from "zod";
 import { publishToChannel, getBoardChannel } from "@/lib/ably";
 
@@ -128,9 +127,18 @@ export async function DELETE(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
+        // Move orphaned tasks to another column if available
+        const remainingColumns = await prisma.column.findMany({
+            where: { boardId: column.boardId, id: { not: params.id } },
+            select: { id: true },
+            orderBy: { order: "asc" },
+        });
+
+        const fallbackColumnId = remainingColumns.length > 0 ? remainingColumns[0].id : null;
+
         await prisma.task.updateMany({
             where: { columnId: params.id },
-            data: { columnId: null }
+            data: { columnId: fallbackColumnId },
         });
 
         await prisma.column.delete({

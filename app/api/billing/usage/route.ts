@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { getUsageStats } from "@/lib/usage-tracking";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { prisma } from "@/lib/prisma";
+import { getPlanLimits, type PlanName } from "@/lib/plan-limits";
 
 export async function GET(req: Request) {
     let workspaceId: string | null = null;
@@ -32,7 +34,18 @@ export async function GET(req: Request) {
 
         const usage = await getUsageStats(workspaceId);
 
-        return NextResponse.json(usage);
+        const workspace = await prisma.workspace.findUnique({
+            where: { id: workspaceId },
+            select: { plan: true }
+        });
+
+        const plan = (workspace?.plan as PlanName) || "free";
+        const limits = getPlanLimits(plan);
+
+        return NextResponse.json({
+            ...usage,
+            maxFileSize: limits.maxFileSize,
+        });
     } catch (error: any) {
         console.error("Usage API endpoint error:", {
             message: error.message,

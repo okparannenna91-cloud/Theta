@@ -9,7 +9,7 @@ export { MEMORY_TIERS, MEMORY_TYPES, MEMORY_RULES, MEMORY_USER_CONTROLS } from "
 
 export interface MemoryPayload {
   userId: string;
-  workspaceId?: string;
+  workspaceId: string;
   key: string;
   content: string;
   type?: MemoryType;
@@ -20,9 +20,9 @@ const SESSION_KEY_PREFIX = "nova:session:";
 const MEMORY_KEY_PREFIX = "nova:memory:";
 
 export class MemorySystem {
-  public static async saveShortTerm(sessionId: string, message: { role: string; content: string }): Promise<void> {
+  public static async saveShortTerm(workspaceId: string, sessionId: string, message: { role: string; content: string }): Promise<void> {
     try {
-      const key = `${SESSION_KEY_PREFIX}${sessionId}:history`;
+      const key = `${SESSION_KEY_PREFIX}${workspaceId}:${sessionId}:history`;
       await redis.rpush(key, JSON.stringify({ ...message, timestamp: new Date().toISOString() }));
       await redis.ltrim(key, -200, -1);
       await redis.expire(key, SHORT_TERM_TTL);
@@ -31,9 +31,9 @@ export class MemorySystem {
     }
   }
 
-  public static async getShortTerm(sessionId: string, limit: number = 20): Promise<Array<{ role: string; content: string }>> {
+  public static async getShortTerm(workspaceId: string, sessionId: string, limit: number = 20): Promise<Array<{ role: string; content: string }>> {
     try {
-      const key = `${SESSION_KEY_PREFIX}${sessionId}:history`;
+      const key = `${SESSION_KEY_PREFIX}${workspaceId}:${sessionId}:history`;
       const items = await redis.lrange(key, -limit, -1);
       return items.map((item: string | { role: string; content: string }) => {
         const parsed = typeof item === "string" ? JSON.parse(item) : item;
@@ -48,12 +48,14 @@ export class MemorySystem {
   public static async saveLongTerm(payload: MemoryPayload): Promise<void> {
     const { userId, workspaceId, key, content } = payload;
     const trimmedContent = content.slice(0, 10000);
+    // TENANT ISOLATION: Scope memory key with workspaceId to prevent cross-workspace collision
+    const scopedKey = `${workspaceId}:${key}`;
 
     try {
       
       await prisma.aiMemory.upsert({
-        where: { userId_key: { userId, key } },
-        create: { userId, workspaceId, key, content: trimmedContent },
+        where: { userId_key: { userId, key: scopedKey } },
+        create: { userId, workspaceId, key: scopedKey, content: trimmedContent },
         update: { content: trimmedContent, workspaceId },
       });
     } catch (error) {
@@ -72,18 +74,18 @@ export class MemorySystem {
     }
   }
 
-  public static async getLongTerm(userId: string, workspaceId?: string, maxMemories: number = 50): Promise<Record<string, string>> {
+  public static async getLongTerm(userId: string, workspaceId: string, maxMemories: number = 50): Promise<Record<string, string>> {
     const memories: Record<string, string> = {};
 
     try {
       
-      const where: { userId: string; workspaceId?: string } = { userId };
-      if (workspaceId) {
-        where.workspaceId = workspaceId;
-      }
+      const where: { userId: string; workspaceId: string } = { userId, workspaceId };
       const records = await prisma.aiMemory.findMany({ where, take: maxMemories, orderBy: { updatedAt: "desc" } });
+      // Strip the workspaceId prefix from returned keys for clean API
+      const prefix = `${workspaceId}:`;
       for (const rec of records) {
-        memories[rec.key] = rec.content;
+        const originalKey = rec.key.startsWith(prefix) ? rec.key.slice(prefix.length) : rec.key;
+        memories[originalKey] = rec.content;
       }
     } catch (error) {
       logger.warn("[MemorySystem] Error fetching long-term memories from DB:", error);

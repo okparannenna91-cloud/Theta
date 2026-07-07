@@ -1,8 +1,27 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { PlanName } from "@/lib/plan-limits";
 import { canAccessProjectResource, getAccessibleProjectIds } from "@/lib/project-permissions";
+import { z } from "zod";
+
+const querySchema = z.object({
+  workspaceId: z.string().min(1, "workspaceId is required"),
+  projectId: z.string().optional(),
+  userId: z.string().optional(),
+  entityType: z.string().optional(),
+  entityId: z.string().optional(),
+  search: z.string().optional(),
+  action: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
+  skip: z.coerce.number().int().min(0).default(0),
+  take: z.coerce.number().int().min(1).max(100).default(20),
+});
+
+function parseSkipTake(val: string | null, def: number): number {
+  const n = parseInt(val || String(def), 10);
+  return Number.isFinite(n) && n >= 0 ? n : def;
+}
 
 export async function GET(req: Request) {
   try {
@@ -10,16 +29,27 @@ export async function GET(req: Request) {
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { searchParams } = new URL(req.url);
-    const workspaceId = searchParams.get("workspaceId");
-    const projectId = searchParams.get("projectId");
-    const userId = searchParams.get("userId");
-    const entityType = searchParams.get("entityType");
-    const entityId = searchParams.get("entityId");
-    const search = searchParams.get("search");
-    const skip = parseInt(searchParams.get("skip") || "0");
-    const take = parseInt(searchParams.get("take") || "20");
+    const rawParams = Object.fromEntries(searchParams.entries());
+    const parsed = querySchema.safeParse(rawParams);
 
-    if (!workspaceId) return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.flatten().fieldErrors }, { status: 400 });
+    }
+
+    const {
+      workspaceId,
+      projectId,
+      userId,
+      entityType,
+      entityId,
+      search,
+      action,
+      startDate,
+      endDate,
+    } = parsed.data;
+
+    const skip = parseSkipTake(searchParams.get("skip"), 0);
+    const take = Math.min(parseSkipTake(searchParams.get("take"), 20), 100);
 
     const membership = await prisma.workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId, userId: user.id } },
@@ -28,10 +58,12 @@ export async function GET(req: Request) {
 
     if (!membership) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-    const { getPlanLimits } = await import("@/lib/plan-limits");
-    const limits = getPlanLimits(membership.workspace.plan as any);
+    const { getPlanLimits, isValidPlan } = await import("@/lib/plan-limits");
+    const rawPlan = membership.workspace.plan || "free";
+    const planName = isValidPlan(rawPlan) ? rawPlan : "free";
+    const limits = getPlanLimits(planName);
 
-    const where: any = { workspaceId };
+    const where: Record<string, unknown> = { workspaceId };
 
     if (limits.activityHistoryDays !== -1) {
       const { subDays } = await import("date-fns");
@@ -39,15 +71,22 @@ export async function GET(req: Request) {
       where.createdAt = { gte: cutoffDate };
     }
 
+    if (startDate) {
+      where.createdAt = { ...(where.createdAt as Record<string, unknown> || {}), gte: new Date(startDate) };
+    }
+    if (endDate) {
+      where.createdAt = { ...(where.createdAt as Record<string, unknown> || {}), lte: new Date(endDate) };
+    }
+
     // Project access filtering
+    const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+
     if (projectId) {
-      const hasProjectAccess = await canAccessProjectResource(user.id, workspaceId, projectId);
-      if (!hasProjectAccess) {
+      if (!accessibleProjectIds.includes(projectId)) {
         return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
       }
       where.projectId = projectId;
     } else {
-      const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
       where.OR = [
         { projectId: null },
         { projectId: { in: accessibleProjectIds } }
@@ -58,22 +97,29 @@ export async function GET(req: Request) {
     if (userId) where.userId = userId;
     if (entityType) where.entityType = entityType;
     if (entityId) where.entityId = entityId;
+    if (action) where.action = action;
+
     if (search) {
-      // Combine with existing project OR filter using AND
       const searchOr = [
         { action: { contains: search, mode: "insensitive" } },
-        { entityType: { contains: search, mode: "insensitive" } }
+        { entityType: { contains: search, mode: "insensitive" } },
+        { entityId: { contains: search, mode: "insensitive" } },
       ];
-      where.AND = [
-        { OR: where.OR },
-        { OR: searchOr }
-      ];
-      delete where.OR;
+
+      if (where.OR) {
+        where.AND = [
+          { OR: where.OR as Array<Record<string, unknown>> },
+          { OR: searchOr },
+        ];
+        delete where.OR;
+      } else {
+        where.OR = searchOr;
+      }
     }
 
     const [activitiesRaw, total] = await Promise.all([
       prisma.activity.findMany({
-        where,
+        where: where as any,
         orderBy: { createdAt: "desc" },
         skip,
         take,
@@ -81,7 +127,7 @@ export async function GET(req: Request) {
             project: { select: { name: true, color: true } }
         }
       }),
-      prisma.activity.count({ where })
+      prisma.activity.count({ where: where as any })
     ]);
 
     const userIds = Array.from(new Set(activitiesRaw.map(a => a.userId)));

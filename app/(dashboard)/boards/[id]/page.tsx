@@ -1,7 +1,11 @@
 "use client";
 
-import KanbanBoard from "@/components/boards/kanban-board";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+
+const KanbanBoard = dynamic(() => import("@/components/boards/kanban-board"), {
+  ssr: false,
+});
 
 export default function BoardPage({ params }: { params: { id: string } }) {
   const router = useRouter();

@@ -12,11 +12,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, CheckCircle2, Circle, Clock, AlertCircle, Paperclip } from "lucide-react";
+import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2 } from "lucide-react";
 import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
+import { TaskDialog } from "./task-dialog";
 import { toast } from "sonner";
 
 async function fetchTasks(workspaceId: string | null) {
@@ -98,11 +99,13 @@ export default function TasksPage() {
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => updateTask(id, data),
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceId] }); },
+    onError: (error: any) => { toast.error(error.message || "Failed to update task"); },
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteTask,
     onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceId] }); },
+    onError: (error: any) => { toast.error(error.message || "Failed to delete task"); },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -114,7 +117,7 @@ export default function TasksPage() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case "done": case "completed": return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+      case "done": return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
       case "in_progress": case "in-progress": return <Clock className="h-4 w-4 text-blue-600" />;
       default: return <Circle className="h-4 w-4 text-muted-foreground" />;
     }
@@ -130,6 +133,8 @@ export default function TasksPage() {
   };
 
   const [view, setView] = useState<"list" | "table">("list");
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
 
   if (isLoading) {
     return (
@@ -165,23 +170,24 @@ export default function TasksPage() {
       {view === "list" ? (
         <div className="space-y-2">
           {tasks?.map((task: any) => (
-            <Card key={task.id} className="border shadow-sm hover:border-primary/30 transition-colors">
+              <Card key={task.id} className="border shadow-sm hover:border-primary/30 transition-colors cursor-pointer"
+                onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
               <CardHeader className="p-4">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <button onClick={() => updateMutation.mutate({ id: task.id, data: { status: task.status === "done" || task.status === "completed" ? "todo" : "done" } })}
+                    <button onClick={() => updateMutation.mutate({ id: task.id, data: { status: task.status === "done" ? "todo" : "done" } })}
                       className="shrink-0 mt-0.5 hover:scale-110 transition-transform">
                       {getStatusIcon(task.status)}
                     </button>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
-                        <span className={cn("text-sm font-medium", (task.status === "done" || task.status === "completed") && "line-through text-muted-foreground")}>
+                        <span className={cn("text-sm font-medium", (task.status === "done") && "line-through text-muted-foreground")}>
                           {task.title}
                         </span>
-                        {task.attachments?.length > 0 && (
+                        {task.fieldValues?.attachments?.length > 0 && (
                           <Badge variant="outline" className="text-xs h-5 px-1.5 font-medium">
                             <Paperclip className="h-2.5 w-2.5 mr-0.5 rotate-45" />
-                            {task.attachments.length}
+                            {task.fieldValues.attachments.length}
                           </Badge>
                         )}
                       </div>
@@ -198,9 +204,9 @@ export default function TasksPage() {
                       </div>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={() => deleteMutation.mutate(task.id)}>
-                    <AlertCircle className="h-4 w-4" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(task.id); }}>
+                    <Trash2 className="h-4 w-4" />
                   </Button>
                 </div>
               </CardHeader>
@@ -223,16 +229,17 @@ export default function TasksPage() {
               </thead>
               <tbody>
                 {tasks?.map((task: any) => (
-                  <tr key={task.id} className="border-b border-border hover:bg-muted/20 transition-colors group">
+                  <tr key={task.id} className="border-b border-border hover:bg-muted/20 transition-colors group cursor-pointer"
+                    onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
                     <td className="p-3 text-center">
-                      <button onClick={() => updateMutation.mutate({ id: task.id, data: { status: task.status === "done" || task.status === "completed" ? "todo" : "done" } })}
+                      <button onClick={() => updateMutation.mutate({ id: task.id, data: { status: task.status === "done" ? "todo" : "done" } })}
                         className="hover:scale-110 transition-transform">
                         {getStatusIcon(task.status)}
                       </button>
                     </td>
                     <td className="p-3">
                       <div className="flex flex-col">
-                        <span className={cn("text-sm font-medium truncate max-w-[200px]", (task.status === "done" || task.status === "completed") && "line-through text-muted-foreground")}>{task.title}</span>
+                        <span className={cn("text-sm font-medium truncate max-w-[200px]", (task.status === "done") && "line-through text-muted-foreground")}>{task.title}</span>
                         {task.description && <span className="text-xs text-muted-foreground truncate max-w-[200px] mt-0.5">{task.description}</span>}
                       </div>
                     </td>
@@ -244,7 +251,7 @@ export default function TasksPage() {
                     <td className="p-3">
                       <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                         <div className={cn("h-1.5 w-1.5 rounded-full",
-                          (task.status === "done" || task.status === "completed") ? "bg-emerald-500" :
+                          (task.status === "done") ? "bg-emerald-500" :
                           (task.status === "in_progress" || task.status === "in-progress") ? "bg-blue-500" : "bg-muted-foreground"
                         )} />
                         {task.status.replace(/[_-]/g, " ")}
@@ -257,8 +264,8 @@ export default function TasksPage() {
                     </td>
                     <td className="p-3 text-right">
                       <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => deleteMutation.mutate(task.id)}>
-                        <AlertCircle className="h-3.5 w-3.5" />
+                        onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(task.id); }}>
+                        <Trash2 className="h-3.5 w-3.5" />
                       </Button>
                     </td>
                   </tr>
@@ -269,7 +276,13 @@ export default function TasksPage() {
         </div>
       )}
 
-      {tasks?.length === 0 && (
+      {!activeWorkspaceId && (
+        <div className="text-center py-12 border rounded-lg">
+          <p className="text-sm text-muted-foreground">Select a workspace to view tasks.</p>
+        </div>
+      )}
+
+      {activeWorkspaceId && tasks?.length === 0 && (
         <div className="text-center py-12 border rounded-lg">
           <p className="text-sm text-muted-foreground mb-4">No tasks yet. Create your first task!</p>
           <Button onClick={() => setIsOpen(true)} variant="outline">
@@ -332,6 +345,7 @@ export default function TasksPage() {
                     <SelectItem value="low">Low</SelectItem>
                     <SelectItem value="medium">Medium</SelectItem>
                     <SelectItem value="high">High</SelectItem>
+                    <SelectItem value="urgent">Urgent</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -343,6 +357,15 @@ export default function TasksPage() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {selectedTask && (
+        <TaskDialog
+          task={selectedTask}
+          isOpen={isDetailOpen}
+          onClose={() => { setIsDetailOpen(false); setSelectedTask(null); }}
+          workspaceId={activeWorkspaceId!}
+        />
+      )}
     </div>
   );
 }

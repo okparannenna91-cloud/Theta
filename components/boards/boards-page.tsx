@@ -43,7 +43,7 @@ export default function BoardsPage({ projectId: initialProjectId }: { projectId?
   const { activeWorkspaceId } = useWorkspace();
   const { showUpgradePrompt } = usePopups();
 
-  const { data: boardsData, isLoading } = useQuery({
+  const { data: boardsData, isLoading, error } = useQuery({
     queryKey: ["boards", activeWorkspaceId],
     queryFn: () => fetchBoards(activeWorkspaceId),
     enabled: !!activeWorkspaceId,
@@ -61,7 +61,7 @@ export default function BoardsPage({ projectId: initialProjectId }: { projectId?
       if (!res.ok) throw new Error("Failed to fetch projects");
       return res.json();
     },
-    enabled: !!activeWorkspaceId,
+    enabled: !!activeWorkspaceId && !initialProjectId,
   });
 
   const projects = Array.isArray(projectsData?.projects) ? projectsData.projects : Array.isArray(projectsData) ? projectsData : [];
@@ -97,6 +97,20 @@ export default function BoardsPage({ projectId: initialProjectId }: { projectId?
       <div className="space-y-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-96 rounded-lg" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <h3 className="text-lg font-semibold text-muted-foreground mb-2">Failed to load boards</h3>
+          <p className="text-sm text-muted-foreground mb-4">{(error as Error).message || "An unexpected error occurred"}</p>
+          <Button variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["boards", activeWorkspaceId] })}>
+            Try again
+          </Button>
+        </div>
       </div>
     );
   }

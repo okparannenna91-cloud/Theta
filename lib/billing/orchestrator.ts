@@ -134,11 +134,13 @@ class BillingOrchestrator {
     const trialExpired = await this.trialService.expireTrials();
     const subsExpired = await this.expireCanceledSubscriptions();
     const downgradesProcessed = await this.processScheduledDowngrades();
+    const dataRetentionCleaned = await this.cleanupExpiredDataRetention();
 
     return {
       dunning: dunningResult,
       trialExpiration: trialExpired,
       subscriptionExpiration: subsExpired + downgradesProcessed,
+      dataRetentionCleaned,
     };
   }
 

@@ -83,6 +83,17 @@ export function CanvaLogo({ className, size = 24 }: LogoProps) {
   );
 }
 
+export function GoogleWorkspaceLogo({ className, size = 24 }: LogoProps) {
+    return (
+        <svg width={size} height={size} viewBox="0 0 272 278" className={className} xmlns="http://www.w3.org/2000/svg">
+            <path d="M138.484 0C156.574 0 173.984 6.1 187.384 16.9L201.284 30.8L122.684 109.4V30.6C122.684 13.7 136.484 0 138.484 0Z" fill="#EA4335" />
+            <path d="M248.084 47.4L169.484 126L248.084 204.6C262.384 191.2 271.284 172.9 271.284 153.1V98.9C271.284 79.1 262.384 60.8 248.084 47.4Z" fill="#FBBC04" />
+            <path d="M169.484 126L122.684 172.8L78.584 216.9C91.484 228.2 108.484 235.6 126.884 235.6C145.284 235.6 162.284 228.2 175.184 216.9L169.484 126Z" fill="#34A853" />
+            <path d="M138.484 185.6L59.884 107L14.884 62C5.484 75.4 0.0839844 91.8 0.0839844 108.9V169.1C0.0839844 216.5 38.684 255.1 86.084 255.1V255.1C103.184 255.1 119.584 249.7 132.984 240.3L138.484 185.6Z" fill="#4285F4" />
+        </svg>
+    );
+}
+
 export function WooCommerceLogo({ className, size = 24 }: LogoProps) {
   return (
     <svg width={size} height={size} viewBox="0 0 500 500" className={className} xmlns="http://www.w3.org/2000/svg">

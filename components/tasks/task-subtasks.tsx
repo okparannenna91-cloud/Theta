@@ -32,7 +32,7 @@ export function TaskSubtasks({ taskId, workspaceId }: TaskSubtasksProps) {
         }
     };
 
-    const { data: subtasks, isLoading } = useQuery<Subtask[]>({
+    const { data: subtasks, isLoading, error: subtasksError } = useQuery<Subtask[]>({
         queryKey: ["subtasks", taskId],
         queryFn: async () => {
             const res = await fetch(`/api/tasks/${taskId}/subtasks`);
@@ -100,6 +100,14 @@ export function TaskSubtasks({ taskId, workspaceId }: TaskSubtasksProps) {
     const completedCount = subtasks?.filter((s) => s.completed).length || 0;
     const totalCount = subtasks?.length || 0;
     const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
+
+    if (subtasksError) {
+        return (
+            <div className="flex items-center justify-center p-4">
+                <p className="text-xs text-muted-foreground">Failed to load subtasks. Please try again.</p>
+            </div>
+        );
+    }
 
     if (isLoading) {
         return (

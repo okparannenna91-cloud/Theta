@@ -50,7 +50,7 @@ export function TimelineView({ tasks }: TimelineViewProps) {
                     {/* Rows: Tasks */}
                     <div className="flex-1">
                         {tasksWithDates.map((task) => {
-                            const taskStart = new Date(task.createdAt);
+                            const taskStart = new Date(task.startDate || task.createdAt);
                             const taskEnd = new Date(task.dueDate);
                             const startOffset = Math.max(0, differenceInDays(taskStart, startDate));
                             const duration = Math.max(1, differenceInDays(taskEnd, taskStart));

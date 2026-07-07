@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { ProjectIntelligence } from "@/lib/nova/project-intelligence";
+import { getAccessibleProjectIds, canAccessProject } from "@/lib/project-permissions";
 import { type ToolContext, type ToolModule, enforce, requireToolApproval } from "./index";
 
 export function buildProjectTools(ctx: ToolContext): ToolModule {
@@ -13,7 +14,6 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
       execute: async () => {
         await enforce(ctx, "read", "project");
         
-        const { getAccessibleProjectIds } = await import("../project-permissions");
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
         const projects = await prisma.project.findMany({ where: { workspaceId, id: { in: accessibleProjectIds } }, select: { id: true, name: true, description: true } });
         return { projects };
@@ -21,11 +21,27 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
     },
     create_project: {
       description: 'Create a new project.',
-      inputSchema: z.object({ name: z.string(), description: z.string().optional() }),
-      execute: async ({ name, description }: Record<string, unknown>) => {
+      inputSchema: z.object({
+        name: z.string(),
+        description: z.string().optional(),
+        coverImage: z.string().optional(),
+        color: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Color must be a valid hex color").optional(),
+        visibility: z.enum(["private", "team_access", "workspace_visible"]).optional(),
+      }),
+      execute: async ({ name, description, coverImage, color, visibility }: Record<string, unknown>) => {
         await enforce(ctx, "write", "project");
-        
-        const project = await prisma.project.create({ data: { name: name as string, description: description as string | undefined, workspaceId, userId: user.id } });
+
+        const project = await prisma.project.create({
+          data: {
+            name: name as string,
+            description: description as string | undefined,
+            coverImage: coverImage as string | undefined,
+            color: color as string | undefined,
+            visibility: (visibility as string | undefined) as any || "private",
+            workspaceId,
+            userId: user.id,
+          },
+        });
         await prisma.activity.create({ data: { action: "CREATED", entityType: "PROJECT", entityId: project.id, workspaceId, userId: user.id, projectId: project.id, metadata: JSON.parse(JSON.stringify({ source: "NOVA_AI", name })) } });
         return { success: true, message: `Created project **${name}**` };
       }
@@ -36,7 +52,7 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
       execute: async ({ projectId: id, name, description }: Record<string, unknown>) => {
         await enforce(ctx, "write", "project");
         
-        const project = await prisma.project.update({ where: { id: id as string }, data: { ...(name ? { name: name as string } : {}), ...(description ? { description: description as string } : {}) } });
+        const project = await prisma.project.update({ where: { id: id as string, workspaceId }, data: { ...(name ? { name: name as string } : {}), ...(description ? { description: description as string } : {}) } });
         return { success: true, message: `Updated project **${project.name}**` };
       }
     },
@@ -47,7 +63,8 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
         await requireToolApproval("delete_project", { projectId: id });
         await enforce(ctx, "delete", "project");
         
-        await prisma.project.delete({ where: { id: id as string } });
+        await prisma.task.deleteMany({ where: { projectId: id as string, workspaceId } });
+        await prisma.project.delete({ where: { id: id as string, workspaceId } });
         return { success: true, message: "Project deleted successfully." };
       }
     },
@@ -56,7 +73,6 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ projectId: z.string() }),
       execute: async ({ projectId: pId }: Record<string, unknown>) => {
         await enforce(ctx, "read", "project", { projectId: pId as string });
-        const { canAccessProject } = await import("../project-permissions");
         const access = await canAccessProject(user.id, pId as string, workspaceId);
         if (!access.hasAccess) return { error: "Access denied to this project." };
         return ProjectIntelligence.analyzeHealth(workspaceId, pId as string);
@@ -67,7 +83,6 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ projectId: z.string(), name: z.string(), startDate: z.string().optional(), endDate: z.string().optional() }),
       execute: async ({ projectId: pId, name, startDate, endDate }: Record<string, unknown>) => {
         await enforce(ctx, "write", "project", { projectId: pId as string });
-        const { canAccessProject } = await import("../project-permissions");
         const access = await canAccessProject(user.id, pId as string, workspaceId);
         if (!access.hasAccess) return { error: "Access denied to this project." };
         

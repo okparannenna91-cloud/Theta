@@ -21,16 +21,17 @@ function getInitialWorkspaceId(): string | null {
 export function useWorkspace() {
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(getInitialWorkspaceId);
 
-  const { data: workspaces, isLoading, error } = useQuery({
+  const { data: workspaces, isLoading, isSuccess, error } = useQuery({
     queryKey: ["workspaces"],
     queryFn: fetchWorkspaces,
-    staleTime: 0,
+    staleTime: 300000, // 5 min – workspace list rarely changes
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   });
 
   const [fallbackWorkspace, setFallbackWorkspace] = useState<any>(null);
   const [fallbackLoading, setFallbackLoading] = useState(false);
+  const [fallbackError, setFallbackError] = useState<Error | null>(null);
 
   // Listen for workspace switch events from other hook instances
   useEffect(() => {
@@ -44,9 +45,8 @@ export function useWorkspace() {
   }, []);
 
   // Sync active workspace from localStorage only when we have valid list data
-  const queryCompleted = !isLoading && workspaces !== undefined;
   useEffect(() => {
-    if (!queryCompleted) return;
+    if (!isSuccess) return;
 
     if (workspaces && workspaces.length > 0) {
       const savedId = localStorage.getItem("activeWorkspaceId");
@@ -60,21 +60,30 @@ export function useWorkspace() {
         localStorage.setItem("activeWorkspaceId", firstId);
       }
     }
-  }, [workspaces, activeWorkspaceId, queryCompleted]);
+  }, [workspaces, activeWorkspaceId, isSuccess]);
 
   // Fallback: fetch single workspace when list is empty but we have an active ID
-  const shouldFallback = queryCompleted && (!workspaces || workspaces.length === 0) && activeWorkspaceId && !fallbackWorkspace;
+  const shouldFallback = isSuccess && (!workspaces || workspaces.length === 0) && activeWorkspaceId && !fallbackWorkspace && !fallbackError;
   useEffect(() => {
     if (!shouldFallback) return;
 
+    const controller = new AbortController();
     setFallbackLoading(true);
-    fetch(`/api/workspaces/${activeWorkspaceId}`)
-      .then((res) => res.ok ? res.json() : null)
+    setFallbackError(null);
+    fetch(`/api/workspaces/${activeWorkspaceId}`, { signal: controller.signal })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to fetch workspace");
+        return res.json();
+      })
       .then((data) => {
         if (data) setFallbackWorkspace(data);
       })
-      .catch(() => {})
+      .catch((err) => {
+        if (err.name !== "AbortError") setFallbackError(err);
+      })
       .finally(() => setFallbackLoading(false));
+
+    return () => controller.abort();
   }, [shouldFallback]);
 
   // Clear fallback when the main list query returns valid data
@@ -98,7 +107,7 @@ export function useWorkspace() {
     activeWorkspace,
     activeWorkspaceId: activeWorkspaceId || activeWorkspace?.id || null,
     isLoading: (isLoading && !workspaces) || fallbackLoading,
-    error,
+    error: error || fallbackError,
     switchWorkspace,
   };
 }

@@ -1,14 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState, useMemo } from "react";
+import { format, addMonths, subMonths } from "date-fns";
 import { 
     BarChart3, 
     Download,
     Maximize2,
     Minimize2,
-    Settings2,
-    Sparkles,
     Search,
     ChevronLeft,
     ChevronRight,
@@ -33,6 +31,10 @@ export function GanttChart({ tasks, projectId, workspaceId }: GanttChartProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
+    const [navDate, setNavDate] = useState(new Date());
+    const navLabel = useMemo(() => format(navDate, "MMMM yyyy"), [navDate]);
+    const goToPrev = () => setNavDate(d => subMonths(d, 1));
+    const goToNext = () => setNavDate(d => addMonths(d, 1));
 
     const handleExport = async () => {
         const element = document.getElementById("project-gantt-capture");
@@ -130,11 +132,11 @@ export function GanttChart({ tasks, projectId, workspaceId }: GanttChartProps) {
             <div className="flex items-center justify-between px-8 py-3 bg-slate-50/50 dark:bg-slate-900/50 border-b z-20">
                 <div className="flex items-center gap-6">
                     <div className="flex items-center gap-1.5">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={goToPrev}>
                             <ChevronLeft className="h-3.5 w-3.5" />
                         </Button>
-                        <span className="text-[9px] font-semibold text-slate-600 dark:text-slate-400 min-w-[120px] text-center">October 2026</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                        <span className="text-[9px] font-semibold text-slate-600 dark:text-slate-400 min-w-[120px] text-center">{navLabel}</span>
+                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" onClick={goToNext}>
                             <ChevronRight className="h-3.5 w-3.5" />
                         </Button>
                     </div>

@@ -23,7 +23,7 @@ export function NotificationPanel({ notifications: rawNotifications, onRefresh, 
             const res = await fetch("/api/notifications", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ workspaceId: activeWorkspaceId }),
+                body: JSON.stringify({ workspaceId: activeWorkspaceId, markAllAsRead: true }),
             });
 
             if (!res.ok) throw new Error("Failed to mark as read");

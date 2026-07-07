@@ -13,7 +13,8 @@ import {
     Loader2,
     Settings,
     MoreHorizontal,
-    Inbox
+    Inbox,
+    CheckSquare
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -47,7 +48,7 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
     const [isOpen, setIsOpen] = useState(false);
     const queryClient = useQueryClient();
 
-    const { data, isLoading } = useQuery<{ notifications: Notification[], unreadCount: number }>({
+    const { data, isLoading, isError } = useQuery<{ notifications: Notification[], unreadCount: number }>({
         queryKey: ["notifications", workspaceId],
         queryFn: async () => {
             const res = await fetch(`/api/notifications?workspaceId=${workspaceId}`);
@@ -124,7 +125,15 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
                 </div>
 
                 <ScrollArea className="h-[400px]">
-                    {isLoading ? (
+                    {isError ? (
+                        <div className="flex flex-col items-center justify-center h-full p-10 text-center space-y-4">
+                            <AlertCircle className="h-8 w-8 text-destructive" />
+                            <div className="space-y-1">
+                                <p className="text-sm font-bold">Failed to load</p>
+                                <p className="text-xs text-muted-foreground max-w-[180px]">Could not load notifications. Please try again.</p>
+                            </div>
+                        </div>
+                    ) : isLoading ? (
                         <div className="flex flex-col items-center justify-center h-full p-10 space-y-3 opacity-50">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             <p className="text-[10px] font-bold">Refreshing...</p>
@@ -183,15 +192,5 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
                 </div>
             </PopoverContent>
         </Popover>
-    );
-}
-
-// Sub-component for missing icon
-function CheckSquare({ className }: { className?: string }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <rect width="18" height="18" x="3" y="3" rx="2" />
-            <path d="m9 12 2 2 4-4" />
-        </svg>
     );
 }

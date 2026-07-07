@@ -4,9 +4,15 @@ import { PopupProvider } from "@/components/popups/popup-manager";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { OnboardingWrapper } from "@/components/onboarding/onboarding-wrapper";
 import { Breadcrumbs } from "@/components/layout/breadcrumbs";
-import { NovaAssistant } from "@/components/ai/nova-assistant";
+import dynamic from "next/dynamic";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { AppsDropdown } from "@/components/apps/apps-dropdown";
+import { ErrorBoundary } from "@/components/ui/error-boundary";
+
+const NovaAssistant = dynamic(() => import("@/components/ai/nova-assistant").then(m => ({ default: m.NovaAssistant })), {
+  ssr: false,
+  loading: () => <div className="hidden" />,
+});
 
 export default function DashboardLayout({
   children,
@@ -31,7 +37,9 @@ export default function DashboardLayout({
             </header>
             <main className="flex-1 overflow-y-auto px-8 pt-4">
               <Breadcrumbs />
-              {children}
+              <ErrorBoundary>
+                {children}
+              </ErrorBoundary>
             </main>
           </div>
           <NovaAssistant />

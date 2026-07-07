@@ -1,7 +1,11 @@
 import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
-const STATE_SALT = process.env.ENCRYPTION_KEY || 'state-signing-key-not-set';
+const STATE_SALT: string = process.env.OAUTH_STATE_SECRET!;
+
+if (!STATE_SALT) {
+  throw new Error('OAUTH_STATE_SECRET is not defined in environment variables');
+}
 const IV_LENGTH = 12; // GCM standard IV length
 const AUTH_TAG_LENGTH = 16;
 const KEY = process.env.ENCRYPTION_KEY;
@@ -99,4 +103,27 @@ export function verifyOAuthState(state: string): Record<string, any> {
         throw new Error('Invalid state signature - possible CSRF attack');
     }
     return payload;
+}
+
+/**
+ * Generate a PKCE code verifier (64 bytes of random data, base64url encoded)
+ */
+export function generateCodeVerifier(): string {
+    return crypto.randomBytes(64)
+        .toString('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+/**
+ * Generate a PKCE code challenge (SHA256 hash of code_verifier, base64url encoded)
+ */
+export function generateCodeChallenge(verifier: string): string {
+    return crypto.createHash('sha256')
+        .update(verifier)
+        .digest('base64')
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { verifyWorkspaceAccess, isWorkspaceAdmin } from "@/lib/workspace";
 import { requireProjectAccess } from "@/lib/project-permissions";
 import { z } from "zod";
 
@@ -117,6 +117,21 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       );
     }
 
+    // Additional admin check: only workspace admins or project owners can link teams
+    const isWsAdmin = await isWorkspaceAdmin(user.id, workspaceId);
+    if (!isWsAdmin) {
+      const project = await prisma.project.findUnique({
+        where: { id: params.id },
+        select: { userId: true }
+      });
+      if (!project || project.userId !== user.id) {
+        return NextResponse.json(
+          { error: "Only workspace admins or project owners can link teams" },
+          { status: 403 }
+        );
+      }
+    }
+
     // Create project teams
     const results = await Promise.all(
         teamIds.map(async (teamId) => {
@@ -167,6 +182,21 @@ export async function DELETE(req: Request, { params }: { params: { id: string } 
                 { error: projectAccess.error!.message },
                 { status: projectAccess.error!.status }
             );
+        }
+
+        // Additional admin check: only workspace admins or project owners can unlink teams
+        const isWsAdmin = await isWorkspaceAdmin(user.id, workspaceId);
+        if (!isWsAdmin) {
+            const project = await prisma.project.findUnique({
+                where: { id: params.id },
+                select: { userId: true }
+            });
+            if (!project || project.userId !== user.id) {
+                return NextResponse.json(
+                    { error: "Only workspace admins or project owners can unlink teams" },
+                    { status: 403 }
+                );
+            }
         }
 
         await prisma.projectTeam.delete({

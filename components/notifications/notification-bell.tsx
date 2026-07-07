@@ -38,7 +38,6 @@ export function NotificationBell() {
         "notification",
         () => {
             refetch();
-            setUnreadCount(prev => prev + 1);
         }
     );
 

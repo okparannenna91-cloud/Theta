@@ -92,7 +92,7 @@ async function isToolRateLimited(userId: string, toolName: string): Promise<bool
     }
     return count > PER_TOOL_RATE_LIMIT;
   } catch {
-    return true;
+    return false;
   }
 }
 
@@ -108,7 +108,7 @@ const _toolsRef: Record<string, InternalToolDef> = {};
 export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
   const { user, workspaceId, projectId } = ctx;
 
-  const TOOL_TIMEOUT_MS = 25000;
+  const TOOL_TIMEOUT_MS = 50000;
 
   function wrapTool(toolName: string, execute: ToolFunction): ToolFunction {
     return async (args: Record<string, unknown>) => {
@@ -336,16 +336,18 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
         if (!/^[a-zA-Z0-9_\-.\s]+$/.test(key as string)) {
           return { success: false, message: "Invalid key: only letters, numbers, spaces, hyphens, underscores, and periods allowed." };
         }
-        const existingCount = await prisma.aiMemory.count({ where: { userId: user.id } });
+        // TENANT ISOLATION: Count and store memories scoped to workspace
+        const existingCount = await prisma.aiMemory.count({ where: { userId: user.id, workspaceId } });
         if (existingCount >= 100) {
           return { success: false, message: "Memory limit reached (max 100 preferences). Clear some before saving more." };
         }
         let mem0Synced = false;
         try {
-          await mem0.add([{ role: "user", content: `User preference: ${key} = ${value}` }], { user_id: user.id });
+          await mem0.add([{ role: "user", content: `User preference: ${key} = ${value}` }], { user_id: user.id, metadata: { workspaceId } });
           mem0Synced = true;
         } catch (e) { logger.warn("Mem0 sync failed:", e); }
-        await prisma.aiMemory.upsert({ where: { userId_key: { userId: user.id, key: key as string } }, update: { content: value as string }, create: { userId: user.id, key: key as string, content: value as string } });
+        const scopedKey = `${workspaceId}:${key}`;
+        await prisma.aiMemory.upsert({ where: { userId_key: { userId: user.id, key: scopedKey } }, update: { content: value as string, workspaceId }, create: { userId: user.id, workspaceId, key: scopedKey, content: value as string } });
         return { success: true, message: `Remembered: **${key}**${mem0Synced ? "" : " (memory sync unavailable)"}` };
       }
     },

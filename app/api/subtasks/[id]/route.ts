@@ -2,24 +2,14 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
+import { publishToChannel, getWorkspaceChannel } from "@/lib/ably";
+import { recalculateTaskProgress, updateParentTask } from "@/lib/task-utils";
 
 const updateSchema = z.object({
     title: z.string().min(1).optional(),
     completed: z.boolean().optional(),
     order: z.number().optional(),
 });
-
-async function recalculateTaskProgress(taskId: string) {
-    const [subtasks, completedCount] = await Promise.all([
-        prisma.subtask.count({ where: { taskId } }),
-        prisma.subtask.count({ where: { taskId, completed: true } }),
-    ]);
-    const progress = subtasks > 0 ? Math.round((completedCount / subtasks) * 100) : 0;
-    await prisma.task.update({
-        where: { id: taskId },
-        data: { progress },
-    });
-}
 
 export async function PATCH(
     req: Request,
@@ -39,7 +29,7 @@ export async function PATCH(
 
         const task = await prisma.task.findUnique({
             where: { id: subtask.taskId },
-            select: { workspaceId: true },
+            select: { workspaceId: true, parentId: true },
         });
 
         if (!task) {
@@ -68,6 +58,14 @@ export async function PATCH(
         });
 
         await recalculateTaskProgress(subtask.taskId);
+
+        // Cascade progress update to grandparent tasks
+        if (task.parentId) {
+            await updateParentTask(task.parentId, task.workspaceId);
+        }
+
+        const workspaceChannel = getWorkspaceChannel(task.workspaceId);
+        await publishToChannel(workspaceChannel, "subtask:updated", updated);
 
         return NextResponse.json(updated);
     } catch (error) {
@@ -100,7 +98,7 @@ export async function DELETE(
 
         const taskToUpdate = await prisma.task.findUnique({
             where: { id: subtaskToDelete.taskId },
-            select: { workspaceId: true },
+            select: { workspaceId: true, parentId: true },
         });
 
         if (!taskToUpdate) {
@@ -127,6 +125,14 @@ export async function DELETE(
         });
 
         await recalculateTaskProgress(taskId);
+
+        // Cascade progress update to grandparent tasks
+        if (taskToUpdate.parentId) {
+            await updateParentTask(taskToUpdate.parentId, taskToUpdate.workspaceId);
+        }
+
+        const workspaceChannel = getWorkspaceChannel(taskToUpdate.workspaceId);
+        await publishToChannel(workspaceChannel, "subtask:deleted", { id: params.id, taskId });
 
         return NextResponse.json({ success: true });
     } catch (error) {

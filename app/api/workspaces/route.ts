@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { getUserWorkspaces } from "@/lib/workspace";
+import { getUserWorkspaces, createWorkspace } from "@/lib/workspace";
 import { canCreateWorkspace, getPlanLimitMessage } from "@/lib/plan-limits";
 import { prisma } from "@/lib/prisma";
 
@@ -30,35 +30,60 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { name } = await req.json();
+        const { name, plan } = await req.json();
         if (!name) {
             return NextResponse.json({ error: "Name is required" }, { status: 400 });
         }
 
-        // Count user's existing free-plan workspaces
+        // Count user's owned free-plan workspaces (not all memberships)
         const freeWorkspaceCount = await prisma.workspaceMember.count({
             where: {
                 userId: user.id,
+                role: "owner",
                 workspace: { plan: "free" },
             },
         });
 
-        if (!canCreateWorkspace("free", freeWorkspaceCount)) {
+        const targetPlan = plan || "free";
+        if (targetPlan === "free" && !canCreateWorkspace("free", freeWorkspaceCount)) {
             return NextResponse.json(
                 { error: getPlanLimitMessage("free", "workspaces") },
                 { status: 403 }
             );
         }
 
-        const { createWorkspace } = await import("@/lib/workspace");
-        const workspace = await createWorkspace(user.id, name);
+        const workspace = await createWorkspace(user.id, name, targetPlan);
 
         return NextResponse.json(workspace);
-    } catch (error) {
-        console.error("Create workspace error:", error);
-        return NextResponse.json(
-            { error: "Internal server error" },
-            { status: 500 }
-        );
+    } catch (error: any) {
+        const errorPayload: Record<string, any> = {
+            error: "Internal server error",
+        };
+
+        const isPrismaError = error?.code && typeof error.code === "string" && error.code.startsWith("P");
+        const message = error?.message || String(error);
+
+        if (isPrismaError) {
+            errorPayload.code = error.code;
+            errorPayload.detail = message.substring(0, 200);
+            console.error("[Workspace POST] Prisma error:", {
+                code: error.code,
+                message: error.message,
+                meta: error.meta,
+                stack: error.stack,
+            });
+        } else {
+            console.error("[Workspace POST] Non-Prisma error:", {
+                name: error?.name,
+                message: error?.message,
+                stack: error?.stack,
+                error,
+            });
+            if (message && message !== "Internal server error") {
+                errorPayload.detail = message.substring(0, 200);
+            }
+        }
+
+        return NextResponse.json(errorPayload, { status: 500 });
     }
 }

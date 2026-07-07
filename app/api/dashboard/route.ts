@@ -63,20 +63,20 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Access denied to this team" }, { status: 403 });
     }
 
-    const whereProject: any = { workspaceId, id: { in: accessibleProjectIds } };
+    const whereProject: Record<string, unknown> = { workspaceId, id: { in: accessibleProjectIds } };
     if (teamId) whereProject.teamId = teamId;
 
-    const whereTask: any = { workspaceId, projectId: { in: accessibleProjectIds } };
+    const whereTask: Record<string, unknown> = { workspaceId, projectId: { in: accessibleProjectIds } };
     if (teamId) whereTask.project = { teamId };
 
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
     const [
-      projectsCount, tasksCount, teamsCount, recentProjects, recentTasks,
+      projectsCount, tasksCount, membersCount, recentProjects, recentTasks,
       activities, statuses, taskCounts
     ] = await Promise.all([
       prisma.project.count({ where: whereProject }),
-      prisma.task.count({ where: { ...whereTask, status: { notIn: ["completed", "done"] } } }),
+      prisma.task.count({ where: { ...whereTask, status: { notIn: ["done"] } } }),
       prisma.workspaceMember.count({ where: { workspaceId } }),
       prisma.project.findMany({
         where: whereProject,
@@ -136,55 +136,59 @@ export async function GET(req: Request) {
       return { name: days[d.getDay()], activities: activities.filter(a => new Date(a.createdAt).toDateString() === dayKey).length };
     });
 
-    const rawActivities = await prisma.activity.findMany({
+    const rawActivities: (typeof activities[0] & { metadata?: Record<string, unknown> })[] = await prisma.activity.findMany({
       where: {
         workspaceId,
         OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }]
       },
       take: 10,
       orderBy: { createdAt: "desc" },
-    });
+    }) as any;
 
-    const activityUserIds = [...new Set(rawActivities.map((a: any) => a.userId).filter(Boolean))];
+    const activityUserIds: string[] = rawActivities
+      .map(a => (a as any).userId as string | null)
+      .filter((id): id is string => id !== null);
+
     const activityUsers = activityUserIds.length > 0
       ? await prisma.user.findMany({ where: { id: { in: activityUserIds } }, select: { id: true, name: true, imageUrl: true } })
       : [];
     const userMap = new Map(activityUsers.map(u => [u.id, u]));
-    const recentActivities = rawActivities.map((a: any) => ({ ...a, user: userMap.get(a.userId) || null }));
+    const recentActivities = rawActivities
+      .filter((a): a is (typeof rawActivities[0] & { userId: string }) => a.userId !== null)
+      .map(a => ({ ...a, user: userMap.get(a.userId) || null }));
 
     // Workspace structure from recent projects (reuse existing data)
     const workspaceStructure = [{
       name: "Workspace",
-      children: recentProjects.map(p => ({ name: p.name, size: (p as any)._count?.tasks || 1 })),
+      children: recentProjects.map(p => {
+        const projectWithCount = p as typeof p & { _count: { tasks: number } };
+        return { name: p.name, size: projectWithCount._count?.tasks || 1 };
+      }),
     }];
 
     return NextResponse.json({
       projectsCount,
       tasksCount,
-      teamsCount,
+      membersCount,
       completionRate,
-      recentProjects: recentProjects.map((p: any) => ({ id: p.id, name: p.name, tasksCount: p._count.tasks })),
-      recentTasks: recentTasks.map((t: any) => ({ id: t.id, title: t.title, status: t.status, project: t.project, priority: t.priority })),
+      recentProjects: recentProjects.map(p => ({ id: p.id, name: p.name, tasksCount: p._count.tasks })),
+      recentTasks: recentTasks.map(t => ({ id: t.id, title: t.title, status: t.status, project: t.project, priority: t.priority })),
       recentActivities,
       activityTrends,
       statusDistribution,
       priorityDistribution: Object.entries(priorityMap).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value })),
       workspaceStructure,
-      completionTime: [
-        { range: "0-1d", count: completedCount > 0 ? Math.ceil(completedCount * 0.6) : 0 },
-        { range: "1-3d", count: completedCount > 0 ? Math.ceil(completedCount * 0.3) : 0 },
-        { range: "3-7d", count: completedCount > 0 ? Math.ceil(completedCount * 0.1) : 0 },
-        { range: "7d+", count: 0 },
-      ],
+      completionTime: [],
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Dashboard API error details:", {
-      message: error.message,
-      stack: error.stack,
+      message,
+      stack: error instanceof Error ? error.stack : undefined,
       workspaceId
     });
     return NextResponse.json(
-      { error: "Internal server error", details: error.message },
+      { error: "Internal server error", details: message },
       { status: 500 }
     );
   }

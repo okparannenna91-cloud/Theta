@@ -1,16 +1,16 @@
 "use client";
 
 import { useState, useRef } from "react";
+import Image from "next/image";
 import { Upload, X, FileText, Image as ImageIcon, Film, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import Image from "next/image";
 import { usePopups } from "@/components/popups/popup-manager";
 import { useQuery } from "@tanstack/react-query";
 
 interface FileUploadProps {
-    value?: string | any[];
+    value?: string;
     onChange?: (url: string) => void;
     onRemove?: () => void;
     workspaceId?: string;
@@ -20,6 +20,7 @@ interface FileUploadProps {
     accept?: string;
     maxSize?: number;
     category?: string;
+    disabled?: boolean;
 }
 
 export function FileUpload({ 
@@ -28,11 +29,12 @@ export function FileUpload({
     onRemove, 
     workspaceId, 
     onUploadComplete, 
-    label, 
+    label,
     className,
     accept = "*/*",
     maxSize = 25,
-    category = "file"
+    category = "file",
+    disabled = false,
 }: FileUploadProps) {
     const { showUpgradePrompt } = usePopups();
     const [isUploading, setIsUploading] = useState(false);
@@ -51,6 +53,7 @@ export function FileUpload({
 
     const storageUsage = usageData?.storage || { current: 0, max: -1 };
     const isStorageFull = storageUsage.max !== -1 && storageUsage.current >= storageUsage.max;
+    const effectiveMaxSize = usageData?.maxFileSize || maxSize;
 
     const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -63,8 +66,7 @@ export function FileUpload({
         }
 
         const fileSizeMB = file.size / (1024 * 1024);
-        if (fileSizeMB > maxSize) {
-            // Note: In a real app, we'd check if the plan allows larger files here
+        if (fileSizeMB > effectiveMaxSize) {
             showUpgradePrompt("file_size");
             return;
         }
@@ -139,7 +141,7 @@ export function FileUpload({
                 className="hidden"
                 ref={fileInputRef}
                 onChange={handleFileChange}
-                disabled={isUploading}
+                disabled={disabled || isUploading}
                 accept={accept}
             />
             <Button
@@ -148,7 +150,7 @@ export function FileUpload({
                 size="sm"
                 className="w-full h-10 border-dashed border-2 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition-all"
                 onClick={() => fileInputRef.current?.click()}
-                disabled={isUploading}
+                disabled={disabled || isUploading}
             >
                 {isUploading ? (
                     <Loader2 className="h-4 w-4 mr-2 animate-spin text-indigo-500" />

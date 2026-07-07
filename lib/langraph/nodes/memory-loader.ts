@@ -17,7 +17,7 @@ export async function loadMemory(
     }
     if (conversationId) {
       const { MemorySystem } = await import("@/lib/nova/memory-system");
-      const history = await MemorySystem.getShortTerm(conversationId);
+      const history = await MemorySystem.getShortTerm(workspaceId, conversationId);
       result.shortTerm = (history as Array<{ role: string; content: string }> || []).slice(-20);
     }
   } catch (error) { logger.warn("[MemoryLoader] Failed:", error); }

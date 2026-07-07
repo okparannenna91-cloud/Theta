@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Tag as TagIcon, Plus, Check, X, Loader2, Palette } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -47,6 +47,8 @@ export function TagSelector({ taskId, workspaceId, currentTagIds }: TagSelectorP
     const [selectedColor, setSelectedColor] = useState(COLORS[0]);
     const [isCreating, setIsCreating] = useState(false);
     const queryClient = useQueryClient();
+    const tagIdsRef = useRef(currentTagIds);
+    tagIdsRef.current = currentTagIds;
 
     const { data: allTags, isLoading: isLoadingTags } = useQuery<Tag[]>({
         queryKey: ["workspace-tags", workspaceId],
@@ -85,13 +87,14 @@ export function TagSelector({ taskId, workspaceId, currentTagIds }: TagSelectorP
 
     const toggleTagMutation = useMutation({
         mutationFn: async ({ tagId, action }: { tagId: string; action: "assign" | "unassign" }) => {
+            const currentIds = tagIdsRef.current;
             const res = await fetch(`/api/tasks/${taskId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     tagIds: action === "assign"
-                        ? [...currentTagIds, tagId]
-                        : currentTagIds.filter(id => id !== tagId)
+                        ? [...currentIds, tagId]
+                        : currentIds.filter(id => id !== tagId)
                 }),
             });
             if (!res.ok) throw new Error("Failed to update task tags");
@@ -99,7 +102,7 @@ export function TagSelector({ taskId, workspaceId, currentTagIds }: TagSelectorP
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
-            queryClient.invalidateQueries({ queryKey: ["kanban-board"] });
+            queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
         },
     });
 

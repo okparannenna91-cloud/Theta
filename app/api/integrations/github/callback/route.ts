@@ -12,9 +12,11 @@ export async function GET(request: NextRequest) {
 
     try {
         let workspaceId: string;
+        let codeVerifier: string | undefined;
         try {
             const payload = verifyOAuthState(state);
             workspaceId = payload.workspaceId;
+            codeVerifier = payload.codeVerifier as string | undefined;
         } catch {
             return NextResponse.json({ error: "Invalid state parameter" }, { status: 400 });
         }
@@ -28,18 +30,25 @@ export async function GET(request: NextRequest) {
         const clientSecret = process.env.GITHUB_CLIENT_SECRET;
         const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/github/callback`;
 
+        const tokenBody: Record<string, string> = {
+            client_id: clientId!,
+            client_secret: clientSecret!,
+            code,
+            redirect_uri: redirectUri,
+        };
+
+        // PKCE: include code_verifier in token exchange
+        if (codeVerifier) {
+            tokenBody.code_verifier = codeVerifier;
+        }
+
         const response = await fetch("https://github.com/login/oauth/access_token", {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
                 Accept: "application/json",
             },
-            body: JSON.stringify({
-                client_id: clientId,
-                client_secret: clientSecret,
-                code,
-                redirect_uri: redirectUri,
-            }),
+            body: JSON.stringify(tokenBody),
         });
 
         const data = await response.json();

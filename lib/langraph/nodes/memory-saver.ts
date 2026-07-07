@@ -17,8 +17,8 @@ export async function saveConversationMemory(options: SaveMemoryOptions): Promis
 
     // Save short-term memory (conversation history)
     if (conversationId) {
-      await MemorySystem.saveShortTerm(conversationId, { role: "user", content: prompt }).catch(() => {});
-      await MemorySystem.saveShortTerm(conversationId, { role: "assistant", content: response }).catch(() => {});
+      await MemorySystem.saveShortTerm(workspaceId, conversationId, { role: "user", content: prompt }).catch(() => {});
+      await MemorySystem.saveShortTerm(workspaceId, conversationId, { role: "assistant", content: response }).catch(() => {});
     }
 
     // Save tool results as long-term memory if any tools were executed

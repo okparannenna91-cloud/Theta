@@ -9,13 +9,16 @@ function key(...parts: string[]): string {
 }
 
 function safePipelined(ops: Array<{ cmd: string; args: (string | number)[] }>): void {
-  Promise.allSettled(
-    ops.map((op) => {
-      const cmdFn = (redis as unknown as Record<string, (...args: (string | number)[]) => unknown>)[op.cmd];
-      if (typeof cmdFn === "function") return cmdFn.bind(redis)(...op.args);
-      return Promise.resolve();
-    }),
-  ).catch(() => {});
+  try {
+    const pipeline = redis.pipeline();
+    for (const op of ops) {
+      const cmdFn = (pipeline as unknown as Record<string, (...args: (string | number)[]) => void>)[op.cmd];
+      if (typeof cmdFn === "function") cmdFn.bind(pipeline)(...op.args);
+    }
+    pipeline.exec().catch(() => {});
+  } catch {
+    // silently fail
+  }
 }
 
 export const telemetry = {

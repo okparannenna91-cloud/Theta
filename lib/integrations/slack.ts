@@ -18,20 +18,29 @@ const SLACK_SCOPES = [
     "commands"
 ].join(",");
 
-export function getSlackAuthUrl(workspaceId: string): string {
-    const { signOAuthState } = require("@/lib/crypto");
+export function getSlackAuthUrl(workspaceId: string, codeVerifier?: string): string {
+    const { signOAuthState, generateCodeChallenge } = require("@/lib/crypto");
     const clientId = process.env.SLACK_CLIENT_ID;
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/slack/callback`;
-    // We pass the workspaceId in the state (HMAC-signed to prevent CSRF)
-    const state = signOAuthState({ workspaceId });
 
-    return `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${SLACK_SCOPES}&redirect_uri=${encodeURIComponent(redirectUri)}&state=${state}`;
+    const statePayload: Record<string, any> = { workspaceId };
+    let authUrl = `https://slack.com/oauth/v2/authorize?client_id=${clientId}&scope=${SLACK_SCOPES}&redirect_uri=${encodeURIComponent(redirectUri)}`;
+
+    if (codeVerifier) {
+        statePayload.codeVerifier = codeVerifier;
+        const codeChallenge = generateCodeChallenge(codeVerifier);
+        authUrl += `&state=${encodeURIComponent(signOAuthState(statePayload))}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+    } else {
+        authUrl += `&state=${encodeURIComponent(signOAuthState(statePayload))}`;
+    }
+
+    return authUrl;
 }
 
 /**
  * Exchange the temporary code from Slack for an access token
  */
-export async function exchangeSlackCode(code: string): Promise<any> {
+export async function exchangeSlackCode(code: string, codeVerifier?: string): Promise<any> {
     const clientId = process.env.SLACK_CLIENT_ID;
     const clientSecret = process.env.SLACK_CLIENT_SECRET;
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/slack/callback`;
@@ -41,6 +50,11 @@ export async function exchangeSlackCode(code: string): Promise<any> {
     formData.append("client_id", clientId!);
     formData.append("client_secret", clientSecret!);
     formData.append("redirect_uri", redirectUri);
+
+    // PKCE: include code_verifier in token exchange
+    if (codeVerifier) {
+        formData.append("code_verifier", codeVerifier);
+    }
 
     const response = await fetch("https://slack.com/api/oauth.v2.access", {
         method: "POST",

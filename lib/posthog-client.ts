@@ -1,42 +1,47 @@
 import posthog from "posthog-js";
 
 let initialized = false;
+let initializing = false;
 
 export function getPostHogClient() {
   if (typeof window === "undefined") return null;
 
-  if (!initialized) {
-    const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    const host = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
+  if (initialized) return posthog;
+  if (initializing) return null;
 
-    if (!key) {
-      if (process.env.NODE_ENV === "development") {
-        console.warn("[PostHog] Missing NEXT_PUBLIC_POSTHOG_KEY");
-      }
-      return null;
-    }
+  const key = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
 
-    try {
-      posthog.init(key, {
-        api_host: host,
-        capture_pageview: true,
-        capture_pageleave: true,
-        person_profiles: "identified_only",
-        session_recording: {
-          maskAllInputs: true,
-          maskInputOptions: {
-            password: true,
-            email: true,
-          },
-        },
-        autocapture: true,
-        loaded: () => {
-          initialized = true;
-        },
-      });
-    } catch {
-      return null;
+  if (!key) {
+    if (process.env.NODE_ENV === "development") {
+      console.warn("[PostHog] Missing NEXT_PUBLIC_POSTHOG_KEY");
     }
+    return null;
+  }
+
+  try {
+    initializing = true;
+    posthog.init(key, {
+      api_host: host,
+      capture_pageview: true,
+      capture_pageleave: true,
+      person_profiles: "identified_only",
+      session_recording: {
+        maskAllInputs: true,
+        maskInputOptions: {
+          password: true,
+          email: true,
+        },
+      },
+      autocapture: true,
+      loaded: () => {
+        initialized = true;
+        initializing = false;
+      },
+    });
+  } catch {
+    initializing = false;
+    return null;
   }
 
   return posthog;

@@ -69,6 +69,7 @@ model Workspace {
   tags           Tag[]
   statuses       Status[]
   automations    Automation[]
+  automationLogs AutomationLog[]
   documents     Document[]
   forms         Form[]
   aiConversations AiConversation[]
@@ -172,8 +173,30 @@ model Automation {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  automationLogs AutomationLog[]
+
   @@index([workspaceId])
   @@map("automations")
+}
+
+model AutomationLog {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  automationId  String   @db.ObjectId
+  trigger       String
+  action        String
+  result        String   // "success" | "error" | "skipped"
+  error         String?
+  metadata      Json?    @db.Json
+  workspaceId   String   @db.ObjectId
+  createdAt     DateTime @default(now())
+
+  automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([automationId])
+  @@index([workspaceId])
+  @@index([createdAt])
+  @@map("automation_logs")
 }
 
 
@@ -241,7 +264,7 @@ model Project {
 
   workspace    Workspace    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  team         Team?        @relation(fields: [teamId], references: [id])
+  team         Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
   tasks        Task[]
   boards       Board[]
   teamMembers  TeamMember[]
@@ -324,10 +347,10 @@ model Task {
   baselineStartDate DateTime?
   baselineDueDate   DateTime?
   
-  // NOTE: This field stores custom field metadata (not file attachments) despite the name.
-  // File attachments use a separate Comment/Message attachment mechanism.
-  // See lib/ai-tools/index.ts:472-473 where it's used with `customFields` key.
-  attachments   Json?    @db.Json
+  /// NOTE: Despite @map("attachments"), this stores custom field metadata (column values like checkbox state, dropdown selections),
+  /// NOT file uploads. File attachments are stored via a separate Comment/Message attachment mechanism (see Comment.attachments).
+  /// Renamed in Prisma to `customFieldMetadata` with @map("attachments") for backward compatibility with existing MongoDB documents.
+  customFieldMetadata Json? @map("attachments") @db.Json
 
   // TODO: Rename field to `assigneeId` — currently named `userId` but stores the assignee's ID.
   fieldValues   Json?    @db.Json // Dynamic field values for column types - stored as key-value pairs {columnId: value}
@@ -354,10 +377,10 @@ model TaskDependency {
   taskId         String @db.ObjectId
   predecessorId  String @db.ObjectId
   type           String @default("FS") // FS, SS, FF, SF
-  lag            Int    @default(0)    // Lag in seconds/hours? Let's use minutes or hours.
+  lag            Int    @default(0)    // Lag in hours (e.g., 24 = 1 day lag). Always store in hours for consistency.
   
-  task           Task   @relation("TaskPredecessors", fields: [taskId], references: [id], onDelete: Cascade)
-  predecessor    Task   @relation("TaskSuccessors", fields: [predecessorId], references: [id], onDelete: Cascade)
+  task           Task   @relation("TaskPredecessors", fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  predecessor    Task   @relation("TaskSuccessors", fields: [predecessorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([taskId])
   @@index([predecessorId])
@@ -370,7 +393,7 @@ model Subtask {
   title     String
   completed Boolean  @default(false)
   taskId    String   @db.ObjectId
-  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   order     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -386,7 +409,7 @@ model Comment {
   taskId    String?  @db.ObjectId
   documentId String? @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task      Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   document  Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -441,7 +464,7 @@ model TimeLog {
   updatedAt   DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  task Task @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([userId])
   @@index([taskId])
@@ -543,7 +566,7 @@ model TeamMember {
 
   team    Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  project Project? @relation(fields: [projectId], references: [id])
+  project Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
 
   @@index([userId])
   @@index([teamId])

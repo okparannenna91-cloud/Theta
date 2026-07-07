@@ -57,6 +57,14 @@ export default function TableView({
     if (!sortColumn) return 0;
     const aVal = a[sortColumn] ?? a.fieldValues?.[sortColumn] ?? "";
     const bVal = b[sortColumn] ?? b.fieldValues?.[sortColumn] ?? "";
+    if (sortColumn === "dueDate" || sortColumn === "createdAt" || sortColumn === "startDate") {
+      const aNum = aVal ? new Date(aVal).getTime() : 0;
+      const bNum = bVal ? new Date(bVal).getTime() : 0;
+      return sortDirection === "asc" ? aNum - bNum : bNum - aNum;
+    }
+    if (typeof aVal === "number" && typeof bVal === "number") {
+      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+    }
     const cmp = String(aVal).localeCompare(String(bVal));
     return sortDirection === "asc" ? cmp : -cmp;
   });
@@ -301,10 +309,29 @@ export default function TableView({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold gap-1">
+          <Button
+            variant="ghost" size="sm" className="h-7 text-[10px] font-bold gap-1"
+            onClick={() => {
+              fetch("/api/tasks", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  title: "New item",
+                  workspaceId,
+                  boardId,
+                  columnId: columns[0]?.id,
+                  priority: "medium",
+                  status: "todo",
+                }),
+              }).then(() => queryClient.invalidateQueries({ queryKey: ["board", boardId] }));
+            }}
+          >
             <Plus className="h-3 w-3" /> Add Item
           </Button>
-          <Button variant="ghost" size="sm" className="h-7 text-[10px] font-bold gap-1">
+          <Button
+            variant="ghost" size="sm" className="h-7 text-[10px] font-bold gap-1"
+            onClick={() => setColumnSettings(columns[0])}
+          >
             <Settings className="h-3 w-3" /> Columns
           </Button>
         </div>
@@ -364,17 +391,66 @@ export default function TableView({
       <Dialog open={!!columnSettings} onOpenChange={() => setColumnSettings(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Column Settings</DialogTitle>
+            <DialogTitle>Column Settings — {columnSettings?.name || ""}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <label className="text-xs font-bold text-slate-500">Width</label>
-              <Input type="number" defaultValue={columnSettings?.width || 200} className="h-9 mt-1" />
+              <Input
+                type="number"
+                defaultValue={columnSettings?.width || 200}
+                className="h-9 mt-1"
+                onBlur={(e) => {
+                  const col = columnSettings;
+                  if (!col) return;
+                  fetch(`/api/columns/${col.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ width: parseInt(e.target.value) || 200 }),
+                  }).then(() => queryClient.invalidateQueries({ queryKey: ["board", boardId] }));
+                }}
+              />
             </div>
             <div className="flex items-center gap-4">
-              <Button variant="outline" size="sm" className="text-xs gap-2"><EyeOff className="h-3 w-3" /> Hide</Button>
-              <Button variant="outline" size="sm" className="text-xs gap-2"><Pin className="h-3 w-3" /> Pin</Button>
-              <Button variant="outline" size="sm" className="text-xs gap-2 text-red-500"><Trash2 className="h-3 w-3" /> Delete</Button>
+              <Button
+                variant="outline" size="sm" className="text-xs gap-2"
+                onClick={() => {
+                  const col = columnSettings;
+                  if (!col) return;
+                  fetch(`/api/columns/${col.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ visible: false }),
+                  }).then(() => queryClient.invalidateQueries({ queryKey: ["board", boardId] }));
+                }}
+              >
+                <EyeOff className="h-3 w-3" /> Hide
+              </Button>
+              <Button
+                variant="outline" size="sm" className="text-xs gap-2"
+                onClick={() => {
+                  const col = columnSettings;
+                  if (!col) return;
+                  fetch(`/api/columns/${col.id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ pinned: !col.pinned }),
+                  }).then(() => queryClient.invalidateQueries({ queryKey: ["board", boardId] }));
+                }}
+              >
+                <Pin className="h-3 w-3" /> Pin
+              </Button>
+              <Button
+                variant="outline" size="sm" className="text-xs gap-2 text-red-500"
+                onClick={() => {
+                  const col = columnSettings;
+                  if (!col) return;
+                  fetch(`/api/columns/${col.id}`, { method: "DELETE" })
+                    .then(() => { queryClient.invalidateQueries({ queryKey: ["board", boardId] }); setColumnSettings(null); });
+                }}
+              >
+                <Trash2 className="h-3 w-3" /> Delete
+              </Button>
             </div>
           </div>
         </DialogContent>

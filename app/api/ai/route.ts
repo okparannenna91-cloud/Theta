@@ -6,6 +6,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 
 import { DecisionFramework } from "@/lib/nova/decision-framework";
+import { detectPromptInjection } from "@/lib/nova/security-guard";
+import { sanitizeUserInput } from "@/lib/nova/output-validator";
 import { logger } from "@/lib/logger";
 import { routeRequest } from "@/lib/nova/intent-router";
 import { telemetry } from "@/lib/nova/telemetry";
@@ -34,19 +36,19 @@ import { SERVICE_REGISTRY } from "@/lib/nova/config";
 const NOVA_SYSTEM_PROMPT = `${CORE_NOVA_SYSTEM_PROMPT}
 
 [OPERATING GUIDELINES]
-1. PRIORITIZE ACTION: Use tools immediately when a user request can be fulfilled by them. ALWAYS call the appropriate tool for "list tasks", "list projects", "list workspaces", "show workspaces", "list members", etc.
+1. RESPOND CONVERSATIONALLY: When a user asks a question or makes a statement (not a command), respond naturally without calling tools. Only use tools when the user explicitly requests an action (e.g., "create a task", "list my tasks", "delete project X").
 2. EXPLAINABILITY: Always explain *why* you are taking an action. Cite where you found information.
 3. TRANSPARENCY: If a tool execution fails or needs more info, be clear about it.
 4. PROACTIVITY: If a project seems stalled or tasks are overdue, suggest 'get_suggestions'.
 5. FORMATTING: Use bold for entity names. Use Mermaid.js syntax for diagrams (e.g. flowcharts, gantt charts) when explaining complex dependencies or workflows. When listing data, format it as a markdown table.
 6. REAL-TIME: You can broadcast updates via Ably for immediate UI feedback.
-7. ALWAYS use list_tasks when asked about tasks, list_projects when asked about projects, list_workspaces when asked about workspaces, list_members when asked about members. Do NOT just acknowledge the request — actually call the tool and return the results.
+7. READ TOOLS: Use list_tasks, list_projects, list_workspaces, list_members when the user explicitly asks to see or list items. For questions about these things, answer conversationally instead of calling tools.
 
 Available Specialized Agents: ${AGENT_REGISTRY.map(a => `${a.name} (${a.purpose})`).join(", ")}.
 
 Available Infrastructure Services: ${SERVICE_REGISTRY.map(s => `${s.provider} (${s.category})`).join(", ")}.
 
-You are professional, data-driven, and proactive. ALWAYS execute the tool — never just say you cannot do something without trying first.`;
+You are professional, data-driven, and helpful. Respond naturally to questions and use tools only when explicitly requested.`;
 
 export async function POST(req: Request) {
     const requestStart = Date.now();
@@ -75,6 +77,25 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Nova needs a prompt to help you" }, { status: 400 });
         }
 
+        // TENANT ISOLATION: Verify user is an active member of the claimed workspace
+        if (workspaceId) {
+            const { prisma } = await import("@/lib/prisma");
+            const membership = await prisma.workspaceMember.findFirst({
+                where: { workspaceId, userId: user.id, status: "active" },
+                select: { id: true },
+            });
+            if (!membership) {
+                return NextResponse.json({ error: "Workspace access denied" }, { status: 403 });
+            }
+        }
+
+        // Sanitize user prompt and detect prompt injection
+        const sanitizedPrompt = sanitizeUserInput(prompt);
+        if (detectPromptInjection(prompt)) {
+            logger.warn(`[Nova] Prompt injection blocked for user ${user.id}`);
+            return NextResponse.json({ error: "Your request was blocked by security filters. Please rephrase." }, { status: 400 });
+        }
+
         // Verify project access if projectId is provided
         if (workspaceId && projectId) {
             const hasAccess = await canAccessProjectResource(user.id, workspaceId, projectId);
@@ -83,7 +104,7 @@ export async function POST(req: Request) {
             }
         }
 
-        decision = DecisionFramework.evaluate(prompt);
+        decision = DecisionFramework.evaluate(sanitizedPrompt);
         if (decision.requiresApproval) {
             return NextResponse.json({
                 error: `**ACTION BLOCKED — CONFIRMATION REQUIRED**\n\nYour request has been classified as **HIGH RISK** (${decision.intent} action).\nPlease confirm explicitly if you want to proceed.`,
@@ -93,7 +114,7 @@ export async function POST(req: Request) {
             }, { status: 403 });
         }
 
-        route = routeRequest(prompt, decision.intent, decision.strategy);
+        route = routeRequest(sanitizedPrompt, decision.intent, decision.strategy);
 
         if (workspaceId) {
             const { getNovaRequestCount } = await import("@/lib/usage-tracking");
@@ -109,12 +130,14 @@ export async function POST(req: Request) {
 
         // LangGraph Agent — primary orchestration for all routes
         const { runNovaAgent } = await import("@/lib/langraph");
-        const agentResult = await runNovaAgent(prompt, {
+        const agentResult = await runNovaAgent(sanitizedPrompt, {
             userId: user.id,
             workspaceId,
             projectId: projectId || undefined,
             conversationId: conversationId || undefined,
             systemPrompt: NOVA_SYSTEM_PROMPT,
+            intent: decision.intent,
+            routeDecision: route,
         });
         logger.info("[LangGraph] Agent handled request", {
             provider: agentResult.provider,
@@ -133,7 +156,7 @@ export async function POST(req: Request) {
             telemetry.trackRequest({
                 userId: user?.id || "unknown",
                 workspaceId: workspaceId || "unknown",
-                path: route?.path || "ACTION",
+                path: (route?.path === "CONVERSATION" ? "CHAT" : route?.path) || "ACTION",
                 intent: decision?.intent || "UNKNOWN",
                 strategy: decision?.strategy || "PATH_A_IMMEDIATE",
                 totalDurationMs: Date.now() - requestStart,
@@ -147,7 +170,7 @@ export async function POST(req: Request) {
         telemetry.trackRequest({
             userId: user?.id || "unknown",
             workspaceId: workspaceId || "unknown",
-            path: route?.path || "ACTION",
+            path: (route?.path === "CONVERSATION" ? "CHAT" : route?.path) || "ACTION",
             intent: decision?.intent || "UNKNOWN",
             strategy: decision?.strategy || "PATH_A_IMMEDIATE",
             totalDurationMs: Date.now() - requestStart,

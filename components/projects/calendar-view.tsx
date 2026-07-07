@@ -1,14 +1,36 @@
 "use client";
 
-import { useMemo } from "react";
-import FullCalendar from "@fullcalendar/react";
+import { useMemo, Component, type ReactNode } from "react";
+import dynamic from "next/dynamic";
+
+const FullCalendar = dynamic(() => import("@fullcalendar/react"), { ssr: false });
 
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
-import { format } from "date-fns";
 
 import { Card } from "@/components/ui/card";
+import { toast } from "sonner";
+
+class CalendarErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+    constructor(props: { children: ReactNode }) {
+        super(props);
+        this.state = { hasError: false };
+    }
+    static getDerivedStateFromError() {
+        return { hasError: true };
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <Card className="w-full h-full p-4 sm:p-6 bg-white dark:bg-slate-900 rounded-xl border-slate-200/50 dark:border-slate-800/50 shadow-sm flex flex-col items-center justify-center min-h-[400px]">
+                    <p className="text-sm text-muted-foreground">Calendar failed to load. Please refresh the page.</p>
+                </Card>
+            );
+        }
+        return this.props.children;
+    }
+}
 
 interface CalendarViewProps {
     tasks: any[];
@@ -54,28 +76,29 @@ export function CalendarView({ tasks }: CalendarViewProps) {
             </div>
             
             <div className="flex-1 min-h-[600px] overflow-hidden rounded-xl border border-slate-200/50 dark:border-slate-800/50 p-4">
-                {/* 
-                  To ensure FullCalendar looks modern and blends in, we rely on custom 
-                  CSS overrides that target .fc classes typically added to index.css
-                */}
-                <FullCalendar
-                    plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
-                    initialView="dayGridMonth"
-                    headerToolbar={{
-                        left: "prev,next today",
-                        center: "title",
-                        right: "dayGridMonth,timeGridWeek,timeGridDay"
-                    }}
-                    events={events}
-                    height="100%"
-                    editable={false} /* Future iteration: allow drag and drop dates */
-                    selectable={false}
-                    dayMaxEvents={3} // Limit number of events rendering on a single day
-                    eventClick={(info: any) => {
-                        // Future iteration: Open Task details modal
-                        console.log("Clicked Task: ", info.event.title);
-                    }}
-                />
+                <CalendarErrorBoundary>
+                    <FullCalendar
+                        plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
+                        initialView="dayGridMonth"
+                        headerToolbar={{
+                            left: "prev,next today",
+                            center: "title",
+                            right: "dayGridMonth,timeGridWeek,timeGridDay"
+                        }}
+                        events={events}
+                        height="100%"
+                        editable={false}
+                        selectable={false}
+                        dayMaxEvents={3}
+                        eventClick={(info: any) => {
+                            const task = tasks.find(t => t.id === info.event.id);
+                            if (task) {
+                                // In future: open task detail modal
+                                toast.info(`Task: ${info.event.title}`);
+                            }
+                        }}
+                    />
+                </CalendarErrorBoundary>
             </div>
         </Card>
     );

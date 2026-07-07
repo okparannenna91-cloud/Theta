@@ -1,26 +1,38 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Send, Trash2, Loader2 } from "lucide-react";
+import { MessageSquare, Send, Trash2, Loader2, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@clerk/nextjs";
 import { useAbly } from "@/hooks/use-ably";
 import { getTaskChannel } from "@/lib/ably";
 
+interface CommentUser {
+    id: string;
+    name: string | null;
+    imageUrl: string | null;
+}
+
 interface Comment {
     id: string;
     content: string;
+    userId: string;
     createdAt: string;
-    user: {
-        id: string;
-        name: string | null;
-        imageUrl: string | null;
-    };
+    updatedAt: string;
+    user: CommentUser | null;
+}
+
+interface WorkspaceMember {
+    id: string;
+    name: string | null;
+    email: string | null;
+    imageUrl: string | null;
 }
 
 interface TaskCommentsProps {
@@ -32,18 +44,24 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
     const [content, setContent] = useState("");
     const { user: currentUser } = useUser();
     const queryClient = useQueryClient();
+    const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editContent, setEditContent] = useState("");
 
     const taskChannel = getTaskChannel(workspaceId, taskId);
 
-    useAbly(taskChannel, "comment:created", () => {
+    const onCommentCreated = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["comments", taskId] });
-    });
+    }, [queryClient, taskId]);
 
-    useAbly(taskChannel, "comment:deleted", () => {
+    const onCommentDeleted = useCallback(() => {
         queryClient.invalidateQueries({ queryKey: ["comments", taskId] });
-    });
+    }, [queryClient, taskId]);
 
-    const { data: comments, isLoading } = useQuery<Comment[]>({
+    useAbly(taskChannel, "comment:created", onCommentCreated);
+    useAbly(taskChannel, "comment:deleted", onCommentDeleted);
+
+    const { data: comments, isLoading, error: commentsError } = useQuery<Comment[]>({
         queryKey: ["comments", taskId],
         queryFn: async () => {
             const res = await fetch(`/api/tasks/${taskId}/comments`);
@@ -65,7 +83,7 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
     const [mentionSearch, setMentionSearch] = useState("");
     const [showMentions, setShowMentions] = useState(false);
 
-    const filteredMembers = members?.filter((m: any) =>
+    const filteredMembers = (members as WorkspaceMember[] | undefined)?.filter((m) =>
         m.name?.toLowerCase().includes(mentionSearch.toLowerCase()) ||
         m.email?.toLowerCase().includes(mentionSearch.toLowerCase())
     ).slice(0, 5);
@@ -85,6 +103,9 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
             setContent("");
             toast.success("Comment posted");
         },
+        onError: (error: Error) => {
+            toast.error(error.message);
+        },
     });
 
     const deleteCommentMutation = useMutation({
@@ -95,7 +116,32 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["comments", taskId] });
+            setDeleteConfirm(null);
             toast.success("Comment deleted");
+        },
+        onError: (error: Error) => {
+            toast.error(error.message);
+        },
+    });
+
+    const updateCommentMutation = useMutation({
+        mutationFn: async ({ id, content }: { id: string; content: string }) => {
+            const res = await fetch(`/api/comments/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content }),
+            });
+            if (!res.ok) throw new Error("Failed to update comment");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["comments", taskId] });
+            setEditingId(null);
+            setEditContent("");
+            toast.success("Comment updated");
+        },
+        onError: (error: Error) => {
+            toast.error(error.message);
         },
     });
 
@@ -104,6 +150,27 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
         if (!content.trim()) return;
         createCommentMutation.mutate(content);
     };
+
+    const handleDeleteConfirm = () => {
+        if (deleteConfirm) {
+            deleteCommentMutation.mutate(deleteConfirm);
+        }
+    };
+
+    if (commentsError) {
+        return (
+            <div className="space-y-6">
+                <div className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    <h3 className="text-sm font-semibold tracking-tight">Discussion</h3>
+                </div>
+                <div className="flex flex-col items-center justify-center p-6 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-200 dark:border-red-800">
+                    <p className="text-xs font-medium text-red-600 dark:text-red-400">Failed to load comments</p>
+                    <p className="text-[10px] text-red-500/70 mt-1">Please try refreshing the page.</p>
+                </div>
+            </div>
+        );
+    }
 
     if (isLoading) {
         return (
@@ -129,33 +196,73 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
                     comments?.map((comment) => (
                         <div key={comment.id} className="flex gap-3 group">
                             <Avatar className="h-8 w-8 ring-2 ring-background">
-                                <AvatarImage src={comment.user.imageUrl || ""} />
-                                <AvatarFallback>{comment.user.name?.[0] || "U"}</AvatarFallback>
+                                <AvatarImage src={comment.user?.imageUrl || ""} />
+                                <AvatarFallback>{comment.user?.name?.[0] || "U"}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 space-y-1">
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs font-bold text-foreground">
-                                            {comment.user.name || "Anonymous User"}
+                                            {comment.user?.name || "Anonymous User"}
                                         </span>
                                         <span className="text-[10px] text-muted-foreground">
                                             {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                            {comment.createdAt !== comment.updatedAt && (
+                                                <span className="ml-1 italic">(edited)</span>
+                                            )}
                                         </span>
                                     </div>
-                                    {currentUser?.id === comment.user.id && (
-                                        <Button
-                                            variant="ghost"
-                                            size="icon"
-                                            className="h-6 w-6 text-muted-foreground hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            onClick={() => deleteCommentMutation.mutate(comment.id)}
-                                        >
-                                            <Trash2 className="h-3 w-3" />
-                                        </Button>
+                                    {currentUser?.id === comment.userId && (
+                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity">
+                                            <button
+                                                className="h-6 w-6 text-muted-foreground hover:text-indigo-600 rounded-md hover:bg-accent inline-flex items-center justify-center transition-colors"
+                                                onClick={() => {
+                                                    setEditingId(comment.id);
+                                                    setEditContent(comment.content);
+                                                }}
+                                                aria-label="Edit comment"
+                                            >
+                                                <Pencil className="h-3 w-3" />
+                                            </button>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 text-muted-foreground hover:text-red-600"
+                                                onClick={() => setDeleteConfirm(comment.id)}
+                                            >
+                                                <Trash2 className="h-3 w-3" />
+                                            </Button>
+                                        </div>
                                     )}
                                 </div>
-                                <div className="text-sm bg-accent/40 dark:bg-slate-800/40 p-3 rounded-2xl rounded-tl-none border border-slate-200 dark:border-slate-800">
-                                    {comment.content}
-                                </div>
+                                {editingId === comment.id ? (
+                                    <div className="space-y-2">
+                                        <Textarea
+                                            value={editContent}
+                                            onChange={(e) => setEditContent(e.target.value)}
+                                            className="min-h-[60px] text-sm"
+                                        />
+                                        <div className="flex gap-2 justify-end">
+                                            <Button size="sm" variant="outline" onClick={() => { setEditingId(null); setEditContent(""); }}>
+                                                Cancel
+                                            </Button>
+                                            <Button
+                                                size="sm"
+                                                onClick={() => updateCommentMutation.mutate({ id: comment.id, content: editContent })}
+                                                disabled={!editContent.trim() || updateCommentMutation.isPending}
+                                            >
+                                                {updateCommentMutation.isPending ? (
+                                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                                ) : null}
+                                                Save
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="text-sm bg-accent/40 dark:bg-slate-800/40 p-3 rounded-2xl rounded-tl-none border border-slate-200 dark:border-slate-800">
+                                        {comment.content}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     ))
@@ -183,12 +290,12 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
                         disabled={createCommentMutation.isPending}
                     />
 
-                    {showMentions && filteredMembers?.length > 0 && (
+                    {showMentions && (filteredMembers?.length ?? 0) > 0 && (
                         <div className="absolute bottom-full left-0 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl z-50 mb-2 overflow-hidden animate-in fade-in slide-in-from-bottom-2">
                             <div className="p-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
                                 <span className="text-[10px] font-semibold text-slate-400">Mention Team Member</span>
                             </div>
-                            {filteredMembers.map((member: any) => (
+                            {filteredMembers?.map((member) => (
                                 <button
                                     key={member.id}
                                     type="button"
@@ -231,6 +338,32 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
                     </div>
                 </div>
             </form>
+
+            <Dialog open={!!deleteConfirm} onOpenChange={(open) => !open && setDeleteConfirm(null)}>
+                <DialogContent onClose={() => setDeleteConfirm(null)}>
+                    <DialogHeader>
+                        <DialogTitle>Delete Comment</DialogTitle>
+                        <DialogDescription>
+                            Are you sure you want to delete this comment? This action cannot be undone.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setDeleteConfirm(null)}>
+                            Cancel
+                        </Button>
+                        <Button
+                            variant="destructive"
+                            onClick={handleDeleteConfirm}
+                            disabled={deleteCommentMutation.isPending}
+                        >
+                            {deleteCommentMutation.isPending ? (
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            ) : null}
+                            Delete
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 import { differenceInDays, startOfDay } from "date-fns";
 
 interface DependencyEngineProps {
@@ -10,9 +10,12 @@ interface DependencyEngineProps {
 }
 
 export default function DependencyEngine({ tasks, timelineStart, cellWidth }: DependencyEngineProps) {
+    const instanceId = useRef(`dep-arrow-${Math.random().toString(36).slice(2, 10)}`).current;
+
     const lines = useMemo(() => {
-        const paths: { path: string, type: string }[] = [];
+        const paths: { path: string, type: string, id: string }[] = [];
         const taskMap = new Map(tasks.map((t, i) => [t.id, { ...t, index: i }]));
+        let pathIndex = 0;
 
         tasks.forEach((task, targetIndex) => {
             if (!task.predecessors) return;
@@ -21,6 +24,7 @@ export default function DependencyEngine({ tasks, timelineStart, cellWidth }: De
                 const source = taskMap.get(dep.predecessorId);
                 if (!source) return;
 
+                // ... same path calculation ...
                 const sourceStart = source.startDate ? new Date(source.startDate) : new Date();
                 const sourceEnd = source.dueDate ? new Date(source.dueDate) : sourceStart;
                 const targetStart = task.startDate ? new Date(task.startDate) : new Date();
@@ -29,21 +33,20 @@ export default function DependencyEngine({ tasks, timelineStart, cellWidth }: De
                 let sourceX: number;
                 let targetX: number;
 
-                // Determine X coordinates based on dependency type
                 switch (dep.type) {
-                    case "SS": // Start-to-Start
+                    case "SS":
                         sourceX = differenceInDays(startOfDay(sourceStart), startOfDay(timelineStart)) * cellWidth;
                         targetX = differenceInDays(startOfDay(targetStart), startOfDay(timelineStart)) * cellWidth;
                         break;
-                    case "FF": // Finish-to-Finish
+                    case "FF":
                         sourceX = (differenceInDays(startOfDay(sourceEnd), startOfDay(timelineStart)) + 1) * cellWidth;
                         targetX = (differenceInDays(startOfDay(targetEnd), startOfDay(timelineStart)) + 1) * cellWidth;
                         break;
-                    case "SF": // Start-to-Finish
+                    case "SF":
                         sourceX = differenceInDays(startOfDay(sourceStart), startOfDay(timelineStart)) * cellWidth;
                         targetX = (differenceInDays(startOfDay(targetEnd), startOfDay(timelineStart)) + 1) * cellWidth;
                         break;
-                    case "FS": // Finish-to-Start (Default)
+                    case "FS":
                     default:
                         sourceX = (differenceInDays(startOfDay(sourceEnd), startOfDay(timelineStart)) + 1) * cellWidth;
                         targetX = differenceInDays(startOfDay(targetStart), startOfDay(timelineStart)) * cellWidth;
@@ -52,13 +55,12 @@ export default function DependencyEngine({ tasks, timelineStart, cellWidth }: De
                 const sourceY = source.index * 64 + 32;
                 const targetY = targetIndex * 64 + 32;
 
-                // Create a stepped path (Manhattan routing)
                 const margin = 12;
                 const path = sourceX < targetX
                     ? `M ${sourceX} ${sourceY} L ${sourceX + margin} ${sourceY} L ${sourceX + margin} ${targetY} L ${targetX} ${targetY}`
                     : `M ${sourceX} ${sourceY} L ${sourceX + margin} ${sourceY} L ${sourceX + margin} ${targetY + 32} L ${targetX - margin} ${targetY + 32} L ${targetX - margin} ${targetY} L ${targetX} ${targetY}`;
                 
-                paths.push({ path, type: dep.type });
+                paths.push({ path, type: dep.type, id: `${dep.predecessorId}-${task.id}-${pathIndex++}` });
             });
         });
 
@@ -72,7 +74,7 @@ export default function DependencyEngine({ tasks, timelineStart, cellWidth }: De
         >
             <defs>
                 <marker
-                    id="arrowhead"
+                    id={instanceId}
                     markerWidth="8"
                     markerHeight="6"
                     refX="7"
@@ -83,15 +85,15 @@ export default function DependencyEngine({ tasks, timelineStart, cellWidth }: De
                 </marker>
             </defs>
             
-            {lines.map((line, i) => (
+            {lines.map((line) => (
                 <path 
-                    key={i} 
+                    key={line.id}
                     d={line.path} 
                     fill="none" 
                     stroke={line.type === "FS" ? "#8b5cf6" : "#3b82f6"} 
                     strokeWidth="1.5" 
                     strokeOpacity="0.4"
-                    markerEnd="url(#arrowhead)"
+                    markerEnd={`url(#${instanceId})`}
                     className="transition-all duration-500 hover:stroke-opacity-100 hover:stroke-2 cursor-pointer"
                 />
             ))}

@@ -1,5 +1,12 @@
 export type PlanName = "free" | "growth" | "pro" | "theta_plus";
 
+// H1: Add explicit allowlist for plan validation
+const VALID_PLANS: PlanName[] = ["free", "growth", "pro", "theta_plus"];
+
+export function isValidPlan(plan: string): plan is PlanName {
+    return VALID_PLANS.includes(plan as PlanName);
+}
+
 export interface PlanLimits {
     // Core Resources
     maxWorkspaces: number;           // -1 = unlimited
@@ -284,7 +291,7 @@ export function getPlanLimitMessage(plan: PlanName, feature: string): string {
             return "Calendar event limit reached. Upgrade your plan to create more events.";
         case "storage":
             return "Storage limit reached. Upgrade your plan for more space.";
-        case "boots":
+        case "nova_ai":
             return "Nova AI request limit reached. Upgrade your plan for more requests.";
         case "chat":
             return "Chat message limit reached. Upgrade your plan for unlimited messaging.";
@@ -355,8 +362,13 @@ export async function enforcePlanLimit(
     }
 
     // 3. Check Plan Limit
-    const plan = (workspace.plan as PlanName) || "free";
-    const limits = PLAN_LIMITS[plan] || PLAN_LIMITS.free;
+    const rawPlan = workspace.plan || "free";
+    if (!isValidPlan(rawPlan)) {
+        // H1: Invalid plan falls back to free with a warning
+        console.warn(`[enforcePlanLimit] Invalid plan "${rawPlan}" for workspace ${workspaceId}, falling back to free`);
+    }
+    const plan: PlanName = isValidPlan(rawPlan) ? rawPlan : "free";
+    const limits = PLAN_LIMITS[plan];
     let isAllowed = true;
 
     switch (feature) {
@@ -367,7 +379,7 @@ export async function enforcePlanLimit(
         case "teams": isAllowed = limits.maxTeams === -1 || currentCount < limits.maxTeams; break;
         case "boards": isAllowed = limits.maxBoards === -1 || currentCount < limits.maxBoards; break;
         case "calendar_events": isAllowed = limits.maxCalendarEvents === -1 || currentCount < limits.maxCalendarEvents; break;
-        case "boots": isAllowed = limits.hasNovaAI && (limits.maxNovaRequests === -1 || currentCount < limits.maxNovaRequests); break;
+        case "nova_ai": isAllowed = limits.hasNovaAI && (limits.maxNovaRequests === -1 || currentCount < limits.maxNovaRequests); break;
         case "chat": isAllowed = limits.maxChatMessages === -1 || currentCount < limits.maxChatMessages; break;
         case "integrations": isAllowed = limits.hasIntegrations && (limits.maxIntegrations === -1 || currentCount < limits.maxIntegrations); break;
         case "analytics": isAllowed = limits.hasAdvancedAnalytics; break;

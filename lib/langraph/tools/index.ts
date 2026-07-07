@@ -1,10 +1,17 @@
 import { DynamicStructuredTool } from "@langchain/core/tools";
-import { buildAllLangGraphTools, buildLangGraphToolWrapper, type LangGraphToolContext } from "./wrapper";
+import { buildLangGraphToolWrapper, type LangGraphToolContext } from "./wrapper";
+import { buildTools } from "@/lib/ai-tools";
+import type { ToolCategory } from "@/lib/ai-tools/registry";
 
 export type { LangGraphToolContext } from "./wrapper";
 
-export function buildLangGraphTools(ctx: LangGraphToolContext): DynamicStructuredTool[] {
-  return buildAllLangGraphTools(ctx);
+export function buildLangGraphTools(ctx: LangGraphToolContext, categories?: ToolCategory[]): DynamicStructuredTool[] {
+  const aiCtx = { user: { id: ctx.userId }, workspaceId: ctx.workspaceId, projectId: ctx.projectId };
+  const tools = buildTools(aiCtx, categories);
+  const aiTools = Object.keys(tools).map((name) => buildLangGraphToolWrapper(ctx, name));
+  const { buildServiceTools } = require("./services");
+  const serviceTools = buildServiceTools(ctx);
+  return [...aiTools, ...serviceTools];
 }
 
 export function buildToolByName(ctx: LangGraphToolContext, toolName: string): DynamicStructuredTool {
@@ -16,4 +23,4 @@ export function getAvailableToolNames(): string[] {
   return ALL_TOOL_NAMES;
 }
 
-export { buildAllLangGraphTools, buildLangGraphToolWrapper };
+export { buildLangGraphToolWrapper };

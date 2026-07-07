@@ -21,7 +21,10 @@ export const exportTimeline = ({ format: exportFormat, tasks }: ExportOptions) =
             t.isMilestone ? "Yes" : "No"
         ]);
 
-        const csvContent = [headers.join(","), ...rows.map(r => r.join(","))].join("\n");
+        const csvContent = [headers.join(","), ...rows.map(r => r.map(cell => {
+            const str = String(cell ?? "");
+            return /[,"\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+        }).join(","))].join("\n");
         downloadFile(csvContent, `theta-timeline-${format(new Date(), "yyyy-MM-dd")}.csv`, "text/csv");
     } else if (exportFormat === "pdf") {
         // High-fidelity PDF export would typically use jspdf + html2canvas

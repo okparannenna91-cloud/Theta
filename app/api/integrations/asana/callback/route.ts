@@ -12,9 +12,11 @@ export async function GET(request: NextRequest) {
 
     try {
         let workspaceId: string;
+        let codeVerifier: string | undefined;
         try {
             const payload = verifyOAuthState(state);
             workspaceId = payload.workspaceId;
+            codeVerifier = payload.codeVerifier as string | undefined;
         } catch {
             return NextResponse.json({ error: "Invalid state parameter" }, { status: 400 });
         }
@@ -28,18 +30,25 @@ export async function GET(request: NextRequest) {
         const clientSecret = process.env.ASANA_CLIENT_SECRET;
         const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/asana/callback`;
 
+        const tokenParams: Record<string, string> = {
+            grant_type: "authorization_code",
+            client_id: clientId!,
+            client_secret: clientSecret!,
+            redirect_uri: redirectUri,
+            code: code,
+        };
+
+        // PKCE: include code_verifier in token exchange
+        if (codeVerifier) {
+            tokenParams.code_verifier = codeVerifier;
+        }
+
         const response = await fetch("https://app.asana.com/-/oauth_token", {
             method: "POST",
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded",
             },
-            body: new URLSearchParams({
-                grant_type: "authorization_code",
-                client_id: clientId!,
-                client_secret: clientSecret!,
-                redirect_uri: redirectUri,
-                code: code,
-            }),
+            body: new URLSearchParams(tokenParams),
         });
 
         const data = await response.json();

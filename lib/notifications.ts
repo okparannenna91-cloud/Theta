@@ -4,14 +4,20 @@ import { getAblyServer, getWorkspaceChannel } from "./ably";
 export type NotificationType =
     | "task_assigned"
     | "task_updated"
+    | "task_completed"
     | "project_created"
     | "project_updated"
+    | "project_update"
     | "team_invite"
     | "team_joined"
     | "workspace_invite"
     | "limit_warning"
     | "payment_success"
-    | "payment_failed";
+    | "payment_failed"
+    | "mention"
+    | "comment"
+    | "deadline"
+    | "reminder";
 
 interface NotificationMetadata {
     [key: string]: any;

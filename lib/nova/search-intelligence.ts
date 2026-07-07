@@ -69,7 +69,7 @@ export class SearchIntelligence {
     try {
       
       const saved = await prisma.savedSearch.create({
-        data: { workspaceId, userId, name, query, domain, searchType, filters: JSON.parse(JSON.stringify(filters ?? {})) },
+        data: { workspaceId, userId, name, query, domain, searchType, filters: (filters ?? {}) as any },
       });
       return saved.id;
     } catch (error) {
@@ -95,10 +95,11 @@ export class SearchIntelligence {
     }
   }
 
-  public static async deleteSavedSearch(workspaceId: string, searchId: string): Promise<boolean> {
+  public static async deleteSavedSearch(workspaceId: string, searchId: string, userId?: string): Promise<boolean> {
     try {
-      
-      await prisma.savedSearch.delete({ where: { id: searchId } });
+      const where: any = { id: searchId, workspaceId };
+      if (userId) where.userId = userId;
+      await prisma.savedSearch.delete({ where });
       return true;
     } catch (error) {
       console.warn("[SearchIntelligence] Failed to delete saved search:", error);
@@ -106,10 +107,11 @@ export class SearchIntelligence {
     }
   }
 
-  public static async togglePinSearch(workspaceId: string, searchId: string, isPinned: boolean): Promise<boolean> {
+  public static async togglePinSearch(workspaceId: string, searchId: string, isPinned: boolean, userId?: string): Promise<boolean> {
     try {
-      
-      await prisma.savedSearch.update({ where: { id: searchId }, data: { isPinned } });
+      const where: any = { id: searchId, workspaceId };
+      if (userId) where.userId = userId;
+      await prisma.savedSearch.update({ where, data: { isPinned } });
       return true;
     } catch (error) {
       console.warn("[SearchIntelligence] Failed to toggle pin:", error);
