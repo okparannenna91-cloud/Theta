@@ -1,10 +1,12 @@
 import crypto from 'crypto';
 
 const ALGORITHM = 'aes-256-gcm';
-const STATE_SALT: string = process.env.OAUTH_STATE_SECRET!;
-
-if (!STATE_SALT) {
-  throw new Error('OAUTH_STATE_SECRET is not defined in environment variables');
+function getStateSalt(): string {
+  const salt = process.env.OAUTH_STATE_SECRET;
+  if (!salt) {
+    throw new Error('OAUTH_STATE_SECRET is not defined in environment variables');
+  }
+  return salt;
 }
 const IV_LENGTH = 12; // GCM standard IV length
 const AUTH_TAG_LENGTH = 16;
@@ -78,7 +80,8 @@ export function decrypt(encryptedData: string): string {
  * @returns Base64-encoded string with HMAC signature
  */
 export function signOAuthState(payload: Record<string, any>): string {
-    const hmac = crypto.createHmac('sha256', STATE_SALT);
+    const stateSalt = getStateSalt();
+    const hmac = crypto.createHmac('sha256', stateSalt);
     const data = JSON.stringify(payload);
     hmac.update(data);
     const sig = hmac.digest('hex');
@@ -96,7 +99,8 @@ export function verifyOAuthState(state: string): Record<string, any> {
     if (!sig) {
         throw new Error('Missing state signature');
     }
-    const hmac = crypto.createHmac('sha256', STATE_SALT);
+    const stateSalt = getStateSalt();
+    const hmac = crypto.createHmac('sha256', stateSalt);
     hmac.update(JSON.stringify(payload));
     const expected = hmac.digest('hex');
     if (!crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(expected))) {
