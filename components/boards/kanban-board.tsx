@@ -613,17 +613,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     },
   });
 
-  if (isLoading) {
-    return (
-      <div className="p-8 flex items-center justify-center h-full">
-        <div className="flex flex-col items-center gap-2">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground animate-pulse">Loading board...</p>
-        </div>
-      </div>
-    );
-  }
-
   const columns = board?.columns || [];
   const tasks = board?.tasks || [];
 
@@ -663,6 +652,21 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       default: return 0;
     }
   }), [filteredTasks, sortConfig]);
+
+  const allTags = useMemo(() => Array.from(
+    new Map(tasks.flatMap((t: any) => t.tags || []).map((tag: any) => [tag.id, tag])).values()
+  ) as any[], [tasks]);
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground animate-pulse">Loading board...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleDragStart = (event: any) => {
     const { active } = event;
@@ -772,10 +776,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       onAction: () => batchDeleteMutation.mutate(selectedTaskIds)
     });
   };
-
-  const allTags = useMemo(() => Array.from(
-    new Map(tasks.flatMap((t: any) => t.tags || []).map((tag: any) => [tag.id, tag])).values()
-  ) as any[], [tasks]);
 
   const handleOpenColumnSettings = (column: any) => {
     setEditingColumn(column);

@@ -340,7 +340,7 @@ export function NovaOnboarding({ onComplete }: NovaOnboardingProps) {
                                     transition={{ delay: 0.6 }}
                                     className="text-sm text-muted-foreground mb-10 max-w-md mx-auto"
                                 >
-                                    I'll learn how your team works and prepare a workspace that's ready to use.
+                                    I&apos;ll learn how your team works and prepare a workspace that&apos;s ready to use.
                                 </motion.p>
 
                                 <motion.div
@@ -517,7 +517,7 @@ export function NovaOnboarding({ onComplete }: NovaOnboardingProps) {
 
                                 <div className="bg-gradient-to-br from-primary/5 to-transparent rounded-2xl p-6 mb-6 border border-primary/10">
                                     <p className="text-sm text-foreground font-medium mb-4">
-                                        I've learned enough. Here's what I'll create for you:
+                                        I&apos;ve learned enough. Here&apos;s what I&apos;ll create for you:
                                     </p>
                                     <div className="space-y-3">
                                         <div className="flex items-center gap-3 text-sm">

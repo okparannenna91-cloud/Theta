@@ -184,7 +184,7 @@ export function OnboardingModal({ onComplete }: OnboardingModalProps) {
                                                             </div>
                                                             <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                                                                 <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-xs font-bold text-indigo-600">?</span>
-                                                                Ask questions like "What's my team working on?"
+                                                                Ask questions like &quot;What&apos;s my team working on?&quot;
                                                             </div>
                                                             <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-400">
                                                                 <span className="w-6 h-6 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-xs font-bold text-indigo-600">+</span>

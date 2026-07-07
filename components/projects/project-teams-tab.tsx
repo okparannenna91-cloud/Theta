@@ -47,14 +47,6 @@ export function ProjectTeamsTab({ projectId, workspaceId }: ProjectTeamsTabProps
         }
     });
 
-    if (teamsError) {
-        return (
-            <div className="flex items-center justify-center min-h-[200px]">
-                <p className="text-sm text-muted-foreground">Failed to load teams. Please try again.</p>
-            </div>
-        );
-    }
-
     const unlinkMutation = useMutation({
         mutationFn: async (teamId: string) => {
             const res = await fetch(`/api/projects/${projectId}/teams?workspaceId=${workspaceId}&teamId=${teamId}`, {
@@ -71,6 +63,14 @@ export function ProjectTeamsTab({ projectId, workspaceId }: ProjectTeamsTabProps
             toast.error("Failed to unlink team");
         }
     });
+
+    if (teamsError) {
+        return (
+            <div className="flex items-center justify-center min-h-[200px]">
+                <p className="text-sm text-muted-foreground">Failed to load teams. Please try again.</p>
+            </div>
+        );
+    }
 
     const filteredTeams = teams?.filter((t: any) => 
         t.name.toLowerCase().includes(searchQuery.toLowerCase())

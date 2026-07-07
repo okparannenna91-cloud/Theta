@@ -245,7 +245,7 @@ export default function ProjectsPage() {
           {searchQuery ? (
             <>
               <h3 className="text-sm font-semibold mb-2">No matching projects</h3>
-              <p className="text-sm text-muted-foreground mb-4">No projects found matching "{searchQuery}". Try a different search term.</p>
+              <p className="text-sm text-muted-foreground mb-4">No projects found matching &quot;{searchQuery}&quot;. Try a different search term.</p>
               <Button onClick={() => setSearchQuery("")} variant="outline">Clear Search</Button>
             </>
           ) : (
