@@ -663,6 +663,7 @@ model ChatMessage {
   teamId      String?  @db.ObjectId
   userId      String   @db.ObjectId
   attachment  Json?    @db.Json
+  reactions   Json?    @db.Json
   
   isPinned    Boolean  @default(false)
   isEdited    Boolean  @default(false)

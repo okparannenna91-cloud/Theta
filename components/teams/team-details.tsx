@@ -52,6 +52,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { TeamChat } from "./team-chat";
+import { TeamChatEnhanced } from "./team-chat-enhanced";
 import { usePopups } from "@/components/popups/popup-manager";
 import { format, formatDistanceToNow } from "date-fns";
 import Image from "next/image";
@@ -827,8 +828,8 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
 
                         {/* CHAT TAB */}
                         {activeTab === "chat" && (
-                            <div className="bg-card rounded-2xl border shadow-sm h-[600px] overflow-hidden">
-                                <TeamChat teamId={team.id} workspaceId={team.workspaceId} />
+                            <div className="bg-card rounded-2xl border shadow-sm h-[600px] lg:h-[650px] overflow-hidden">
+                                <TeamChatEnhanced teamId={team.id} workspaceId={team.workspaceId} />
                             </div>
                         )}
 
