@@ -118,7 +118,7 @@ export default function SharedTeamSpace({ workspaceId, teamId }: { workspaceId: 
                     </div>
                   </div>
 
-                  {overview.sprintProgress > 0 && (
+                  {overview.sprintProgress != null && overview.sprintProgress > 0 && (
                     <div>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs text-muted-foreground">Sprint Progress</span>
