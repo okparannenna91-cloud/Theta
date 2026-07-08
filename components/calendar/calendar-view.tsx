@@ -170,7 +170,8 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
             const res = await fetch(`/api/calendar?workspaceId=${workspaceId}`);
             if (!res.ok) throw new Error("Failed to fetch events");
             return res.json();
-        }
+        },
+        enabled: !!workspaceId,
     });
 
     const events = Array.isArray(calendarData?.events) ? calendarData.events : Array.isArray(calendarData) ? calendarData : [];

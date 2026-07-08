@@ -5,6 +5,7 @@ import "@vibe/core/tokens";
 import { ClerkProvider } from "@clerk/nextjs";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
+import { WorkspaceProvider } from "@/components/providers/workspace-provider";
 import { AblyProvider } from "@/components/providers/ably-provider";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { Toaster } from "sonner";
@@ -114,6 +115,7 @@ export default function RootLayout({
             storageKey="vibe-theme"
           >
             <QueryProvider>
+              <WorkspaceProvider>
               <AblyProvider>
                 <PostHogProvider>
                   <PopupProvider>
@@ -125,6 +127,7 @@ export default function RootLayout({
                   </PopupProvider>
                 </PostHogProvider>
               </AblyProvider>
+              </WorkspaceProvider>
             </QueryProvider>
           </ThemeProvider>
         </body>

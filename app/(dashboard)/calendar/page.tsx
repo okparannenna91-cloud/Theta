@@ -1,20 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useWorkspace } from "@/hooks/use-workspace";
 import { CalendarView } from "@/components/calendar/calendar-view";
 import { Skeleton } from "@/components/ui/skeleton";
 
-async function fetchWorkspaces() {
-    const res = await fetch("/api/workspaces");
-    if (!res.ok) throw new Error("Failed to fetch workspaces");
-    return res.json();
-}
-
 export default function CalendarPage() {
-    const { data: workspaces, isLoading } = useQuery({
-        queryKey: ["workspaces"],
-        queryFn: fetchWorkspaces,
-    });
+    const { activeWorkspace, isLoading } = useWorkspace();
 
     if (isLoading) {
         return (
@@ -28,9 +19,7 @@ export default function CalendarPage() {
         );
     }
 
-    const workspace = workspaces?.[0];
-
-    if (!workspace) {
+    if (!activeWorkspace) {
         return (
             <div className="text-center py-16 border rounded-lg">
                 <p className="text-sm text-muted-foreground">Please create a workspace first.</p>
@@ -46,7 +35,7 @@ export default function CalendarPage() {
                     Manage your schedule and events
                 </p>
             </div>
-            <CalendarView workspaceId={workspace.id} />
+            <CalendarView workspaceId={activeWorkspace.id} />
         </div>
     );
 }

@@ -401,6 +401,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const { data: board, isLoading } = useQuery({
     queryKey: ["board", boardId],
     queryFn: () => fetchBoard(boardId),
+    enabled: !!boardId,
   });
 
   useEffect(() => {
