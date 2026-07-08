@@ -36,7 +36,10 @@ export default function DashboardPage() {
     queryFn: async () => {
       const url = activeWorkspaceId ? `/api/dashboard?workspaceId=${activeWorkspaceId}&days=${timeRange}` : "/api/dashboard";
       const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch dashboard data");
+      if (!res.ok) {
+        const errorBody = await res.json().catch(() => ({}));
+        throw new Error(errorBody.details || errorBody.error || `Request failed with status ${res.status}`);
+      }
       return res.json();
     },
     enabled: !!activeWorkspaceId,

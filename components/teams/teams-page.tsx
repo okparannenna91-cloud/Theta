@@ -31,12 +31,6 @@ async function fetchTeams(workspaceId: string | null) {
   return res.json();
 }
 
-async function fetchTeamStats(teamId: string, workspaceId: string) {
-  const res = await fetch(`/api/activity?workspaceId=${workspaceId}&entityId=${teamId}&entityType=team&limit=5`);
-  if (!res.ok) return { activities: [], tasksCount: 0, projectsCount: 0 };
-  return res.json();
-}
-
 async function createTeam(data: { name: string; description?: string; workspaceId: string }) {
   const res = await fetch("/api/teams", {
     method: "POST", headers: { "Content-Type": "application/json" },

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { isSuperAdmin } from "@/lib/super-admin";
 import { prisma } from "@/lib/prisma";
 
 export async function GET() {
@@ -9,8 +10,7 @@ export async function GET() {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const isAdmin = process.env.SUPER_ADMIN_USER_IDS?.split(",").includes(user.id);
-        if (!isAdmin) {
+        if (!(await isSuperAdmin(user.id))) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 });
         }
 

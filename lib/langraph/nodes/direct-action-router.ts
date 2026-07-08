@@ -29,7 +29,20 @@ function detectAction(prompt: string): { action: string; confidence: number; par
   if (hasNegation(trimmed)) return null;
 
   const patterns: Array<{ action: string; keywords: string[]; confidence: number; extract: (input: string) => Record<string, string | undefined> }> = [
-    { action: "create_task", keywords: ["create", "task"], confidence: 0.95, extract: (i) => { const m = i.match(/create\s+(?:a\s+)?task\s+(?:called\s+)?[""](.+?)[""]/i); return m ? { title: m[1] } : { title: "New task" }; } },
+    { action: "create_task", keywords: ["create", "task"], confidence: 0.95, extract: (i) => {
+        const params: Record<string, string | undefined> = {};
+        const titleMatch = i.match(/create\s+(?:a\s+)?task\s+(?:called\s+)?[""](.+?)[""]/i);
+        params.title = titleMatch ? titleMatch[1] : "New task";
+        const priorityMatch = i.match(/priority\s+(?:of\s+)?(low|medium|high|urgent)/i);
+        if (priorityMatch) params.priority = priorityMatch[1];
+        const statusMatch = i.match(/status\s+(?:of\s+)?(\w+)/i);
+        if (statusMatch) params.status = statusMatch[1];
+        const dueMatch = i.match(/due\s+(?:date\s+)?(\d{4}-\d{2}-\d{2}|tomorrow|next\s+\w+)/i);
+        if (dueMatch) params.dueDate = dueMatch[1];
+        const assigneeMatch = i.match(/(?:assign|assignee)\s+(?:to\s+)?(.+?)(?:\s+with|\s+and|\s+due|$)/i);
+        if (assigneeMatch) params.assigneeId = assigneeMatch[1].trim();
+        return params;
+    } },
     { action: "list_tasks", keywords: ["list", "tasks"], confidence: 0.9, extract: () => ({}) },
     { action: "create_project", keywords: ["create", "project"], confidence: 0.95, extract: (i) => { const m = i.match(/create\s+(?:a\s+)?project\s+(?:called\s+)?[""](.+?)[""]/i); return m ? { name: m[1] } : { name: "New project" }; } },
     { action: "list_projects", keywords: ["list", "projects"], confidence: 0.9, extract: () => ({}) },

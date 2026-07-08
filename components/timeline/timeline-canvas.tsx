@@ -109,7 +109,11 @@ export default function TimelineCanvas({ tasks, zoomLevel, searchQuery }: Timeli
     }, [zoomLevel]);
 
     const criticalPath = useMemo(() => {
-        const flatten = (nodes: any[]): any[] => nodes.flatMap((n: any) => [n, ...flatten(n.children)]);
+        if (!Array.isArray(taskTree)) return new Set();
+        const flatten = (nodes: any[]): any[] => {
+            if (!Array.isArray(nodes) || nodes.length === 0) return [];
+            return nodes.flatMap((n: any) => [n, ...flatten(Array.isArray(n.children) ? n.children : [])]);
+        };
         const unfiltered = taskTree.flatMap((nodes) => flatten(nodes));
         const schedulingTasks = unfiltered.map(t => ({
             id: t.id,

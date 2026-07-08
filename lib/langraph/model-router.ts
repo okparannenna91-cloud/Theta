@@ -41,7 +41,7 @@ export function routeModel(prompt: string): RouterConfig {
     promptPreview: prompt.substring(0, 80),
   });
 
-  const primaryModel = "openrouter/free";
+  const primaryModel = "openrouter/auto";
   const geminiModel = "gemini-2.5-flash";
   const cohereModel = "command-a-03-2025";
   const openaiModel = "gpt-4o-mini";

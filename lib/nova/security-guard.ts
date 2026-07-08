@@ -45,6 +45,11 @@ export class SecurityGuard {
   public static async validate(options: PermissionCheckOptions): Promise<boolean> {
     const { userId, workspaceId, action, resourceType, projectId } = options;
 
+    const { isSuperAdmin } = await import("../super-admin");
+    if (await isSuperAdmin(userId)) {
+      return true;
+    }
+
     if (isEnforceLocked(userId, workspaceId)) {
       logger.error(`Security lock active for user ${userId} in workspace ${workspaceId} — too many failures`);
       return false;

@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
+import { useAuth } from "@clerk/nextjs";
 
 const WORKSPACE_SWITCH_EVENT = "workspace:switch";
 
@@ -19,12 +20,25 @@ function getInitialWorkspaceId(): string | null {
 }
 
 export function useWorkspace() {
+  const { userId, isLoaded: isAuthLoaded } = useAuth();
   const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(getInitialWorkspaceId);
+  const prevUserId = useRef<string | null | undefined>(undefined);
+
+  // Reset workspace selection on user change (login/logout/switch accounts)
+  useEffect(() => {
+    if (!isAuthLoaded) return;
+    if (prevUserId.current !== undefined && prevUserId.current !== userId) {
+      setActiveWorkspaceId(null);
+      localStorage.removeItem("activeWorkspaceId");
+    }
+    prevUserId.current = userId;
+  }, [userId, isAuthLoaded]);
 
   const { data: workspaces, isLoading, isSuccess, error } = useQuery({
-    queryKey: ["workspaces"],
+    queryKey: ["workspaces", userId],
     queryFn: fetchWorkspaces,
-    staleTime: 300000, // 5 min – workspace list rarely changes
+    enabled: !!userId,
+    staleTime: 300000,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
   });
@@ -46,19 +60,17 @@ export function useWorkspace() {
 
   // Sync active workspace from localStorage only when we have valid list data
   useEffect(() => {
-    if (!isSuccess) return;
+    if (!isSuccess || !workspaces || workspaces.length === 0) return;
 
-    if (workspaces && workspaces.length > 0) {
-      const savedId = localStorage.getItem("activeWorkspaceId");
-      const isValidSavedId = workspaces.find((w: any) => w.id === savedId);
+    const savedId = localStorage.getItem("activeWorkspaceId");
+    const isValidSavedId = workspaces.find((w: any) => w.id === savedId);
 
-      if (savedId && isValidSavedId) {
-        if (activeWorkspaceId !== savedId) setActiveWorkspaceId(savedId);
-      } else if (!activeWorkspaceId) {
-        const firstId = workspaces[0].id;
-        setActiveWorkspaceId(firstId);
-        localStorage.setItem("activeWorkspaceId", firstId);
-      }
+    if (savedId && isValidSavedId) {
+      if (activeWorkspaceId !== savedId) setActiveWorkspaceId(savedId);
+    } else if (!activeWorkspaceId) {
+      const firstId = workspaces[0].id;
+      setActiveWorkspaceId(firstId);
+      localStorage.setItem("activeWorkspaceId", firstId);
     }
   }, [workspaces, activeWorkspaceId, isSuccess]);
 

@@ -145,6 +145,15 @@ export async function POST(req: Request) {
             durationMs: agentResult.durationMs,
             route: agentResult.route,
         });
+
+        // Track Nova usage for billing/limits
+        if (workspaceId && user) {
+            const { incrementNovaUsage } = await import("@/lib/usage-tracking");
+            incrementNovaUsage(workspaceId, user.id).catch((err: any) =>
+                logger.warn("[Nova] Failed to track usage", err)
+            );
+        }
+
         return new Response(agentResult.response, {
             status: 200,
             headers: { "Content-Type": "text/plain; charset=utf-8" },

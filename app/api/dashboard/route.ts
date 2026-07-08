@@ -69,7 +69,9 @@ export async function GET(req: Request) {
     const whereTask: Record<string, unknown> = { workspaceId, projectId: { in: accessibleProjectIds } };
     if (teamId) whereTask.project = { teamId };
 
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const daysParam = searchParams.get("days");
+    const daysBack = daysParam ? parseInt(daysParam, 10) : 7;
+    const rangeStart = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
 
     const [
       projectsCount, tasksCount, membersCount, recentProjects, recentTasks,
@@ -93,7 +95,7 @@ export async function GET(req: Request) {
       prisma.activity.findMany({
         where: {
           workspaceId,
-          createdAt: { gte: sevenDaysAgo },
+          createdAt: { gte: rangeStart },
           OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }]
         }
       }),
@@ -129,11 +131,12 @@ export async function GET(req: Request) {
     }
 
     // Build activity trends from the batched activities
-    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const activityTrends = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(Date.now() - (6 - i) * 24 * 60 * 60 * 1000);
+    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const trendDays = Math.min(daysBack, 7);
+    const activityTrends = Array.from({ length: trendDays }, (_, i) => {
+      const d = new Date(Date.now() - (trendDays - 1 - i) * 24 * 60 * 60 * 1000);
       const dayKey = d.toDateString();
-      return { name: days[d.getDay()], activities: activities.filter(a => new Date(a.createdAt).toDateString() === dayKey).length };
+      return { name: dayNames[d.getDay()], activities: activities.filter(a => new Date(a.createdAt).toDateString() === dayKey).length };
     });
 
     const rawActivities: (typeof activities[0] & { metadata?: Record<string, unknown> })[] = await prisma.activity.findMany({

@@ -10,7 +10,7 @@ const FLW_BASE = "https://api.flutterwave.com/v3";
 export class FlutterwaveProvider implements BillingProvider {
   readonly id = "flutterwave";
   readonly name = "Flutterwave";
-  readonly currencies: Currency[] = ["USD", "NGN", "EUR", "GBP"];
+  readonly currencies: Currency[] = ["USD", "EUR", "GBP"];
   readonly capabilities = ["payment_intents", "checkout_sessions", "refunds", "webhooks"] as const;
 
   async createCustomer(email: string, name?: string, metadata?: Record<string, string>): Promise<CustomerResult> {

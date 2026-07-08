@@ -54,7 +54,7 @@ export async function generateWithOpenRouter(
         messages.push({ role: "user", content: prompt });
     }
 
-    const model = modelName || (imageUrl ? "openrouter/free" : "openrouter/free");
+    const model = modelName || (imageUrl ? "openrouter/auto" : "openrouter/auto");
 
     const fetchController = new AbortController();
     const fetchTimeout = setTimeout(() => fetchController.abort("OpenRouter fetch timeout"), 25000);

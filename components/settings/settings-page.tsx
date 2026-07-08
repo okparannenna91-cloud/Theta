@@ -12,12 +12,11 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Settings, Palette, Bell, Shield, Smartphone, Moon, Sun, Laptop,
-  Slack, Calendar, ExternalLink, Check, Zap, Globe, Lock, Code, Sparkles
+  Calendar, ExternalLink, Check, Zap, Globe, Lock, Code, Sparkles
 } from "lucide-react";
 import { usePreferences } from "@/hooks/use-preferences";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { toast } from "sonner";
-import IntegrationDashboard from "@/components/integrations/integration-dashboard";
 import { usePopups } from "@/components/popups/popup-manager";
 import { useQuery } from "@tanstack/react-query";
 
@@ -212,20 +211,6 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
-        </section>
-
-        {/* Integrations */}
-        <section>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-              <ExternalLink className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold">Integrations</h2>
-              <p className="text-xs text-muted-foreground">Connected services and tools</p>
-            </div>
-          </div>
-          <IntegrationDashboard />
         </section>
 
         {/* Nova AI */}

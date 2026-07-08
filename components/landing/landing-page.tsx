@@ -1,7 +1,7 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardDescription, CardContent } from "@/components/ui/card";
 import { Star, Sparkles, Zap, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -177,7 +177,7 @@ export default function LandingPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8 border-t text-xs text-muted-foreground">
-            <p>&copy; 2026 Theta Systems.</p>
+            <p>&copy; {new Date().getFullYear()} Theta Systems.</p>
             <div className="flex gap-6">
               <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>

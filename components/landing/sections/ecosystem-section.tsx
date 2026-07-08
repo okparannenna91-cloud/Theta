@@ -73,7 +73,7 @@ const features = [
 
 export default function EcosystemSection() {
   return (
-    <section className="relative py-24 sm:py-32 overflow-hidden">
+    <section id="features" className="relative py-24 sm:py-32 overflow-hidden">
       <div className="absolute inset-0 bg-gradient-to-b from-background via-primary/[0.02] to-background pointer-events-none" />
 
       <div className="max-w-7xl mx-auto px-6 relative z-10">

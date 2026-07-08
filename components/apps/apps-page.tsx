@@ -363,7 +363,7 @@ export default function AppsPage() {
                         </>}
                         {selectedProvider?.id === "woocommerce" && <>
                             <Label>Store URL</Label>
-                            <Input placeholder="https://mystore.com" value={manualInputs.storeUrl || ""} onChange={e => setManualInputs({ ...manualInputs, storeUrl: e.target.value })} />
+                            <Input placeholder="https://mystore.com" value={manualInputs.siteUrl || ""} onChange={e => setManualInputs({ ...manualInputs, siteUrl: e.target.value })} />
                             <Label>Consumer Key</Label>
                             <Input placeholder="ck_..." value={manualInputs.consumerKey || ""} onChange={e => setManualInputs({ ...manualInputs, consumerKey: e.target.value })} />
                             <Label>Consumer Secret</Label>

@@ -38,9 +38,18 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
       }
     },
     create_task: {
-      description: 'Create a new task.',
-      inputSchema: z.object({ title: z.string(), description: z.string().optional(), priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(), projectId: z.string().optional() }),
-      execute: async ({ title, description, priority: initialPriority, projectId: targetProjectId }: Record<string, unknown>) => {
+      description: 'Create a new task with full parameter support.',
+      inputSchema: z.object({
+        title: z.string(),
+        description: z.string().optional(),
+        priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(),
+        status: z.string().optional(),
+        assigneeId: z.string().optional(),
+        dueDate: z.string().optional(),
+        labels: z.array(z.string()).optional(),
+        projectId: z.string().optional()
+      }),
+      execute: async ({ title, description, priority: initialPriority, status, assigneeId, dueDate, labels, projectId: targetProjectId }: Record<string, unknown>) => {
         await enforce(ctx, "write", "task");
         const recommendation = await TaskIntelligence.analyzeAndRecommend(workspaceId, title as string, description as string | undefined);
         let pId = (targetProjectId as string) || projectId;
@@ -55,7 +64,37 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
           const access = await canAccessProject(user.id, pId, workspaceId);
           if (!access.hasAccess) return { error: "Access denied to the specified project." };
         }
-        const task = await prisma.task.create({ data: { title: title as string, description: description as string | undefined, priority: resolvedPriority(initialPriority as string, recommendation), status: STATUS_TODO, workspaceId, projectId: pId, userId: recommendation.suggestedAssigneeId || user.id } });
+
+        const taskData: any = {
+          title: title as string,
+          description: description as string | undefined,
+          priority: resolvedPriority(initialPriority as string, recommendation),
+          status: (status as string) || STATUS_TODO,
+          workspaceId,
+          projectId: pId,
+          userId: (assigneeId as string) || recommendation.suggestedAssigneeId || user.id,
+        };
+
+        if (dueDate) {
+          taskData.dueDate = new Date(dueDate as string);
+        }
+
+        if (labels && Array.isArray(labels)) {
+          const existingTags = await prisma.tag.findMany({
+            where: { workspaceId, name: { in: labels as string[] } },
+          });
+          const existingNames = new Set(existingTags.map(t => t.name));
+          const newTags = (labels as string[])
+            .filter(name => !existingNames.has(name))
+            .map(name => ({ name, workspaceId }));
+          if (newTags.length > 0) {
+            await prisma.tag.createMany({ data: newTags });
+          }
+          const allTags = await prisma.tag.findMany({ where: { workspaceId, name: { in: labels as string[] } } });
+          taskData.tagIds = allTags.map(t => t.id);
+        }
+
+        const task = await prisma.task.create({ data: taskData });
         await prisma.activity.create({ data: { action: "CREATED", entityType: "TASK", entityId: task.id, workspaceId, userId: user.id, projectId: pId, metadata: JSON.parse(JSON.stringify({ source: "NOVA_AI", title, intelligenceReasoning: recommendation.reason })) } });
         return { success: true, message: `Created task **${title}**. ${recommendation.reason}` };
       }

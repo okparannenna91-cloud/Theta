@@ -16,7 +16,9 @@ import {
     Plus,
     CloudLightning,
     Hash,
-    Link2
+    Link2,
+    MessageSquare,
+    Chrome
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -98,6 +100,25 @@ const PROVIDERS = [
         color: "#96588A",
         gradient: "from-purple-600 to-purple-400",
         canSync: true,
+    },
+    {
+        id: "slack",
+        name: "Slack",
+        description: "Send real-time notifications and task updates to your Slack workspace.",
+        icon: MessageSquare,
+        color: "#4A154B",
+        gradient: "from-purple-800 to-purple-600",
+        canSync: false,
+        linkOnly: true,
+    },
+    {
+        id: "google",
+        name: "Google Workspace",
+        description: "Connect Calendar, Gmail, Drive, Docs, Sheets, and more.",
+        icon: Chrome,
+        color: "#4285F4",
+        gradient: "from-blue-500 to-blue-400",
+        canSync: false,
     },
     {
         id: "figma",

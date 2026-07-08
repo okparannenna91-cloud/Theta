@@ -196,11 +196,28 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
             }
             return res.json();
         },
+        onMutate: async (eventData) => {
+            await queryClient.cancelQueries({ queryKey: ["calendar-events", workspaceId] });
+            const previous = queryClient.getQueryData(["calendar-events", workspaceId]);
+            if (!eventData.id) {
+                queryClient.setQueryData(["calendar-events", workspaceId], (old: any) => {
+                    const events = Array.isArray(old?.events) ? old.events : Array.isArray(old) ? old : [];
+                    const optimistic = { ...eventData, id: `temp-${Date.now()}`, userId: workspaceId };
+                    return old?.events ? { ...old, events: [...events, optimistic] } : [...events, optimistic];
+                });
+            }
+            return { previous };
+        },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+            queryClient.invalidateQueries({ queryKey: ["calendar-events", workspaceId] });
             setIsEventDialogOpen(false);
             resetForm();
             toast.success("Calendar updated");
+        },
+        onError: (_err, _vars, context) => {
+            if (context?.previous) {
+                queryClient.setQueryData(["calendar-events", workspaceId], context.previous);
+            }
         }
     });
 
@@ -285,7 +302,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
             if (!res.ok) throw new Error("Failed to delete event");
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["calendar-events"] });
+            queryClient.invalidateQueries({ queryKey: ["calendar-events", workspaceId] });
             setIsEventDialogOpen(false);
             resetForm();
             toast.success("Event deleted");

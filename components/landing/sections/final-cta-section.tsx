@@ -65,7 +65,7 @@ export default function FinalCtaSection() {
                 className="h-12 px-8 rounded-lg text-sm font-medium"
                 asChild
               >
-                <Link href="/pricing">Book a Demo</Link>
+                <Link href="/pricing">View Pricing</Link>
               </Button>
             </div>
 

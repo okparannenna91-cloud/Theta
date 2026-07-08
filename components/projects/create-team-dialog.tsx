@@ -72,7 +72,8 @@ export function CreateTeamDialog({
                 });
                 
                 if (!linkRes.ok) {
-                    console.error("Auto-link failed, but team was created");
+                    const err = await linkRes.json().catch(() => ({ error: "Auto-link failed" }));
+                    throw new Error(err.error || "Team created but failed to link to project");
                 }
             }
 

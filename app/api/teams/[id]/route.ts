@@ -34,15 +34,20 @@ export async function GET(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        const members = await prisma.teamMember.findMany({ 
-            where: { teamId: params.id }, 
-            select: { userId: true, role: true } 
+        const members = await prisma.teamMember.findMany({
+            where: { teamId: params.id },
+            include: {
+                user: {
+                    select: { id: true, email: true, name: true, imageUrl: true },
+                },
+            },
         });
 
         const userMembership = members.find(m => m.userId === user.id);
 
         return NextResponse.json({
             ...team,
+            members,
             membersCount: members.length,
             userRole: userMembership?.role || "member",
         });
