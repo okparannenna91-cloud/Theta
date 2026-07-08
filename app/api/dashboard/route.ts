@@ -75,7 +75,7 @@ export async function GET(req: Request) {
 
     const [
       projectsCount, tasksCount, membersCount, recentProjects, recentTasks,
-      activities, statuses, totalTaskCount, completedTaskCount, ...statusCounts
+      activities, statuses, totalTaskCount, completedTaskCount
     ] = await Promise.all([
       prisma.project.count({ where: whereProject }),
       prisma.task.count({ where: { ...whereTask, status: { notIn: ["done"] } } }),
@@ -103,15 +103,16 @@ export async function GET(req: Request) {
       // Individual counts instead of groupBy (Prisma MongoDB crashes on nullable fields in groupBy)
       prisma.task.count({ where: whereTask }),
       prisma.task.count({ where: { ...whereTask, status: { in: ["done", "completed"] } } }),
-      // Status distribution: one count per status
-      ...statuses.map(s =>
-        prisma.task.count({ where: { ...whereTask, statusId: s.id } })
-      ),
     ]);
 
     const completionRate = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
 
-    // Status Distribution from individual counts
+    // Status Distribution: one count per status (separate batch to avoid circular ref)
+    const statusCounts = await Promise.all(
+      statuses.map(s =>
+        prisma.task.count({ where: { ...whereTask, statusId: s.id } })
+      )
+    );
     const statusDistribution = statuses.map((s, i) => ({
       name: s.name,
       value: statusCounts[i] ?? 0,
