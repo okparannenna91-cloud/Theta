@@ -66,7 +66,21 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
 
-      whereClause = { workspaceId, teamId, id: { in: accessibleProjectIds } };
+      // Include projects linked via direct teamId OR ProjectTeam join table
+      const projectTeamLinks = await prisma.projectTeam.findMany({
+        where: { teamId },
+        select: { projectId: true },
+      });
+      const teamProjectIds = projectTeamLinks.map(pt => pt.projectId);
+      const directMatch = { teamId };
+      whereClause = {
+        workspaceId,
+        id: { in: accessibleProjectIds },
+        OR: [
+          directMatch,
+          ...(teamProjectIds.length > 0 ? [{ id: { in: teamProjectIds } }] : []),
+        ],
+      };
     } else {
       whereClause = { workspaceId, id: { in: accessibleProjectIds } };
     }

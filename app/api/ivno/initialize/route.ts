@@ -28,7 +28,7 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "planId and workspaceId are required" }, { status: 400 });
         }
 
-        // Accept planId as either plan.id (e.g. "growth-monthly") or plan.planKey (e.g. "growth")
+        // Accept planId as either plan.id (e.g. "growth") or plan.planKey (e.g. "growth")
         const plan =
             PLAN_BY_KEY[planId] ??
             BILLING_PLANS.find((p) => p.id === planId);

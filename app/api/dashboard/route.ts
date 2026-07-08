@@ -75,7 +75,7 @@ export async function GET(req: Request) {
 
     const [
       projectsCount, tasksCount, membersCount, recentProjects, recentTasks,
-      activities, statuses, taskCounts
+      activities, statuses, totalTaskCount, completedTaskCount, ...statusCounts
     ] = await Promise.all([
       prisma.project.count({ where: whereProject }),
       prisma.task.count({ where: { ...whereTask, status: { notIn: ["done"] } } }),
@@ -100,35 +100,36 @@ export async function GET(req: Request) {
         }
       }),
       prisma.status.findMany({ where: { workspaceId }, orderBy: { order: "asc" } }),
-      prisma.task.groupBy({
-        by: ['status', 'priority', 'statusId'],
-        where: whereTask,
-        _count: true,
-      }),
+      // Individual counts instead of groupBy (Prisma MongoDB crashes on nullable fields in groupBy)
+      prisma.task.count({ where: whereTask }),
+      prisma.task.count({ where: { ...whereTask, status: { in: ["done", "completed"] } } }),
+      // Status distribution: one count per status
+      ...statuses.map(s =>
+        prisma.task.count({ where: { ...whereTask, statusId: s.id } })
+      ),
     ]);
 
-    // Compute completion rate from aggregated counts
-    const completionStatusName = statuses[statuses.length - 1]?.name?.toLowerCase() || "completed";
-    const completedCount = taskCounts.filter(t =>
-      t.status?.toLowerCase() === completionStatusName ||
-      t.statusId === statuses[statuses.length - 1]?.id
-    ).reduce((sum, t) => sum + t._count, 0);
-    const totalTaskCount = taskCounts.reduce((sum, t) => sum + t._count, 0);
-    const completionRate = totalTaskCount > 0 ? Math.round((completedCount / totalTaskCount) * 100) : 0;
+    const completionRate = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
 
-    // Status Distribution from aggregated data
-    const statusDistribution = statuses.map(s => {
-      const count = taskCounts
-        .filter(t => t.statusId === s.id || t.status?.toLowerCase() === s.name.toLowerCase())
-        .reduce((sum, t) => sum + t._count, 0);
-      return { name: s.name, value: count };
-    });
+    // Status Distribution from individual counts
+    const statusDistribution = statuses.map((s, i) => ({
+      name: s.name,
+      value: statusCounts[i] ?? 0,
+    }));
 
-    // Priority Distribution from aggregated data
-    const priorityMap: Record<string, number> = { low: 0, medium: 0, high: 0, urgent: 0 };
-    for (const t of taskCounts) {
-      if (t.priority) priorityMap[t.priority] = (priorityMap[t.priority] || 0) + t._count;
-    }
+    // Priority Distribution: individual counts per priority
+    const [priorityLow, priorityMedium, priorityHigh, priorityUrgent] = await Promise.all([
+      prisma.task.count({ where: { ...whereTask, priority: "low" } }),
+      prisma.task.count({ where: { ...whereTask, priority: "medium" } }),
+      prisma.task.count({ where: { ...whereTask, priority: "high" } }),
+      prisma.task.count({ where: { ...whereTask, priority: "urgent" } }),
+    ]);
+    const priorityDistribution = [
+      { name: "Low", value: priorityLow },
+      { name: "Medium", value: priorityMedium },
+      { name: "High", value: priorityHigh },
+      { name: "Urgent", value: priorityUrgent },
+    ];
 
     // Build activity trends from the batched activities
     const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -179,7 +180,7 @@ export async function GET(req: Request) {
       recentActivities,
       activityTrends,
       statusDistribution,
-      priorityDistribution: Object.entries(priorityMap).map(([name, value]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), value })),
+      priorityDistribution,
       workspaceStructure,
       completionTime: [],
     });

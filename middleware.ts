@@ -36,10 +36,7 @@ export default clerkMiddleware(async (auth, req) => {
     try {
       await limiter.check(null, 30, ip);
     } catch {
-      return new NextResponse('Too Many Requests', {
-        status: 429,
-        statusText: 'Too Many Requests'
-      });
+      return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
     }
   }
 

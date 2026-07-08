@@ -44,7 +44,7 @@ export const BILLING_PLANS: BillingPlan[] = [
     ],
   },
   {
-    id: "growth-monthly",
+    id: "growth",
     planKey: "growth",
     name: "Growth",
     priceLabel: "$5",
@@ -71,7 +71,7 @@ export const BILLING_PLANS: BillingPlan[] = [
     ],
   },
   {
-    id: "pro-monthly",
+    id: "pro",
     planKey: "pro",
     name: "Pro",
     priceLabel: "$10",
@@ -99,7 +99,7 @@ export const BILLING_PLANS: BillingPlan[] = [
     ],
   },
   {
-    id: "theta-plus-monthly",
+    id: "theta_plus",
     planKey: "theta_plus",
     name: "Theta Plus",
     priceLabel: "$20",

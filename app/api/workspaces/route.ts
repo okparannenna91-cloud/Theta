@@ -36,13 +36,17 @@ export async function POST(req: Request) {
         }
 
         // Count user's owned free-plan workspaces (not all memberships)
-        const freeWorkspaceCount = await prisma.workspaceMember.count({
-            where: {
-                userId: user.id,
-                role: "owner",
-                workspace: { plan: "free" },
-            },
+        // Split into two queries to avoid Prisma MongoDB relation filter issues in count()
+        const ownedMemberships = await prisma.workspaceMember.findMany({
+            where: { userId: user.id, role: "owner" },
+            select: { workspaceId: true },
         });
+        const ownedWorkspaceIds = ownedMemberships.map(m => m.workspaceId);
+        const freeWorkspaceCount = ownedWorkspaceIds.length > 0
+            ? await prisma.workspace.count({
+                where: { id: { in: ownedWorkspaceIds }, plan: "free" },
+              })
+            : 0;
 
         const targetPlan = plan || "free";
         if (targetPlan === "free" && !canCreateWorkspace("free", freeWorkspaceCount)) {

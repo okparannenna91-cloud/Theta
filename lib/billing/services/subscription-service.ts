@@ -40,7 +40,7 @@ export class SubscriptionService {
       },
     });
 
-    const plan = BILLING_PLAN_LOOKUP[planKey] ?? BILLING_PLAN_LOOKUP[`${planKey}-${interval}`];
+    const plan = BILLING_PLAN_LOOKUP[planKey];
     await prisma.subscription.create({
       data: {
         workspaceId,
@@ -293,8 +293,7 @@ export class SubscriptionService {
       throw new Error(`Cannot change plan for workspace ${workspaceId} with status ${workspace.subscriptionStatus}`);
     }
 
-    const planId = newPlanKey === "free" ? "free" : `${newPlanKey}-${newInterval ?? "monthly"}`;
-    const newPlan = BILLING_PLAN_LOOKUP[planId];
+    const newPlan = BILLING_PLAN_LOOKUP[newPlanKey];
     if (!newPlan) throw new Error(`Plan ${newPlanKey} not found in BILLING_PLAN_LOOKUP`);
 
     const memberCount = await prisma.workspaceMember.count({ where: { workspaceId } });

@@ -208,7 +208,7 @@ export class TrialService {
       },
     });
 
-    const plan = BILLING_PLAN_LOOKUP[planKey] ?? BILLING_PLAN_LOOKUP[`${planKey}-${interval}`];
+    const plan = BILLING_PLAN_LOOKUP[planKey];
     await prisma.subscription.create({
       data: {
         workspaceId,
