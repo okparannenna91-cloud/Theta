@@ -97,6 +97,11 @@ export default function BillingPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planId, interval: billingInterval, currency, workspaceId: activeWorkspaceId }),
       });
+      const ct = res.headers.get("content-type") || "";
+      if (!ct.includes("json")) {
+        const text = await res.text();
+        throw new Error(`Checkout API returned ${res.status} (expected JSON). Please check that the payment provider is configured correctly.`);
+      }
       const data = await res.json();
       if (data.url) { window.location.href = data.url; }
       else { throw new Error(data.error || "Failed to initialize payment"); }

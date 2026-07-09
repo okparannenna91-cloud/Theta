@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
-import { getCurrentUser } from "@/lib/auth";
-import { verifyWorkspaceAccess, requireWorkspaceAdmin } from "@/lib/workspace";
-import { billingOrchestrator } from "@/lib/billing/orchestrator";
-import { providerRegistry } from "@/lib/billing/providers/registry";
-import { BILLING_PLAN_LOOKUP } from "@/lib/billing-plans";
-import { logger } from "@/lib/logger";
+
+export async function GET() {
+  return NextResponse.json({ status: "ok", endpoint: "checkout" });
+}
 
 export async function POST(req: Request) {
   try {
+    const { getCurrentUser } = await import("@/lib/auth");
+    const { verifyWorkspaceAccess, requireWorkspaceAdmin } = await import("@/lib/workspace");
+    const { billingOrchestrator } = await import("@/lib/billing/orchestrator");
+    const { providerRegistry } = await import("@/lib/billing/providers/registry");
+    const { BILLING_PLAN_LOOKUP } = await import("@/lib/billing-plans");
+    const { logger } = await import("@/lib/logger");
+
     const user = await getCurrentUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -43,13 +48,12 @@ export async function POST(req: Request) {
 
     const resolvedCurrency = currency ?? "USD";
 
-    // Validate that at least one provider supports the requested currency
     const providersForCurrency = providerRegistry.getForCurrency(resolvedCurrency as any);
     if (providersForCurrency.length === 0) {
       return NextResponse.json({ error: `No payment provider available for currency: ${resolvedCurrency}` }, { status: 400 });
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
     const resolvedMemberCount = memberCount ?? 0;
 
     const result = await billingOrchestrator.createCheckout({
@@ -66,7 +70,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ url: result.url, sessionId: result.sessionId });
   } catch (error: any) {
-    logger.error("[Checkout] Error:", error);
+    const logger = await import("@/lib/logger").then(m => m.logger).catch(() => null);
+    if (logger) logger.error("[Checkout] Error:", error);
+    else console.error("[Checkout] Error:", error);
     return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
   }
 }
