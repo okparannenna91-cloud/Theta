@@ -44,7 +44,7 @@ export function AiGenerator({
         setResult("");
 
         try {
-            const text = await generateAiText({ prompt, workspaceId: activeWorkspaceId });
+            const text = await generateAiText({ prompt, workspaceId: activeWorkspaceId ?? undefined });
             setResult(text);
         } catch (error: any) {
             toast.error(error.message || "Generation failed. Please try again.");
