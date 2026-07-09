@@ -268,8 +268,10 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
 
     const memberList = Array.isArray(members) ? members : [];
     const memberCount = memberList.length || team.membersCount || 1;
-    const projectCount = Array.isArray(projects) ? projects.length : 0;
-    const boardCount = Array.isArray(boards) ? boards.length : 0;
+    const projectsList = Array.isArray(projects?.projects) ? projects.projects : Array.isArray(projects) ? projects : [];
+    const boardsList = Array.isArray(boards?.boards) ? boards.boards : Array.isArray(boards) ? boards : [];
+    const projectCount = projectsList.length;
+    const boardCount = boardsList.length;
     const activeCount = memberList.filter((m: any) => m.isOnline).length;
 
     // --- HANDLERS ---
@@ -752,7 +754,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                 {isLoadingProjects ? (
                                     [1, 2, 3].map(i => <Card key={i} className="h-48 animate-pulse" />)
                                 ) : projectCount > 0 ? (
-                                    projects.map((project: any) => (
+                                    projectsList.map((project: any) => (
                                         <Link key={project.id} href={`/projects/${project.id}`} className="group">
                                             <Card className="h-full hover:shadow-lg transition-all border overflow-hidden cursor-pointer relative">
                                                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-indigo-500 to-purple-500 opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -791,7 +793,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                 {isLoadingBoards ? (
                                     [1, 2, 3].map(i => <Card key={i} className="h-40 animate-pulse" />)
                                 ) : boardCount > 0 ? (
-                                    boards.map((board: any) => (
+                                    boardsList.map((board: any) => (
                                         <Link key={board.id} href={`/boards/${board.id}`} className="group">
                                             <Card className="h-full hover:shadow-xl transition-all cursor-pointer relative overflow-hidden">
                                                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary to-indigo-500 opacity-0 group-hover:opacity-100 transition-opacity" />

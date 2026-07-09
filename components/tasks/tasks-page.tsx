@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -62,6 +62,8 @@ export default function TasksPage() {
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
   const { showUpgradePrompt } = usePopups();
+  const activeWorkspaceIdRef = useRef(activeWorkspaceId);
+  useEffect(() => { activeWorkspaceIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
 
   const { data: tasksData, isLoading } = useQuery({
     queryKey: ["tasks", activeWorkspaceId],
@@ -86,9 +88,9 @@ export default function TasksPage() {
   const projects = Array.isArray(projectsData?.projects) ? projectsData.projects : Array.isArray(projectsData) ? projectsData : [];
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => createTask({ ...data, workspaceId: activeWorkspaceId! }),
+    mutationFn: (data: any) => createTask({ ...data, workspaceId: activeWorkspaceIdRef.current! }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceIdRef.current] });
       setIsOpen(false);
       setTitle(""); setDescription(""); setStatus("todo"); setPriority("medium"); setProjectId(""); setCoverImage("");
       toast.success("Task created successfully");
@@ -98,19 +100,19 @@ export default function TasksPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => updateTask(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceId] }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceIdRef.current] }); },
     onError: (error: any) => { toast.error(error.message || "Failed to update task"); },
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteTask,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceId] }); },
+    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceIdRef.current] }); },
     onError: (error: any) => { toast.error(error.message || "Failed to delete task"); },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeWorkspaceId) return;
+    if (!activeWorkspaceIdRef.current) return;
     if (taskLimits.max !== -1 && taskLimits.current >= taskLimits.max) { showUpgradePrompt("tasks"); return; }
     createMutation.mutate({ title, description, status, priority, projectId: projectId || undefined, coverImage });
   };

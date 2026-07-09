@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { 
   format, 
@@ -143,6 +143,8 @@ function DroppableDay({ day, children, onClick, isCurrentMonth, isToday, i }: an
 }
 
 export function CalendarView({ workspaceId }: { workspaceId: string }) {
+    const workspaceIdRef = useRef(workspaceId);
+    useEffect(() => { workspaceIdRef.current = workspaceId; }, [workspaceId]);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [isEventDialogOpen, setIsEventDialogOpen] = useState(false);
@@ -198,26 +200,26 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
             return res.json();
         },
         onMutate: async (eventData) => {
-            await queryClient.cancelQueries({ queryKey: ["calendar-events", workspaceId] });
-            const previous = queryClient.getQueryData(["calendar-events", workspaceId]);
+            await queryClient.cancelQueries({ queryKey: ["calendar-events", workspaceIdRef.current] });
+            const previous = queryClient.getQueryData(["calendar-events", workspaceIdRef.current]);
             if (!eventData.id) {
-                queryClient.setQueryData(["calendar-events", workspaceId], (old: any) => {
+                queryClient.setQueryData(["calendar-events", workspaceIdRef.current], (old: any) => {
                     const events = Array.isArray(old?.events) ? old.events : Array.isArray(old) ? old : [];
-                    const optimistic = { ...eventData, id: `temp-${Date.now()}`, userId: workspaceId };
+                    const optimistic = { ...eventData, id: `temp-${Date.now()}`, userId: workspaceIdRef.current };
                     return old?.events ? { ...old, events: [...events, optimistic] } : [...events, optimistic];
                 });
             }
             return { previous };
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["calendar-events", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["calendar-events", workspaceIdRef.current] });
             setIsEventDialogOpen(false);
             resetForm();
             toast.success("Calendar updated");
         },
         onError: (_err, _vars, context) => {
             if (context?.previous) {
-                queryClient.setQueryData(["calendar-events", workspaceId], context.previous);
+                queryClient.setQueryData(["calendar-events", workspaceIdRef.current], context.previous);
             }
         }
     });
@@ -289,7 +291,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
             description,
             start: start.toISOString(),
             end: end.toISOString(),
-            workspaceId,
+            workspaceId: workspaceIdRef.current,
             allDay,
             recurrence,
             color: eventColor,
@@ -303,7 +305,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
             if (!res.ok) throw new Error("Failed to delete event");
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["calendar-events", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["calendar-events", workspaceIdRef.current] });
             setIsEventDialogOpen(false);
             resetForm();
             toast.success("Event deleted");

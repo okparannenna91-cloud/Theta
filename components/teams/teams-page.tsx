@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -85,6 +85,8 @@ export default function TeamsPage() {
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
   const { showUpgradePrompt } = usePopups();
+  const activeWorkspaceIdRef = useRef(activeWorkspaceId);
+  useEffect(() => { activeWorkspaceIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
 
   const { data: teamsData, isLoading, isError } = useQuery({
     queryKey: ["teams", activeWorkspaceId],
@@ -129,9 +131,9 @@ export default function TeamsPage() {
   }), [teams]);
 
   const createMutation = useMutation({
-    mutationFn: (data: { name: string; description?: string }) => createTeam({ ...data, workspaceId: activeWorkspaceId! }),
+    mutationFn: (data: { name: string; description?: string }) => createTeam({ ...data, workspaceId: activeWorkspaceIdRef.current! }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["teams", activeWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["teams", activeWorkspaceIdRef.current] });
       setIsOpen(false); setName(""); setDescription("");
       toast.success("Team created successfully");
     },
@@ -149,14 +151,14 @@ export default function TeamsPage() {
 
   const handleInviteSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeWorkspaceId) { toast.error("Workspace ID missing"); return; }
+    if (!activeWorkspaceIdRef.current) { toast.error("Workspace ID missing"); return; }
     if (isMemberLimitReached) { showUpgradePrompt("members"); return; }
-    inviteMutation.mutate({ workspaceId: activeWorkspaceId, email: inviteEmail, role: inviteRole, teamId: selectedTeam?.id });
+    inviteMutation.mutate({ workspaceId: activeWorkspaceIdRef.current, email: inviteEmail, role: inviteRole, teamId: selectedTeam?.id });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !activeWorkspaceId) return;
+    if (!name || !activeWorkspaceIdRef.current) return;
     if (isTeamLimitReached) { showUpgradePrompt("teams"); return; }
     createMutation.mutate({ name, description });
   };

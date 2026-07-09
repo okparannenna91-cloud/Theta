@@ -45,6 +45,8 @@ export default function ProjectsPage() {
   const { showUpgradePrompt, showAISuggestion } = usePopups();
   const router = useRouter();
   const projectsSuggested = useRef(false);
+  const activeWorkspaceIdRef = useRef(activeWorkspaceId);
+  useEffect(() => { activeWorkspaceIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
 
   const { data: projectsData, isLoading, error: projectsError } = useQuery({
     queryKey: ["projects", activeWorkspaceId],
@@ -73,7 +75,7 @@ export default function ProjectsPage() {
         return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects", activeWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["projects", activeWorkspaceIdRef.current] });
       setIsOpen(false);
       setName("");
       setDescription("");
@@ -93,7 +95,7 @@ export default function ProjectsPage() {
         return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["projects", activeWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["projects", activeWorkspaceIdRef.current] });
       toast.success("Project deleted successfully");
     },
     onError: () => {
@@ -113,12 +115,12 @@ export default function ProjectsPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeWorkspaceId) return;
+    if (!activeWorkspaceIdRef.current) return;
     if (limits.max !== -1 && limits.current >= limits.max) {
       showUpgradePrompt("projects");
       return;
     }
-    createMutation.mutate({ name, description, coverImage, visibility, workspaceId: activeWorkspaceId });
+    createMutation.mutate({ name, description, coverImage, visibility, workspaceId: activeWorkspaceIdRef.current });
   };
 
   const processedProjects = useMemo(() => {
