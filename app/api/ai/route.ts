@@ -1,7 +1,4 @@
 import { NextResponse } from "next/server";
-export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
-
 import { getCurrentUser } from "@/lib/auth";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 
@@ -11,6 +8,9 @@ import { sanitizeUserInput } from "@/lib/nova/output-validator";
 import { logger } from "@/lib/logger";
 import { routeRequest } from "@/lib/nova/intent-router";
 import { telemetry } from "@/lib/nova/telemetry";
+
+export const dynamic = 'force-dynamic';
+export const maxDuration = 60;
 
 const RATE_LIMIT_MAX_REQUESTS = 20;
 const RATE_LIMIT_WINDOW_SECONDS = 60;
