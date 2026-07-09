@@ -19,12 +19,13 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { workspaceId, planId, interval, currency, memberCount } = body as {
+    const { workspaceId, planId, interval, currency, memberCount, provider: explicitProvider } = body as {
       workspaceId: string;
       planId: string;
       interval: "monthly" | "annual";
       currency: string;
       memberCount?: number;
+      provider?: string;
     };
 
     if (!workspaceId || !planId || !interval) {
@@ -48,9 +49,15 @@ export async function POST(req: Request) {
 
     const resolvedCurrency = currency ?? "USD";
 
-    const providersForCurrency = providerRegistry.getForCurrency(resolvedCurrency as any);
-    if (providersForCurrency.length === 0) {
-      return NextResponse.json({ error: `No payment provider available for currency: ${resolvedCurrency}` }, { status: 400 });
+    if (explicitProvider) {
+      if (!providerRegistry.has(explicitProvider)) {
+        return NextResponse.json({ error: `Payment provider '${explicitProvider}' is not available` }, { status: 400 });
+      }
+    } else {
+      const providersForCurrency = providerRegistry.getForCurrency(resolvedCurrency as any);
+      if (providersForCurrency.length === 0) {
+        return NextResponse.json({ error: `No payment provider available for currency: ${resolvedCurrency}` }, { status: 400 });
+      }
     }
 
     const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
@@ -66,6 +73,7 @@ export async function POST(req: Request) {
       memberCount: resolvedMemberCount,
       successUrl: `${baseUrl}/dashboard/billing?payment=success`,
       cancelUrl: `${baseUrl}/dashboard/billing?payment=cancelled`,
+      provider: explicitProvider,
     });
 
     return NextResponse.json({ url: result.url, sessionId: result.sessionId });

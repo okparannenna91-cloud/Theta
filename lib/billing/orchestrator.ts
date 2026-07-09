@@ -36,6 +36,7 @@ class BillingOrchestrator {
     memberCount: number;
     successUrl: string;
     cancelUrl: string;
+    provider?: string;
   }) {
     const plan = BILLING_PLAN_LOOKUP[params.planId];
     if (!plan) throw new Error(`Plan not found: ${params.planId}`);
@@ -46,7 +47,9 @@ class BillingOrchestrator {
     });
 
     let provider: import("./billing-provider.interface").BillingProvider;
-    if (workspace?.billingProvider) {
+    if (params.provider) {
+      provider = providerRegistry.get(params.provider);
+    } else if (workspace?.billingProvider) {
       provider = providerRegistry.get(workspace.billingProvider);
     } else {
       const providers = providerRegistry.getForCurrency(params.currency as any);

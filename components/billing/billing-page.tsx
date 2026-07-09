@@ -33,11 +33,14 @@ import { InvoiceList } from "./invoice-list";
 import { CancelSubscriptionDialog } from "./cancel-subscription-dialog";
 import { ChangePlanDialog } from "./change-plan-dialog";
 import { CreditBalance } from "./credit-balance";
+import { PaymentProviderModal, PAYMENT_PROVIDERS } from "./payment-provider-modal";
 
 export default function BillingPage() {
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
   const [currency, setCurrency] = useState<Currency>("USD");
   const [isInitializingPayment, setIsInitializingPayment] = useState<string | null>(null);
+  const [providerModalOpen, setProviderModalOpen] = useState(false);
+  const [pendingCheckout, setPendingCheckout] = useState<{ planId: string; price: string; name: string } | null>(null);
 
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -88,14 +91,20 @@ export default function BillingPage() {
     }
   }, [searchParams, refetchSub]);
 
-  const handleCheckout = async (planId: string) => {
+  const executeCheckout = async (planId: string, provider?: string) => {
     if (!activeWorkspaceId) return;
     setIsInitializingPayment(planId);
     try {
       const res = await fetch("/api/billing/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId, interval: billingInterval, currency, workspaceId: activeWorkspaceId }),
+        body: JSON.stringify({
+          planId,
+          interval: billingInterval,
+          currency,
+          workspaceId: activeWorkspaceId,
+          ...(provider ? { provider } : {}),
+        }),
       });
       const ct = res.headers.get("content-type") || "";
       if (!ct.includes("json")) {
@@ -107,6 +116,23 @@ export default function BillingPage() {
       else { throw new Error(data.error || "Failed to initialize payment"); }
     } catch (error: any) { toast.error(error.message); }
     finally { setIsInitializingPayment(null); }
+  };
+
+  const handleCheckout = (planId: string, price: string, name: string) => {
+    if (!activeWorkspaceId) return;
+    if (currency === "NGN") {
+      executeCheckout(planId);
+    } else {
+      setPendingCheckout({ planId, price, name });
+      setProviderModalOpen(true);
+    }
+  };
+
+  const handleProviderSelect = async (providerId: string) => {
+    if (!pendingCheckout) return;
+    setProviderModalOpen(false);
+    setPendingCheckout(null);
+    await executeCheckout(pendingCheckout.planId, providerId);
   };
 
   const handleCancel = async (immediate: boolean, reason?: string) => {
@@ -325,7 +351,7 @@ export default function BillingPage() {
                         <Button
                           className="w-full"
                           variant="outline"
-                          onClick={() => handleCheckout(plan.id)}
+                          onClick={() => executeCheckout(plan.id)}
                           disabled={isInitializingPayment === plan.id}
                         >
                           <ArrowDown className="h-4 w-4 mr-1" />
@@ -338,7 +364,7 @@ export default function BillingPage() {
                           <Button
                             className="w-full"
                             variant="default"
-                            onClick={() => handleCheckout(plan.id)}
+                            onClick={() => handleCheckout(plan.id, formattedPrice, plan.name)}
                             disabled={isInitializingPayment === plan.id}
                           >
                             {isInitializingPayment === plan.id ? "Starting..." : "Upgrade"}
@@ -436,6 +462,14 @@ export default function BillingPage() {
           <Button variant="ghost">View Enterprise Roadmap &rarr;</Button>
         </div>
       </div>
+
+      <PaymentProviderModal
+        open={providerModalOpen}
+        onOpenChange={setProviderModalOpen}
+        planName={pendingCheckout?.name || ""}
+        planPrice={pendingCheckout?.price || ""}
+        onSelectProvider={handleProviderSelect}
+      />
     </div>
   );
 }
