@@ -173,6 +173,10 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       inputSchema: z.object({ boardId: z.string(), columns: z.array(z.object({ id: z.string().optional(), name: z.string(), order: z.number() })) }),
       execute: async ({ boardId, columns }: Record<string, unknown>) => {
         await enforce(ctx, "write", "project");
+        const board = await prisma.board.findUnique({ where: { id: boardId as string }, select: { projectId: true, workspaceId: true } });
+        if (!board) return { error: "Board not found." };
+        const { canAccessProjectResource } = await import("../project-permissions");
+        if (!await canAccessProjectResource(user.id, workspaceId, board.projectId)) return { error: "Access denied." };
         const colList = columns as Array<{ id?: string; name: string; order: number }>;
         await Promise.all(colList.map((col) =>
           col.id ? prisma.column.update({ where: { id: col.id }, data: { name: col.name, order: col.order } }) : prisma.column.create({ data: { name: col.name, order: col.order, boardId: boardId as string } })
@@ -185,7 +189,17 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       inputSchema: z.object({ taskId: z.string().optional(), projectId: z.string().optional() }),
       execute: async ({ taskId }: Record<string, unknown>) => {
         await enforce(ctx, "read", "project");
-        if (taskId) { await prisma.task.findUnique({ where: { id: taskId as string }, include: { subtasks: true } }); }
+        if (taskId) {
+          const t = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true, workspaceId: true } });
+          if (!t || t.workspaceId !== workspaceId) {
+            return { risks: [], mitigation: "Task not found in your workspace." };
+          }
+          const { canAccessProject } = await import("../project-permissions");
+          const access = await canAccessProject(user.id, t.projectId, workspaceId);
+          if (!access.hasAccess) {
+            return { risks: [], mitigation: "Access denied to this task's project." };
+          }
+        }
         return { risks: ["High dependency on external API", "Overlapping deadlines", "Resource bottleneck"], mitigation: "Consider breaking down the task further." };
       }
     },
@@ -195,9 +209,11 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       execute: async ({ userId: targetUserId }: Record<string, unknown>) => {
         await enforce(ctx, "read", "workspace");
         await auditToolExecution(workspaceId, user.id, "generate_standup", { userId: targetUserId });
+        const { getAccessibleProjectIds } = await import("../project-permissions");
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
         const [activity, tasks] = await Promise.all([
-          prisma.activity.findMany({ where: { userId: targetUserId as string, workspaceId }, take: 5, orderBy: { createdAt: 'desc' } }),
-          prisma.task.findMany({ where: { workspaceId, status: "in_progress" } })
+          prisma.activity.findMany({ where: { userId: targetUserId as string, workspaceId, projectId: { in: accessibleProjectIds } }, take: 5, orderBy: { createdAt: 'desc' } }),
+          prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, status: "in_progress" } })
         ]);
         return { yesterday: activity.map((a: { action: string }) => a.action), today: tasks.map((t: { title: string }) => t.title), blockers: ["None reported by system"] };
       }
@@ -231,10 +247,12 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       execute: async () => {
         await enforce(ctx, "read", "workspace");
         await auditToolExecution(workspaceId, user.id, "generate_daily_brief", {});
+        const { getAccessibleProjectIds } = await import("../project-permissions");
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
         const [overdue, upcoming, activities] = await Promise.all([
-          prisma.task.findMany({ where: { workspaceId, userId: user.id, dueDate: { lt: new Date() }, status: { not: "done" } }, take: 5 }),
-          prisma.task.findMany({ where: { workspaceId, userId: user.id, dueDate: { gte: new Date() } }, orderBy: { dueDate: 'asc' }, take: 5 }),
-          prisma.activity.findMany({ where: { workspaceId }, take: 5, orderBy: { createdAt: 'desc' } })
+          prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, userId: user.id, dueDate: { lt: new Date() }, status: { not: "done" } }, take: 5 }),
+          prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, userId: user.id, dueDate: { gte: new Date() } }, orderBy: { dueDate: 'asc' }, take: 5 }),
+          prisma.activity.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds } }, take: 5, orderBy: { createdAt: 'desc' } })
         ]);
         return { brief: { critical: overdue.map((t: { title: string }) => t.title), onDeck: upcoming.map((t: { title: string }) => t.title), teamPulse: activities.map((a: { action: string; entityType: string }) => `${a.action} ${a.entityType}`) }, recommendation: overdue.length > 0 ? "Focus on clearing blockers." : "Schedule looks clear." };
       }

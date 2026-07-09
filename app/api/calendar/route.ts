@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPlanLimits } from "@/lib/plan-limits";
-import { getAccessibleProjectIds, canAccessProjectResource } from "@/lib/project-permissions";
+import { getAccessibleProjectIds, canAccessProjectResource, requireProjectAccess } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const eventSchema = z.object({
@@ -15,6 +15,7 @@ const eventSchema = z.object({
     type: z.string().default("event"),
     recurrence: z.string().optional(),
     workspaceId: z.string(),
+    projectId: z.string().optional(),
     teamId: z.string().optional(),
     reminders: z.array(z.number()).optional(),
 });
@@ -28,38 +29,33 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const workspaceId = searchParams.get("workspaceId");
+        const projectId = searchParams.get("projectId");
 
         if (!workspaceId) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
         }
 
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
-        const projectTeams = await prisma.projectTeam.findMany({
-          where: { projectId: { in: accessibleProjectIds } },
-          select: { teamId: true },
-        });
-        const legacyTeamProjects = await prisma.project.findMany({
-          where: { id: { in: accessibleProjectIds }, teamId: { not: null } },
-          select: { teamId: true },
-        });
-        const accessibleTeamIds = [
-          ...new Set([
-            ...projectTeams.map(pt => pt.teamId),
-            ...legacyTeamProjects.map(p => p.teamId as string),
-          ]),
-        ];
-        
+
+        let where: any = { workspaceId };
+
+        if (projectId) {
+            const access = await requireProjectAccess(user.id, projectId, workspaceId);
+            if (!access.allowed) {
+                return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
+            }
+            where.projectId = projectId;
+        } else {
+            where.OR = [
+                { projectId: null },
+                { projectId: { in: accessibleProjectIds } },
+                { userId: user.id },
+            ];
+        }
+
         const [events, count] = await Promise.all([
             prisma.calendarEvent.findMany({
-                where: {
-                    workspaceId,
-                    OR: [
-                        { userId: user.id },
-                        ...(accessibleTeamIds.length > 0
-                          ? [{ teamId: { in: accessibleTeamIds } }]
-                          : []),
-                    ],
-                },
+                where,
                 orderBy: { start: "asc" }
             }),
             prisma.calendarEvent.count({ where: { workspaceId } })
@@ -92,17 +88,22 @@ export async function POST(req: Request) {
         const body = await req.json();
         const data = eventSchema.parse(body);
 
-        // Check workspace / project access
-        const hasAccess = await canAccessProjectResource(user.id, data.workspaceId, null);
-        if (!hasAccess) {
-            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        if (data.projectId) {
+            const access = await requireProjectAccess(user.id, data.projectId, data.workspaceId);
+            if (!access.allowed) {
+                return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
+            }
+        } else {
+            const hasAccess = await canAccessProjectResource(user.id, data.workspaceId, null);
+            if (!hasAccess) {
+                return NextResponse.json({ error: "Access denied" }, { status: 403 });
+            }
         }
 
-        // Check plan limits strictly
         try {
             const { getCalendarEventCount } = await import("@/lib/usage-tracking");
             const count = await getCalendarEventCount(data.workspaceId);
-            
+
             const { enforcePlanLimit } = await import("@/lib/plan-limits");
             await enforcePlanLimit(data.workspaceId, "calendar_events", count);
         } catch (error: any) {

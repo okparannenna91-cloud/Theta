@@ -55,7 +55,7 @@ export class ContextSystem {
     const { workspaceId, userId, projectId, taskId, documentId } = options;
     
 
-    const [workspace, project, task, document, user] = await Promise.all([
+    let [workspace, project, task, document, user] = await Promise.all([
       getCachedOrFetch(`workspace:${workspaceId}`, () => prisma.workspace.findUnique({ where: { id: workspaceId } })),
       projectId ? getCachedOrFetch(`project:${projectId}`, async () => {
         if (userId) {
@@ -72,13 +72,15 @@ export class ContextSystem {
     if (task && task.projectId && userId) {
       const hasAccess = await canAccessProjectResource(userId, workspaceId, task.projectId);
       if (!hasAccess) {
-        logger.warn(`[ContextSystem] Task ${taskId} filtered: user ${userId} lacks project access`);
+        logger.warn(`[ContextSystem] Task ${taskId} excluded: user ${userId} lacks project access`);
+        task = null;
       }
     }
     if (document && document.projectId && userId) {
       const hasAccess = await canAccessProjectResource(userId, workspaceId, document.projectId);
       if (!hasAccess) {
-        logger.warn(`[ContextSystem] Document ${documentId} filtered: user ${userId} lacks project access`);
+        logger.warn(`[ContextSystem] Document ${documentId} excluded: user ${userId} lacks project access`);
+        document = null;
       }
     }
 

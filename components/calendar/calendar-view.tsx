@@ -66,6 +66,13 @@ interface CalendarEvent {
     type: string;
     recurrence?: string;
     teamId?: string;
+    projectId?: string;
+}
+
+interface ProjectOption {
+    id: string;
+    name: string;
+    color?: string;
 }
 
 function DraggableEvent({ event, onClick }: { event: CalendarEvent; onClick?: (event: CalendarEvent) => void }) {
@@ -142,7 +149,7 @@ function DroppableDay({ day, children, onClick, isCurrentMonth, isToday, i }: an
     );
 }
 
-export function CalendarView({ workspaceId }: { workspaceId: string }) {
+export function CalendarView({ workspaceId, projectId, projects }: { workspaceId: string; projectId?: string; projects?: ProjectOption[] }) {
     const workspaceIdRef = useRef(workspaceId);
     useEffect(() => { workspaceIdRef.current = workspaceId; }, [workspaceId]);
     const [currentDate, setCurrentDate] = useState(new Date());
@@ -157,6 +164,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
     const [startTime, setStartTime] = useState("09:00");
     const [endTime, setEndTime] = useState("10:00");
     const [isTeamEvent, setIsTeamEvent] = useState(false);
+    const [selectedProjectId, setSelectedProjectId] = useState(projectId || "");
     const [recurrence, setRecurrence] = useState("none");
     const [eventColor, setEventColor] = useState("#4f46e5");
     const [allDay, setAllDay] = useState(false);
@@ -166,10 +174,12 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
     // Fetch events
+    const queryParams = new URLSearchParams({ workspaceId });
+    if (projectId) queryParams.set("projectId", projectId);
     const { data: calendarData, isLoading, isError } = useQuery({
-        queryKey: ["calendar-events", workspaceId],
+        queryKey: ["calendar-events", workspaceId, projectId],
         queryFn: async () => {
-            const res = await fetch(`/api/calendar?workspaceId=${workspaceId}`);
+            const res = await fetch(`/api/calendar?${queryParams}`);
             if (!res.ok) throw new Error("Failed to fetch events");
             return res.json();
         },
@@ -230,6 +240,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
         setStartTime("09:00");
         setEndTime("10:00");
         setIsTeamEvent(false);
+        setSelectedProjectId(projectId || "");
         setRecurrence("none");
         setEventColor("#4f46e5");
         setAllDay(false);
@@ -246,6 +257,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
         setStartTime(format(start, "HH:mm"));
         setEndTime(format(end, "HH:mm"));
         setIsTeamEvent(!!event.teamId);
+        setSelectedProjectId(event.projectId || "");
         setRecurrence(event.recurrence || "none");
         setEventColor(event.color || "#4f46e5");
         setAllDay(event.allDay);
@@ -292,6 +304,7 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
             start: start.toISOString(),
             end: end.toISOString(),
             workspaceId: workspaceIdRef.current,
+            projectId: selectedProjectId || projectId || undefined,
             allDay,
             recurrence,
             color: eventColor,
@@ -645,6 +658,23 @@ export function CalendarView({ workspaceId }: { workspaceId: string }) {
                                 </SelectContent>
                             </Select>
                         </div>
+
+                        {!projectId && projects && projects.length > 0 && (
+                            <div className="space-y-3">
+                                <Label className="text-xs font-medium text-muted-foreground ml-1">Project (optional)</Label>
+                                <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                                    <SelectTrigger className="h-12 rounded-lg bg-background/50 border">
+                                        <SelectValue placeholder="Workspace event" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="">Workspace event</SelectItem>
+                                        {projects.map((p) => (
+                                            <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
 
                         <div className="flex items-center justify-between p-4 rounded-lg bg-primary/5 border border-primary/10">
                             <div className="space-y-1">

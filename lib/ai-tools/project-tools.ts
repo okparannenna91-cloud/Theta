@@ -40,6 +40,7 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
             visibility: (visibility as string | undefined) as any || "private",
             workspaceId,
             userId: user.id,
+            members: { create: { userId: user.id, role: "manager" } },
           },
         });
         await prisma.activity.create({ data: { action: "CREATED", entityType: "PROJECT", entityId: project.id, workspaceId, userId: user.id, projectId: project.id, metadata: JSON.parse(JSON.stringify({ source: "NOVA_AI", name })) } });
@@ -51,7 +52,8 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ projectId: z.string(), name: z.string().optional(), description: z.string().optional() }),
       execute: async ({ projectId: id, name, description }: Record<string, unknown>) => {
         await enforce(ctx, "write", "project");
-        
+        const access = await canAccessProject(user.id, id as string, workspaceId);
+        if (!access.hasAccess) return { error: "Access denied to this project." };
         const project = await prisma.project.update({ where: { id: id as string, workspaceId }, data: { ...(name ? { name: name as string } : {}), ...(description ? { description: description as string } : {}) } });
         return { success: true, message: `Updated project **${project.name}**` };
       }
@@ -62,7 +64,8 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
       execute: async ({ projectId: id }: Record<string, unknown>) => {
         await requireToolApproval("delete_project", { projectId: id });
         await enforce(ctx, "delete", "project");
-        
+        const access = await canAccessProject(user.id, id as string, workspaceId);
+        if (!access.hasAccess) return { error: "Access denied to this project." };
         await prisma.task.deleteMany({ where: { projectId: id as string, workspaceId } });
         await prisma.project.delete({ where: { id: id as string, workspaceId } });
         return { success: true, message: "Project deleted successfully." };

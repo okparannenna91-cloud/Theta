@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { canAccessProjectResource } from "@/lib/project-permissions";
+import { canAccessProjectResource, requireProjectAccess } from "@/lib/project-permissions";
 import { z } from "zod";
 
 const updateSchema = z.object({
@@ -13,6 +13,7 @@ const updateSchema = z.object({
     color: z.string().optional(),
     type: z.string().optional(),
     recurrence: z.string().optional(),
+    projectId: z.string().optional(),
     teamId: z.string().optional(),
     reminders: z.array(z.number()).optional(),
 });
@@ -37,7 +38,13 @@ export async function PATCH(
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
         }
 
-        const hasAccess = await canAccessProjectResource(user.id, event.workspaceId, null);
+        let hasAccess = false;
+        if (event.projectId) {
+            const access = await requireProjectAccess(user.id, event.projectId, event.workspaceId);
+            hasAccess = access.allowed;
+        } else {
+            hasAccess = (await canAccessProjectResource(user.id, event.workspaceId, null)).valueOf();
+        }
         if (!hasAccess) {
           return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
@@ -88,7 +95,13 @@ export async function DELETE(
             return NextResponse.json({ error: "Event not found" }, { status: 404 });
         }
 
-        const hasAccess = await canAccessProjectResource(user.id, event.workspaceId, null);
+        let hasAccess = false;
+        if (event.projectId) {
+            const access = await requireProjectAccess(user.id, event.projectId, event.workspaceId);
+            hasAccess = access.allowed;
+        } else {
+            hasAccess = (await canAccessProjectResource(user.id, event.workspaceId, null)).valueOf();
+        }
         if (!hasAccess) {
           return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }

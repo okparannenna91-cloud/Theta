@@ -195,6 +195,14 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ taskId: z.string(), predecessorId: z.string(), type: z.enum(['FS', 'SS', 'FF', 'SF']).default('FS') }),
       execute: async ({ taskId, predecessorId, type }: Record<string, unknown>) => {
         await enforce(ctx, "write", "task");
+        const [task, predecessor] = await Promise.all([
+          prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true, workspaceId: true } }),
+          prisma.task.findUnique({ where: { id: predecessorId as string }, select: { projectId: true, workspaceId: true } }),
+        ]);
+        if (!task || !predecessor) return { error: "Task not found." };
+        const { canAccessProjectResource } = await import("../project-permissions");
+        if (!await canAccessProjectResource(user.id, workspaceId, task.projectId)) return { error: "Access denied." };
+        if (!await canAccessProjectResource(user.id, workspaceId, predecessor.projectId)) return { error: "Access denied." };
         const hasCycle = await TaskIntelligence.hasDependencyCycle(workspaceId, taskId as string, predecessorId as string);
         if (hasCycle) return { error: "Circular dependency detected." };
         await prisma.taskDependency.create({ data: { taskId: taskId as string, predecessorId: predecessorId as string, type: (type as string) || 'FS' } });
@@ -206,6 +214,10 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ taskId: z.string(), hours: z.number() }),
       execute: async ({ taskId, hours }: Record<string, unknown>) => {
         await enforce(ctx, "write", "task");
+        const task = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true, workspaceId: true } });
+        if (!task) return { error: "Task not found." };
+        const { canAccessProjectResource } = await import("../project-permissions");
+        if (!await canAccessProjectResource(user.id, workspaceId, task.projectId)) return { error: "Access denied." };
         await prisma.task.update({ where: { id: taskId as string }, data: { estimatedHours: hours as number } });
         return { success: true, message: `Estimation set to **${hours} hours**.` };
       }
@@ -215,6 +227,10 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ taskId: z.string(), durationSeconds: z.number(), description: z.string().optional() }),
       execute: async ({ taskId, durationSeconds: duration, description }: Record<string, unknown>) => {
         await enforce(ctx, "write", "task");
+        const task = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true, workspaceId: true } });
+        if (!task) return { error: "Task not found." };
+        const { canAccessProjectResource } = await import("../project-permissions");
+        if (!await canAccessProjectResource(user.id, workspaceId, task.projectId)) return { error: "Access denied." };
         await prisma.timeLog.create({ data: { taskId: taskId as string, userId: user.id, duration: duration as number, description: description as string | undefined } });
         return { success: true, message: `Logged **${Math.round((duration as number)/60)} minutes** to the task.` };
       }
@@ -224,8 +240,11 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ taskId: z.string(), interval: z.enum(['daily', 'weekly', 'monthly', 'quarterly']) }),
       execute: async ({ taskId, interval }: Record<string, unknown>) => {
         await enforce(ctx, "write", "task");
-        const existing = await prisma.task.findUnique({ where: { id: taskId as string } });
-        await prisma.task.update({ where: { id: taskId as string }, data: { description: `[RECURRING: ${(interval as string).toUpperCase()}]\n${existing?.description || ''}` } });
+        const task = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true, workspaceId: true, description: true } });
+        if (!task) return { error: "Task not found." };
+        const { canAccessProjectResource } = await import("../project-permissions");
+        if (!await canAccessProjectResource(user.id, workspaceId, task.projectId)) return { error: "Access denied." };
+        await prisma.task.update({ where: { id: taskId as string }, data: { description: `[RECURRING: ${(interval as string).toUpperCase()}]\n${task.description || ''}` } });
         return { success: true, message: `Task set to recur **${interval}**.` };
       }
     },
@@ -236,6 +255,8 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
         await enforce(ctx, "write", "task");
         const task = await prisma.task.findUnique({ where: { id: taskId as string } });
         if (!task) return { found: false, message: "Task not found." };
+        const { canAccessProjectResource } = await import("../project-permissions");
+        if (!await canAccessProjectResource(user.id, workspaceId, task.projectId)) return { error: "Access denied." };
         const existingMetadata = typeof task.customFieldMetadata === 'object' && task.customFieldMetadata ? task.customFieldMetadata : {};
         await prisma.task.update({ where: { id: taskId as string }, data: { customFieldMetadata: { ...(existingMetadata as Record<string, unknown>), customFields: JSON.parse(JSON.stringify(fields)) } } });
         return { success: true, message: `Updated custom fields for task **${task.title}**.` };

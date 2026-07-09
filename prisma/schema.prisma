@@ -205,7 +205,7 @@ model WorkspaceMember {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   workspaceId String   @db.ObjectId
   userId      String   @db.ObjectId
-  role        String   @default("member") // owner, admin, member
+  role        String   @default("member") // owner, admin, member, guest
   status      String?  @default("active") // active, inactive, pending
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -216,6 +216,23 @@ model WorkspaceMember {
   @@index([userId])
   @@unique([workspaceId, userId])
   @@map("workspace_members")
+}
+
+model ProjectMember {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId   String   @db.ObjectId
+  userId      String   @db.ObjectId
+  role        String   @default("contributor") // manager, editor, contributor, viewer
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId, userId])
+  @@index([userId])
+  @@index([projectId])
+  @@map("project_members")
 }
 
 model User {
@@ -230,6 +247,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   workspaces    WorkspaceMember[]
+  projectMembers ProjectMember[]
   projects      Project[]
   tasks         Task[]
   teams         TeamMember[]
@@ -268,11 +286,13 @@ model Project {
   team         Team?        @relation(fields: [teamId], references: [id], onDelete: SetNull)
   tasks        Task[]
   boards       Board[]
+  members      ProjectMember[]
   teamMembers  TeamMember[]
   projectTeams ProjectTeam[]
   chatMessages ChatMessage[]
   documents    Document[]
   activities   Activity[]
+  calendarEvents CalendarEvent[]
 
   @@index([workspaceId])
   @@index([userId])
@@ -637,6 +657,7 @@ model CalendarEvent {
   recurrence  String?  @default("none") // none, daily, weekly, monthly, yearly
   
   workspaceId String   @db.ObjectId
+  projectId   String?  @db.ObjectId
   userId      String   @db.ObjectId
   teamId      String?  @db.ObjectId
   
@@ -647,10 +668,12 @@ model CalendarEvent {
   updatedAt   DateTime @updatedAt
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   team      Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
+  @@index([projectId])
   @@index([userId])
   @@index([teamId])
   @@map("calendar_events")

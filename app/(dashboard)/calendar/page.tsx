@@ -1,11 +1,27 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { CalendarView } from "@/components/calendar/calendar-view";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function CalendarPage() {
     const { activeWorkspace, isLoading } = useWorkspace();
+
+    const { data: projectsData } = useQuery({
+        queryKey: ["projects", activeWorkspace?.id],
+        queryFn: async () => {
+            const res = await fetch(`/api/projects?workspaceId=${activeWorkspace!.id}`);
+            if (!res.ok) return [];
+            const data = await res.json();
+            return (data.projects || data || []).map((p: any) => ({
+                id: p.id,
+                name: p.name,
+                color: p.color,
+            }));
+        },
+        enabled: !!activeWorkspace?.id,
+    });
 
     if (isLoading) {
         return (
@@ -35,7 +51,7 @@ export default function CalendarPage() {
                     Manage your schedule and events
                 </p>
             </div>
-            <CalendarView workspaceId={activeWorkspace.id} />
+            <CalendarView workspaceId={activeWorkspace.id} projects={projectsData || []} />
         </div>
     );
 }

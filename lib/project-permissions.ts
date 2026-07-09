@@ -1,27 +1,55 @@
 import { prisma } from "./prisma";
 import { cacheGetOrSet, cacheKey } from "@/lib/cache";
 
+export type WorkspaceRole = "owner" | "admin" | "member" | "guest";
+export type ProjectRole = "manager" | "editor" | "contributor" | "viewer";
 export type ProjectVisibility = "private" | "team_access" | "workspace_visible";
+
+export const WORKSPACE_ROLE_HIERARCHY: Record<string, number> = {
+  owner: 100,
+  admin: 50,
+  member: 10,
+  guest: 1,
+};
+
+export const PROJECT_ROLE_HIERARCHY: Record<string, number> = {
+  manager: 100,
+  editor: 50,
+  contributor: 20,
+  viewer: 10,
+};
+
+function meetsMinRoleWeight(
+  userRole: string | null | undefined,
+  requiredRole: string,
+  hierarchy: Record<string, number>
+): boolean {
+  const userWeight = hierarchy[userRole ?? ""] ?? 0;
+  const requiredWeight = hierarchy[requiredRole] ?? 0;
+  return userWeight >= requiredWeight;
+}
+
+export function hasMinWorkspaceRole(
+  userRole: string | null | undefined,
+  requiredRole: WorkspaceRole
+): boolean {
+  return meetsMinRoleWeight(userRole, requiredRole, WORKSPACE_ROLE_HIERARCHY);
+}
+
+export function hasMinProjectRole(
+  userRole: string | null | undefined,
+  requiredRole: ProjectRole
+): boolean {
+  return meetsMinRoleWeight(userRole, requiredRole, PROJECT_ROLE_HIERARCHY);
+}
 
 interface ProjectAccessResult {
   hasAccess: boolean;
   reason?: string;
+  projectRole?: ProjectRole | null;
+  workspaceRole?: WorkspaceRole | null;
 }
 
-/**
- * Check if a user has access to a specific project.
- *
- * Access is granted if ANY of the following is true:
- * 1. User is Workspace Owner
- * 2. User is Workspace Admin
- * 3. User is a Direct Project Member (project.userId === user.id)
- * 4. User belongs to a Team linked to the Project
- * 5. Project visibility is "workspace_visible" and user is a workspace member
- *
- * For private projects, only conditions 1-4 apply.
- * For team_access projects, conditions 1-4 apply.
- * For workspace_visible projects, all workspace members have access.
- */
 export async function canAccessProject(
   userId: string,
   projectId: string,
@@ -40,7 +68,7 @@ export async function canAccessProject(
     });
 
     if (!project) {
-      return { hasAccess: false, reason: "Project not found" };
+      return { hasAccess: false, reason: "Project not found", projectRole: null, workspaceRole: null };
     }
 
     const targetWorkspaceId = project.workspaceId;
@@ -55,15 +83,27 @@ export async function canAccessProject(
     });
 
     if (!membership) {
-      return { hasAccess: false, reason: "Not a workspace member" };
+      return { hasAccess: false, reason: "Not a workspace member", projectRole: null, workspaceRole: null };
     }
 
-    if (membership.role === "owner" || membership.role === "admin") {
-      return { hasAccess: true };
+    const workspaceRole = membership.role as WorkspaceRole;
+
+    if (hasMinWorkspaceRole(workspaceRole, "admin")) {
+      return { hasAccess: true, projectRole: "manager", workspaceRole };
+    }
+
+    const projectMember = await prisma.projectMember.findUnique({
+      where: {
+        projectId_userId: { projectId: project.id, userId },
+      },
+    });
+
+    if (projectMember) {
+      return { hasAccess: true, projectRole: projectMember.role as ProjectRole, workspaceRole };
     }
 
     if (project.userId === userId) {
-      return { hasAccess: true };
+      return { hasAccess: true, projectRole: "manager", workspaceRole };
     }
 
     const projectTeams = await prisma.projectTeam.findMany({
@@ -81,7 +121,7 @@ export async function canAccessProject(
       });
 
       if (teamMember) {
-        return { hasAccess: true };
+        return { hasAccess: true, projectRole: "viewer", workspaceRole };
       }
     }
 
@@ -96,30 +136,26 @@ export async function canAccessProject(
       });
 
       if (teamMember) {
-        return { hasAccess: true };
+        return { hasAccess: true, projectRole: "viewer", workspaceRole };
       }
     }
 
     const visibility = project.visibility || "private";
     if (visibility === "workspace_visible") {
-      return { hasAccess: true };
+      return { hasAccess: true, projectRole: "viewer", workspaceRole };
     }
 
     if (visibility === "team_access") {
-      return { hasAccess: false, reason: "Not a member of a linked team" };
+      return { hasAccess: false, reason: "Not a member of a linked team", projectRole: null, workspaceRole };
     }
 
-    return { hasAccess: false, reason: "No direct project access" };
+    return { hasAccess: false, reason: "No direct project access", projectRole: null, workspaceRole };
   } catch (error) {
     console.error("canAccessProject error:", error);
-    return { hasAccess: false, reason: "Permission check failed" };
+    return { hasAccess: false, reason: "Permission check failed", projectRole: null, workspaceRole: null };
   }
 }
 
-/**
- * Get all project IDs that a user has access to within a workspace.
- * This is used to filter queries for tasks, boards, documents, etc.
- */
 export async function getAccessibleProjectIds(
   userId: string,
   workspaceId: string
@@ -136,7 +172,9 @@ export async function getAccessibleProjectIds(
 
         if (!membership) return [];
 
-        if (membership.role === "owner" || membership.role === "admin") {
+        const workspaceRole = membership.role as WorkspaceRole;
+
+        if (hasMinWorkspaceRole(workspaceRole, "admin")) {
           const allProjects = await prisma.project.findMany({
             where: { workspaceId },
             select: { id: true },
@@ -144,32 +182,29 @@ export async function getAccessibleProjectIds(
           return allProjects.map((p: any) => p.id);
         }
 
-        const [ownProjects, teamMemberships, visibleProjects] = await Promise.all([
+        const [ownProjects, projectMemberships, teamMemberships, visibleProjects] = await Promise.all([
           prisma.project.findMany({ where: { workspaceId, userId }, select: { id: true } }),
+          prisma.projectMember.findMany({ where: { userId }, select: { projectId: true } }),
           prisma.teamMember.findMany({ where: { userId }, select: { teamId: true } }),
           prisma.project.findMany({ where: { workspaceId, visibility: "workspace_visible" }, select: { id: true } }),
         ]);
 
-        const ownProjectIds = ownProjects.map((p: any) => p.id);
-        const visibleProjectIds = visibleProjects.map((p: any) => p.id);
+        const accessibleIds = new Set<string>();
+
+        ownProjects.forEach((p: any) => accessibleIds.add(p.id));
+        projectMemberships.forEach((pm: any) => accessibleIds.add(pm.projectId));
+
         const teamIds = teamMemberships.map((tm: any) => tm.teamId);
-
-        let teamLinkedProjectIds: string[] = [];
-        let legacyTeamProjectIds: string[] = [];
-
         if (teamIds.length > 0) {
           const [teamLinked, legacyLinked] = await Promise.all([
             prisma.projectTeam.findMany({ where: { teamId: { in: teamIds } }, select: { projectId: true } }),
             prisma.project.findMany({ where: { workspaceId, teamId: { in: teamIds } }, select: { id: true } }),
           ]);
-          teamLinkedProjectIds = teamLinked.map((pt: any) => pt.projectId);
-          legacyTeamProjectIds = legacyLinked.map((p: any) => p.id);
+          teamLinked.forEach((pt: any) => accessibleIds.add(pt.projectId));
+          legacyLinked.forEach((p: any) => accessibleIds.add(p.id));
         }
 
-        const accessibleIds = new Set([
-          ...ownProjectIds, ...teamLinkedProjectIds,
-          ...legacyTeamProjectIds, ...visibleProjectIds,
-        ]);
+        visibleProjects.forEach((p: any) => accessibleIds.add(p.id));
 
         return Array.from(accessibleIds);
       } catch (error) {
@@ -181,20 +216,12 @@ export async function getAccessibleProjectIds(
   );
 }
 
-/**
- * For a specific resource (task, board, document, chat, etc.) that belongs to a project,
- * check if the user has access via project permissions.
- * Returns true if the resource has no projectId (workspace-level resource),
- * or if the user can access the associated project.
- */
 export async function canAccessProjectResource(
   userId: string,
   workspaceId: string,
   projectId: string | null | undefined
 ): Promise<boolean> {
   if (!projectId) {
-    // Workspace-level resource (no project association)
-    // Check basic workspace membership
     const membership = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -210,21 +237,14 @@ export async function canAccessProjectResource(
   return result.hasAccess;
 }
 
-/**
- * Verify project access for API routes. Returns a response-like object
- * with the appropriate error status if access is denied.
- */
 export async function requireProjectAccess(
   userId: string,
   projectId: string,
   workspaceId?: string
-): Promise<{ allowed: boolean; error?: { status: number; message: string } }> {
+): Promise<{ allowed: boolean; role?: ProjectRole; error?: { status: number; message: string } }> {
   const result = await canAccessProject(userId, projectId, workspaceId);
 
   if (!result.hasAccess) {
-    console.warn(
-      `[Permission Denied] User ${userId} tried to access project ${projectId}: ${result.reason}`
-    );
     return {
       allowed: false,
       error: {
@@ -236,26 +256,14 @@ export async function requireProjectAccess(
     };
   }
 
-  return { allowed: true };
-}
-
-const ROLE_WEIGHTS: Record<string, number> = {
-  owner: 100,
-  admin: 50,
-  member: 10,
-};
-
-export function hasMinRole(userRole: string, requiredRole: string): boolean {
-  const userWeight = ROLE_WEIGHTS[userRole] ?? 0;
-  const requiredWeight = ROLE_WEIGHTS[requiredRole] ?? 0;
-  return userWeight >= requiredWeight;
+  return { allowed: true, role: result.projectRole ?? undefined };
 }
 
 export async function getProjectRole(
   userId: string,
   projectId: string,
   workspaceId: string
-): Promise<string | null> {
+): Promise<ProjectRole | null> {
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     select: { workspaceId: true, userId: true },
@@ -266,11 +274,26 @@ export async function getProjectRole(
     where: { workspaceId_userId: { workspaceId: project.workspaceId, userId } },
   });
 
-  if (membership && hasMinRole(membership.role, "admin")) return "admin";
+  if (membership && hasMinWorkspaceRole(membership.role, "admin")) return "manager";
 
-  if (project.userId === userId) return "admin";
+  const projectMember = await prisma.projectMember.findUnique({
+    where: { projectId_userId: { projectId, userId } },
+  });
 
-  return membership?.role || null;
+  if (projectMember) return projectMember.role as ProjectRole;
+
+  if (project.userId === userId) return "manager";
+
+  const projectTeam = await prisma.projectTeam.findFirst({
+    where: {
+      projectId,
+      team: { members: { some: { userId } } },
+    },
+  });
+
+  if (projectTeam) return "viewer";
+
+  return null;
 }
 
 export async function requireProjectWriteAccess(
@@ -293,7 +316,7 @@ export async function requireProjectWriteAccess(
     return { allowed: false, error: { status: 403, message: "Access denied" } };
   }
 
-  if (hasMinRole(role, "admin")) return { allowed: true };
+  if (hasMinProjectRole(role, "contributor")) return { allowed: true };
 
   const projectTeam = await prisma.projectTeam.findFirst({
     where: {
@@ -328,7 +351,7 @@ export async function requireProjectAdminAccess(
     return { allowed: false, error: { status: 403, message: "Access denied" } };
   }
 
-  if (hasMinRole(role, "admin")) return { allowed: true };
+  if (hasMinProjectRole(role, "manager")) return { allowed: true };
 
   const projectTeam = await prisma.projectTeam.findFirst({
     where: {
@@ -341,4 +364,14 @@ export async function requireProjectAdminAccess(
   if (projectTeam) return { allowed: true };
 
   return { allowed: false, error: { status: 403, message: "Admin access denied" } };
+}
+
+export async function getWorkspaceRole(
+  userId: string,
+  workspaceId: string
+): Promise<WorkspaceRole | null> {
+  const membership = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId } },
+  });
+  return (membership?.role as WorkspaceRole) ?? null;
 }

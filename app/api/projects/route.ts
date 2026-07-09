@@ -239,6 +239,7 @@ export async function POST(req: Request) {
         workspaceId: data.workspaceId,
         userId: user.id,
         teamId: data.teamId || null,
+        members: { create: { userId: user.id, role: "manager" } },
       },
       include: {
         _count: {

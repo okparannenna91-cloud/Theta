@@ -33,15 +33,21 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
         await enforce(ctx, "write", "document");
         await auditToolExecution(workspaceId, user.id, "create_document", { title });
         const analysis = DocumentIntelligence.analyze(title as string, content as string);
+        let targetProjectId: string | null = null;
+        if (analysis.extractedTasks.length > 0) {
+          const { getAccessibleProjectIds } = await import("../project-permissions");
+          const accessibleIds = await getAccessibleProjectIds(user.id, workspaceId);
+          const targetProject = accessibleIds.length > 0
+            ? await prisma.project.findFirst({ where: { id: { in: accessibleIds } }, select: { id: true } })
+            : null;
+          targetProjectId = targetProject?.id ?? null;
+        }
         const result = await prisma.$transaction(async (tx) => {
           const doc = await tx.document.create({ data: { title: title as string, content: content as string, workspaceId, userId: user.id, tags: analysis.suggestedLinks } });
-          if (analysis.extractedTasks.length > 0) {
-            const firstProject = await tx.project.findFirst({ where: { workspaceId } });
-            if (firstProject) {
-              await Promise.all(analysis.extractedTasks.map(async (t: string) => {
-                await tx.task.create({ data: { title: t, description: `Auto-extracted from: ${title}`, priority: "medium", status: "todo", workspaceId, projectId: firstProject.id, userId: user.id } });
-              }));
-            }
+          if (targetProjectId) {
+            await Promise.all(analysis.extractedTasks.map(async (t: string) => {
+              await tx.task.create({ data: { title: t, description: `Auto-extracted from: ${title}`, priority: "medium", status: "todo", workspaceId, projectId: targetProjectId!, userId: user.id } });
+            }));
           }
           for (const dec of analysis.decisions) {
             await tx.entityLink.create({ data: { sourceId: doc.id, targetId: doc.id, relation: `DECISION: ${dec.substring(0, 50)}` } }).catch(() => {});
@@ -59,6 +65,11 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
         await auditToolExecution(workspaceId, user.id, "read_document", { id });
         const doc = await prisma.document.findFirst({ where: { id: id as string, workspaceId } });
         if (!doc) return { found: false, message: "Document not found." };
+        if (doc.projectId) {
+          const { canAccessProject } = await import("../project-permissions");
+          const access = await canAccessProject(user.id, doc.projectId, workspaceId);
+          if (!access.hasAccess) return { found: false, message: "Document not found." };
+        }
         return { found: true, title: doc.title, content: doc.content };
       }
     },
@@ -68,6 +79,13 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
       execute: async ({ id }: Record<string, unknown>) => {
         await requireToolApproval("delete_document", { id });
         await enforce(ctx, "delete", "document");
+        const doc = await prisma.document.findFirst({ where: { id: id as string, workspaceId }, select: { id: true, projectId: true } });
+        if (!doc) return { success: false, message: "Document not found." };
+        if (doc.projectId) {
+          const { canAccessProject } = await import("../project-permissions");
+          const access = await canAccessProject(user.id, doc.projectId, workspaceId);
+          if (!access.hasAccess) return { success: false, message: "Access denied." };
+        }
         await prisma.document.delete({ where: { id: id as string, workspaceId } });
         return { success: true, message: "Document deleted." };
       }

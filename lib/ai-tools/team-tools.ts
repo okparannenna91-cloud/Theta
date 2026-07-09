@@ -40,8 +40,16 @@ export function buildTeamTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ limit: z.number().max(50).optional() }),
       execute: async ({ limit }: Record<string, unknown>) => {
         await enforce(ctx, "read", "workspace");
+        const { getAccessibleProjectIds } = await import("../project-permissions");
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
         const activities = await prisma.activity.findMany({
-          where: { workspaceId },
+          where: {
+            workspaceId,
+            OR: [
+              { projectId: { in: accessibleProjectIds } },
+              { projectId: null },
+            ],
+          },
           take: (limit as number) || 20,
           orderBy: { createdAt: 'desc' },
           select: { action: true, entityType: true, entityId: true, createdAt: true, userId: true, metadata: true },
