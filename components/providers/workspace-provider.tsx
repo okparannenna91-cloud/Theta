@@ -40,7 +40,6 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     enabled: !!userId,
     staleTime: 30 * 1000,
     refetchOnMount: true,
-    refetchOnWindowFocus: true,
   });
 
   const [fallbackWorkspace, setFallbackWorkspace] = useState<any>(null);
@@ -51,10 +50,15 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!isAuthLoaded) return;
     if (prevUserId.current !== undefined && prevUserId.current !== userId) {
-      setActiveWorkspaceId(null);
-      localStorage.removeItem("activeWorkspaceId");
-      // Invalidate all workspace-dependent queries on user change
-      queryClient.invalidateQueries();
+      // Only reset if userId transitioned from one defined value to another
+      // (ignores transient null/undefined flickers during session refresh)
+      if (prevUserId.current && userId) {
+        setActiveWorkspaceId(null);
+        localStorage.removeItem("activeWorkspaceId");
+        // Invalidate only workspace-dependent queries (not the entire cache)
+        queryClient.invalidateQueries({ queryKey: ["workspaces"] });
+        queryClient.invalidateQueries({ queryKey: ["subscription"] });
+      }
     }
     prevUserId.current = userId;
   }, [userId, isAuthLoaded, queryClient]);

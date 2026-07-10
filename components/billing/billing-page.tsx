@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -45,6 +45,8 @@ export default function BillingPage() {
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
   const { activeWorkspaceId, activeWorkspace } = useWorkspace();
+  const activeWorkspaceIdRef = useRef(activeWorkspaceId);
+  useEffect(() => { activeWorkspaceIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
   const { subscription, isLoading: subLoading, refetch: refetchSub, cancelSubscription, reactivateSubscription, retryPayment, isRetrying, isCancelling } = useSubscription();
 
   const { data: usage, isLoading: usageLoading } = useQuery({
@@ -73,7 +75,7 @@ export default function BillingPage() {
       return res.json();
     },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["subscription", activeWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["subscription", activeWorkspaceIdRef.current] });
       if (data.direction === "upgrade") {
         toast.success(`Upgraded! Charged ${(data.chargeAmount / 100).toFixed(2)} (prorated)`);
       } else {
@@ -92,7 +94,8 @@ export default function BillingPage() {
   }, [searchParams, refetchSub]);
 
   const executeCheckout = async (planId: string, provider?: string) => {
-    if (!activeWorkspaceId) return;
+    const wsId = activeWorkspaceIdRef.current;
+    if (!wsId) return;
     setIsInitializingPayment(planId);
     try {
       const res = await fetch("/api/billing/checkout", {
@@ -102,7 +105,7 @@ export default function BillingPage() {
           planId,
           interval: billingInterval,
           currency,
-          workspaceId: activeWorkspaceId,
+          workspaceId: wsId,
           ...(provider ? { provider } : {}),
         }),
       });
