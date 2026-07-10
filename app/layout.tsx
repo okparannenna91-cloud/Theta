@@ -8,6 +8,7 @@ import { ThemeProvider } from "@/components/providers/theme-provider";
 import { WorkspaceProvider } from "@/components/providers/workspace-provider";
 import { AblyProvider } from "@/components/providers/ably-provider";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
+import { ApiDebugProvider } from "@/components/providers/api-debug-provider";
 import { Toaster } from "sonner";
 
 const figtree = Figtree({ subsets: ["latin"], variable: "--font-family" });
@@ -120,9 +121,11 @@ export default function RootLayout({
                 <PostHogProvider>
                   <PopupProvider>
                     <I18nProvider>
-                      <CommandPalette />
-                      {children}
-                      <Toaster richColors position="top-center" />
+                      <ApiDebugProvider>
+                        <CommandPalette />
+                        {children}
+                        <Toaster richColors position="top-center" />
+                      </ApiDebugProvider>
                     </I18nProvider>
                   </PopupProvider>
                 </PostHogProvider>
