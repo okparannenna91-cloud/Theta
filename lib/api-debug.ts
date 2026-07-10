@@ -327,7 +327,7 @@ export function enableApiDebug() {
 }
 
 export function disableApiDebug() {
-  try { sessionStorage.removeItem("api-debug", "1"); } catch {}
+  try { sessionStorage.removeItem("api-debug"); } catch {}
   if (originalFetch) {
     window.fetch = originalFetch;
     originalFetch = null;
