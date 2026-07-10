@@ -5,7 +5,6 @@ import { Card, CardHeader, CardDescription, CardContent } from "@/components/ui/
 import { Star, Sparkles, Zap, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
-import { SignInButton, SignUpButton } from "@clerk/nextjs";
 
 import HeroSection from "@/components/landing/sections/hero-section";
 import ProblemSection from "@/components/landing/sections/problem-section";
@@ -65,16 +64,16 @@ export default function LandingPage() {
           </div>
 
           <div className="flex gap-3 items-center">
-            <SignInButton mode="modal">
+            <Link href="/sign-in">
               <Button variant="ghost" className="hidden sm:inline-flex text-sm h-10 px-5 rounded-lg">
                 Sign In
               </Button>
-            </SignInButton>
-            <SignUpButton mode="modal">
+            </Link>
+            <Link href="/sign-up">
               <Button className="bg-primary hover:bg-primary/90 text-primary-foreground text-sm h-10 px-5 rounded-lg shadow-sm">
                 Get Started <Zap className="w-4 h-4 ml-1.5" />
               </Button>
-            </SignUpButton>
+            </Link>
           </div>
         </div>
       </nav>

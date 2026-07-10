@@ -2,7 +2,6 @@
 
 import { motion } from "framer-motion";
 import { Sparkles, ArrowRight, Zap, Brain, Shield } from "lucide-react";
-import { SignUpButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -50,7 +49,7 @@ export default function FinalCtaSection() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
-              <SignUpButton mode="modal">
+              <Link href="/sign-up">
                 <Button
                   size="lg"
                   className="h-12 px-8 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium shadow-md shadow-primary/20"
@@ -58,7 +57,7 @@ export default function FinalCtaSection() {
                   Start Free
                   <ArrowRight className="ml-2 w-4 h-4" />
                 </Button>
-              </SignUpButton>
+              </Link>
               <Button
                 size="lg"
                 variant="outline"
@@ -67,6 +66,15 @@ export default function FinalCtaSection() {
               >
                 <Link href="/pricing">View Pricing</Link>
               </Button>
+              <Link href="/sign-in">
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  className="h-12 px-8 rounded-lg text-sm font-medium"
+                >
+                  Sign In
+                </Button>
+              </Link>
             </div>
 
             <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">

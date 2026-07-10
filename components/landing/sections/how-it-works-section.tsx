@@ -2,8 +2,8 @@
 
 import { motion } from "framer-motion";
 import { Sparkles, UserPlus, Workflow, ArrowDown } from "lucide-react";
-import { SignUpButton } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 const steps = [
   {
@@ -96,11 +96,11 @@ export default function HowItWorksSection() {
           viewport={{ once: true, margin: "-100px" }}
           className="text-center mt-12"
         >
-          <SignUpButton mode="modal">
+          <Link href="/sign-up">
             <Button className="h-12 px-8 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium shadow-md shadow-primary/20">
               Start Free — No Credit Card
             </Button>
-          </SignUpButton>
+          </Link>
         </motion.div>
       </div>
     </section>

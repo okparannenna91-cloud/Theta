@@ -3,7 +3,6 @@
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Sparkles, Zap, MessageSquare, Brain } from "lucide-react";
-import { SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 
 function FloatingNovaBadge({ className = "" }: { className?: string }) {
@@ -68,7 +67,7 @@ export default function HeroSection() {
             transition={{ delay: 0.3, duration: 0.6 }}
             className="flex flex-col sm:flex-row gap-4 justify-center"
           >
-            <SignUpButton mode="modal">
+            <Link href="/sign-up">
               <Button
                 size="lg"
                 className="h-12 px-8 bg-primary hover:bg-primary/90 text-primary-foreground rounded-lg text-sm font-medium shadow-md shadow-primary/20"
@@ -76,7 +75,7 @@ export default function HeroSection() {
                 Start Free
                 <ArrowRight className="ml-2 w-4 h-4" />
               </Button>
-            </SignUpButton>
+            </Link>
             <Link href="/pricing">
               <Button
                 size="lg"
@@ -84,6 +83,15 @@ export default function HeroSection() {
                 className="h-12 px-8 rounded-lg text-sm font-medium"
               >
                 View Pricing
+              </Button>
+            </Link>
+            <Link href="/sign-in">
+              <Button
+                size="lg"
+                variant="ghost"
+                className="h-12 px-8 rounded-lg text-sm font-medium"
+              >
+                Sign In
               </Button>
             </Link>
           </motion.div>

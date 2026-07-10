@@ -4,7 +4,6 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Sparkles, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SignUpButton } from "@clerk/nextjs";
 import Link from "next/link";
 
 const plans = [
@@ -177,7 +176,7 @@ export default function PricingFaqSection() {
                 ))}
               </ul>
 
-              <SignUpButton mode="modal">
+              <Link href="/sign-up">
                 <Button
                   className={`w-full h-10 rounded-lg text-xs font-medium ${
                     plan.popular
@@ -187,7 +186,7 @@ export default function PricingFaqSection() {
                 >
                   {plan.cta}
                 </Button>
-              </SignUpButton>
+              </Link>
             </motion.div>
           ))}
         </div>
