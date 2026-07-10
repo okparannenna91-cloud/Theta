@@ -71,7 +71,7 @@ const nextConfig = {
               "connect-src 'self' https://*.ably.io wss://*.ably.io https://*.upstash.io https://api.clerk.com https://clerk.thetapm.site wss://clerk.thetapm.site https://*.clerk.com https://api.openai.com https://*.posthog.com https://api.posthog.com https://accounts.google.com https://*.googleapis.com https://oauth2.googleapis.com",
               "font-src 'self' data:",
               "frame-src 'self' https://clerk.thetapm.site https://*.accounts.dev https://*.clerk.accounts.dev https://clerk.com https://accounts.google.com",
-              "worker-src 'self' https://clerk.thetapm.site https://*.clerk.com",
+              "worker-src 'self' blob: https://clerk.thetapm.site https://*.clerk.com",
               "object-src 'none'",
               "base-uri 'self'",
               "form-action 'self'",
