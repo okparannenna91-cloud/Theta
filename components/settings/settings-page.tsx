@@ -12,15 +12,17 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Settings, Palette, Bell, Shield, Smartphone, Moon, Sun, Laptop,
-  Calendar, ExternalLink, Check, Zap, Globe, Lock, Code, Sparkles
+  Calendar, ExternalLink, Check, Zap, Globe, Lock, Code, Sparkles, Rocket
 } from "lucide-react";
 import { usePreferences } from "@/hooks/use-preferences";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 import { usePopups } from "@/components/popups/popup-manager";
 import { useQuery } from "@tanstack/react-query";
 
 export default function SettingsPage() {
+  const router = useRouter();
   const { theme, setTheme } = useTheme();
   const { showUpgradePrompt } = usePopups();
   const { preferences, updatePreference, isUpdating } = usePreferences();
@@ -248,7 +250,7 @@ export default function SettingsPage() {
                 </div>
                 <Switch checked />
               </div>
-              <div className="border-t pt-4 mt-2">
+              <div className="border-t pt-4 mt-2 space-y-2">
                 <Button
                   variant="outline"
                   size="sm"
@@ -257,6 +259,18 @@ export default function SettingsPage() {
                 >
                   <Sparkles className="h-3.5 w-3.5 mr-2 text-primary" />
                   View Nova&apos;s memory & learnings
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full justify-start text-xs h-10 rounded-xl text-muted-foreground"
+                  onClick={async () => {
+                    await updatePreference({ onboardingComplete: false });
+                    router.push("/onboarding");
+                  }}
+                >
+                  <Rocket className="h-3.5 w-3.5 mr-2" />
+                  Relaunch Onboarding
                 </Button>
               </div>
             </CardContent>

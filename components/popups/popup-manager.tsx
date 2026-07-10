@@ -1,13 +1,12 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { X, Sparkles, Rocket, ShieldAlert, AlertTriangle, CreditCard, Info, Trash2, UserPlus, Zap, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { NovaOnboarding } from "@/components/onboarding/nova-onboarding";
 
 type PopupType = 
-    | "onboarding" 
     | "upgrade" 
     | "trial_expiration"
     | "billing_warning" 
@@ -43,36 +42,23 @@ interface PopupContextType {
 const PopupContext = createContext<PopupContextType | undefined>(undefined);
 
 export function PopupProvider({ children }: { children: React.ReactNode }) {
+    const router = useRouter();
     const [activePopup, setActivePopup] = useState<PopupData | null>(null);
-    const [preferences, setPreferences] = useState<any>(null);
-
-    useEffect(() => {
-        fetch("/api/user/preferences")
-            .then((res) => res.json())
-            .then((data) => {
-                setPreferences(data);
-                if (!data.onboardingComplete) {
-                    setActivePopup({ id: "onboarding", type: "onboarding" });
-                }
-            })
-            .catch(() => console.log("Failed to fetch preferences"));
-    }, []);
 
     const dismissPopup = useCallback(async (id: string) => {
         setActivePopup(null);
-        if (id === "onboarding" || id.startsWith("permanent_")) {
-            const updatedDismissed = preferences?.dismissedPopups ? { ...preferences.dismissedPopups, [id]: true } : { [id]: true };
-
-            await fetch("/api/user/preferences", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    dismissedPopups: updatedDismissed,
-                    onboardingComplete: id === "onboarding" ? true : undefined
-                }),
-            }).catch(() => {});
+        if (id.startsWith("permanent_")) {
+            try {
+                const prefs = await (await fetch("/api/user/preferences")).json();
+                const updatedDismissed = prefs?.dismissedPopups ? { ...prefs.dismissedPopups, [id]: true } : { [id]: true };
+                await fetch("/api/user/preferences", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ dismissedPopups: updatedDismissed }),
+                });
+            } catch {}
         }
-    }, [preferences]);
+    }, []);
 
     const showUpgradePrompt = useCallback((feature: string) => {
         setActivePopup({
@@ -132,7 +118,6 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
 
     const getIcon = () => {
         switch (activePopup?.type) {
-            case "onboarding": return <Rocket className="w-6 h-6 text-primary" />;
             case "upgrade": return <Zap className="w-6 h-6 text-amber-600" />;
             case "trial_expiration": return <Clock className="w-6 h-6 text-orange-600" />;
             case "billing_warning": return <ShieldAlert className="w-6 h-6 text-rose-600" />;
@@ -144,7 +129,6 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
 
     const getIconContainerClass = () => {
         switch (activePopup?.type) {
-            case "onboarding": return "bg-muted";
             case "upgrade": return "bg-amber-100";
             case "trial_expiration": return "bg-orange-100";
             case "billing_warning":
@@ -156,7 +140,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
 
     return (
         <PopupContext.Provider value={{
-            showOnboarding: () => setActivePopup({ id: "onboarding", type: "onboarding" }),
+            showOnboarding: () => router.push("/onboarding"),
             showUpgradePrompt,
             showConfirm,
             showInfo,
@@ -167,10 +151,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
         }}>
             {children}
             <AnimatePresence>
-                {activePopup && activePopup.type === "onboarding" && (
-                    <NovaOnboarding onComplete={() => dismissPopup("onboarding")} />
-                )}
-                {activePopup && activePopup.type !== "onboarding" && (
+                {activePopup && (
                     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm px-6">
                         <motion.div
                             initial={{ scale: 0.9, opacity: 0, y: 20 }}
