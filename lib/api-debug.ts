@@ -216,6 +216,23 @@ function install() {
       console.log("Has Auth Header:", hasAuthHeader);
       console.log("Duration:", `${durationMs.toFixed(0)}ms`);
 
+      // Track session health
+      checkSessionHealth();
+
+      // Auto-recover: on 401, try to restore Clerk session
+      if (response.status === 401 && isMutationMethod(method)) {
+        consecutiveAuthFailures++;
+        if (consecutiveAuthFailures === 1) {
+          console.warn("[API-DEBUG] First 401 on mutation — checking session health...");
+          tryRecoverSession().then(recovered => {
+            if (recovered) console.info("[API-DEBUG] Session recovered automatically");
+            else console.warn("[API-DEBUG] Session recovery failed — a page refresh may be needed");
+          });
+        }
+      } else if (response.ok) {
+        consecutiveAuthFailures = 0;
+      }
+
       // On failure, dump recent history for comparison
       if (!response.ok && isMutationMethod(method) && entries.length >= 2) {
         console.warn("=== FAILED MUTATION ===");
@@ -272,7 +289,46 @@ function install() {
   };
 
   active = true;
+  // —— Session health monitor —————————————————————————————————————————
+  let sessionOk = true;
+  let consecutiveAuthFailures = 0;
+
+  function checkSessionHealth() {
+    const hasClerkCookies = document.cookie.includes("__session") || document.cookie.includes("__clerk");
+    const wasOk = sessionOk;
+    sessionOk = hasClerkCookies;
+
+    if (wasOk && !sessionOk) {
+      console.warn("[API-DEBUG] SESSION COOKIE LOST — Clerk session may have expired");
+    } else if (!wasOk && sessionOk) {
+      console.info("[API-DEBUG] Session cookies restored");
+    }
+  }
+
+  // Check session health on every API response
+  const origCheckSession = checkSessionHealth;
+
   console.log("[API-DEBUG] Installed. Open DevTools → Console → filter by 'API-DEBUG' to see instrumented requests.");
+
+  // Attempt session recovery on auth failures
+  async function tryRecoverSession(): Promise<boolean> {
+    try {
+      // Clerk stores session in IndexedDB and can restore on page reload.
+      // Trigger a temporary refetch by hitting a known endpoint that
+      // Clerk's middleware will process.
+      const testResp = await originalFetch!("/api/auth/me", { method: "HEAD", credentials: "include" });
+      if (testResp.ok || testResp.status === 401) {
+        // Session is being processed — wait and re-check
+        await new Promise(r => setTimeout(r, 500));
+        const restored = document.cookie.includes("__session") || document.cookie.includes("__clerk");
+        if (restored) {
+          consecutiveAuthFailures = 0;
+          return true;
+        }
+      }
+    } catch {}
+    return false;
+  }
 
   // Print table of all entries on demand
   (window as any).__apiDebug = {
@@ -287,6 +343,8 @@ function install() {
       ok: e.responseStatus < 400,
     }))),
     clear: () => { entries.length = 0; seq = 0; },
+    sessionHealth: checkSessionHealth,
+    recover: tryRecoverSession,
   };
 }
 

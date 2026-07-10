@@ -43,7 +43,12 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   if (!isPublicRoute(req)) {
-    auth().protect();
+    const session = auth();
+    if (!session.userId) {
+      // Return proper 401 instead of Clerk's opaque 404, so the frontend
+      // can distinguish "not found" from "not authenticated" and recover
+      return NextResponse.json({ error: "Unauthorized", code: "auth/session-expired" }, { status: 401 });
+    }
   }
 
   const elapsed = Date.now() - start;
