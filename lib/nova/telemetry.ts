@@ -102,10 +102,11 @@ export const telemetry = {
   },
 
   async getDashboard(_workspaceId?: string, hours = 24): Promise<Record<string, unknown>> {
-    const since = Date.now() - hours * 60 * 60 * 1000;
-    const day = new Date().toISOString().slice(0, 10);
+    try {
+      const since = Date.now() - hours * 60 * 60 * 1000;
+      const day = new Date().toISOString().slice(0, 10);
 
-    const recentEntries = await redis.zrange(key("latency", "all"), since, "+inf", { byScore: true });
+      const recentEntries = await redis.zrange(key("latency", "all"), since, "+inf", { byScore: true });
 
     const latencyValues: number[] = [];
     if (Array.isArray(recentEntries)) {
@@ -200,5 +201,15 @@ export const telemetry = {
     };
 
     return result;
+  } catch {
+    return {
+      period: { hours },
+      requests: { total: 0, today: 0, byPath: {}, routing: {} },
+      latency: { count: 0, p50: 0, p95: 0, p99: 0, average: 0 },
+      tools: { totalCalls: 0, topTools: [] },
+      errors: { total: 0, byType: {} },
+      costs: { total: 0, byModel: {} },
+    };
+  }
   },
 };

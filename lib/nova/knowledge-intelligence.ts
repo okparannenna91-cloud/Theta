@@ -41,7 +41,11 @@ export class KnowledgeIntelligence {
       },
     });
 
-    await redis.set(`knowledge:${doc.id}`, JSON.stringify({ title, content, source: source || "manual" }));
+    try {
+      await redis.set(`knowledge:${doc.id}`, JSON.stringify({ title, content, source: source || "manual" }));
+    } catch {
+      // cache write failure is non-fatal
+    }
 
     if (process.env.MEM0_API_KEY) {
       try {

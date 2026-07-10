@@ -61,7 +61,11 @@ export class ReportingIntelligence {
       `*Report Type: ${type} | Scope: ${scopeId}*`,
     ].join("\n");
 
-    await redis.set(`report:${workspaceId}:${type}:${scopeId}`, report);
+    try {
+      await redis.set(`report:${workspaceId}:${type}:${scopeId}`, report);
+    } catch {
+      // cache write failure is non-fatal
+    }
     return report;
   }
 
