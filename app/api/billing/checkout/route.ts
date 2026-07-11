@@ -50,7 +50,8 @@ export async function POST(req: Request) {
     const resolvedCurrency = currency ?? "USD";
     let resolvedProvider = explicitProvider;
     if (resolvedProvider && !providerRegistry.has(resolvedProvider)) {
-      console.warn(`[Checkout] Requested provider '${resolvedProvider}' not registered, falling back to first available for ${resolvedCurrency}`);
+      const available = providerRegistry.getAll().map(p => `${p.id}(${p.currencies.join(",")})`).join(", ");
+      console.warn(`[Checkout] Requested provider '${resolvedProvider}' not registered. Available: [${available}]. FLUTTERWAVE_SECRET_KEY=${!!process.env.FLUTTERWAVE_SECRET_KEY}`);
       resolvedProvider = undefined;
     }
     if (!resolvedProvider) {
