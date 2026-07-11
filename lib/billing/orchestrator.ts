@@ -50,7 +50,16 @@ class BillingOrchestrator {
     if (params.provider) {
       provider = providerRegistry.get(params.provider);
     } else if (workspace?.billingProvider) {
-      provider = providerRegistry.get(workspace.billingProvider);
+      const existingProvider = providerRegistry.get(workspace.billingProvider);
+      if (existingProvider.currencies.includes(params.currency as any)) {
+        provider = existingProvider;
+      } else {
+        const providers = providerRegistry.getForCurrency(params.currency as any);
+        if (providers.length === 0) {
+          throw new Error(`No payment provider available for ${params.currency}`);
+        }
+        provider = providers[0];
+      }
     } else {
       const providers = providerRegistry.getForCurrency(params.currency as any);
       if (providers.length === 0) {
