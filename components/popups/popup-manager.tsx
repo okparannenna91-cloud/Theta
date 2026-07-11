@@ -192,7 +192,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
                                     <Button 
                                         onClick={() => {
                                             if (activePopup.type === "upgrade" || activePopup.type === "trial_expiration") {
-                                                window.location.href = "/dashboard/billing";
+                                                window.location.href = "/billing";
                                             } else if (activePopup.onAction) {
                                                 activePopup.onAction();
                                                 dismissPopup(activePopup.id);

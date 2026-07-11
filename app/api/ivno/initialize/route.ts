@@ -59,7 +59,7 @@ export async function POST(req: Request) {
 
         const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
         const webhookUrl = `${baseUrl}/api/webhooks/ivno`;
-        const returnUrl = `${baseUrl}/dashboard/billing?payment=success`;
+        const returnUrl = `${baseUrl}/billing?payment=success`;
 
         // Build the order ID (hash-based, not exposing internal IDs)
         const orderId: string = await buildIvnoOrderId(

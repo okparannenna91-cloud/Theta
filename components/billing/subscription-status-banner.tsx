@@ -39,7 +39,7 @@ export function SubscriptionStatusBanner({
               </p>
             </div>
           </div>
-          <Link href="/dashboard/billing">
+          <Link href="/billing">
             <Button variant="default" size="sm" className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white">
               View Plans
             </Button>
@@ -64,7 +64,7 @@ export function SubscriptionStatusBanner({
               </p>
             </div>
           </div>
-          <Link href="/dashboard/billing">
+          <Link href="/billing">
             <Button variant="default" size="sm" className="shrink-0 bg-red-600 hover:bg-red-700 text-white">
               Choose a Plan
             </Button>
@@ -147,7 +147,7 @@ export function SubscriptionStatusBanner({
               </p>
             </div>
           </div>
-          <Link href="/dashboard/billing">
+          <Link href="/billing">
             <Button variant="default" size="sm" className="shrink-0 bg-red-600 hover:bg-red-700 text-white">
               Renew Subscription
             </Button>

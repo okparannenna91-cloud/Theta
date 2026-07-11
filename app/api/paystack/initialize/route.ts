@@ -64,7 +64,7 @@ export async function POST(req: Request) {
             amount: amount,
             currency: currency,
             metadata,
-            callback_url: `${baseUrl}/dashboard/billing?payment=success`,
+            callback_url: `${baseUrl}/billing?payment=success`,
         });
 
         if (response.status && response.data.authorization_url) {

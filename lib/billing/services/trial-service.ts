@@ -148,7 +148,7 @@ export class TrialService {
               </p>
               <p>Choose a plan to keep your projects, tasks, and team collaboration running smoothly.</p>
               <div style="margin: 32px 0;">
-                <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard/billing"
+                <a href="${process.env.NEXT_PUBLIC_APP_URL}/billing"
                    style="background-color: #6366f1; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold;">
                    ${daysRemaining === 0 ? "Choose a Plan" : "View Plans"}
                 </a>

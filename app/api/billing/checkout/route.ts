@@ -71,8 +71,8 @@ export async function POST(req: Request) {
       userId: user.id,
       userEmail: user.email,
       memberCount: resolvedMemberCount,
-      successUrl: `${baseUrl}/dashboard/billing?payment=success`,
-      cancelUrl: `${baseUrl}/dashboard/billing?payment=cancelled`,
+      successUrl: `${baseUrl}/billing?payment=success`,
+      cancelUrl: `${baseUrl}/billing?payment=cancelled`,
       provider: explicitProvider,
     });
 
