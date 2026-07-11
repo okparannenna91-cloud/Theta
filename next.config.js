@@ -68,7 +68,7 @@ const nextConfig = {
               "script-src-elem 'self' 'unsafe-inline' https://clerk.thetapm.site https://*.clerk.com",
               "style-src 'self' 'unsafe-inline'",
               "img-src 'self' data: blob: https://*.cloudinary.com https://img.clerk.com https://*.gravatar.com",
-              "connect-src 'self' https://*.ably.io wss://*.ably.io https://*.upstash.io https://api.clerk.com https://clerk.thetapm.site wss://clerk.thetapm.site https://*.clerk.com https://api.openai.com https://*.posthog.com https://api.posthog.com https://accounts.google.com https://*.googleapis.com https://oauth2.googleapis.com",
+              "connect-src 'self' https://*.ably.io wss://*.ably.io https://*.ably.net wss://*.ably.net https://*.ably-realtime.com wss://*.ably-realtime.com https://*.upstash.io https://api.clerk.com https://clerk.thetapm.site wss://clerk.thetapm.site https://*.clerk.com https://api.openai.com https://*.posthog.com https://api.posthog.com https://accounts.google.com https://*.googleapis.com https://oauth2.googleapis.com",
               "font-src 'self' data:",
               "frame-src 'self' https://clerk.thetapm.site https://*.accounts.dev https://*.clerk.accounts.dev https://clerk.com https://accounts.google.com",
               "worker-src 'self' blob: https://clerk.thetapm.site https://*.clerk.com",
