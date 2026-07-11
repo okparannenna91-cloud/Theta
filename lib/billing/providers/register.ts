@@ -7,7 +7,7 @@ export function registerProviders() {
   if (!providerRegistry.has("paystack")) {
     providerRegistry.register(new PaystackProvider());
   }
-  if (process.env.FLUTTERWAVE_SECRET_KEY && !providerRegistry.has("flutterwave")) {
+  if (!providerRegistry.has("flutterwave")) {
     providerRegistry.register(new FlutterwaveProvider());
   }
   if (!providerRegistry.has("ivno")) {

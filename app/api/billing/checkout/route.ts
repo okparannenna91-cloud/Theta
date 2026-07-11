@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  return NextResponse.json({ status: "ok", endpoint: "checkout" });
+  const { providerRegistry } = await import("@/lib/billing/providers/registry");
+  const { registerProviders } = await import("@/lib/billing/providers/register");
+  registerProviders();
+
+  return NextResponse.json({
+    flutterwaveKey: !!process.env.FLUTTERWAVE_SECRET_KEY,
+    flutterwaveKeyLen: process.env.FLUTTERWAVE_SECRET_KEY?.length ?? 0,
+    flutterwaveRegistered: providerRegistry.has("flutterwave"),
+    allProviders: providerRegistry.getAll().map(p => `${p.id}(${p.currencies.join(",")})`),
+    nodeEnv: process.env.NODE_ENV,
+  });
 }
 
 export async function POST(req: Request) {
@@ -51,8 +61,15 @@ export async function POST(req: Request) {
 
     const resolvedCurrency = currency ?? "USD";
     let resolvedProvider = explicitProvider;
-    if (resolvedProvider && !providerRegistry.has(resolvedProvider)) {
-      resolvedProvider = undefined;
+    if (resolvedProvider) {
+      if (!providerRegistry.has(resolvedProvider)) {
+        resolvedProvider = undefined;
+      } else {
+        const prov = providerRegistry.get(resolvedProvider);
+        if (!prov.currencies.includes(resolvedCurrency as any)) {
+          resolvedProvider = undefined;
+        }
+      }
     }
     if (!resolvedProvider) {
       const providersForCurrency = providerRegistry.getForCurrency(resolvedCurrency as any);
