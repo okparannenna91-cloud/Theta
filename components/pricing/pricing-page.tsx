@@ -141,7 +141,7 @@ export default function PricingPage() {
                   </div>
 
                   <SignedOut>
-                    <SignUpButton mode="modal">
+                    <SignUpButton mode="modal" forceRedirectUrl="/dashboard">
                       <Button
                         className={`w-full text-sm font-medium rounded-lg ${isPopular ? "bg-primary hover:bg-primary/90 shadow-sm" : ""}`}
                         variant={isPopular ? "default" : "outline"}
