@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  const { providerRegistry } = await import("@/lib/billing/providers/registry");
-  const { registerProviders } = await import("@/lib/billing/providers/register");
-  registerProviders();
-  return NextResponse.json({
-    status: "ok",
-    endpoint: "checkout",
-    providers: providerRegistry.getAll().map(p => ({ id: p.id, currencies: p.currencies })),
-    flutterwaveKey: !!process.env.FLUTTERWAVE_SECRET_KEY,
-  });
+  return NextResponse.json({ status: "ok", endpoint: "checkout" });
 }
 
 export async function POST(req: Request) {
@@ -58,8 +50,6 @@ export async function POST(req: Request) {
     const resolvedCurrency = currency ?? "USD";
     let resolvedProvider = explicitProvider;
     if (resolvedProvider && !providerRegistry.has(resolvedProvider)) {
-      const available = providerRegistry.getAll().map(p => `${p.id}(${p.currencies.join(",")})`).join(", ");
-      console.warn(`[Checkout] Requested provider '${resolvedProvider}' not registered. Available: [${available}]. FLUTTERWAVE_SECRET_KEY=${!!process.env.FLUTTERWAVE_SECRET_KEY}`);
       resolvedProvider = undefined;
     }
     if (!resolvedProvider) {
