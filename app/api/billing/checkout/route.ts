@@ -48,12 +48,12 @@ export async function POST(req: Request) {
     }
 
     const resolvedCurrency = currency ?? "USD";
-
-    if (explicitProvider) {
-      if (!providerRegistry.has(explicitProvider)) {
-        return NextResponse.json({ error: `Payment provider '${explicitProvider}' is not available` }, { status: 400 });
-      }
-    } else {
+    let resolvedProvider = explicitProvider;
+    if (resolvedProvider && !providerRegistry.has(resolvedProvider)) {
+      console.warn(`[Checkout] Requested provider '${resolvedProvider}' not registered, falling back to first available for ${resolvedCurrency}`);
+      resolvedProvider = undefined;
+    }
+    if (!resolvedProvider) {
       const providersForCurrency = providerRegistry.getForCurrency(resolvedCurrency as any);
       if (providersForCurrency.length === 0) {
         return NextResponse.json({ error: `No payment provider available for currency: ${resolvedCurrency}` }, { status: 400 });
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
       memberCount: resolvedMemberCount,
       successUrl: `${baseUrl}/billing?payment=success`,
       cancelUrl: `${baseUrl}/billing?payment=cancelled`,
-      provider: explicitProvider,
+      provider: resolvedProvider,
     });
 
     return NextResponse.json({ url: result.url, sessionId: result.sessionId });
