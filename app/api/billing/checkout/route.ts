@@ -1,7 +1,15 @@
 import { NextResponse } from "next/server";
 
 export async function GET() {
-  return NextResponse.json({ status: "ok", endpoint: "checkout" });
+  const { providerRegistry } = await import("@/lib/billing/providers/registry");
+  const { registerProviders } = await import("@/lib/billing/providers/register");
+  registerProviders();
+  return NextResponse.json({
+    status: "ok",
+    endpoint: "checkout",
+    providers: providerRegistry.getAll().map(p => ({ id: p.id, currencies: p.currencies })),
+    flutterwaveKey: !!process.env.FLUTTERWAVE_SECRET_KEY,
+  });
 }
 
 export async function POST(req: Request) {
