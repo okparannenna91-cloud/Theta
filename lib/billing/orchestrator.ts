@@ -11,8 +11,6 @@ import { providerRegistry } from "./providers/registry";
 import { getPlanPriceDynamic, BILLING_PLANS, BILLING_PLAN_LOOKUP } from "@/lib/billing-plans";
 import { logger } from "@/lib/logger";
 
-registerProviders();
-
 class BillingOrchestrator {
   private subscriptionService: SubscriptionService;
   private invoiceService: InvoiceService;
@@ -20,6 +18,7 @@ class BillingOrchestrator {
   private trialService: TrialService;
 
   constructor() {
+    registerProviders();
     this.subscriptionService = new SubscriptionService();
     this.invoiceService = new InvoiceService();
     this.dunningService = new DunningService();

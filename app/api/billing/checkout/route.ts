@@ -10,6 +10,8 @@ export async function POST(req: Request) {
     const { verifyWorkspaceAccess, requireWorkspaceAdmin } = await import("@/lib/workspace");
     const { billingOrchestrator } = await import("@/lib/billing/orchestrator");
     const { providerRegistry } = await import("@/lib/billing/providers/registry");
+    const { registerProviders } = await import("@/lib/billing/providers/register");
+    registerProviders();
     const { BILLING_PLAN_LOOKUP } = await import("@/lib/billing-plans");
     const { logger } = await import("@/lib/logger");
 
