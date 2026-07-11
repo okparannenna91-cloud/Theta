@@ -25,11 +25,21 @@ export type PaymentProviderOption = {
 
 export const PAYMENT_PROVIDERS: PaymentProviderOption[] = [
   {
+    id: "flutterwave",
+    label: "Pay with USD",
+    description: "Credit Card, Debit Card, USD Payment",
+    currencies: ["USD"],
+    recommended: true,
+    icon: "card",
+    features: ["Credit & Debit Cards", "Fast checkout", "USD settlement"],
+    cta: "Continue with Flutterwave",
+  },
+  {
     id: "ivno",
     label: "Pay with Crypto",
     description: "Bitcoin, Ethereum, USDT & more",
     currencies: ["USD"],
-    recommended: true,
+    recommended: false,
     icon: "crypto",
     features: ["Bitcoin (BTC)", "Ethereum (ETH)", "USDT & stablecoins", "No chargebacks"],
     cta: "Continue with Ivno.io",

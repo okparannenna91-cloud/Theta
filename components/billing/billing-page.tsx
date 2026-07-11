@@ -33,7 +33,7 @@ import { InvoiceList } from "./invoice-list";
 import { CancelSubscriptionDialog } from "./cancel-subscription-dialog";
 import { ChangePlanDialog } from "./change-plan-dialog";
 import { CreditBalance } from "./credit-balance";
-import { PaymentProviderModal } from "./payment-provider-modal";
+import { PaymentProviderModal, PAYMENT_PROVIDERS } from "./payment-provider-modal";
 
 export default function BillingPage() {
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
