@@ -7,7 +7,7 @@ import { loadWorkspaceContext } from "./nodes/context-loader";
 import { loadMemory } from "./nodes/memory-loader";
 import { executeWithFallback } from "./nodes/provider-fallback";
 import { executeStream } from "./nodes/stream-handler";
-import { validateAndSanitize, optimizeResponse } from "./nodes/output-validator";
+import { validateAndSanitize, optimizeResponse, runQualityGate } from "./nodes/output-validator";
 import { sanitizeUserInput } from "@/lib/nova/output-validator";
 import { enforcePermission } from "./nodes/security-enforcer";
 import { tryDirectAction } from "./nodes/direct-action-router";
@@ -24,6 +24,7 @@ export interface NovaAgentState {
   workspaceId: string;
   projectId?: string;
   conversationId?: string;
+  pageContext?: { path: string; type: string };
   shouldStream?: boolean;
   onToken?: (token: string) => void;
   onFinish?: (text: string) => void;
@@ -36,6 +37,7 @@ export interface NovaAgentState {
   routerConfig: RouterConfig;
   workspaceContext?: string;
   memoryContext?: string;
+  conversationContext?: string;
   toolResults: Array<{ toolName: string; result?: unknown; error?: string }>;
   response: string;
   error?: string;
@@ -67,10 +69,26 @@ export class NovaAgent {
         const loadedContext = await loadWorkspaceContext(state.workspaceId, state.userId, state.projectId, route.contextDepth);
         state.workspaceContext = loadedContext.workspaceContext ? sanitizeUserInput(loadedContext.workspaceContext) : "";
 
+        const { ContextSystem } = await import("@/lib/nova/context-system");
+        const workspaceOverview = await ContextSystem.loadWorkspaceOverview(state.workspaceId);
+        if (workspaceOverview) {
+          state.workspaceContext = (state.workspaceContext || "") + "\n\n" + workspaceOverview;
+        }
+
         const memoryDepth = route.contextDepth === "full" ? "full" : "lightweight";
         const loadedMemory = await loadMemory(state.userId, state.workspaceId, state.conversationId, memoryDepth);
         if (loadedMemory.longTerm.length > 0) {
           state.memoryContext = `[NOVA LONG-TERM MEMORY]\n${loadedMemory.longTerm.map(m => `- ${m.key}: ${sanitizeUserInput(m.value).substring(0, 200)}`).join("\n")}`;
+        }
+
+        if (loadedMemory.shortTerm.length > 0) {
+          const recentMessages = loadedMemory.shortTerm.slice(-10);
+          const formattedHistory = recentMessages.map(m => {
+            const role = m.role === "user" ? "User" : "Nova";
+            const content = sanitizeUserInput(m.content).substring(0, 150);
+            return `${role}: ${content}`;
+          }).join("\n");
+          state.conversationContext = `[RECENT CONVERSATION]\n${formattedHistory}`;
         }
       }
 
@@ -98,16 +116,21 @@ export class NovaAgent {
 
       // Step 7: Build system prompt
       const basePrompt = state.systemPrompt || "You are Nova, the intelligent operating system of Theta.";
+      const pageContextSection = state.pageContext
+        ? `[CURRENT PAGE: ${state.pageContext.type || "unknown"}] — User is viewing the ${state.pageContext.type || "page"}.`
+        : "";
       const systemPrompt = [
         basePrompt,
         state.workspaceContext || "",
         state.memoryContext || "",
+        state.conversationContext || "",
+        pageContextSection,
         route.promptSuffix,
       ].filter(Boolean).join("\n\n");
 
       const filteredTools = buildLangGraphTools(this.ctx, route.toolCategories);
       const actionPrompt = state.route === "ACTION"
-        ? `${state.prompt}\n\nAvailable tools: ${filteredTools.map(t => t.name).join(", ")}\n\nUse tools as needed to fulfill this request.`
+        ? `${state.prompt}\n\nUse your available capabilities to fulfill this request. Do not reference tool names or internal systems in your response.`
         : state.route === "ANALYSIS"
           ? `${state.prompt}\n\nAnalyze the available information and provide insights with evidence from the workspace.`
           : state.route === "CONVERSATION"
@@ -128,9 +151,20 @@ export class NovaAgent {
         text = typeof rawResult === "string" ? rawResult : String(rawResult);
       }
 
-      // Step 9: Validate and optimize via LangGraph nodes
+      // Step 9: Validate, optimize, and run quality gate via LangGraph nodes
       const sanitized = validateAndSanitize(text);
       const optimized = optimizeResponse(sanitized, state.route);
+
+      const qualityGateResult = runQualityGate(optimized, {
+        route: state.route,
+        workspaceContext: state.workspaceContext,
+        userPrompt: state.prompt,
+        conversationHistory: state.memoryContext,
+      });
+      if (!qualityGateResult.passed) {
+        logger.info("[NovaAgent] Quality gate revised response", { issues: qualityGateResult.issues });
+      }
+      const finalResponse = qualityGateResult.response;
 
       // Step 10: Save conversation to memory via LangGraph node
       await saveConversationMemory({
@@ -138,16 +172,21 @@ export class NovaAgent {
         workspaceId: state.workspaceId,
         conversationId: state.conversationId,
         prompt: state.prompt,
-        response: optimized,
+        response: finalResponse,
         toolResults: state.toolResults,
       }).catch(() => {});
 
-      logger.info("[NovaAgent] Execution complete", { route: state.route, durationMs: Date.now() - start, responseLength: optimized.length });
+      logger.info("[NovaAgent] Execution complete", { route: state.route, durationMs: Date.now() - start, responseLength: finalResponse.length });
 
-      return { ...state, response: optimized };
+      return { ...state, response: finalResponse };
     } catch (error: any) {
       logger.error("[NovaAgent] Execution failed", { error: error.message, route: state.route, durationMs: Date.now() - start });
-      return { ...state, error: error.message, response: `I encountered an error processing your request: ${error.message}` };
+      const userMessage = error.message?.includes('timeout') || error.message?.includes('abort')
+        ? "This took longer than expected. Try a simpler request, or try again in a moment."
+        : error.message?.includes('permission') || error.message?.includes('access')
+          ? "I don't have the right permissions for that action."
+          : "Something went wrong on my end. Give it another shot — if it keeps happening, I'll look into it.";
+      return { ...state, error: error.message, response: userMessage };
     }
   }
 }

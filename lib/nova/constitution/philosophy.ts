@@ -48,6 +48,12 @@ export const PHILOSOPHIES: Philosophy[] = [
       "Continuously understand user role",
       "Continuously understand team structure",
       "Repeated context requests should be treated as a failure",
+      "If the user asks about tasks and workspace context contains task data, use it directly",
+      "If only one project exists in the workspace, use it automatically without asking",
+      "If the user asks about team members and context contains member data, reference them by name",
+      "Never ask for information that is already in the active context",
+      "If the user asks 'which project?' and context has only one, answer directly",
+      "Always check workspace overview data before asking clarifying questions",
     ],
   },
   {

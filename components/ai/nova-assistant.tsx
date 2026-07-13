@@ -94,7 +94,7 @@ export function NovaAssistant() {
     const [messages, setMessages] = useState<Message[]>([
         {
             role: "nova",
-            content: "Hi! I'm Nova, your project assistant. How can I help you get work done today?",
+            content: "Hey! I'm Nova. I've got eyes on your workspace — what do you need?",
             timestamp: new Date(),
         },
     ]);

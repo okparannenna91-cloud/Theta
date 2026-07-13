@@ -5,7 +5,7 @@ import { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, get
 
 export { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, type ContextSource } from "./constitution/context";
 
-const MAX_CONTEXT_TOKENS = 3000;
+const MAX_CONTEXT_TOKENS = 4000;
 
 const workspaceCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_TTL_MS = 5000;
@@ -176,6 +176,73 @@ export class ContextSystem {
     } catch (error) {
       logger.warn("[ContextSystem] Failed to get snapshots:", error);
       return [];
+    }
+  }
+
+  public static async loadWorkspaceOverview(workspaceId: string): Promise<string> {
+    try {
+      const [projects, taskCounts, memberCount, recentActivity] = await Promise.all([
+        prisma.project.findMany({
+          where: { workspaceId },
+          select: { id: true, name: true },
+          take: 10,
+        }),
+        prisma.task.groupBy({
+          by: ["status"],
+          where: { workspaceId },
+          _count: { id: true },
+        }),
+        prisma.workspaceMember.count({
+          where: { workspaceId, status: "active" },
+        }),
+        prisma.task.findMany({
+          where: { workspaceId },
+          select: { title: true, status: true, priority: true, updatedAt: true },
+          orderBy: { updatedAt: "desc" },
+          take: 5,
+        }),
+      ]);
+
+      const statusCounts: Record<string, number> = {};
+      for (const group of taskCounts) {
+        statusCounts[group.status] = group._count.id;
+      }
+      const totalTasks = Object.values(statusCounts).reduce((a, b) => a + b, 0);
+
+      const overdueCount = await prisma.task.count({
+        where: {
+          workspaceId,
+          dueDate: { lt: new Date() },
+          status: { notIn: ["done", "completed", "cancelled"] },
+        },
+      });
+
+      const sections: string[] = ["[WORKSPACE OVERVIEW]"];
+
+      if (projects.length > 0) {
+        sections.push(`Projects (${projects.length}): ${projects.map(p => p.name).join(", ")}`);
+      } else {
+        sections.push("Projects: None");
+      }
+
+      sections.push(`Tasks: ${totalTasks} total — ${statusCounts["todo"] || 0} todo, ${statusCounts["in-progress"] || statusCounts["in_progress"] || 0} in progress, ${statusCounts["done"] || statusCounts["completed"] || 0} done`);
+      if (overdueCount > 0) {
+        sections.push(`Overdue tasks: ${overdueCount}`);
+      }
+
+      sections.push(`Team members: ${memberCount}`);
+
+      if (recentActivity.length > 0) {
+        sections.push("Recent activity:");
+        for (const task of recentActivity) {
+          sections.push(`  - "${task.title}" [${task.status}] (${task.priority} priority)`);
+        }
+      }
+
+      return sections.join("\n");
+    } catch (error) {
+      logger.warn("[ContextSystem] Failed to load workspace overview:", error);
+      return "";
     }
   }
 }

@@ -16,6 +16,7 @@ export interface NovaAgentOptions {
   workspaceId: string;
   projectId?: string;
   conversationId?: string;
+  pageContext?: { path: string; type: string };
   systemPrompt?: string;
   intent: NovaIntent;
   routeDecision: RouteDecision;
@@ -43,6 +44,7 @@ export async function runNovaAgent(prompt: string, options: NovaAgentOptions): P
     workspaceId: options.workspaceId,
     projectId: options.projectId,
     conversationId: options.conversationId,
+    pageContext: options.pageContext,
     route: "CHAT",
     intent: options.intent,
     routeDecision: options.routeDecision,

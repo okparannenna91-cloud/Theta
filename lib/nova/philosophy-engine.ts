@@ -15,17 +15,17 @@ export class PhilosophyEngine {
 
   private static stripBoilerplate(text: string): string {
     const leadingPatterns = [
-      /^(sure|of course|absolutely|i would be happy to|here is how to|here is a summary of)/i,
-      /^hello!/i,
-      /^hi there/i,
-      /^let me /i,
-      /^i can /i,
+      /^(?:sure|of course|absolutely|certainly|great question|excellent question|that's a great question)[!.]*\s*/i,
+      /^(?:i would be happy to|i'?d be happy to)[^.]*\.\s*/i,
+      /^(?:here is (?:a |the )?(?:summary|result|answer|output))[^.]*\.\s*/i,
     ];
 
     const trailingPatterns = [
-      /let me know if (you need|there'?s anything)/i,
-      /feel free to (reach out|ask|contact)/i,
-      /i'?m (here |always )?(to help|available)/i,
+      /let me know if (?:you need|there'?s anything|you have)/i,
+      /feel free to (?:reach out|ask|contact|let me know)/i,
+      /i'?m (?:here |always )?(?:to help|available|for you)/i,
+      /is there anything else (?:i can|i should|you need)/i,
+      /don'?t hesitate to (?:ask|reach out|contact)/i,
     ];
 
     const lines = text.split("\n");

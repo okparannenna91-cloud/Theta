@@ -18,3 +18,16 @@ export function optimizeResponse(response: string, intent: string): string {
   const { PhilosophyEngine } = require("@/lib/nova/philosophy-engine");
   return PhilosophyEngine.optimizeResponse(response, intent);
 }
+
+export interface QualityGateContext {
+  route: string;
+  workspaceContext?: string;
+  userPrompt: string;
+  conversationHistory?: string;
+}
+
+export function runQualityGate(response: string, context: QualityGateContext): { response: string; passed: boolean; issues: string[] } {
+  const { ResponseQualityGate } = require("@/lib/nova/output-validator");
+  const result = ResponseQualityGate.review(response, context);
+  return { response: result.revisedResponse, passed: result.passed, issues: result.issues };
+}

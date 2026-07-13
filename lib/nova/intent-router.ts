@@ -17,6 +17,17 @@ const NEGATION_PATTERNS = [
   /\b(?:not|n't)\s+(?:to\s+)?(?:create|make|add|delete|remove|destroy|erase|purge|update|edit|modify|change|automate|import|export)\b/i,
 ];
 
+const WORKSPACE_QUESTION_KEYWORDS = [
+  "task", "tasks", "project", "projects", "team", "member", "members",
+  "sprint", "deadline", "overdue", "health", "status", "progress",
+  "velocity", "backlog", "milestone", "calendar", "schedule", "budget",
+  "workload", "risk", "risks", "blocker", "blockers", "report",
+  "standup", "brief", "summary", "activity", "completion", "delivery",
+  "board", "timeline", "epic", "estimation", "capacity",
+];
+
+const SOCIAL_PATTERNS = /^(?:hi|hey|hello|thanks|thank you|bye|goodbye|good morning|good afternoon|good evening|how are you|what'?s up|sup|yo|help)\b/i;
+
 function isActionIntent(intent: NovaIntent): boolean {
   return ["CREATE", "UPDATE", "DELETE", "AUTOMATE", "IMPORT", "EXPORT"].includes(intent);
 }
@@ -25,14 +36,25 @@ function isAnalysisIntent(intent: NovaIntent): boolean {
   return ["ANALYZE", "REPORT"].includes(intent);
 }
 
+function involvesWorkspaceData(prompt: string): boolean {
+  const lower = prompt.toLowerCase();
+  return WORKSPACE_QUESTION_KEYWORDS.some(kw => lower.includes(kw));
+}
+
+function isPurelySocial(prompt: string): boolean {
+  return SOCIAL_PATTERNS.test(prompt.trim());
+}
+
+function isNegatedAction(prompt: string): boolean {
+  return NEGATION_PATTERNS.some(p => p.test(prompt));
+}
+
 function isConversationalPrompt(prompt: string): boolean {
-  const negated = NEGATION_PATTERNS.some(p => p.test(prompt));
-  if (negated) return true;
+  if (isNegatedAction(prompt)) return true;
+  if (isPurelySocial(prompt)) return true;
+  if (involvesWorkspaceData(prompt)) return false;
 
-  const isGreeting = /^(?:hi|hey|hello|thanks|thank you|bye|goodbye|good morning|good afternoon|good evening)\b/i.test(prompt.trim());
-  if (isGreeting) return true;
-
-  const isQuestion = /^(?:what|why|how|when|where|who|is|are|can|could|would|should|does|do|did|has|have|will|shall|may|might)\b/i.test(prompt.trim());
+  const isQuestion = /^(?:what|why|how|when|where|who|is|are|can|could|would|should|does|do|did|has|have|will|shall|may| might)\b/i.test(prompt.trim());
   if (isQuestion) {
     const hasExplicitAction = /\b(?:create|make|add|delete|remove|update|edit|modify|change|automate|import|export)\b/i.test(prompt);
     return !hasExplicitAction;
