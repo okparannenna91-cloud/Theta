@@ -72,11 +72,7 @@ export class FlutterwaveProvider implements BillingProvider {
       }),
     });
 
-    console.log("[Flutterwave] createCheckoutSession response.data:", response.data);
-    const sessionId = response.data?.id;
-    console.log("[Flutterwave] sessionId raw:", sessionId, "type:", typeof sessionId);
-    if (sessionId == null) throw new Error(`Flutterwave createCheckoutSession returned no id: ${JSON.stringify(response.data)}`);
-    return { url: response.data.link, sessionId: sessionId.toString() };
+    return { url: response.data.link, sessionId: txRef };
   }
 
   async createPaymentIntent(params: PaymentIntentParams): Promise<PaymentIntentResult> {
