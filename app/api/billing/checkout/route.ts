@@ -57,7 +57,8 @@ export async function POST(req: Request) {
     const { providerRegistry } = await import("@/lib/billing/providers/registry");
     const { registerProviders } = await import("@/lib/billing/providers/register");
     registerProviders();
-    const { BILLING_PLAN_LOOKUP } = await import("@/lib/billing-plans");
+    const { BILLING_PLAN_LOOKUP, getPlanPrice, getPlanPriceDynamic } = await import("@/lib/billing-plans");
+    const { prisma } = await import("@/lib/prisma");
     const { logger } = await import("@/lib/logger");
 
     const user = await getCurrentUser();
@@ -66,24 +67,13 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { workspaceId, planId, interval, currency, memberCount, provider: explicitProvider } = body as {
+    const { workspaceId, planId, interval, currency, provider: explicitProvider } = body as {
       workspaceId: string;
       planId: string;
       interval: "monthly" | "annual";
       currency: string;
-      memberCount?: number;
       provider?: string;
     };
-
-    console.log("[Checkout DEBUG] body vars:", {
-      workspaceId,
-      planId,
-      interval,
-      currency,
-      memberCount,
-      provider: explicitProvider,
-      userId: user.id,
-    });
 
     if (!workspaceId || !planId || !interval) {
       return NextResponse.json({ error: "workspaceId, planId, and interval are required" }, { status: 400 });
@@ -123,10 +113,13 @@ export async function POST(req: Request) {
       }
     }
 
-    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
-    const resolvedMemberCount = memberCount ?? 0;
+    const memberCount = await prisma.workspaceMember.count({ where: { workspaceId } });
+    const basePrice = plan.basePriceMonthlyUSD;
+    const perUserPrice = plan.perUserPriceMonthlyUSD;
+    const userCharge = memberCount * perUserPrice;
+    const totalAmount = await getPlanPriceDynamic(planId, interval, memberCount, resolvedCurrency as any);
 
-    console.log("[Checkout DEBUG] resolved:", { resolvedCurrency, resolvedProvider, resolvedMemberCount, baseUrl });
+    const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
 
     const result = await billingOrchestrator.createCheckout({
       workspaceId,
@@ -135,13 +128,25 @@ export async function POST(req: Request) {
       currency: resolvedCurrency,
       userId: user.id,
       userEmail: user.email,
-      memberCount: resolvedMemberCount,
+      memberCount,
       successUrl: `${baseUrl}/billing?payment=success`,
       cancelUrl: `${baseUrl}/billing?payment=cancelled`,
       provider: resolvedProvider,
     });
 
-    return NextResponse.json({ url: result.url, sessionId: result.sessionId });
+    return NextResponse.json({
+      url: result.url,
+      sessionId: result.sessionId,
+      breakdown: {
+        basePrice,
+        perUserPrice,
+        memberCount,
+        userCharge,
+        totalAmount,
+        currency: resolvedCurrency,
+        interval,
+      },
+    });
   } catch (error: any) {
     const logger = await import("@/lib/logger").then(m => m.logger).catch(() => null);
     if (logger) logger.error("[Checkout] Error:", error);

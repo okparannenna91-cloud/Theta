@@ -33,7 +33,7 @@ import { InvoiceList } from "./invoice-list";
 import { CancelSubscriptionDialog } from "./cancel-subscription-dialog";
 import { ChangePlanDialog } from "./change-plan-dialog";
 import { CreditBalance } from "./credit-balance";
-import { PaymentProviderModal, PAYMENT_PROVIDERS } from "./payment-provider-modal";
+import { PaymentProviderModal, PAYMENT_PROVIDERS, PriceBreakdown } from "./payment-provider-modal";
 
 export default function BillingPage() {
   const [billingInterval, setBillingInterval] = useState<BillingInterval>("monthly");
@@ -41,6 +41,7 @@ export default function BillingPage() {
   const [isInitializingPayment, setIsInitializingPayment] = useState<string | null>(null);
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [pendingCheckout, setPendingCheckout] = useState<{ planId: string; price: string; name: string } | null>(null);
+  const [priceBreakdown, setPriceBreakdown] = useState<PriceBreakdown | null>(null);
 
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -121,13 +122,20 @@ export default function BillingPage() {
     finally { setIsInitializingPayment(null); }
   };
 
-  const handleCheckout = (planId: string, price: string, name: string) => {
+  const handleCheckout = async (planId: string, price: string, name: string) => {
     if (!activeWorkspaceId) return;
     if (currency === "NGN") {
       executeCheckout(planId);
     } else {
       setPendingCheckout({ planId, price, name });
       setProviderModalOpen(true);
+      try {
+        const res = await fetch(`/api/billing/checkout/breakdown?workspaceId=${activeWorkspaceId}&planId=${planId}&interval=${billingInterval}&currency=${currency}`);
+        if (res.ok) {
+          const data = await res.json();
+          setPriceBreakdown(data);
+        }
+      } catch { /* breakdown is non-critical */ }
     }
   };
 
@@ -468,9 +476,10 @@ export default function BillingPage() {
 
       <PaymentProviderModal
         open={providerModalOpen}
-        onOpenChange={setProviderModalOpen}
+        onOpenChange={(open) => { setProviderModalOpen(open); if (!open) setPriceBreakdown(null); }}
         planName={pendingCheckout?.name || ""}
         planPrice={pendingCheckout?.price || ""}
+        breakdown={priceBreakdown}
         onSelectProvider={handleProviderSelect}
       />
     </div>

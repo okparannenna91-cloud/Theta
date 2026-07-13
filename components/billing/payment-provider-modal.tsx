@@ -46,11 +46,22 @@ export const PAYMENT_PROVIDERS: PaymentProviderOption[] = [
   },
 ];
 
+export type PriceBreakdown = {
+  basePrice: number;
+  perUserPrice: number;
+  memberCount: number;
+  userCharge: number;
+  totalAmount: number;
+  currency: string;
+  interval: string;
+};
+
 interface PaymentProviderModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   planName: string;
   planPrice: string;
+  breakdown: PriceBreakdown | null;
   onSelectProvider: (providerId: string) => Promise<void>;
 }
 
@@ -59,6 +70,7 @@ export function PaymentProviderModal({
   onOpenChange,
   planName,
   planPrice,
+  breakdown,
   onSelectProvider,
 }: PaymentProviderModalProps) {
   const [loading, setLoading] = useState<string | null>(null);
@@ -70,6 +82,12 @@ export function PaymentProviderModal({
     } finally {
       setLoading(null);
     }
+  };
+
+  const fmt = (cents: number) => {
+    const c = breakdown?.currency === "NGN" ? "NGN" : "USD";
+    const symbol = c === "USD" ? "$" : "₦";
+    return `${symbol}${(cents / 100).toLocaleString()}`;
   };
 
   return (
@@ -88,6 +106,23 @@ export function PaymentProviderModal({
               Select how you&apos;d like to pay for your subscription.
             </DialogDescription>
           </DialogHeader>
+
+          {breakdown && (
+            <div className="mt-4 bg-muted/50 rounded-lg p-4 text-sm space-y-1.5">
+              <div className="flex justify-between text-muted-foreground">
+                <span>Base workspace fee</span>
+                <span>{fmt(breakdown.basePrice)}</span>
+              </div>
+              <div className="flex justify-between text-muted-foreground">
+                <span>Users ({breakdown.memberCount} &times; {fmt(breakdown.perUserPrice)})</span>
+                <span>{fmt(breakdown.userCharge)}</span>
+              </div>
+              <div className="border-t pt-1.5 mt-1.5 flex justify-between font-semibold">
+                <span>Total</span>
+                <span>{fmt(breakdown.totalAmount)}/{breakdown.interval === "annual" ? "yr" : "mo"}</span>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="p-6 space-y-4">

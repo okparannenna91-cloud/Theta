@@ -20,9 +20,7 @@ export class FlutterwaveProvider implements BillingProvider {
       method: "POST",
       body: JSON.stringify({ email, name, ...metadata }),
     });
-    console.log("[Flutterwave] createCustomer response keys:", Object.keys(response), "data:", response.data);
     const customerId = response.data?.id;
-    console.log("[Flutterwave] createCustomer id raw:", customerId, "type:", typeof customerId);
     if (customerId == null) throw new Error(`Flutterwave createCustomer returned no id: ${JSON.stringify(response.data)}`);
     return {
       id: customerId.toString(),
