@@ -5,12 +5,47 @@ export async function GET() {
   const { registerProviders } = await import("@/lib/billing/providers/register");
   registerProviders();
 
+  const fwKey = process.env.FLUTTERWAVE_SECRET_KEY;
+  const fwDefined = fwKey !== undefined;
+  const fwNull = fwKey === null;
+  const fwType = typeof fwKey;
+  const fwLen = fwKey?.length ?? -1;
+  const fwEmptyString = fwKey === "";
+  const fwFirstChar = fwKey && fwKey.length > 0 ? fwKey.charCodeAt(0) : null;
+  const allEnvKeys = Object.keys(process.env).sort();
+
+  const flutterwaveKeys = allEnvKeys.filter(k => k.toLowerCase().includes("flutter") || k.toLowerCase().includes("flw"));
+
   return NextResponse.json({
-    flutterwaveKey: !!process.env.FLUTTERWAVE_SECRET_KEY,
-    flutterwaveKeyLen: process.env.FLUTTERWAVE_SECRET_KEY?.length ?? 0,
-    flutterwaveRegistered: providerRegistry.has("flutterwave"),
-    allProviders: providerRegistry.getAll().map(p => `${p.id}(${p.currencies.join(",")})`),
-    nodeEnv: process.env.NODE_ENV,
+    env: {
+      FLUTTERWAVE_SECRET_KEY: {
+        defined: fwDefined,
+        null: fwNull,
+        type: fwType,
+        length: fwLen,
+        emptyString: fwEmptyString,
+        firstCharCode: fwFirstChar,
+      },
+      VERCEL_ENV: process.env.VERCEL_ENV ?? null,
+      VERCEL_URL: process.env.VERCEL_URL ?? null,
+      VERCEL_GIT_COMMIT_SHA: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+      VERCEL_GIT_COMMIT_REF: process.env.VERCEL_GIT_COMMIT_REF ?? null,
+      NODE_ENV: process.env.NODE_ENV ?? null,
+      NEXT_RUNTIME: typeof (process as any).nextRuntime !== "undefined" ? (process as any).nextRuntime : null,
+    },
+    flutterwaveRelatedKeys: flutterwaveKeys.map(k => ({ key: k, len: ((process.env as any)[k] || "").length })),
+    allEnvKeyCount: allEnvKeys.length,
+    allEnvKeySample: allEnvKeys.slice(0, 50),
+    registry: {
+      flutterwaveRegistered: providerRegistry.has("flutterwave"),
+      allProviders: providerRegistry.getAll().map(p => ({ id: p.id, currencies: p.currencies, name: p.name })),
+    },
+    codePaths: {
+      currenciesGetter: "lib/billing/providers/flutterwave-provider.ts:14",
+      flwFetchCheck: "lib/billing/providers/flutterwave-provider.ts:291-292",
+      registration: "lib/billing/providers/register.ts:8",
+      routeValidation: "app/api/billing/checkout/route.ts:64-72",
+    },
   });
 }
 
