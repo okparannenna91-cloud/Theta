@@ -199,7 +199,7 @@ export async function DELETE(
         action: "deleted",
         entityType: "board",
         entityId: params.id,
-        metadata: { name: board.name }
+        metadata: { entityName: board.name, name: board.name }
     });
 
     return NextResponse.json({ message: "Board deleted" });

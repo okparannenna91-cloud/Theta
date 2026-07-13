@@ -8,6 +8,7 @@ export interface LogActivityProps {
   entityId: string;
   metadata?: Record<string, unknown>;
   projectId?: string;
+  boardId?: string;
 }
 
 /**
@@ -21,9 +22,15 @@ export async function logActivity({
   entityType,
   entityId,
   metadata,
-  projectId
+  projectId,
+  boardId
 }: LogActivityProps): Promise<boolean> {
   try {
+    const enrichedMetadata = {
+      ...(metadata || {}),
+      ...(boardId ? { boardId } : {}),
+    };
+
     await prisma.activity.create({
       data: {
         userId,
@@ -32,7 +39,7 @@ export async function logActivity({
         entityType,
         entityId,
         projectId,
-        metadata: metadata as any || {},
+        metadata: enrichedMetadata as any,
       },
     });
 
@@ -41,7 +48,7 @@ export async function logActivity({
       action,
       entityType,
       entityId,
-      metadata,
+      metadata: enrichedMetadata,
       projectId,
     });
 
@@ -123,4 +130,30 @@ export async function createActivity(
     metadata,
     projectId
   });
+}
+
+/**
+ * Helper to build rich activity metadata with entity names.
+ * Call sites should use this to ensure consistent metadata shapes.
+ */
+export function buildActivityMetadata(opts: {
+  entityName?: string;
+  taskTitle?: string;
+  projectName?: string;
+  boardName?: string;
+  changes?: Record<string, { old: unknown; new: unknown }>;
+  [key: string]: unknown;
+}): Record<string, unknown> {
+  return {
+    ...(opts.entityName ? { entityName: opts.entityName } : {}),
+    ...(opts.taskTitle ? { taskTitle: opts.taskTitle } : {}),
+    ...(opts.projectName ? { projectName: opts.projectName } : {}),
+    ...(opts.boardName ? { boardName: opts.boardName } : {}),
+    ...(opts.changes ? { changes: opts.changes } : {}),
+    ...Object.fromEntries(
+      Object.entries(opts).filter(([k]) =>
+        !["entityName", "taskTitle", "projectName", "boardName", "changes"].includes(k)
+      )
+    ),
+  };
 }

@@ -167,7 +167,12 @@ export async function POST(
             action: "comment_created",
             entityType: "comment",
             entityId: rawComment.id,
-            metadata: { taskId: params.id, taskTitle: task.title, content: data.content.substring(0, 200) },
+            metadata: {
+                taskId: params.id,
+                taskTitle: task.title,
+                entityName: task.title,
+                content: data.content.substring(0, 200),
+            },
             projectId: task.projectId || undefined,
         });
 

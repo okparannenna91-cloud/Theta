@@ -298,7 +298,7 @@ export async function POST(req: Request) {
       "created",
       "task",
       task.id,
-      { taskTitle: task.title },
+      { taskTitle: task.title, entityName: task.title },
       task.projectId
     );
 

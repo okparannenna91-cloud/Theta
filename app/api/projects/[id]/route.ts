@@ -248,7 +248,7 @@ export async function DELETE(
         action: "deleted",
         entityType: "project",
         entityId: params.id,
-        metadata: { name: project.name }
+        metadata: { entityName: project.name, name: project.name }
     });
 
     return NextResponse.json({ success: true });

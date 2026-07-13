@@ -193,6 +193,7 @@ export async function PATCH(
       task.id,
       {
         taskTitle: updated.title,
+        entityName: updated.title,
         changes,
       },
       updated.projectId
@@ -373,7 +374,7 @@ export async function DELETE(
       "deleted",
       "task",
       task.id,
-      { taskTitle: task.title },
+      { taskTitle: task.title, entityName: task.title },
       task.projectId
     );
 

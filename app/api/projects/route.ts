@@ -257,6 +257,7 @@ export async function POST(req: Request) {
       project.id,
       {
         projectName: project.name,
+        entityName: project.name,
       }
     );
 
