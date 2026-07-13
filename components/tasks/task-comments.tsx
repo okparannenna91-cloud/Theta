@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Send, Trash2, Loader2, Pencil } from "lucide-react";
+import { MessageSquare, Send, Trash2, Loader2, Pencil, Reply } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -25,7 +25,10 @@ interface Comment {
     userId: string;
     createdAt: string;
     updatedAt: string;
+    parentId: string | null;
+    mentionIds: string[];
     user: CommentUser | null;
+    replies?: Comment[];
 }
 
 interface WorkspaceMember {
@@ -40,6 +43,179 @@ interface TaskCommentsProps {
     workspaceId: string;
 }
 
+function renderCommentContent(content: string, members: WorkspaceMember[] | undefined) {
+    if (!members?.length) return content;
+    const parts: (string | JSX.Element)[] = [];
+    let remaining = content;
+    let keyIdx = 0;
+
+    while (remaining.length > 0) {
+        const mentionMatch = remaining.match(/@(\w+(?:\s\w+)?)/);
+        if (!mentionMatch) {
+            parts.push(remaining);
+            break;
+        }
+
+        const matchIndex = mentionMatch.index!;
+        const mentionName = mentionMatch[1];
+        const matchedMember = members.find(
+            (m) => m.name?.toLowerCase() === mentionName.toLowerCase()
+        );
+
+        if (matchIndex > 0) {
+            parts.push(remaining.slice(0, matchIndex));
+        }
+
+        if (matchedMember) {
+            parts.push(
+                <span key={keyIdx++} className="font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 px-1 rounded">
+                    @{mentionName}
+                </span>
+            );
+        } else {
+            parts.push(`@${mentionName}`);
+        }
+
+        remaining = remaining.slice(matchIndex + mentionMatch[0].length);
+    }
+
+    return parts;
+}
+
+function CommentItem({
+    comment,
+    members,
+    currentUser,
+    onReply,
+    onEdit,
+    onDelete,
+    editingId,
+    editContent,
+    setEditContent,
+    updateCommentMutation,
+    setEditingId,
+}: {
+    comment: Comment;
+    members: WorkspaceMember[] | undefined;
+    currentUser: any;
+    onReply: (parentId: string) => void;
+    onEdit: (comment: Comment) => void;
+    onDelete: (id: string) => void;
+    editingId: string | null;
+    editContent: string;
+    setEditContent: (val: string) => void;
+    updateCommentMutation: any;
+    setEditingId: (val: string | null) => void;
+}) {
+    const hasMentions = comment.mentionIds && comment.mentionIds.length > 0;
+
+    return (
+        <div className="group">
+            <div className="flex gap-3">
+                <Avatar className="h-8 w-8 ring-2 ring-background">
+                    <AvatarImage src={comment.user?.imageUrl || ""} />
+                    <AvatarFallback>{comment.user?.name?.[0] || "U"}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 space-y-1">
+                    <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                            <span className="text-xs font-bold text-foreground">
+                                {comment.user?.name || "Anonymous User"}
+                            </span>
+                            <span className="text-[10px] text-muted-foreground">
+                                {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
+                                {comment.createdAt !== comment.updatedAt && (
+                                    <span className="ml-1 italic">(edited)</span>
+                                )}
+                            </span>
+                            {hasMentions && (
+                                <span className="text-[10px] text-indigo-500 font-medium">
+                                    {comment.mentionIds.length} mention{comment.mentionIds.length > 1 ? "s" : ""}
+                                </span>
+                            )}
+                        </div>
+                        {currentUser?.id === comment.userId && (
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity">
+                                <button
+                                    className="h-6 w-6 text-muted-foreground hover:text-indigo-600 rounded-md hover:bg-accent inline-flex items-center justify-center transition-colors"
+                                    onClick={() => onReply(comment.id)}
+                                    aria-label="Reply to comment"
+                                >
+                                    <Reply className="h-3 w-3" />
+                                </button>
+                                <button
+                                    className="h-6 w-6 text-muted-foreground hover:text-indigo-600 rounded-md hover:bg-accent inline-flex items-center justify-center transition-colors"
+                                    onClick={() => onEdit(comment)}
+                                    aria-label="Edit comment"
+                                >
+                                    <Pencil className="h-3 w-3" />
+                                </button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 text-muted-foreground hover:text-red-600"
+                                    onClick={() => onDelete(comment.id)}
+                                >
+                                    <Trash2 className="h-3 w-3" />
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                    {editingId === comment.id ? (
+                        <div className="space-y-2">
+                            <Textarea
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                className="min-h-[60px] text-sm"
+                            />
+                            <div className="flex gap-2 justify-end">
+                                <Button size="sm" variant="outline" onClick={() => { setEditingId(null); setEditContent(""); }}>
+                                    Cancel
+                                </Button>
+                                <Button
+                                    size="sm"
+                                    onClick={() => updateCommentMutation.mutate({ id: comment.id, content: editContent })}
+                                    disabled={!editContent.trim() || updateCommentMutation.isPending}
+                                >
+                                    {updateCommentMutation.isPending ? (
+                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                    ) : null}
+                                    Save
+                                </Button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="text-sm bg-accent/40 dark:bg-slate-800/40 p-3 rounded-2xl rounded-tl-none border border-slate-200 dark:border-slate-800">
+                            {renderCommentContent(comment.content, members)}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {comment.replies && comment.replies.length > 0 && (
+                <div className="ml-11 mt-2 space-y-3 border-l-2 border-indigo-100 dark:border-indigo-900/30 pl-3">
+                    {comment.replies.map((reply) => (
+                        <CommentItem
+                            key={reply.id}
+                            comment={reply}
+                            members={members}
+                            currentUser={currentUser}
+                            onReply={onReply}
+                            onEdit={onEdit}
+                            onDelete={onDelete}
+                            editingId={editingId}
+                            editContent={editContent}
+                            setEditContent={setEditContent}
+                            updateCommentMutation={updateCommentMutation}
+                            setEditingId={setEditingId}
+                        />
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
     const [content, setContent] = useState("");
     const { user: currentUser } = useUser();
@@ -47,6 +223,9 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [editContent, setEditContent] = useState("");
+    const [replyingTo, setReplyingTo] = useState<string | null>(null);
+    const [replyContent, setReplyContent] = useState("");
+    const [mentionIds, setMentionIds] = useState<string[]>([]);
 
     const taskChannel = getTaskChannel(workspaceId, taskId);
 
@@ -89,11 +268,11 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
     ).slice(0, 5);
 
     const createCommentMutation = useMutation({
-        mutationFn: async (content: string) => {
+        mutationFn: async ({ content, parentId, mentionIds }: { content: string; parentId?: string | null; mentionIds?: string[] }) => {
             const res = await fetch(`/api/tasks/${taskId}/comments`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ content }),
+                body: JSON.stringify({ content, parentId: parentId || null, mentionIds: mentionIds || [] }),
             });
             if (!res.ok) throw new Error("Failed to post comment");
             return res.json();
@@ -101,6 +280,9 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["comments", taskId] });
             setContent("");
+            setReplyContent("");
+            setReplyingTo(null);
+            setMentionIds([]);
             toast.success("Comment posted");
         },
         onError: (error: Error) => {
@@ -148,7 +330,12 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
     const handlePostComment = (e: React.FormEvent) => {
         e.preventDefault();
         if (!content.trim()) return;
-        createCommentMutation.mutate(content);
+        createCommentMutation.mutate({ content, parentId: null, mentionIds });
+    };
+
+    const handlePostReply = () => {
+        if (!replyContent.trim() || !replyingTo) return;
+        createCommentMutation.mutate({ content: replyContent, parentId: replyingTo, mentionIds });
     };
 
     const handleDeleteConfirm = () => {
@@ -156,6 +343,16 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
             deleteCommentMutation.mutate(deleteConfirm);
         }
     };
+
+    const handleMentionSelect = (member: WorkspaceMember) => {
+        const parts = content.split(" ");
+        parts.pop();
+        setContent([...parts, `@${member.name || member.email}`].join(" ") + " ");
+        setMentionIds((prev) => [...prev, member.id]);
+        setShowMentions(false);
+    };
+
+    const rootComments = comments?.filter((c) => !c.parentId) || [];
 
     if (commentsError) {
         return (
@@ -188,86 +385,75 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
             </div>
 
             <div className="space-y-6">
-                {comments?.length === 0 ? (
+                {rootComments.length === 0 ? (
                     <div className="text-center py-4 bg-accent/20 rounded-xl border border-dashed">
                         <p className="text-xs text-muted-foreground">No comments yet. Start the conversation!</p>
                     </div>
                 ) : (
-                    comments?.map((comment) => (
-                        <div key={comment.id} className="flex gap-3 group">
-                            <Avatar className="h-8 w-8 ring-2 ring-background">
-                                <AvatarImage src={comment.user?.imageUrl || ""} />
-                                <AvatarFallback>{comment.user?.name?.[0] || "U"}</AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1 space-y-1">
-                                <div className="flex items-center justify-between">
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-foreground">
-                                            {comment.user?.name || "Anonymous User"}
-                                        </span>
-                                        <span className="text-[10px] text-muted-foreground">
-                                            {formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}
-                                            {comment.createdAt !== comment.updatedAt && (
-                                                <span className="ml-1 italic">(edited)</span>
-                                            )}
-                                        </span>
-                                    </div>
-                                    {currentUser?.id === comment.userId && (
-                                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 md:opacity-100 transition-opacity">
-                                            <button
-                                                className="h-6 w-6 text-muted-foreground hover:text-indigo-600 rounded-md hover:bg-accent inline-flex items-center justify-center transition-colors"
-                                                onClick={() => {
-                                                    setEditingId(comment.id);
-                                                    setEditContent(comment.content);
-                                                }}
-                                                aria-label="Edit comment"
-                                            >
-                                                <Pencil className="h-3 w-3" />
-                                            </button>
-                                            <Button
-                                                variant="ghost"
-                                                size="icon"
-                                                className="h-6 w-6 text-muted-foreground hover:text-red-600"
-                                                onClick={() => setDeleteConfirm(comment.id)}
-                                            >
-                                                <Trash2 className="h-3 w-3" />
-                                            </Button>
-                                        </div>
-                                    )}
-                                </div>
-                                {editingId === comment.id ? (
-                                    <div className="space-y-2">
-                                        <Textarea
-                                            value={editContent}
-                                            onChange={(e) => setEditContent(e.target.value)}
-                                            className="min-h-[60px] text-sm"
-                                        />
-                                        <div className="flex gap-2 justify-end">
-                                            <Button size="sm" variant="outline" onClick={() => { setEditingId(null); setEditContent(""); }}>
-                                                Cancel
-                                            </Button>
-                                            <Button
-                                                size="sm"
-                                                onClick={() => updateCommentMutation.mutate({ id: comment.id, content: editContent })}
-                                                disabled={!editContent.trim() || updateCommentMutation.isPending}
-                                            >
-                                                {updateCommentMutation.isPending ? (
-                                                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                                                ) : null}
-                                                Save
-                                            </Button>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="text-sm bg-accent/40 dark:bg-slate-800/40 p-3 rounded-2xl rounded-tl-none border border-slate-200 dark:border-slate-800">
-                                        {comment.content}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
+                    rootComments.map((comment) => (
+                        <CommentItem
+                            key={comment.id}
+                            comment={comment}
+                            members={members as WorkspaceMember[] | undefined}
+                            currentUser={currentUser}
+                            onReply={(parentId) => {
+                                setReplyingTo(parentId);
+                                setReplyContent("");
+                            }}
+                            onEdit={(c) => {
+                                setEditingId(c.id);
+                                setEditContent(c.content);
+                            }}
+                            onDelete={(id) => setDeleteConfirm(id)}
+                            editingId={editingId}
+                            editContent={editContent}
+                            setEditContent={setEditContent}
+                            updateCommentMutation={updateCommentMutation}
+                            setEditingId={setEditingId}
+                        />
                     ))
                 )}
             </div>
+
+            {replyingTo && (
+                <div className="ml-11 pl-3 border-l-2 border-indigo-100 dark:border-indigo-900/30 space-y-2">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-semibold text-muted-foreground">Replying to comment</span>
+                        <button
+                            onClick={() => { setReplyingTo(null); setReplyContent(""); }}
+                            className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                    <div className="relative">
+                        <Textarea
+                            placeholder="Write a reply..."
+                            value={replyContent}
+                            onChange={(e) => setReplyContent(e.target.value)}
+                            className="min-h-[60px] text-sm"
+                            autoFocus
+                        />
+                        <div className="absolute bottom-2 right-2">
+                            <Button
+                                size="sm"
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl px-4 py-1.5 h-auto shadow-lg shadow-indigo-200 dark:shadow-indigo-900/20"
+                                disabled={!replyContent.trim() || createCommentMutation.isPending}
+                                onClick={handlePostReply}
+                            >
+                                {createCommentMutation.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                    <>
+                                        <Send className="h-3.5 w-3.5 mr-2" />
+                                        Reply
+                                    </>
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <form onSubmit={handlePostComment} className="flex flex-col gap-3">
                 <div className="relative group">
@@ -300,12 +486,7 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
                                     key={member.id}
                                     type="button"
                                     className="w-full flex items-center gap-3 px-4 py-2 hover:bg-muted text-left transition-colors"
-                                    onClick={() => {
-                                        const parts = content.split(" ");
-                                        parts.pop();
-                                        setContent([...parts, `@${member.name || member.email}`].join(" ") + " ");
-                                        setShowMentions(false);
-                                    }}
+                                    onClick={() => handleMentionSelect(member)}
                                 >
                                     <Avatar className="h-6 w-6">
                                         <AvatarImage src={member.imageUrl || ""} />

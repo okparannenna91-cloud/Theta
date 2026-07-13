@@ -7,6 +7,8 @@ import { z } from "zod";
 
 const commentSchema = z.object({
     content: z.string().min(1).max(5000),
+    parentId: z.string().nullable().optional(),
+    mentionIds: z.array(z.string()).optional(),
 });
 
 export async function GET(
@@ -36,28 +38,44 @@ export async function GET(
         }
 
         const rawComments = await prisma.comment.findMany({
-            where: { taskId: params.id },
+            where: { taskId: params.id, parentId: null },
             orderBy: { createdAt: "desc" },
         });
 
+        const rawReplies = await prisma.comment.findMany({
+            where: { taskId: params.id, parentId: { not: null } },
+            orderBy: { createdAt: "asc" },
+        });
+
+        const allComments = [...rawComments, ...rawReplies];
         const userIdsToFetch = new Set<string>();
-        rawComments.forEach((c: { userId: string }) => {
+        allComments.forEach((c: { userId: string }) => {
             if (c.userId) userIdsToFetch.add(c.userId);
         });
 
+        // Also fetch mentioned users
+        const allMentionIds = allComments.flatMap((c: any) => c.mentionIds || []);
+        allMentionIds.forEach((id: string) => userIdsToFetch.add(id));
+
         const users = await prisma.user.findMany({
             where: { id: { in: Array.from(userIdsToFetch) } },
-            select: { id: true, name: true, imageUrl: true }
+            select: { id: true, name: true, imageUrl: true, email: true }
         });
 
         const userMap = new Map(users.map(u => [u.id, u]));
 
-        const comments = rawComments.map((c: { userId: string; [key: string]: unknown }) => ({
+        const topLevel = rawComments.map((c: any) => ({
             ...c,
-            user: userMap.get(c.userId) || null
+            user: userMap.get(c.userId) || null,
+            replies: rawReplies
+                .filter((r: any) => r.parentId === c.id)
+                .map((r: any) => ({
+                    ...r,
+                    user: userMap.get(r.userId) || null,
+                })),
         }));
 
-        return NextResponse.json(comments);
+        return NextResponse.json(topLevel);
     } catch (error) {
         console.error("Fetch comments error:", error);
         return NextResponse.json(
@@ -104,11 +122,25 @@ export async function POST(
         const body = await req.json();
         const data = commentSchema.parse(body);
 
+        // Validate parentId if provided
+        if (data.parentId) {
+            const parentComment = await prisma.comment.findUnique({ where: { id: data.parentId } });
+            if (!parentComment || parentComment.taskId !== params.id) {
+                return NextResponse.json({ error: "Parent comment not found" }, { status: 404 });
+            }
+            // Only allow one level of nesting
+            if (parentComment.parentId) {
+                return NextResponse.json({ error: "Replies can only be one level deep" }, { status: 400 });
+            }
+        }
+
         const rawComment = await prisma.comment.create({
             data: {
                 content: data.content,
                 taskId: params.id,
                 userId: user.id,
+                parentId: data.parentId || null,
+                mentionIds: data.mentionIds || [],
             },
         });
 
@@ -147,6 +179,22 @@ export async function POST(
             `${user.name || "A member"} commented on task: ${task.title}`,
             { taskId: params.id, commentId: comment.id }
         );
+
+        // Send mention notifications
+        if (data.mentionIds && data.mentionIds.length > 0) {
+            const { createNotification } = await import("@/lib/notifications");
+            for (const mentionedId of data.mentionIds) {
+                if (mentionedId === user.id) continue; // Don't notify self
+                await createNotification(
+                    mentionedId,
+                    task.workspaceId,
+                    "mention",
+                    "You were mentioned",
+                    `${user.name || "A member"} mentioned you in a comment on: ${task.title}`,
+                    { taskId: params.id, commentId: comment.id, projectId: task.projectId }
+                );
+            }
+        }
 
         return NextResponse.json(comment);
     } catch (error) {

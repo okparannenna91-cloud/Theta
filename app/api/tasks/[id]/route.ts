@@ -10,15 +10,16 @@ const updateSchema = z.object({
   description: z.string().optional(),
   status: z.string().optional(),
   priority: z.enum(["none", "low", "medium", "high", "urgent"]).optional(),
+  taskType: z.enum(["task", "bug", "feature", "story", "epic", "improvement"]).optional(),
   projectId: z.string().optional(),
   boardId: z.string().optional(),
   columnId: z.string().optional(),
   order: z.number().optional(),
-  dueDate: z.string().optional(),
-  startDate: z.string().optional(),
+  dueDate: z.string().nullable().optional(),
+  startDate: z.string().nullable().optional(),
   isMilestone: z.boolean().optional(),
-  color: z.string().optional(),
-  parentId: z.string().optional(),
+  color: z.string().nullable().optional(),
+  parentId: z.string().nullable().optional(),
   isSummary: z.boolean().optional(),
   progress: z.number().min(0).max(100).optional(),
   schedulingMode: z.string().optional(),
@@ -26,6 +27,7 @@ const updateSchema = z.object({
   baselineDueDate: z.string().optional(),
   fieldValues: z.any().optional(),
   tagIds: z.array(z.string()).optional(),
+  assigneeIds: z.array(z.string()).optional(),
   location: z.string().optional(),
   email: z.string().optional(),
   phone: z.string().optional(),
@@ -33,6 +35,7 @@ const updateSchema = z.object({
   rating: z.number().optional(),
   vote: z.number().optional(),
   timeSpent: z.number().optional(),
+  estimatedHours: z.number().optional(),
 });
 
 export async function PATCH(
@@ -74,17 +77,45 @@ export async function PATCH(
     }
 
     const updateData: any = { ...data };
-    if (data.dueDate) {
-      updateData.dueDate = new Date(data.dueDate);
+    if (data.dueDate !== undefined) {
+      updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
     }
-    if (data.startDate) {
-      updateData.startDate = new Date(data.startDate);
+    if (data.startDate !== undefined) {
+      updateData.startDate = data.startDate ? new Date(data.startDate) : null;
     }
     if (data.baselineStartDate) {
       updateData.baselineStartDate = new Date(data.baselineStartDate);
     }
     if (data.baselineDueDate) {
       updateData.baselineDueDate = new Date(data.baselineDueDate);
+    }
+
+    // Validate start date is not after due date
+    const finalStartDate = updateData.startDate !== undefined ? updateData.startDate : task.startDate;
+    const finalDueDate = updateData.dueDate !== undefined ? updateData.dueDate : task.dueDate;
+    if (finalStartDate && finalDueDate && finalStartDate > finalDueDate) {
+      return NextResponse.json({ error: "Start date cannot be after due date" }, { status: 400 });
+    }
+
+    // Build detailed change log for activity
+    const changes: Record<string, { old: unknown; new: unknown }> = {};
+    const skipFields = new Set(["workspaceId", "projectId"]);
+    for (const key of Object.keys(data)) {
+      if (skipFields.has(key)) continue;
+      const oldVal = (task as any)[key];
+      const newVal = (data as any)[key];
+      if (oldVal === undefined && newVal === undefined) continue;
+      if (oldVal instanceof Date) {
+        if (typeof newVal === "string") {
+          const newDate = new Date(newVal);
+          if (!isNaN(newDate.getTime()) && oldVal.getTime() === newDate.getTime()) continue;
+        } else if (newVal === null) {
+          if (oldVal === null) continue;
+        }
+      }
+      if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+        changes[key] = { old: oldVal, new: newVal };
+      }
     }
 
     // Resolve statusId and handle completion logic (Analytics & State Integrity Fix)
@@ -162,23 +193,7 @@ export async function PATCH(
       task.id,
       {
         taskTitle: updated.title,
-        changes: Object.keys(data).reduce((acc: any, key) => {
-          const oldVal = (task as any)[key];
-          const newVal = (data as any)[key];
-          // Normalize dates for comparison
-          if (oldVal instanceof Date) {
-            if (typeof newVal === 'string') {
-              const newDate = new Date(newVal);
-              if (!isNaN(newDate.getTime()) && oldVal.getTime() === newDate.getTime()) {
-                return acc; // Same date, skip
-              }
-            }
-          }
-          if (oldVal !== newVal) {
-            acc[key] = { old: oldVal, new: newVal };
-          }
-          return acc;
-        }, {}),
+        changes,
       },
       updated.projectId
     );
@@ -191,9 +206,42 @@ export async function PATCH(
         user.id,
         "task_updated",
         "Task Status Updated",
-        `${user.name || "A member"} updated status of "${updated.title}" to ${updated.status}`,
+        `${user.name || "A member"} updated status of "${updated.title}" from ${task.status} to ${updated.status}`,
         { taskId: updated.id, projectId: updated.projectId }
       );
+    }
+
+    // Notify assignees if assignee list changed
+    if (data.assigneeIds && JSON.stringify(data.assigneeIds.sort()) !== JSON.stringify((task.assigneeIds || []).sort())) {
+      const { notifyWorkspaceMembers } = await import("@/lib/notifications");
+      const addedIds = (data.assigneeIds || []).filter((id: string) => !(task.assigneeIds || []).includes(id));
+      const removedIds = (task.assigneeIds || []).filter((id: string) => !(data.assigneeIds || []).includes(id));
+      if (addedIds.length > 0) {
+        for (const assigneeId of addedIds) {
+          const { createNotification } = await import("@/lib/notifications");
+          await createNotification(
+            assigneeId,
+            task.workspaceId,
+            "task_assigned",
+            "Task Assigned",
+            `${user.name || "A member"} assigned you to: ${updated.title}`,
+            { taskId: updated.id, projectId: updated.projectId }
+          );
+        }
+      }
+      if (removedIds.length > 0) {
+        for (const assigneeId of removedIds) {
+          const { createNotification } = await import("@/lib/notifications");
+          await createNotification(
+            assigneeId,
+            task.workspaceId,
+            "task_updated",
+            "Task Unassigned",
+            `${user.name || "A member"} removed you from: ${updated.title}`,
+            { taskId: updated.id, projectId: updated.projectId }
+          );
+        }
+      }
     }
 
     // Trigger Automations if status changed (Phase 2)

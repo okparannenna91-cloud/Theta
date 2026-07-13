@@ -323,11 +323,13 @@ model Task {
   description String?
   status      String    @default("todo")
   priority    String    @default("medium")
+  taskType    String    @default("task") // task, bug, feature, story, epic, improvement
   dueDate     DateTime?
   coverImage  String?
   workspaceId String    @db.ObjectId
   projectId   String    @db.ObjectId
   userId      String    @db.ObjectId
+  assigneeIds String[]  @db.ObjectId
   boardId     String?   @db.ObjectId
   columnId    String?   @db.ObjectId
   order       Int       @default(0)
@@ -340,6 +342,7 @@ model Task {
   board     Board?    @relation(fields: [boardId], references: [id], onDelete: Cascade)
   subtasks  Subtask[]
   comments  Comment[]
+  checklists ChecklistItem[]
   tagIds    String[]  @db.ObjectId
   tags      Tag[]     @relation("TaskTags", fields: [tagIds], references: [id])
   
@@ -423,15 +426,33 @@ model Subtask {
   @@map("subtasks")
 }
 
+model ChecklistItem {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  completed Boolean  @default(false)
+  taskId    String   @db.ObjectId
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId])
+  @@map("checklist_items")
+}
+
 model Comment {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
   content   String
   userId    String   @db.ObjectId
   taskId    String?  @db.ObjectId
   documentId String? @db.ObjectId
+  parentId  String?  @db.ObjectId
+  mentionIds String[] @db.ObjectId
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   task      Task?    @relation(fields: [taskId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   document  Document? @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  replies   Comment[] @relation("CommentReplies")
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -440,6 +461,7 @@ model Comment {
   @@index([userId])
   @@index([taskId])
   @@index([documentId])
+  @@index([parentId])
   @@map("comments")
 }
 

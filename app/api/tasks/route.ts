@@ -13,6 +13,7 @@ const taskSchema = z.object({
   description: z.string().optional(),
   status: z.string().default("todo"),
   priority: z.enum(["none", "low", "medium", "high", "urgent"]).default("medium"),
+  taskType: z.enum(["task", "bug", "feature", "story", "epic", "improvement"]).default("task"),
   workspaceId: z.string(),
   projectId: z.string().optional(),
   boardId: z.string().optional(),
@@ -27,6 +28,7 @@ const taskSchema = z.object({
   schedulingMode: z.string().default("auto"),
   baselineStartDate: z.string().optional(),
   baselineDueDate: z.string().optional(),
+  assigneeIds: z.array(z.string()).optional(),
 });
 
 export async function GET(req: Request) {
@@ -232,11 +234,13 @@ export async function POST(req: Request) {
         title: data.title,
         description: data.description,
         status: data.status,
-        statusId: statusRecord?.id, // Link to custom status
+        statusId: statusRecord?.id,
         priority: data.priority,
+        taskType: data.taskType,
         workspaceId: data.workspaceId as string,
         projectId: data.projectId as string,
         userId: user.id as string,
+        assigneeIds: data.assigneeIds || [user.id],
         boardId: data.boardId,
         columnId: data.columnId,
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
