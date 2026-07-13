@@ -2,11 +2,12 @@
 
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Users, Plus, X, Loader2 } from "lucide-react";
+import { Users, Plus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface WorkspaceMember {
@@ -59,9 +60,16 @@ export function TaskAssignees({ assigneeIds, workspaceId, onUpdate }: TaskAssign
 
     if (isLoading) {
         return (
-            <div className="flex items-center gap-2 p-2">
-                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">Loading members...</span>
+            <div className="space-y-2">
+                <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-indigo-500" />
+                    <span className="text-xs font-medium text-muted-foreground">Assignees</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <Skeleton className="h-7 w-7 rounded-full" />
+                    <Skeleton className="h-7 w-7 rounded-full" />
+                    <Skeleton className="h-7 w-7 rounded-full" />
+                </div>
             </div>
         );
     }
@@ -91,6 +99,7 @@ export function TaskAssignees({ assigneeIds, workspaceId, onUpdate }: TaskAssign
                         <button
                             onClick={() => handleRemove(member.id)}
                             className="h-4 w-4 text-muted-foreground hover:text-red-600 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20 inline-flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                            aria-label={`Remove ${member.name || "assignee"}`}
                         >
                             <X className="h-3 w-3" />
                         </button>
@@ -103,6 +112,7 @@ export function TaskAssignees({ assigneeIds, workspaceId, onUpdate }: TaskAssign
                             variant="outline"
                             size="sm"
                             className="h-7 w-7 rounded-full p-0 border-dashed border-slate-300 dark:border-slate-700"
+                            aria-label="Add assignee"
                         >
                             <Plus className="h-3.5 w-3.5 text-muted-foreground" />
                         </Button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Sheet,
@@ -84,7 +84,26 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [assigneeIds, setAssigneeIds] = useState<string[]>(task?.assigneeIds || []);
 
+    const titleRef = useRef<HTMLInputElement>(null);
     const taskChannel = task?.id ? getTaskChannel(workspaceId, task.id) : null;
+
+    const handleKeyDown = useCallback((e: KeyboardEvent) => {
+        if (e.key === "Escape" && !showDeleteConfirm) {
+            onClose();
+        }
+    }, [onClose, showDeleteConfirm]);
+
+    useEffect(() => {
+        if (isOpen) {
+            document.addEventListener("keydown", handleKeyDown);
+            // Auto-focus title after a brief delay to let the sheet animate in
+            const timer = setTimeout(() => titleRef.current?.focus(), 300);
+            return () => {
+                document.removeEventListener("keydown", handleKeyDown);
+                clearTimeout(timer);
+            };
+        }
+    }, [isOpen, handleKeyDown]);
 
     useAbly(taskChannel, "task:updated", (updatedTask) => {
         if (updatedTask.id === task.id && updatedTask.id === taskIdRef.current) {
@@ -225,10 +244,10 @@ Last Description: ${description}`;
                             <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
                             {updateMutation.isPending ? "Saving..." : lastSaved ? "Saved" : "Synced"}
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+                        <Button variant="ghost" size="icon" onClick={() => setShowDeleteConfirm(true)} className="h-8 w-8 rounded-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" aria-label="Delete task">
                             <Trash2 className="h-3.5 w-3.5" />
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-full hover:bg-muted transition-colors">
+                        <Button variant="ghost" size="icon" onClick={onClose} className="h-8 w-8 rounded-full hover:bg-muted transition-colors" aria-label="Close task dialog">
                             <X className="h-4 w-4" />
                         </Button>
                     </div>
@@ -249,11 +268,13 @@ Last Description: ${description}`;
                                     )}
                                 </div>
                                 <Input
+                                    ref={titleRef}
                                     value={title}
                                     onChange={(e) => setTitle(e.target.value)}
                                     onBlur={() => handleUpdate("title", title)}
                                     className="text-4xl sm:text-5xl font-semibold bg-transparent border-none p-0 focus-visible:ring-0 placeholder:text-muted-foreground/30 h-auto tracking-tight leading-none"
                                     placeholder="Task title"
+                                    aria-label="Task title"
                                 />
                                 <Textarea
                                     value={description}
@@ -496,6 +517,8 @@ Last Description: ${description}`;
                                                         !c && "bg-muted"
                                                     )}
                                                     style={c ? { backgroundColor: c } : {}}
+                                                    aria-label={c ? `Set color to ${c}` : "Remove color"}
+                                                    aria-pressed={color === c}
                                                 />
                                             ))}
                                         </div>
@@ -533,6 +556,7 @@ Last Description: ${description}`;
                                         className="w-full h-12 justify-start gap-3 bg-primary/5 hover:bg-primary border-none hover:text-primary-foreground text-primary font-semibold text-xs rounded-lg transition-all group"
                                         onClick={handleAISummary}
                                         disabled={isSummarizing}
+                                        aria-label="Generate AI summary"
                                     >
                                         {isSummarizing ? <Spinner className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4 group-hover:scale-110 transition-transform" />}
                                         {isSummarizing ? "Summarizing..." : "AI Summary"}
@@ -554,6 +578,7 @@ Last Description: ${description}`;
                                             }
                                         }}
                                         disabled={isAnalyzing}
+                                        aria-label="Run risk analysis"
                                     >
                                         <AlertCircle className="h-4 w-4 group-hover:scale-110 transition-transform" />
                                         Risk Analysis
@@ -562,7 +587,7 @@ Last Description: ${description}`;
                                     {riskAnalysis && (
                                         <div className="overflow-hidden">
                                             <div className="p-5 mt-4 bg-destructive/10 text-foreground rounded-lg relative">
-                                                <button onClick={() => setRiskAnalysis(null)} className="absolute top-4 right-4 text-muted-foreground/50 hover:text-foreground transition-colors">
+                                                <button onClick={() => setRiskAnalysis(null)} className="absolute top-4 right-4 text-muted-foreground/50 hover:text-foreground transition-colors" aria-label="Dismiss risk analysis">
                                                     <X className="h-4 w-4" />
                                                 </button>
                                                 <div className="flex items-center gap-2 mb-3">
@@ -579,7 +604,7 @@ Last Description: ${description}`;
                                     {summary && (
                                         <div className="overflow-hidden">
                                             <div className="p-5 mt-4 bg-primary/10 text-foreground rounded-lg relative">
-                                                <button onClick={() => setSummary(null)} className="absolute top-4 right-4 text-muted-foreground/50 hover:text-foreground transition-colors">
+                                                <button onClick={() => setSummary(null)} className="absolute top-4 right-4 text-muted-foreground/50 hover:text-foreground transition-colors" aria-label="Dismiss summary">
                                                     <X className="h-4 w-4" />
                                                 </button>
                                                 <div className="flex items-center gap-2 mb-3">
@@ -601,10 +626,10 @@ Last Description: ${description}`;
                                             <span className="text-xs font-semibold">Delete task?</span>
                                         </div>
                                         <div className="flex gap-2">
-                                            <Button size="sm" variant="ghost" className="flex-1 h-9 rounded-md hover:bg-destructive/10 hover:text-destructive" onClick={() => setShowDeleteConfirm(false)}>
+                                            <Button size="sm" variant="ghost" className="flex-1 h-9 rounded-md hover:bg-destructive/10 hover:text-destructive" onClick={() => setShowDeleteConfirm(false)} aria-label="Cancel delete">
                                                 Cancel
                                             </Button>
-                                            <Button size="sm" className="flex-1 h-9 rounded-md bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending}>
+                                            <Button size="sm" className="flex-1 h-9 rounded-md bg-destructive hover:bg-destructive/90 text-destructive-foreground" onClick={() => deleteMutation.mutate()} disabled={deleteMutation.isPending} aria-label="Confirm delete task">
                                                 {deleteMutation.isPending ? "..." : "Delete"}
                                             </Button>
                                         </div>

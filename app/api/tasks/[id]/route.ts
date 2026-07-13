@@ -258,6 +258,38 @@ export async function PATCH(
         }
     }
 
+    // Notify blocked task assignees when a blocking task completes
+    if (data.status && data.status !== task.status) {
+        const completionKeywords = ['done', 'complete', 'finished', 'approved'];
+        const isNowCompleted = completionKeywords.includes(data.status.toLowerCase());
+        if (isNowCompleted) {
+            try {
+                const blockedDeps = await prisma.taskDependency.findMany({
+                    where: { predecessorId: params.id },
+                    include: { task: { select: { id: true, title: true, assigneeIds: true } } },
+                });
+                const { createNotification } = await import("@/lib/notifications");
+                for (const dep of blockedDeps) {
+                    const blockedTask = dep.task;
+                    if (!blockedTask?.assigneeIds?.length) continue;
+                    for (const assigneeId of blockedTask.assigneeIds) {
+                        if (assigneeId === user.id) continue;
+                        await createNotification(
+                            assigneeId,
+                            task.workspaceId,
+                            "task_updated",
+                            "Dependency Resolved",
+                            `"${updated.title}" is now complete — "${blockedTask.title}" is unblocked`,
+                            { taskId: blockedTask.id, projectId: updated.projectId }
+                        );
+                    }
+                }
+            } catch (depError) {
+                console.error("Failed to notify blocked tasks:", depError);
+            }
+        }
+    }
+
     return NextResponse.json(updated);
   } catch (error) {
     if (error instanceof z.ZodError) {

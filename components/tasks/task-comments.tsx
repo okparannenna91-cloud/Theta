@@ -2,11 +2,12 @@
 
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { MessageSquare, Send, Trash2, Loader2, Pencil, Reply } from "lucide-react";
+import { MessageSquare, Send, Trash2, Pencil, Reply } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { useUser } from "@clerk/nextjs";
@@ -155,6 +156,7 @@ function CommentItem({
                                     size="icon"
                                     className="h-6 w-6 text-muted-foreground hover:text-red-600"
                                     onClick={() => onDelete(comment.id)}
+                                    aria-label="Delete comment"
                                 >
                                     <Trash2 className="h-3 w-3" />
                                 </Button>
@@ -178,7 +180,7 @@ function CommentItem({
                                     disabled={!editContent.trim() || updateCommentMutation.isPending}
                                 >
                                     {updateCommentMutation.isPending ? (
-                                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                        <div className="h-3 w-3 border-2 border-current border-t-transparent rounded-full animate-spin mr-1" />
                                     ) : null}
                                     Save
                                 </Button>
@@ -371,8 +373,22 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="space-y-6">
+                <div className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5 text-primary" />
+                    <h3 className="text-sm font-semibold tracking-tight">Discussion</h3>
+                </div>
+                <div className="space-y-4">
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex gap-3">
+                            <Skeleton className="h-8 w-8 rounded-full" />
+                            <div className="flex-1 space-y-2">
+                                <Skeleton className="h-3 w-24" />
+                                <Skeleton className="h-16 w-full rounded-2xl" />
+                            </div>
+                        </div>
+                    ))}
+                </div>
             </div>
         );
     }
@@ -442,7 +458,7 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
                                 onClick={handlePostReply}
                             >
                                 {createCommentMutation.isPending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                    <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                                 ) : (
                                     <>
                                         <Send className="h-3.5 w-3.5 mr-2" />
@@ -508,7 +524,7 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
                             disabled={!content.trim() || createCommentMutation.isPending}
                         >
                             {createCommentMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
+                                <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                             ) : (
                                 <>
                                     <Send className="h-3.5 w-3.5 mr-2" />
@@ -538,7 +554,7 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
                             disabled={deleteCommentMutation.isPending}
                         >
                             {deleteCommentMutation.isPending ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin mr-2" />
                             ) : null}
                             Delete
                         </Button>

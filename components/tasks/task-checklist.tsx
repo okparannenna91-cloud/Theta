@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckSquare, Plus, Trash2, ChevronUp, ChevronDown, Square, Check, Loader2 } from "lucide-react";
+import { CheckSquare, Plus, Trash2, ChevronUp, ChevronDown, Square, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -146,8 +147,17 @@ export function TaskChecklist({ taskId, workspaceId }: TaskChecklistProps) {
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                    <CheckSquare className="h-4 w-4 text-indigo-500" />
+                    <Skeleton className="h-4 w-24" />
+                </div>
+                <Skeleton className="h-1.5 w-full rounded-full" />
+                <div className="space-y-2">
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                    <Skeleton className="h-10 w-full rounded-lg" />
+                </div>
             </div>
         );
     }
@@ -174,6 +184,11 @@ export function TaskChecklist({ taskId, workspaceId }: TaskChecklistProps) {
             )}
 
             <div className="space-y-1">
+                {items?.length === 0 && (
+                    <p className="text-xs text-muted-foreground italic py-2 text-center">
+                        No checklist items yet. Add one below.
+                    </p>
+                )}
                 {items?.sort((a, b) => a.order - b.order).map((item, index) => (
                     <div
                         key={item.id}
@@ -182,6 +197,7 @@ export function TaskChecklist({ taskId, workspaceId }: TaskChecklistProps) {
                         <button
                             onClick={() => handleToggle(item)}
                             className="flex-shrink-0"
+                            aria-label={item.completed ? `Mark "${item.title}" as incomplete` : `Mark "${item.title}" as complete`}
                         >
                             {item.completed ? (
                                 <CheckSquare className="h-5 w-5 text-indigo-600" />
@@ -202,6 +218,7 @@ export function TaskChecklist({ taskId, workspaceId }: TaskChecklistProps) {
                                 onClick={() => handleMoveUp(item)}
                                 disabled={index === 0}
                                 className="h-6 w-6 text-muted-foreground hover:text-foreground rounded-md hover:bg-accent inline-flex items-center justify-center transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                                aria-label="Move item up"
                             >
                                 <ChevronUp className="h-3 w-3" />
                             </button>
@@ -209,12 +226,14 @@ export function TaskChecklist({ taskId, workspaceId }: TaskChecklistProps) {
                                 onClick={() => handleMoveDown(item)}
                                 disabled={index === (items?.length ?? 0) - 1}
                                 className="h-6 w-6 text-muted-foreground hover:text-foreground rounded-md hover:bg-accent inline-flex items-center justify-center transition-colors disabled:opacity-30 disabled:pointer-events-none"
+                                aria-label="Move item down"
                             >
                                 <ChevronDown className="h-3 w-3" />
                             </button>
                             <button
                                 onClick={() => deleteItemMutation.mutate(item.id)}
                                 className="h-6 w-6 text-muted-foreground hover:text-red-600 rounded-md hover:bg-accent inline-flex items-center justify-center transition-colors"
+                                aria-label={`Delete "${item.title}"`}
                             >
                                 <Trash2 className="h-3 w-3" />
                             </button>
@@ -235,9 +254,10 @@ export function TaskChecklist({ taskId, workspaceId }: TaskChecklistProps) {
                     type="submit"
                     size="sm"
                     disabled={!newItemTitle.trim() || createItemMutation.isPending}
+                    aria-label="Add checklist item"
                 >
                     {createItemMutation.isPending ? (
-                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                     ) : (
                         <Plus className="h-4 w-4" />
                     )}

@@ -122,9 +122,11 @@ export async function POST(
         const body = await req.json();
         const data = commentSchema.parse(body);
 
+        let parentComment: { id: string; taskId: string | null; userId: string; parentId: string | null } | null = null;
+
         // Validate parentId if provided
         if (data.parentId) {
-            const parentComment = await prisma.comment.findUnique({ where: { id: data.parentId } });
+            parentComment = await prisma.comment.findUnique({ where: { id: data.parentId } });
             if (!parentComment || parentComment.taskId !== params.id) {
                 return NextResponse.json({ error: "Parent comment not found" }, { status: 404 });
             }
@@ -179,6 +181,19 @@ export async function POST(
             `${user.name || "A member"} commented on task: ${task.title}`,
             { taskId: params.id, commentId: comment.id }
         );
+
+        // Notify parent comment author on reply
+        if (data.parentId && parentComment && parentComment.userId !== user.id) {
+            const { createNotification } = await import("@/lib/notifications");
+            await createNotification(
+                parentComment.userId,
+                task.workspaceId,
+                "comment",
+                "New Reply",
+                `${user.name || "A member"} replied to your comment on: ${task.title}`,
+                { taskId: params.id, commentId: comment.id, projectId: task.projectId }
+            );
+        }
 
         // Send mention notifications
         if (data.mentionIds && data.mentionIds.length > 0) {

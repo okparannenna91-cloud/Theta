@@ -3,7 +3,8 @@
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { History, PlusCircle, CheckCircle2, AlertCircle, Edit, Trash2, ArrowRightLeft, Users, Loader2 } from "lucide-react";
+import { History, PlusCircle, CheckCircle2, AlertCircle, Edit, Trash2, ArrowRightLeft } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useInView } from "react-intersection-observer";
 import { useEffect } from "react";
 
@@ -175,7 +176,29 @@ export function TaskActivity({ taskId, workspaceId }: { taskId: string; workspac
         }
     };
 
-    if (isLoading) return <div className="text-[10px] text-muted-foreground animate-pulse">Loading history...</div>;
+    if (isLoading) return (
+        <div className="space-y-4">
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <History className="h-4 w-4" />
+                <h3 className="text-sm font-semibold tracking-tight">Activity Log</h3>
+            </div>
+            <div className="space-y-4 pl-0">
+                {[1, 2, 3].map((i) => (
+                    <div key={i} className="flex gap-4">
+                        <Skeleton className="h-3 w-3 rounded-full mt-1" />
+                        <div className="flex-1 space-y-1">
+                            <div className="flex items-center gap-2">
+                                <Skeleton className="h-4 w-4 rounded-full" />
+                                <Skeleton className="h-3 w-20" />
+                                <Skeleton className="h-3 w-16" />
+                            </div>
+                            <Skeleton className="h-3 w-48" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 
     return (
         <div className="space-y-4">
@@ -216,7 +239,7 @@ export function TaskActivity({ taskId, workspaceId }: { taskId: string; workspac
                 )}
 
                 <div ref={ref} className="h-4 flex items-center justify-center">
-                    {isFetchingNextPage && <Loader2 className="h-3 w-3 animate-spin text-primary" />}
+                    {isFetchingNextPage && <div className="h-3 w-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />}
                 </div>
             </div>
         </div>

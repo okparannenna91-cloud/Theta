@@ -2,9 +2,10 @@
 
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Link2, Plus, X, ArrowRight, ArrowDown, Search, Loader2 } from "lucide-react";
+import { Link2, Plus, X, ArrowRight, ArrowDown, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -111,8 +112,15 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
 
     if (isLoading) {
         return (
-            <div className="flex items-center justify-center p-4">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+            <div className="space-y-4">
+                <div className="flex items-center gap-2">
+                    <Link2 className="h-4 w-4 text-indigo-500" />
+                    <Skeleton className="h-4 w-28" />
+                </div>
+                <div className="space-y-2 pl-5">
+                    <Skeleton className="h-8 w-full rounded-lg" />
+                    <Skeleton className="h-8 w-full rounded-lg" />
+                </div>
             </div>
         );
     }
@@ -129,6 +137,7 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
                     size="sm"
                     className="h-7 text-xs gap-1"
                     onClick={() => setShowSearch(!showSearch)}
+                    aria-label={showSearch ? "Close search" : "Add dependency"}
                 >
                     <Plus className="h-3 w-3" />
                     Add
@@ -150,7 +159,7 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
                     <div className="border rounded-lg max-h-40 overflow-y-auto">
                         {isSearching ? (
                             <div className="flex items-center justify-center p-3">
-                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                <div className="h-4 w-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
                             </div>
                         ) : searchResults?.length === 0 ? (
                             <p className="text-[10px] text-muted-foreground text-center py-3">
@@ -201,6 +210,7 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
                                 <button
                                     onClick={() => removeDependencyMutation.mutate(dep.predecessorId)}
                                     className="h-5 w-5 text-muted-foreground hover:text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 inline-flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                                    aria-label={`Remove dependency on ${dep.predecessor?.title || "task"}`}
                                 >
                                     <X className="h-3 w-3" />
                                 </button>
@@ -227,6 +237,7 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
                                 <button
                                     onClick={() => removeDependencyMutation.mutate(dep.taskId)}
                                     className="h-5 w-5 text-muted-foreground hover:text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 inline-flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
+                                    aria-label={`Remove dependency blocking ${dep.predecessor?.title || "task"}`}
                                 >
                                     <X className="h-3 w-3" />
                                 </button>
