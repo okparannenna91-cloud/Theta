@@ -30,6 +30,7 @@ import { SubscriptionStatusBanner } from "./subscription-status-banner";
 import { InvoiceList } from "./invoice-list";
 import { CancelSubscriptionDialog } from "./cancel-subscription-dialog";
 import { ChangePlanDialog } from "./change-plan-dialog";
+import { UsageMeter } from "./usage-meter";
 import { CreditBalance } from "./credit-balance";
 import { PaymentProviderModal, PriceBreakdown } from "./payment-provider-modal";
 
@@ -218,41 +219,76 @@ export default function BillingPage() {
       />
 
       {workspaceName && (
-        <div className="mb-10 p-6 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-3">
-                <h3 className="text-base font-semibold">{workspaceName}</h3>
-                <Badge variant="secondary" className="rounded-md px-2.5 py-0.5 text-xs font-medium">
-                  {currentPlanKey === "free" ? "FREE" : currentPlanKey === "growth" ? "GROWTH" : currentPlanKey === "pro" ? "PRO" : "THETA PLUS"}
+        <div className="mb-10 rounded-2xl border border-border/50 bg-card/30 backdrop-blur-sm">
+          <div className="p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-3">
+                  <h3 className="text-base font-semibold">{workspaceName}</h3>
+                  <Badge variant="secondary" className="rounded-md px-2.5 py-0.5 text-xs font-medium">
+                    {currentPlanKey === "free" ? "FREE" : currentPlanKey === "growth" ? "GROWTH" : currentPlanKey === "pro" ? "PRO" : "THETA PLUS"}
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-5 text-sm text-muted-foreground">
+                  <span className="flex items-center gap-1.5">
+                    <CreditCard className="h-3.5 w-3.5" />
+                    {provider ? `via ${provider === 'paystack' ? 'Paystack' : provider === 'ivno' ? 'Ivno' : provider}` : 'No provider'}
+                  </span>
+                  {subscription?.currentPeriodEnd && (
+                    <span className="flex items-center gap-1.5">
+                      <Calendar className="h-3.5 w-3.5" />
+                      Next: {format(new Date(subscription.currentPeriodEnd), "MMM do, yyyy")}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                {isPaidPlan && billingStatus === "active" && !subscription?.cancelAtPeriodEnd && (
+                  <CancelSubscriptionDialog
+                    onCancel={handleCancel}
+                    isCancelling={isCancelling}
+                    hasActiveSubscription={true}
+                  />
+                )}
+                <Badge variant="outline" className="capitalize font-medium rounded-md px-3 py-1">
+                  Status: {billingStatus}
                 </Badge>
               </div>
-              <div className="flex items-center gap-5 text-sm text-muted-foreground">
-                <span className="flex items-center gap-1.5">
-                  <CreditCard className="h-3.5 w-3.5" />
-                  {provider ? `via ${provider === 'paystack' ? 'Paystack' : provider === 'ivno' ? 'Ivno' : provider}` : 'No provider'}
-                </span>
-                {subscription?.currentPeriodEnd && (
-                  <span className="flex items-center gap-1.5">
-                    <Calendar className="h-3.5 w-3.5" />
-                    Next: {format(new Date(subscription.currentPeriodEnd), "MMM do, yyyy")}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              {isPaidPlan && billingStatus === "active" && !subscription?.cancelAtPeriodEnd && (
-                <CancelSubscriptionDialog
-                  onCancel={handleCancel}
-                  isCancelling={isCancelling}
-                  hasActiveSubscription={true}
-                />
-              )}
-              <Badge variant="outline" className="capitalize font-medium rounded-md px-3 py-1">
-                Status: {billingStatus}
-              </Badge>
             </div>
           </div>
+          {usage && (
+            <>
+              <Separator className="bg-border/30" />
+              <div className="p-6">
+                <div className="grid gap-6 md:grid-cols-2">
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Zap className="h-4 w-4 text-primary" /> Basic Usage
+                    </h4>
+                    <div className="space-y-3">
+                      {usage.projects && <UsageMeter {...usage.projects} label="Projects" />}
+                      {usage.tasks && <UsageMeter {...usage.tasks} label="Tasks" />}
+                      {usage.members && <UsageMeter {...usage.members} label="Members" />}
+                      {usage.calendar_events && <UsageMeter {...usage.calendar_events} label="Calendar Events" />}
+                    </div>
+                  </div>
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-primary" /> Advanced Features
+                    </h4>
+                    <div className="space-y-3">
+                      {usage.nova && <UsageMeter {...usage.nova} label="AI Requests" />}
+                      {usage.storage && <UsageMeter {...usage.storage} label="File Storage" unit="MB" />}
+                      {usage.boards && <UsageMeter {...usage.boards} label="Kanban Boards" />}
+                      {usage.integrations && <UsageMeter {...usage.integrations} label="Integrations" />}
+                      {usage.automations && <UsageMeter {...usage.automations} label="Automations" />}
+                      {usage.chat_messages && <UsageMeter {...usage.chat_messages} label="Chat Messages" />}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
       )}
 
