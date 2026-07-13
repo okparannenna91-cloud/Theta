@@ -234,6 +234,56 @@ export function detectIdentityLeakage(text: string): boolean {
   return IDENTITY_LEAKAGE_PATTERNS.some(p => p.test(text));
 }
 
+export function detectRawToolCalls(text: string): boolean {
+  return RAW_TOOL_CALL_PATTERNS.some(p => p.test(text));
+}
+
+export function extractToolCallsFromText(text: string): Array<{ tool: string; params: Record<string, unknown> }> {
+  const calls: Array<{ tool: string; params: Record<string, unknown> }> = [];
+
+  const jsonMatch = text.match(/\[\s*\{[\s\S]*\}\s*\]/);
+  if (jsonMatch) {
+    try {
+      const parsed = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          const toolCode = item.tool_code || item.function || item.tool_name || "";
+          const toolMatch = toolCode.match(/(?:nova\.tools\.|print\s*\(\s*nova\.tools\.)(\w+)\s*\(([^)]*)\)/);
+          if (toolMatch) {
+            const toolName = toolMatch[1];
+            const paramStr = toolMatch[2];
+            const params: Record<string, unknown> = {};
+            if (paramStr) {
+              for (const param of paramStr.split(",")) {
+                const [key, val] = param.split("=").map((s: string) => s?.trim().replace(/^['"]|['"]$/g, ""));
+                if (key && val) params[key] = val;
+              }
+            }
+            calls.push({ tool: toolName, params });
+          }
+        }
+      }
+    } catch {}
+  }
+
+  if (calls.length === 0) {
+    const printMatch = text.match(/print\s*\(\s*nova\.tools\.(\w+)\s*\(([^)]*)\)\s*\)/);
+    if (printMatch) {
+      const toolName = printMatch[1];
+      const params: Record<string, unknown> = {};
+      if (printMatch[2]) {
+        for (const param of printMatch[2].split(",")) {
+          const [key, val] = param.split("=").map((s: string) => s?.trim().replace(/^['"]|['"]$/g, ""));
+          if (key && val) params[key] = val;
+        }
+      }
+      calls.push({ tool: toolName, params });
+    }
+  }
+
+  return calls;
+}
+
 export interface ReviewContext {
   route: string;
   workspaceContext?: string;
@@ -263,6 +313,15 @@ const ROBOTIC_ENDINGS = [
 
 const TOOL_NAME_REGEX = /\b(?:create_task|list_tasks|update_task|delete_task|breakdown_task|create_dependency|set_estimation|log_time|set_recurring|set_task_metadata|create_epic|create_approval_request|list_projects|create_project|update_project|delete_project|project_health_analysis|create_sprint_board|list_workspaces|update_workspace|list_members|invite_member|create_client_invite|export_workspace_data|send_team_announcement|set_workspace_goal|check_billing_history|create_document|read_document|delete_document|search_workspace|list_prompt_templates|evaluate_risks|get_suggestions|generate_daily_brief|generate_meeting_prep|generate_standup|generate_dashboard_config|create_automation|create_form|list_forms|get_form_responses|browse_templates|propose_custom_module|list_integrations|list_team_members|team_performance|team_activity|saved_searches|save_search|delete_saved_search|pin_search|save_conversation|remember_preference|dispatch_ui_action|update_board_layout|orchestrate_agentic_workflow)\b/;
 
+const RAW_TOOL_CALL_PATTERNS = [
+  /\[\s*\{\s*"?tool_code"?\s*:/i,
+  /\[\s*\{\s*"?tool_name"?\s*:/i,
+  /\[\s*\{\s*"?function"?\s*:/i,
+  /print\s*\(\s*nova\.tools\./i,
+  /\btool_call\s*[:=]/i,
+  /\bfunction_call\s*[:=]/i,
+];
+
 const AGENT_NAME_REGEX = /\b(?:Sprint Agent|Task Agent|Reporting Agent|Risk Agent|Documentation Agent|Automation Agent|Research Agent|Executive Agent)\b/;
 
 const UNNECESSARY_QUESTION_PATTERNS = [
@@ -277,6 +336,15 @@ export class ResponseQualityGate {
   static review(response: string, context: ReviewContext): ReviewResult {
     const issues: string[] = [];
     let revised = response.trim();
+
+    if (detectRawToolCalls(revised)) {
+      issues.push("Detected raw tool call text in response");
+      const extracted = extractToolCallsFromText(revised);
+      if (extracted.length > 0) {
+        (context as any).__extractedToolCalls = extracted;
+      }
+      revised = "Let me look into that for you.";
+    }
 
     revised = this.stripRoboticPatterns(revised, issues);
     revised = this.stripToolNames(revised, issues);

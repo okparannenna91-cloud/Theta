@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { routeRequest } from "@/lib/nova/intent-router";
-import { detectInternalLeakage, detectToolNameExposure, detectAgentNameExposure, detectIdentityLeakage, OutputValidator } from "@/lib/nova/output-validator";
+import { detectInternalLeakage, detectToolNameExposure, detectAgentNameExposure, detectIdentityLeakage, detectRawToolCalls, extractToolCallsFromText, OutputValidator } from "@/lib/nova/output-validator";
 import { ResponseQualityGate } from "@/lib/nova/output-validator";
 
 describe("Nova Evaluation Suite — Routing", () => {
@@ -302,5 +302,47 @@ describe("Nova Evaluation Suite — Output Validation", () => {
     const detailed = OutputValidator.validateDetailed("As an AI model, I cannot access your data");
     expect(detailed.valid).toBe(false);
     expect(detailed.issues.some(i => i.type === "hallucination")).toBe(true);
+  });
+});
+
+describe("Nova Evaluation Suite — Raw Tool Call Detection", () => {
+  it("detects JSON array tool call format", () => {
+    expect(detectRawToolCalls('[{"tool_code": "print(nova.tools.search_tasks(project_name=\'Theta\'))"}]')).toBe(true);
+  });
+
+  it("detects tool_name format", () => {
+    expect(detectRawToolCalls('[{"tool_name": "list_tasks", "params": {}}]')).toBe(true);
+  });
+
+  it("detects function format", () => {
+    expect(detectRawToolCalls('[{"function": "create_task", "args": {"title": "test"}}]')).toBe(true);
+  });
+
+  it("does not flag clean responses", () => {
+    expect(detectRawToolCalls("I found 3 overdue tasks in your project.")).toBe(false);
+  });
+
+  it("extracts tool calls from JSON array", () => {
+    const calls = extractToolCallsFromText('[{"tool_code": "print(nova.tools.search_tasks(project_name=\'Theta\'))"}]');
+    expect(calls.length).toBe(1);
+    expect(calls[0].tool).toBe("search_tasks");
+    expect(calls[0].params.project_name).toBe("Theta");
+  });
+
+  it("extracts tool calls from print statement", () => {
+    const calls = extractToolCallsFromText('print(nova.tools.list_tasks(project_name="Theta"))');
+    expect(calls.length).toBe(1);
+    expect(calls[0].tool).toBe("list_tasks");
+    expect(calls[0].params.project_name).toBe("Theta");
+  });
+
+  it("quality gate replaces raw tool calls with clean message", () => {
+    const result = ResponseQualityGate.review('[{"tool_code": "print(nova.tools.search_tasks(project_name=\'Theta\'))"}]', {
+      route: "CHAT",
+      userPrompt: "Calculate the team velocity",
+    });
+    expect(result.revisedResponse).not.toContain("tool_code");
+    expect(result.revisedResponse).not.toContain("nova.tools");
+    expect(result.issues.some(i => i.includes("raw tool call"))).toBe(true);
   });
 });

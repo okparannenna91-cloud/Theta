@@ -26,8 +26,14 @@ export interface QualityGateContext {
   conversationHistory?: string;
 }
 
-export function runQualityGate(response: string, context: QualityGateContext): { response: string; passed: boolean; issues: string[] } {
+export function runQualityGate(response: string, context: QualityGateContext): { response: string; passed: boolean; issues: string[]; extractedToolCalls?: Array<{ tool: string; params: Record<string, unknown> }> } {
   const { ResponseQualityGate } = require("@/lib/nova/output-validator");
-  const result = ResponseQualityGate.review(response, context);
-  return { response: result.revisedResponse, passed: result.passed, issues: result.issues };
+  const ctxWithExtracts = { ...context } as any;
+  const result = ResponseQualityGate.review(response, ctxWithExtracts);
+  return {
+    response: result.revisedResponse,
+    passed: result.passed,
+    issues: result.issues,
+    extractedToolCalls: ctxWithExtracts.__extractedToolCalls,
+  };
 }

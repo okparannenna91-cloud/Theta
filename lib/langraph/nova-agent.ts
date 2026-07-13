@@ -8,7 +8,7 @@ import { loadMemory } from "./nodes/memory-loader";
 import { executeWithFallback } from "./nodes/provider-fallback";
 import { executeStream } from "./nodes/stream-handler";
 import { validateAndSanitize, optimizeResponse, runQualityGate } from "./nodes/output-validator";
-import { sanitizeUserInput } from "@/lib/nova/output-validator";
+import { sanitizeUserInput, detectRawToolCalls, extractToolCallsFromText } from "@/lib/nova/output-validator";
 import { enforcePermission } from "./nodes/security-enforcer";
 import { tryDirectAction } from "./nodes/direct-action-router";
 import { executeTool } from "./nodes/tool-executor";
@@ -48,6 +48,37 @@ export class NovaAgent {
 
   constructor(ctx: LangGraphToolContext) {
     this.ctx = ctx;
+  }
+
+  private async reExecuteExtractedToolCalls(toolCalls: Array<{ tool: string; params: Record<string, unknown> }>): Promise<string> {
+    const results: string[] = [];
+    for (const tc of toolCalls) {
+      try {
+        const result = await executeTool(this.ctx, tc.tool, tc.params);
+        if (result.success) {
+          const msg = typeof result.result === "object" && result.result
+            ? (result.result as any).message || JSON.stringify(result.result)
+            : String(result.result);
+          results.push(msg);
+        } else {
+          results.push(`I couldn't complete that step: ${result.error}`);
+        }
+      } catch {
+        results.push(`Something went wrong with that step.`);
+      }
+    }
+    return results.join("\n\n");
+  }
+
+  private runQualityGate(text: string, state: NovaAgentState, route: RouteDecision): { response: string; passed: boolean; issues: string[]; extractedToolCalls?: Array<{ tool: string; params: Record<string, unknown> }> } {
+    const sanitized = validateAndSanitize(text);
+    const optimized = optimizeResponse(sanitized, state.route);
+    return runQualityGate(optimized, {
+      route: state.route,
+      workspaceContext: state.workspaceContext,
+      userPrompt: state.prompt,
+      conversationHistory: state.memoryContext,
+    });
   }
 
   async execute(state: NovaAgentState): Promise<NovaAgentState> {
@@ -96,8 +127,18 @@ export class NovaAgent {
       if (state.route === "ACTION") {
         const directResult = await tryDirectAction(state.prompt, this.ctx);
         if (directResult.handled) {
-          logger.info("[NovaAgent] Direct action handled", { action: directResult.actionName, durationMs: Date.now() - start });
-          return { ...state, response: directResult.message || directResult.error || "Action completed.", toolResults: [{ toolName: directResult.actionName || "direct_action", result: directResult.message }] };
+          const rawResponse = directResult.message || directResult.error || "Action completed.";
+          const qg = this.runQualityGate(rawResponse, state, route);
+          logger.info("[NovaAgent] Direct action handled", { action: directResult.actionName, durationMs: Date.now() - start, qualityIssues: qg.issues });
+          await saveConversationMemory({
+            userId: state.userId,
+            workspaceId: state.workspaceId,
+            conversationId: state.conversationId,
+            prompt: state.prompt,
+            response: qg.response,
+            toolResults: [{ toolName: directResult.actionName || "direct_action", result: directResult.message }],
+          }).catch(() => {});
+          return { ...state, response: qg.response, toolResults: [{ toolName: directResult.actionName || "direct_action", result: directResult.message }] };
         }
       }
 
@@ -106,9 +147,18 @@ export class NovaAgent {
       if (isMultiStep && state.route === "ACTION") {
         const planResult = await planAndExecute(state.prompt, this.ctx);
         if (planResult.plans.length > 0) {
-          const formatted = formatPlanResponse(planResult, state.prompt);
-          logger.info("[NovaAgent] Multi-step plan executed", { agents: planResult.plans.length, durationMs: Date.now() - start });
-          return { ...state, response: formatted, toolResults: planResult.results.flat() };
+          const rawResponse = formatPlanResponse(planResult, state.prompt);
+          const qg = this.runQualityGate(rawResponse, state, route);
+          logger.info("[NovaAgent] Multi-step plan executed", { agents: planResult.plans.length, durationMs: Date.now() - start, qualityIssues: qg.issues });
+          await saveConversationMemory({
+            userId: state.userId,
+            workspaceId: state.workspaceId,
+            conversationId: state.conversationId,
+            prompt: state.prompt,
+            response: qg.response,
+            toolResults: planResult.results.flat(),
+          }).catch(() => {});
+          return { ...state, response: qg.response, toolResults: planResult.results.flat() };
         }
       }
 
@@ -152,19 +202,22 @@ export class NovaAgent {
       }
 
       // Step 9: Validate, optimize, and run quality gate via LangGraph nodes
-      const sanitized = validateAndSanitize(text);
-      const optimized = optimizeResponse(sanitized, state.route);
-
-      const qualityGateResult = runQualityGate(optimized, {
-        route: state.route,
-        workspaceContext: state.workspaceContext,
-        userPrompt: state.prompt,
-        conversationHistory: state.memoryContext,
-      });
+      const qualityGateResult = this.runQualityGate(text, state, route);
       if (!qualityGateResult.passed) {
         logger.info("[NovaAgent] Quality gate revised response", { issues: qualityGateResult.issues });
       }
-      const finalResponse = qualityGateResult.response;
+
+      let finalResponse = qualityGateResult.response;
+
+      if (qualityGateResult.extractedToolCalls && qualityGateResult.extractedToolCalls.length > 0) {
+        logger.info("[NovaAgent] Re-executing extracted tool calls", { count: qualityGateResult.extractedToolCalls.length });
+        const reExecuted = await this.reExecuteExtractedToolCalls(qualityGateResult.extractedToolCalls);
+        if (reExecuted) {
+          finalResponse = reExecuted;
+          const reQg = this.runQualityGate(reExecuted, state, route);
+          finalResponse = reQg.response;
+        }
+      }
 
       // Step 10: Save conversation to memory via LangGraph node
       await saveConversationMemory({

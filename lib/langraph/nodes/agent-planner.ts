@@ -60,23 +60,21 @@ export function formatPlanResponse(
   if (planResult.plans.length === 0) return "";
 
   const lines: string[] = [];
-  lines.push(`**Orchestration complete.** I executed ${planResult.plans.length} agent(s) for: "${originalPrompt}".`);
+  lines.push(`Done! I completed ${planResult.plans.length} step(s) for: "${originalPrompt}".`);
   lines.push("");
 
   for (let i = 0; i < planResult.plans.length; i++) {
     const plan = planResult.plans[i];
     const stepResults = planResult.results[i];
-    lines.push(`### ${plan.agentName}`);
     for (let j = 0; j < plan.steps.length; j++) {
-      const step = plan.steps[j];
       const result = stepResults[j];
       if (result.success) {
         const msg = typeof result.result === "object" && result.result
-          ? (result.result as any).message || JSON.stringify(result.result)
-          : String(result.result);
-        lines.push(`- ✅ **${step.tool}**: ${msg}`);
+          ? (result.result as any).message || "Completed"
+          : String(result.result || "Completed");
+        lines.push(`- ${msg}`);
       } else {
-        lines.push(`- ❌ **${step.tool}**: ${result.error}`);
+        lines.push(`- Something went wrong with that step.`);
       }
     }
     lines.push("");

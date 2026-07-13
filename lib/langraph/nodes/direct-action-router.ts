@@ -68,10 +68,10 @@ export async function tryDirectAction(prompt: string, ctx: LangGraphToolContext)
     const result = await executeTool(ctx, match.action, match.params as Record<string, unknown>);
 
     if (result.success) {
-      const msg = typeof result.result === "object" && result.result ? (result.result as any).message || `${match.action} completed.` : `${match.action} completed.`;
+      const msg = typeof result.result === "object" && result.result ? (result.result as any).message || "Done!" : "Done!";
       return { handled: true, message: msg, actionName: match.action, durationMs: Date.now() - start };
     }
-    return { handled: true, error: result.error, actionName: match.action, durationMs: Date.now() - start };
+    return { handled: true, error: "Something went wrong with that action.", actionName: match.action, durationMs: Date.now() - start };
   } catch (error: any) {
     return { handled: true, error: error.message, actionName: "error", durationMs: Date.now() - start };
   }
