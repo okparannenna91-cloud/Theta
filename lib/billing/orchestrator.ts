@@ -45,6 +45,15 @@ class BillingOrchestrator {
       select: { providerCustomerId: true, billingProvider: true },
     });
 
+    console.log("[Orchestrator DEBUG] createCheckout params:", {
+      workspaceId: params.workspaceId,
+      planId: params.planId,
+      interval: params.interval,
+      currency: params.currency,
+      userId: params.userId,
+      provider: params.provider,
+    });
+
     let provider: import("./billing-provider.interface").BillingProvider;
     if (params.provider) {
       provider = providerRegistry.get(params.provider);
@@ -73,6 +82,8 @@ class BillingOrchestrator {
       params.memberCount,
       params.currency as any
     );
+
+    console.log("[Orchestrator DEBUG] price resolved:", { price, type: typeof price, providerId: provider.id });
 
     let customerId = workspace?.providerCustomerId;
     if (!customerId) {

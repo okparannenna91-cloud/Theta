@@ -75,6 +75,16 @@ export async function POST(req: Request) {
       provider?: string;
     };
 
+    console.log("[Checkout DEBUG] body vars:", {
+      workspaceId,
+      planId,
+      interval,
+      currency,
+      memberCount,
+      provider: explicitProvider,
+      userId: user.id,
+    });
+
     if (!workspaceId || !planId || !interval) {
       return NextResponse.json({ error: "workspaceId, planId, and interval are required" }, { status: 400 });
     }
@@ -115,6 +125,8 @@ export async function POST(req: Request) {
 
     const baseUrl = (process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000").replace(/\/+$/, "");
     const resolvedMemberCount = memberCount ?? 0;
+
+    console.log("[Checkout DEBUG] resolved:", { resolvedCurrency, resolvedProvider, resolvedMemberCount, baseUrl });
 
     const result = await billingOrchestrator.createCheckout({
       workspaceId,

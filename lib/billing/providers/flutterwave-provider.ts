@@ -20,8 +20,12 @@ export class FlutterwaveProvider implements BillingProvider {
       method: "POST",
       body: JSON.stringify({ email, name, ...metadata }),
     });
+    console.log("[Flutterwave] createCustomer response keys:", Object.keys(response), "data:", response.data);
+    const customerId = response.data?.id;
+    console.log("[Flutterwave] createCustomer id raw:", customerId, "type:", typeof customerId);
+    if (customerId == null) throw new Error(`Flutterwave createCustomer returned no id: ${JSON.stringify(response.data)}`);
     return {
-      id: response.data.id.toString(),
+      id: customerId.toString(),
       email: response.data.email,
       name: response.data.name,
       metadata,
@@ -68,7 +72,11 @@ export class FlutterwaveProvider implements BillingProvider {
       }),
     });
 
-    return { url: response.data.link, sessionId: response.data.id.toString() };
+    console.log("[Flutterwave] createCheckoutSession response.data:", response.data);
+    const sessionId = response.data?.id;
+    console.log("[Flutterwave] sessionId raw:", sessionId, "type:", typeof sessionId);
+    if (sessionId == null) throw new Error(`Flutterwave createCheckoutSession returned no id: ${JSON.stringify(response.data)}`);
+    return { url: response.data.link, sessionId: sessionId.toString() };
   }
 
   async createPaymentIntent(params: PaymentIntentParams): Promise<PaymentIntentResult> {
