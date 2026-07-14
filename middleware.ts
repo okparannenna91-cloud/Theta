@@ -14,6 +14,10 @@ const isPublicRoute = createRouteMatcher([
   '/api/user/preferences(.*)',
 ]);
 
+const isApiRoute = createRouteMatcher([
+  '/api(.*)',
+]);
+
 const limiter = rateLimit({
   interval: 60 * 1000, // 60 seconds
   uniqueTokenPerInterval: 500, // Max 500 users
@@ -33,7 +37,7 @@ export default clerkMiddleware(async (auth, req) => {
   // ────────────────────────────────────────────────────────────────────────
 
   // Rate limiting for API routes
-  if (req.nextUrl.pathname.startsWith('/api')) {
+  if (isApiRoute(req)) {
     const ip = req.ip || req.headers.get('x-forwarded-for') || '127.0.0.1';
     try {
       await limiter.check(null, 30, ip);
@@ -45,9 +49,17 @@ export default clerkMiddleware(async (auth, req) => {
   if (!isPublicRoute(req)) {
     const session = auth();
     if (!session.userId) {
-      // Return proper 401 instead of Clerk's opaque 404, so the frontend
-      // can distinguish "not found" from "not authenticated" and recover
-      return NextResponse.json({ error: "Unauthorized", code: "auth/session-expired" }, { status: 401 });
+      // API routes → return JSON 401 so the client can handle it gracefully
+      if (isApiRoute(req)) {
+        return NextResponse.json(
+          { error: "Unauthorized", code: "auth/session-expired" },
+          { status: 401 }
+        );
+      }
+      // Page routes → redirect to sign-in preserving the intended URL
+      const signInUrl = new URL('/sign-in', req.url);
+      signInUrl.searchParams.set('redirect_url', req.nextUrl.pathname + req.nextUrl.search);
+      return NextResponse.redirect(signInUrl);
     }
   }
 
