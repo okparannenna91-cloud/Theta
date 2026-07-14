@@ -236,6 +236,7 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
 
             <Dialog open={!!lightboxUrl} onOpenChange={(open) => !open && setLightboxUrl(null)}>
                 <DialogContent onClose={() => setLightboxUrl(null)} className="max-w-4xl">
+                    <DialogTitle className="sr-only">Image Preview</DialogTitle>
                     <div className="relative w-full flex items-center justify-center">
                         {lightboxUrl && (
                             <img

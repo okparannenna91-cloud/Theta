@@ -33,6 +33,8 @@ export async function GET(req: Request) {
             // Grant access to the workspace-level channel
             capabilities[`workspace:${workspaceId}`] = ["subscribe", "history"];
             capabilities[`workspace:${workspaceId}:chat`] = ["subscribe", "publish", "history"];
+            capabilities[`workspace:${workspaceId}:gantt:*`] = ["subscribe", "publish", "history", "presence"];
+            capabilities[`workspace:${workspaceId}:task:*`] = ["subscribe", "history"];
 
             // Grant access to project-specific channels the user can access
             const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
@@ -64,6 +66,8 @@ export async function GET(req: Request) {
                 }
                 capabilities[`team:${teamId}:chat`] = ["subscribe", "publish", "history"];
                 capabilities[`workspace:${wsId}`] = ["subscribe", "history"];
+                capabilities[`workspace:${wsId}:gantt:*`] = ["subscribe", "publish", "history", "presence"];
+                capabilities[`workspace:${wsId}:task:*`] = ["subscribe", "history"];
             } else {
                 return NextResponse.json({ error: "Team not found" }, { status: 404 });
             }
@@ -74,6 +78,8 @@ export async function GET(req: Request) {
             });
             for (const m of memberships) {
                 capabilities[`workspace:${m.workspaceId}`] = ["subscribe", "history"];
+                capabilities[`workspace:${m.workspaceId}:gantt:*`] = ["subscribe", "publish", "history", "presence"];
+                capabilities[`workspace:${m.workspaceId}:task:*`] = ["subscribe", "history"];
             }
         }
 
