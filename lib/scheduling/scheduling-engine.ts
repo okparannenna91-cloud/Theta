@@ -1,4 +1,5 @@
-import { addMinutes, differenceInMinutes, startOfDay, isWeekend } from "date-fns";
+import { addMinutes, differenceInMinutes, startOfDay, isWeekend, addDays, format, parseISO } from "date-fns";
+import type { WorkingDayConfig, Holiday } from "@/components/shared/timeline/types";
 
 export type DependencyType = "FS" | "SS" | "FF" | "SF";
 
@@ -15,11 +16,40 @@ export interface TaskData {
     }[];
 }
 
-/**
- * Recalculates task dates based on dependencies and constraints.
- * This is a simplified version of a CPM (Critical Path Method) engine.
- */
-export function calculateSchedules(tasks: TaskData[], skipWeekends: boolean = true) {
+export interface SchedulingConfig {
+    workingDays: WorkingDayConfig;
+    holidays: Holiday[];
+    workingHourStart: number;
+    workingHourEnd: number;
+}
+
+const DEFAULT_CONFIG: SchedulingConfig = {
+    workingDays: { monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: false, sunday: false },
+    holidays: [],
+    workingHourStart: 9,
+    workingHourEnd: 17,
+};
+
+function isWorkingDay(date: Date, config: SchedulingConfig): boolean {
+    const dayOfWeek = format(date, "EEEE").toLowerCase() as keyof WorkingDayConfig;
+    if (!config.workingDays[dayOfWeek]) return false;
+    const dateStr = format(date, "yyyy-MM-dd");
+    return !config.holidays.some(h => h.date === dateStr);
+}
+
+function addWorkingMinutes(date: Date, minutes: number, config: SchedulingConfig): Date {
+    let remaining = minutes;
+    let current = new Date(date);
+    while (remaining > 0) {
+        current = addMinutes(current, 1);
+        if (isWorkingDay(current, config)) {
+            remaining--;
+        }
+    }
+    return current;
+}
+
+export function calculateSchedules(tasks: TaskData[], config: SchedulingConfig = DEFAULT_CONFIG) {
     const taskMap = new Map(tasks.map(t => [t.id, { ...t }]));
     const processed = new Set<string>();
     const processing = new Set<string>();
@@ -30,93 +60,77 @@ export function calculateSchedules(tasks: TaskData[], skipWeekends: boolean = tr
             console.warn(`Circular dependency detected at task ${taskId}`);
             return;
         }
-
         processing.add(taskId);
         const task = taskMap.get(taskId);
         if (!task) return;
 
-        // Process predecessors first
         task.predecessors.forEach(dep => processTask(dep.predecessorId));
 
         if (task.schedulingMode === "auto" && task.predecessors.length > 0) {
             let earliestStart: Date | null = null;
-
             task.predecessors.forEach(dep => {
                 const pred = taskMap.get(dep.predecessorId);
                 if (!pred || !pred.startDate || !pred.dueDate) return;
-
                 let calculatedStart: Date;
-
                 switch (dep.type) {
-                    case "FS": // Finish-to-Start: Task starts after predecessor finishes
+                    case "FS":
                         calculatedStart = addMinutes(pred.dueDate, dep.lagMinutes);
                         break;
-                    case "SS": // Start-to-Start: Task starts after predecessor starts
+                    case "SS":
                         calculatedStart = addMinutes(pred.startDate, dep.lagMinutes);
                         break;
-                    case "FF": // Finish-to-Finish: Task finishes after predecessor finishes
-                        // Start = PredFinish + Lag - Duration
+                    case "FF":
                         calculatedStart = addMinutes(pred.dueDate, dep.lagMinutes - task.durationMinutes);
                         break;
-                    case "SF": // Start-to-Finish: Task finishes after predecessor starts
+                    case "SF":
                         calculatedStart = addMinutes(pred.startDate, dep.lagMinutes - task.durationMinutes);
                         break;
                     default:
                         calculatedStart = addMinutes(pred.dueDate, dep.lagMinutes);
                 }
-
                 if (!earliestStart || calculatedStart > earliestStart) {
                     earliestStart = calculatedStart;
                 }
             });
-
             if (earliestStart) {
-                // Adjust for weekends if enabled
-                if (skipWeekends) {
-                    earliestStart = adjustForWeekends(earliestStart);
-                }
-                
+                earliestStart = adjustForWorkingDays(earliestStart, config);
                 task.startDate = earliestStart;
-                task.dueDate = addMinutes(earliestStart, task.durationMinutes);
+                task.dueDate = addWorkingMinutes(earliestStart, task.durationMinutes, config);
             }
         }
-
         processing.delete(taskId);
         processed.add(taskId);
     }
 
     tasks.forEach(t => processTask(t.id));
-
     return Array.from(taskMap.values());
 }
 
-function adjustForWeekends(date: Date): Date {
+function adjustForWorkingDays(date: Date, config: SchedulingConfig): Date {
     let result = new Date(date);
-    while (isWeekend(result)) {
-        result = addMinutes(result, 1440); // Add a day
+    let attempts = 0;
+    while (!isWorkingDay(result, config) && attempts < 30) {
+        result = addDays(result, 1);
         result = startOfDay(result);
-        result.setHours(9, 0, 0, 0); // Start at 9 AM
+        result.setHours(config.workingHourStart, 0, 0, 0);
+        attempts++;
     }
     return result;
 }
 
-/**
- * Detects the critical path in a set of tasks using Forward and Backward passes.
- */
 export function detectCriticalPath(tasks: TaskData[]): Set<string> {
     if (tasks.length === 0) return new Set();
-
-    const taskMap = new Map(tasks.map(t => [t.id, { 
-        ...t, 
-        earlyStart: 0, 
-        earlyFinish: 0, 
-        lateStart: 0, 
-        lateFinish: 0 
+    const taskMap = new Map(tasks.map(t => [t.id, {
+        ...t,
+        earlyStart: 0,
+        earlyFinish: 0,
+        lateStart: 0,
+        lateFinish: 0
     }]));
 
-    // 1. Forward Pass: Calculate Early Start (ES) and Early Finish (EF)
     const processed = new Set<string>();
     const processing = new Set<string>();
+
     function forwardPass(taskId: string) {
         if (processed.has(taskId)) return;
         if (processing.has(taskId)) {
@@ -133,24 +147,22 @@ export function detectCriticalPath(tasks: TaskData[]): Set<string> {
             forwardPass(dep.predecessorId);
             const pred = taskMap.get(dep.predecessorId);
             if (!pred) return;
-
             switch (dep.type) {
-                case "SS": // Start-to-Start: task ES depends on pred ES
+                case "SS":
                     maxConstraint = Math.max(maxConstraint, pred.earlyStart + dep.lagMinutes);
                     break;
-                case "FF": // Finish-to-Finish: task EF depends on pred EF, derive ES
+                case "FF":
                     maxConstraint = Math.max(maxConstraint, pred.earlyFinish + dep.lagMinutes - task.durationMinutes);
                     break;
-                case "SF": // Start-to-Finish: task EF depends on pred ES
+                case "SF":
                     maxConstraint = Math.max(maxConstraint, pred.earlyStart + dep.lagMinutes - task.durationMinutes);
                     break;
-                case "FS": // Finish-to-Start (Default)
+                case "FS":
                 default:
                     maxEF = Math.max(maxEF, pred.earlyFinish + dep.lagMinutes);
                     break;
             }
         });
-
         task.earlyStart = Math.max(maxEF, maxConstraint);
         task.earlyFinish = task.earlyStart + task.durationMinutes;
         processing.delete(taskId);
@@ -158,12 +170,11 @@ export function detectCriticalPath(tasks: TaskData[]): Set<string> {
     }
     tasks.forEach(t => forwardPass(t.id));
 
-    // 2. Find total project duration
     const projectDuration = Math.max(...Array.from(taskMap.values()).map(t => t.earlyFinish));
 
-    // 3. Backward Pass: Calculate Late Start (LS) and Late Finish (LF)
     const backwardProcessed = new Set<string>();
     const backwardProcessing = new Set<string>();
+
     function backwardPass(taskId: string) {
         if (backwardProcessed.has(taskId)) return;
         if (backwardProcessing.has(taskId)) {
@@ -174,9 +185,7 @@ export function detectCriticalPath(tasks: TaskData[]): Set<string> {
         const task = taskMap.get(taskId);
         if (!task) { backwardProcessing.delete(taskId); return; }
 
-        // Find successors (tasks that have this task as a predecessor)
         const successors = tasks.filter(t => t.predecessors.some(p => p.predecessorId === taskId));
-
         if (successors.length === 0) {
             task.lateFinish = projectDuration;
         } else {
@@ -186,18 +195,17 @@ export function detectCriticalPath(tasks: TaskData[]): Set<string> {
                 const succ = taskMap.get(succTask.id);
                 const dep = succTask.predecessors.find(p => p.predecessorId === taskId);
                 if (!succ || !dep) return;
-
                 switch (dep.type) {
-                    case "SS": // Start-to-Start: succ LS depends on this task's LS
+                    case "SS":
                         minLS = Math.min(minLS, succ.lateStart - dep.lagMinutes);
                         break;
-                    case "FF": // Finish-to-Finish: succ LF depends on this task's LF
+                    case "FF":
                         minLS = Math.min(minLS, succ.lateFinish - dep.lagMinutes);
                         break;
-                    case "SF": // Start-to-Finish: succ LF depends on this task's LS
+                    case "SF":
                         minLS = Math.min(minLS, succ.lateFinish - dep.lagMinutes + task.durationMinutes);
                         break;
-                    case "FS": // Finish-to-Start (Default)
+                    case "FS":
                     default:
                         minLS = Math.min(minLS, succ.lateStart - dep.lagMinutes);
                         break;
@@ -205,20 +213,60 @@ export function detectCriticalPath(tasks: TaskData[]): Set<string> {
             });
             task.lateFinish = minLS;
         }
-
         task.lateStart = task.lateFinish - task.durationMinutes;
         backwardProcessing.delete(taskId);
         backwardProcessed.add(taskId);
     }
     tasks.forEach(t => backwardPass(t.id));
 
-    // 4. Identify critical tasks (Slack = 0)
     const criticalPath = new Set<string>();
     taskMap.forEach((t, id) => {
-        if (Math.abs(t.lateStart - t.earlyStart) < 1) { // 1 minute tolerance
+        if (Math.abs(t.lateStart - t.earlyStart) < 1) {
             criticalPath.add(id);
         }
     });
 
     return criticalPath;
+}
+
+export function calculateProgressRollup(tasks: any[]): any[] {
+    const map = new Map<string, any>(tasks.map(t => [t.id, { ...t, children: [] }]));
+    const roots: any[] = [];
+    map.forEach(task => {
+        if (task.parentId && map.has(task.parentId)) {
+            map.get(task.parentId).children.push(task);
+        } else {
+            roots.push(task);
+        }
+    });
+
+    function rollup(node: any): void {
+        if (node.children.length === 0) return;
+        node.children.forEach(rollup);
+        const total = node.children.reduce((sum: number, c: any) => sum + (c.progress || 0), 0);
+        node.progress = Math.round(total / node.children.length);
+        if (node.children.every((c: any) => c.status === "done")) {
+            node.status = "done";
+        } else if (node.children.some((c: any) => c.status === "in_progress")) {
+            node.status = "in_progress";
+        }
+        const earliestStart = node.children.reduce((min: Date | null, c: any) => {
+            const d = c.startDate ? new Date(c.startDate) : null;
+            return d && (!min || d < min) ? d : min;
+        }, null);
+        const latestDue = node.children.reduce((max: Date | null, c: any) => {
+            const d = c.dueDate ? new Date(c.dueDate) : null;
+            return d && (!max || d > max) ? d : max;
+        }, null);
+        if (earliestStart) node.startDate = earliestStart.toISOString();
+        if (latestDue) node.dueDate = latestDue.toISOString();
+    }
+
+    roots.forEach(rollup);
+    const result: any[] = [];
+    function flatten(nodes: any[]) {
+        nodes.forEach(n => { result.push(n); flatten(n.children); });
+    }
+    flatten(roots);
+    return result;
 }

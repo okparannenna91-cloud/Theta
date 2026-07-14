@@ -2,6 +2,8 @@ export type ZoomLevel = "hour" | "day" | "week" | "month" | "quarter" | "year";
 
 export type TimelineVariant = "timeline" | "gantt";
 
+export type DependencyType = "FS" | "SS" | "FF" | "SF";
+
 export interface TimelineTask {
   id: string;
   title: string;
@@ -16,7 +18,7 @@ export interface TimelineTask {
   children?: TimelineTask[];
   depth?: number;
   assigneeIds: string[];
-  predecessors?: { predecessorId: string; type: string; lag: number }[];
+  predecessors?: { id: string; predecessorId: string; type: DependencyType; lag: number }[];
   successors?: { id: string }[];
   schedulingMode?: string;
   isCritical?: boolean;
@@ -24,6 +26,8 @@ export interface TimelineTask {
   baselineDueDate?: string | null;
   color?: string | null;
   user?: { id: string; name: string; imageUrl: string } | null;
+  projectId?: string;
+  project?: { id: string; name: string } | null;
 }
 
 export interface CellWidths {
@@ -36,12 +40,12 @@ export interface CellWidths {
 }
 
 export const ZOOM_CELL_WIDTHS: CellWidths = {
-  hour: 80,
-  day: 120,
-  week: 160,
-  month: 200,
-  quarter: 250,
-  year: 300,
+  hour: 60,
+  day: 100,
+  week: 140,
+  month: 180,
+  quarter: 220,
+  year: 280,
 };
 
 export const ZOOM_OPTIONS: { label: string; value: ZoomLevel }[] = [
@@ -60,14 +64,79 @@ export const GANTT_ZOOM_OPTIONS: { label: string; value: ZoomLevel }[] = [
   { label: "Year", value: "year" },
 ];
 
-export const ROW_HEIGHT = 64;
-export const VISIBLE_BUFFER = 5;
-export const SIDEBAR_WIDTH = 350;
+export const ROW_HEIGHT = 56;
+export const VISIBLE_BUFFER = 10;
+export const SIDEBAR_WIDTH = 320;
+
+export const GANTT_SIDEBAR_WIDTH = 360;
 
 export interface UndoCommand {
-  type: "drag" | "resize" | "dependency" | "milestone" | "create" | "delete";
+  type: "drag" | "resize" | "dependency" | "milestone" | "create" | "delete" | "baseline";
   taskId: string;
   previous: Record<string, any>;
   next: Record<string, any>;
   timestamp: number;
 }
+
+export interface DragState {
+  type: "move" | "resize-left" | "resize-right" | "dependency" | "pan" | null;
+  taskId: string | null;
+  startX: number;
+  startY: number;
+  currentX: number;
+  currentY: number;
+  initialLeft: number;
+  initialWidth: number;
+}
+
+export interface DependencyLine {
+  id: string;
+  sourceTaskId: string;
+  targetTaskId: string;
+  type: DependencyType;
+  path: string;
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
+}
+
+export interface Baseline {
+  id?: string;
+  startDate: string;
+  dueDate: string;
+  label?: string;
+  createdAt?: string;
+}
+
+export interface WorkingDayConfig {
+  monday: boolean;
+  tuesday: boolean;
+  wednesday: boolean;
+  thursday: boolean;
+  friday: boolean;
+  saturday: boolean;
+  sunday: boolean;
+}
+
+export interface Holiday {
+  date: string;
+  label: string;
+}
+
+export interface ZoomConfig {
+  level: ZoomLevel;
+  cellWidth: number;
+  labelFormat: string;
+  subLabelFormat: string;
+  snapUnit: "hour" | "day" | "week" | "month";
+}
+
+export const ZOOM_CONFIG_MAP: Record<ZoomLevel, ZoomConfig> = {
+  hour: { level: "hour", cellWidth: 60, labelFormat: "MMM d", subLabelFormat: "HH:mm", snapUnit: "hour" },
+  day: { level: "day", cellWidth: 100, labelFormat: "MMMM yyyy", subLabelFormat: "d", snapUnit: "day" },
+  week: { level: "week", cellWidth: 140, labelFormat: "MMM d", subLabelFormat: "EEE", snapUnit: "day" },
+  month: { level: "month", cellWidth: 180, labelFormat: "MMM d", subLabelFormat: "EEE", snapUnit: "day" },
+  quarter: { level: "quarter", cellWidth: 220, labelFormat: "QQQ yyyy", subLabelFormat: "MMM", snapUnit: "week" },
+  year: { level: "year", cellWidth: 280, labelFormat: "yyyy", subLabelFormat: "MMM", snapUnit: "month" },
+};
