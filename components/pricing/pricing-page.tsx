@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Check, Info } from "lucide-react";
 import { SignUpButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import Link from "next/link";
+import { Logo } from "@/components/ui/logo";
 import { BILLING_PLANS, BillingInterval, getPlanPrice } from "@/lib/billing-plans";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
@@ -18,9 +19,7 @@ export default function PricingPage() {
     <div className="min-h-screen bg-background">
       <nav className="border-b">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="text-lg font-semibold text-foreground">
-            Theta
-          </Link>
+          <Logo size="md" href="/" />
           <div className="flex gap-4">
             <Link href="/">
               <Button variant="ghost" size="sm" className="text-sm">Features</Button>

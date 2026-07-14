@@ -4,8 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardDescription, CardContent } from "@/components/ui/card";
 import { Star, Sparkles, Zap, ArrowRight } from "lucide-react";
 import Link from "next/link";
-import Image from "next/image";
 
+import { Logo } from "@/components/ui/logo";
 import HeroSection from "@/components/landing/sections/hero-section";
 import ProblemSection from "@/components/landing/sections/problem-section";
 import MeetNovaSection from "@/components/landing/sections/meet-nova-section";
@@ -47,14 +47,7 @@ export default function LandingPage() {
 
       <nav className="fixed top-0 z-50 w-full bg-background/80 backdrop-blur-lg border-b">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="relative w-10 h-10 rounded-lg overflow-hidden border">
-              <Image src="/Logo.png" alt="Theta Logo" fill className="object-cover" />
-            </div>
-            <span className="text-xl font-semibold text-foreground">
-              Theta
-            </span>
-          </div>
+          <Logo size="lg" />
 
           <div className="hidden md:flex items-center gap-8 text-sm font-medium text-muted-foreground mr-10">
             <a href="#features" className="hover:text-foreground transition-colors">Features</a>
@@ -142,12 +135,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-10 mb-16">
             <div className="col-span-2 lg:col-span-2">
-              <div className="flex items-center gap-3 mb-6">
-                <div className="relative w-10 h-10 rounded-lg overflow-hidden border">
-                  <Image src="/Logo.png" alt="Theta Logo" fill className="object-cover" />
-                </div>
-                <span className="text-xl font-semibold text-foreground">Theta</span>
-              </div>
+              <Logo size="lg" className="mb-6" />
               <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mb-8">
                 Building the most intelligent, feature-complete project collaboration platform for modern teams.
               </p>

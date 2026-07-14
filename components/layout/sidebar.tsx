@@ -3,7 +3,6 @@
 import { memo, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -33,6 +32,7 @@ import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useI18n } from "@/lib/i18n";
+import { Logo } from "@/components/ui/logo";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -73,10 +73,7 @@ export const Sidebar = memo(function Sidebar() {
   return (
     <>
       <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b h-14 flex items-center justify-between px-4">
-        <Link href="/dashboard" className="flex items-center gap-2">
-          <Image src="/Logo.png" alt="Theta Logo" width={22} height={22} priority sizes="22px" className="rounded" />
-          <span className="text-lg font-semibold text-foreground">Theta</span>
-        </Link>
+        <Logo size="sm" href="/dashboard" priority />
         <div className="flex items-center gap-2">
           <UserButton />
           <button
@@ -104,12 +101,7 @@ export const Sidebar = memo(function Sidebar() {
         )}
       >
         <div className="flex h-14 items-center px-5 border-b border-sidebar-border">
-          <Link href="/dashboard" className="flex items-center gap-2.5">
-            <div className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0 bg-primary/20 flex items-center justify-center">
-              <Image src="/Logo.png" alt="Theta Logo" width={20} height={20} priority sizes="20px" className="object-cover" />
-            </div>
-            <span className="text-base font-semibold text-sidebar-foreground">Theta</span>
-          </Link>
+          <Logo size="sm" href="/dashboard" container priority linkClassName="gap-2.5" wordmarkClassName="text-sidebar-foreground" />
         </div>
 
         <div className="px-3 py-3 border-b border-sidebar-border">

@@ -1,14 +1,16 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Logo } from "@/components/ui/logo";
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
-      <div className="text-center">
-        <h1 className="text-6xl font-bold mb-4 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-          404
-        </h1>
-        <p className="text-xl text-gray-600 mb-8">Page not found</p>
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="flex flex-col items-center gap-8 text-center max-w-md px-4">
+        <Logo size="xl" />
+        <div>
+          <h1 className="text-6xl font-bold text-foreground mb-2">404</h1>
+          <p className="text-sm text-muted-foreground">Page not found</p>
+        </div>
         <Link href="/">
           <Button>Go Home</Button>
         </Link>
