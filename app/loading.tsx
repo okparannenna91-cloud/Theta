@@ -1,17 +1,12 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Logo } from "@/components/ui/logo";
 
 export default function Loading() {
   return (
     <div className="min-h-screen flex items-center justify-center">
-      <div className="space-y-6 w-full max-w-md px-8">
-        <div className="flex flex-col items-center gap-4">
-          <Skeleton className="h-14 w-14 rounded-2xl" />
-          <Skeleton className="h-5 w-56" />
-        </div>
-        <div className="space-y-3">
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-3 w-4/5 mx-auto" />
-          <Skeleton className="h-3 w-3/5 mx-auto" />
+      <div className="flex flex-col items-center gap-6">
+        <Logo size="xl" priority />
+        <div className="h-1 w-48 rounded-full bg-muted overflow-hidden">
+          <div className="h-full w-1/2 bg-primary animate-pulse rounded-full" />
         </div>
       </div>
     </div>
