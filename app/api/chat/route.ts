@@ -33,6 +33,7 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const workspaceId = searchParams.get("workspaceId")?.trim();
         const teamId = searchParams.get("teamId")?.trim();
+        const cursor = searchParams.get("cursor")?.trim();
 
         let effectiveWorkspaceId = workspaceId;
 
@@ -49,6 +50,7 @@ export async function GET(req: Request) {
 
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, effectiveWorkspaceId);
 
+        const TAKE = 50;
         const messagesRaw = await prisma.chatMessage.findMany({
             where: {
                 workspaceId: effectiveWorkspaceId,
@@ -60,25 +62,32 @@ export async function GET(req: Request) {
                     ]
                 }),
                 deletedAt: null,
+                ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
             },
-            take: 50,
+            take: TAKE + 1,
             orderBy: { createdAt: "desc" },
             include: {
                 replyTo: { select: { id: true, content: true, userId: true } }
             }
         });
 
-        messagesRaw.reverse();
+        const hasMore = messagesRaw.length > TAKE;
+        const pageMessages = hasMore ? messagesRaw.slice(0, TAKE) : messagesRaw;
+        pageMessages.reverse();
 
-        const uniqueUserIds = [...new Set(messagesRaw.map(m => m.userId))] as string[];
+        const uniqueUserIds = [...new Set(pageMessages.map(m => m.userId))] as string[];
         const users = await prisma.user.findMany({
             where: { id: { in: uniqueUserIds } },
             select: { id: true, name: true, imageUrl: true }
         });
 
-        const messages = messagesRaw.map(m => ({
+        const messages = pageMessages.map(m => ({
             ...m,
-            user: users.find(u => u.id === m.userId) || null
+            user: users.find(u => u.id === m.userId) || null,
+            replyTo: m.replyTo ? {
+                ...m.replyTo,
+                user: users.find(u => u.id === m.replyTo?.userId) || null
+            } : null,
         }));
 
         const { getPlanLimits } = await import("@/lib/plan-limits");
@@ -99,8 +108,8 @@ export async function GET(req: Request) {
 
         return NextResponse.json({
             messages,
-            nextCursor: null,
-            hasMore: false,
+            nextCursor: messages.length > 0 ? messages[0].createdAt : null,
+            hasMore,
             lastReadAt,
             limits: {
                 max: limits.maxChatMessages,
@@ -170,16 +179,27 @@ export async function POST(req: Request) {
             }
         });
 
+        const replyToUser = messageRaw.replyTo ? await prisma.user.findUnique({
+            where: { id: messageRaw.replyTo.userId },
+            select: { id: true, name: true, imageUrl: true }
+        }) : null;
+
+        const message = {
+            ...messageRaw,
+            user: { id: user.id, name: user.name || user.firstName || "User", imageUrl: user.imageUrl },
+            replyTo: messageRaw.replyTo ? { ...messageRaw.replyTo, user: replyToUser } : null,
+        };
+
         const channelName = data.teamId 
             ? `team:${data.teamId}:chat` 
             : getChatChannel(data.workspaceId, data.projectId);
         
         await publishToChannel(channelName, "message", {
-            ...messageRaw,
+            ...message,
             tempId: body.tempId,
         });
 
-        return NextResponse.json(messageRaw);
+        return NextResponse.json(message);
     } catch (error: any) {
         if (error instanceof z.ZodError) {
             return NextResponse.json({ error: error.errors }, { status: 400 });

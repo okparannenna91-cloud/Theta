@@ -1,27 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import Image from "next/image";
-import * as Ably from "ably";
 import { useUser } from "@clerk/nextjs";
 import {
-  Hash,
-  Pin,
-  PinOff,
-  MoreVertical,
-  MessageSquare,
-  Reply,
-  Image as ImageIcon,
-  FileText,
-  Paperclip,
-  Lock,
-  Send,
-  Sparkles,
-  X,
-  Loader2,
-  PanelRight,
-  PanelRightOpen,
+  Hash, Pin, PinOff, MoreVertical, MessageSquare, Reply,
+  Image as ImageIcon, FileText, Paperclip, Lock, Send, Sparkles,
+  X, Loader2, PanelRight, PanelRightOpen, Maximize2, Minimize2,
+  AlertCircle, RefreshCw,
 } from "lucide-react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -31,7 +18,7 @@ import { usePopups } from "@/components/popups/popup-manager";
 import { FadeIn } from "@/components/common/motion-wrapper";
 import { FileUpload } from "@/components/common/file-upload";
 import { cn } from "@/lib/utils";
-import { format, parseISO } from "date-fns";
+import { format } from "date-fns";
 
 import TeamPresence from "@/components/teams/chat/team-presence";
 import WorkspaceReactions from "@/components/teams/chat/workspace-reactions";
@@ -48,20 +35,22 @@ interface TeamChatEnhancedProps {
   workspaceId: string;
 }
 
+const PAGE_SIZE = 50;
+
 export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps) {
   const { user } = useUser();
   const { showUpgradePrompt } = usePopups();
+
   const [message, setMessage] = useState("");
   const [attachment, setAttachment] = useState<any>(null);
   const [isUploadOpen, setIsUploadOpen] = useState(false);
   const [messages, setMessages] = useState<any[]>([]);
   const [lastReadAt, setLastReadAt] = useState<string | null>(null);
   const [limits, setLimits] = useState({ current: 0, max: -1 });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [dbUser, setDbUser] = useState<any>(null);
   const [replyTo, setReplyTo] = useState<any>(null);
-
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -69,19 +58,25 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
   const [typingUsers, setTypingUsers] = useState<Record<string, { name: string; timestamp: number }>>({});
   const [readReceipts, setReadReceipts] = useState<Record<string, string>>({});
   const [showSidePanel, setShowSidePanel] = useState(true);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [reconnecting, setReconnecting] = useState(false);
 
-  const ablyRef = useRef<Ably.Realtime | null>(null);
-  const channelRef = useRef<Ably.RealtimeChannel | null>(null);
+  const ablyRef = useRef<any>(null);
+  const channelRef = useRef<any>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lastReadRef = useRef<string | null>(null);
   const lastTypedRef = useRef<number>(0);
   const isPrependingRef = useRef(false);
+  const fetchedRef = useRef(false);
+  const retryQueue = useRef<any[]>([]);
+  const composerRef = useRef<HTMLInputElement>(null);
+  const scrollPositionRef = useRef<number>(0);
 
   useEffect(() => {
     fetch("/api/auth/me")
       .then(res => res.json())
       .then(data => setDbUser(data))
-      .catch(err => console.error("Failed to fetch DB user profile:", err));
+      .catch(() => {});
   }, []);
 
   const markAsRead = useCallback(async () => {
@@ -95,15 +90,21 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
       const now = new Date().toISOString();
       setLastReadAt(now);
       lastReadRef.current = now;
-    } catch (err) {
-      console.error("Failed to mark chat as read", err);
-    }
+    } catch {}
   }, [teamId, workspaceId]);
 
   const fetchMessages = useCallback(async (cursorParam?: string | null) => {
+    if (!workspaceId || !teamId || workspaceId === "undefined" || teamId === "undefined") {
+      setIsLoading(false);
+      return;
+    }
     try {
-      if (!workspaceId || !teamId || workspaceId === "undefined" || teamId === "undefined") return;
-      if (!cursorParam) setIsLoading(true);
+      if (!cursorParam) {
+        setIsLoading(true);
+        fetchedRef.current = false;
+      } else {
+        setIsFetchingMore(true);
+      }
       const url = `/api/chat?workspaceId=${workspaceId}&teamId=${teamId}${cursorParam ? `&cursor=${cursorParam}` : ""}`;
       const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load messages");
@@ -118,96 +119,119 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
             if (scrollNode) scrollNode.scrollTop = scrollNode.scrollHeight - oldScrollHeight;
           });
         } else {
-          setMessages(prev => data.messages);
+          setMessages(data.messages);
         }
         setCursor(data.nextCursor);
-        setHasMore(!!data.nextCursor);
+        setHasMore(!!data.nextCursor && data.hasMore);
         if (data.limits) setLimits(data.limits);
         if (data.lastReadAt && !cursorParam) {
           setLastReadAt(data.lastReadAt);
           lastReadRef.current = data.lastReadAt;
         }
-        if (!cursorParam) markAsRead();
+        if (!cursorParam) {
+          fetchedRef.current = true;
+          markAsRead();
+        }
       }
     } catch (err) {
       console.error("[Chat] Failed to fetch messages:", err);
     } finally {
-      if (!cursorParam) setIsLoading(false);
+      setIsLoading(false);
+      setIsFetchingMore(false);
     }
   }, [teamId, workspaceId, markAsRead]);
+
+  const subscribeChannel = useCallback((ably: any, channel: any) => {
+    channel.subscribe("message", (msg: any) => {
+      setMessages((prev) => {
+        const incoming = msg.data;
+        const exists = prev.some(m => m.id === incoming.id || (incoming.tempId && m.tempId === incoming.tempId));
+        if (exists) return prev.map(m => (incoming.tempId && m.tempId === incoming.tempId) ? incoming : m);
+        return [...prev, incoming];
+      });
+    });
+
+    channel.subscribe("message:updated", (msg: any) => {
+      setMessages((prev) => prev.map(m => m.id === msg.data.id ? { ...m, ...msg.data } : m));
+    });
+
+    channel.subscribe("message:deleted", (msg: any) => {
+      setMessages((prev) => prev.map(m => m.id === msg.data.id ? { ...m, deletedAt: new Date().toISOString() } : m));
+    });
+
+    channel.subscribe("typing", (msg: any) => {
+      if (msg.data.userId === user?.id) return;
+      setTypingUsers(prev => ({ ...prev, [msg.data.userId]: { name: msg.data.name, timestamp: Date.now() } }));
+      setTimeout(() => {
+        setTypingUsers(prev => {
+          const next = { ...prev };
+          let changed = false;
+          for (const id in next) { if (Date.now() - next[id].timestamp > 2500) { delete next[id]; changed = true; } }
+          return changed ? next : prev;
+        });
+      }, 3000);
+    });
+
+    channel.subscribe("read:updated", (msg: any) => {
+      const { userId: uid, timestamp } = msg.data;
+      if (uid !== user?.id) setReadReceipts(prev => ({ ...prev, [uid]: timestamp }));
+    });
+
+    channel.presence.enter({ id: user?.id, name: user?.fullName || user?.firstName || "User", imageUrl: user?.imageUrl });
+    channel.presence.subscribe(['enter', 'leave', 'update'], () => {
+      channel.presence.get().then((members: any) => { if (members) setOnlineUsers(members.map((m: any) => m.data)); }).catch(() => {});
+    });
+  }, [user?.id, user?.fullName, user?.firstName, user?.imageUrl]);
 
   const connectAbly = useCallback(async () => {
     if (!user?.id || !teamId) return;
     try {
-      setIsLoading(true);
       setIsConnected(false);
-      if (ablyRef.current) ablyRef.current.close();
+      if (ablyRef.current) { ablyRef.current.close(); }
 
+      const Ably = (await import("ably")).default;
       const ably = new Ably.Realtime({ authUrl: "/api/ably/token", clientId: user.id });
       const channelName = `team:${teamId}:chat`;
       const channel = ably.channels.get(channelName);
 
       ably.connection.on("connected", () => {
         setIsConnected(true);
-        setIsLoading(false);
+        setReconnecting(false);
       });
 
-      channel.subscribe("message", (msg) => {
-        setMessages((prev) => {
-          const incoming = msg.data;
-          const exists = prev.some(m => m.id === incoming.id || (incoming.tempId && m.tempId === incoming.tempId));
-          if (exists) return prev.map(m => (incoming.tempId && m.tempId === incoming.tempId) ? incoming : m);
-          return [...prev, incoming];
-        });
+      ably.connection.on("disconnected", () => {
+        setIsConnected(false);
       });
 
-      channel.subscribe("message:updated", (msg) => {
-        setMessages((prev) => prev.map(m => m.id === msg.data.id ? { ...m, ...msg.data } : m));
+      ably.connection.on("suspended", () => {
+        setIsConnected(false);
+        setReconnecting(true);
       });
 
-      channel.subscribe("message:deleted", (msg) => {
-        setMessages((prev) => prev.map(m => m.id === msg.data.id ? { ...m, deletedAt: new Date().toISOString() } : m));
+      ably.connection.on("failed", () => {
+        setIsConnected(false);
+        setReconnecting(true);
       });
 
-      channel.subscribe("typing", (msg) => {
-        if (msg.data.userId === user.id) return;
-        setTypingUsers(prev => ({ ...prev, [msg.data.userId]: { name: msg.data.name, timestamp: Date.now() } }));
-        setTimeout(() => {
-          setTypingUsers(prev => {
-            const next = { ...prev };
-            let changed = false;
-            for (const id in next) { if (Date.now() - next[id].timestamp > 2500) { delete next[id]; changed = true; } }
-            return changed ? next : prev;
-          });
-        }, 3000);
-      });
-
-      channel.subscribe("read:updated", (msg) => {
-        const { userId, timestamp } = msg.data;
-        if (userId !== user.id) setReadReceipts(prev => ({ ...prev, [userId]: timestamp }));
-      });
-
-      channel.presence.enter({ id: user.id, name: user.fullName || user.firstName || "User", imageUrl: user.imageUrl });
-      channel.presence.subscribe(['enter', 'leave', 'update'], () => {
-        channel.presence.get().then((members) => { if (members) setOnlineUsers(members.map(m => m.data)); }).catch(console.error);
-      });
+      subscribeChannel(ably, channel);
 
       ablyRef.current = ably;
       channelRef.current = channel;
-
-      ably.connection.once("connected", () => {
-        setMessages(prev => { if (prev.length === 0) fetchMessages(); return prev; });
-      });
     } catch (error) {
       console.error("[Chat] Ably setup error:", error);
-      setIsLoading(false);
+      setReconnecting(true);
     }
-  }, [teamId, user?.id, user?.fullName, user?.firstName, user?.imageUrl, fetchMessages]);
+  }, [teamId, user?.id, subscribeChannel]);
 
-  useEffect(() => { if (teamId && workspaceId) fetchMessages(); }, [teamId, workspaceId, fetchMessages]);
+  useEffect(() => {
+    if (teamId && workspaceId && !fetchedRef.current) fetchMessages();
+  }, [teamId, workspaceId, fetchMessages]);
+
   useEffect(() => {
     if (user?.id && teamId) connectAbly();
-    return () => { if (ablyRef.current) { ablyRef.current.close(); ablyRef.current = null; } };
+    return () => {
+      if (ablyRef.current) { ablyRef.current.close(); ablyRef.current = null; channelRef.current = null; }
+    };
   }, [connectAbly, user?.id, teamId]);
 
   useEffect(() => {
@@ -215,7 +239,30 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
     isPrependingRef.current = false;
   }, [messages]);
 
-  const handleScroll = () => { if (scrollRef.current?.scrollTop === 0 && hasMore && !isFetchingMore) fetchMessages(cursor); };
+  const handleReconnect = useCallback(() => {
+    if (!user?.id || !teamId) return;
+    setReconnecting(false);
+    connectAbly();
+    fetchMessages();
+    toast.success("Reconnected");
+  }, [connectAbly, fetchMessages, user?.id, teamId]);
+
+  useEffect(() => {
+    if (reconnecting && !isConnected) {
+      const interval = setInterval(() => {
+        if (!ablyRef.current || !channelRef.current) {
+          handleReconnect();
+        }
+      }, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [reconnecting, isConnected, handleReconnect]);
+
+  const handleScroll = () => {
+    if (scrollRef.current?.scrollTop === 0 && hasMore && !isFetchingMore) {
+      fetchMessages(cursor);
+    }
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value);
@@ -235,9 +282,12 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
     if (isLimitReached) { showUpgradePrompt("chat"); return; }
 
     const tempId = Date.now().toString();
-    const optimisticMsg = {
-      id: tempId, tempId, content: message, userId: user?.id, attachment, replyTo, createdAt: new Date().toISOString(),
-      user: { name: user?.fullName || user?.firstName || "You", imageUrl: user?.imageUrl }
+    const timestamp = new Date().toISOString();
+    const optimisticMsg: any = {
+      id: tempId, tempId, content: message, userId: user?.id, attachment, replyTo,
+      createdAt: timestamp,
+      user: { name: user?.fullName || user?.firstName || "You", imageUrl: user?.imageUrl },
+      _optimistic: true,
     };
 
     setMessages(prev => [...prev, optimisticMsg]);
@@ -247,24 +297,49 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content: optimisticMsg.content || "Sent an attachment", workspaceId, teamId, attachment: optimisticMsg.attachment, tempId, replyToId: optimisticMsg.replyTo?.id }),
+        body: JSON.stringify({
+          content: optimisticMsg.content || "Sent an attachment",
+          workspaceId, teamId,
+          attachment: optimisticMsg.attachment,
+          tempId,
+          replyToId: optimisticMsg.replyTo?.id,
+        }),
       });
       if (!res.ok) {
         setMessages(prev => prev.filter(m => m.tempId !== tempId));
         if (res.status === 403) showUpgradePrompt("chat");
+        else toast.error("Failed to send message");
       } else {
         const savedMsg = await res.json();
         setMessages(prev => prev.map(m => m.tempId === tempId ? { ...savedMsg, user: m.user } : m));
         markAsRead();
       }
-    } catch (error) { setMessages(prev => prev.filter(m => m.tempId !== tempId)); }
+    } catch {
+      setMessages(prev => prev.filter(m => m.tempId !== tempId));
+      retryQueue.current.push(optimisticMsg);
+      toast.error("Network error. Your message will be retried.", { action: { label: "Retry", onClick: () => sendQueued() } });
+    }
+  };
+
+  const sendQueued = async () => {
+    if (retryQueue.current.length === 0) return;
+    const msg = retryQueue.current.shift();
+    setMessages(prev => [...prev, { ...msg, id: Date.now().toString() + "-retry" }]);
+    setMessage(msg.content || "");
+    if (msg.attachment) setAttachment(msg.attachment);
+    if (msg.replyTo) setReplyTo(msg.replyTo);
+    toast.success("Retrying message...");
   };
 
   const togglePin = async (msg: any) => {
     try {
-      await fetch(`/api/chat?id=${msg.id}&workspaceId=${workspaceId}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ isPinned: !msg.isPinned }) });
+      await fetch(`/api/chat?id=${msg.id}&workspaceId=${workspaceId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isPinned: !msg.isPinned })
+      });
       toast.success(msg.isPinned ? "Unpinned" : "Pinned");
-    } catch (err) { toast.error("Failed to update pin"); }
+    } catch { toast.error("Failed to update pin"); }
   };
 
   const handleReactionToggle = async (messageId: string, reactionId: string) => {
@@ -282,19 +357,39 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
     }
   };
 
-  const pinnedMessages = messages.filter(m => m.isPinned && !m.deletedAt);
+  const toggleFullScreen = () => {
+    if (!isFullScreen) {
+      scrollPositionRef.current = scrollRef.current?.scrollTop || 0;
+    }
+    setIsFullScreen(!isFullScreen);
+  };
+
+  useEffect(() => {
+    if (isFullScreen && scrollRef.current) {
+      requestAnimationFrame(() => {
+        scrollRef.current!.scrollTop = scrollPositionRef.current;
+      });
+    }
+  }, [isFullScreen]);
+
+  const pinnedMessages = useMemo(() => messages.filter(m => m.isPinned && !m.deletedAt), [messages]);
+
   const latestSeenMessageMap: Record<string, string[]> = {};
   Object.entries(readReceipts).forEach(([uid, t]) => {
     let lastSeenMsgId = null;
-    for (let i = messages.length - 1; i >= 0; i--) { if (messages[i].createdAt <= t) { lastSeenMsgId = messages[i].id; break; } }
-    if (lastSeenMsgId) { if (!latestSeenMessageMap[lastSeenMsgId]) latestSeenMessageMap[lastSeenMsgId] = []; latestSeenMessageMap[lastSeenMsgId].push(uid); }
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].createdAt <= t) { lastSeenMsgId = messages[i].id; break; }
+    }
+    if (lastSeenMsgId) {
+      if (!latestSeenMessageMap[lastSeenMsgId]) latestSeenMessageMap[lastSeenMsgId] = [];
+      latestSeenMessageMap[lastSeenMsgId].push(uid);
+    }
   });
 
-  return (
-    <div className="flex h-full bg-transparent relative overflow-hidden">
+  const chatContent = (
+    <div className="flex bg-transparent relative overflow-hidden h-full">
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Chat Header */}
-        <div className="p-4 sm:p-6 border-b flex items-center justify-between bg-background/40 backdrop-blur-3xl z-20">
+        <div className="p-4 sm:p-6 border-b flex items-center justify-between bg-background/40 backdrop-blur-3xl z-20 shrink-0">
           <div className="flex items-center gap-4 min-w-0">
             <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/5 flex items-center justify-center border shrink-0">
               <Hash className="h-5 w-5 text-primary" />
@@ -303,6 +398,16 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
               <h3 className="text-lg sm:text-xl font-semibold tracking-tight leading-none">Team Chat</h3>
               <div className="flex items-center gap-3 mt-1">
                 <TeamPresence onlineUsers={onlineUsers} />
+                {!isConnected && (
+                  <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px]">
+                    Disconnected
+                  </Badge>
+                )}
+                {reconnecting && (
+                  <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] animate-pulse">
+                    Reconnecting...
+                  </Badge>
+                )}
               </div>
             </div>
           </div>
@@ -317,30 +422,22 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                 <Pin className="h-3 w-3 mr-1.5" /> {pinnedMessages.length}
               </Badge>
             )}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9 rounded-lg text-muted-foreground"
-              onClick={() => setShowSidePanel(!showSidePanel)}
-            >
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-muted-foreground" onClick={toggleFullScreen} title={isFullScreen ? "Exit full screen" : "Full screen"}>
+              {isFullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+            </Button>
+            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-muted-foreground" onClick={() => setShowSidePanel(!showSidePanel)}>
               {showSidePanel ? <PanelRightOpen className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
             </Button>
-            <div className="h-9 w-9 rounded-lg bg-muted/50 flex items-center justify-center border">
-              <MoreVertical className="h-4 w-4 text-muted-foreground" />
-            </div>
           </div>
         </div>
 
-        {/* Pinned Bar */}
         {pinnedMessages.length > 0 && (
-          <div className="bg-amber-500/5 border-b border-amber-500/10 backdrop-blur-xl z-10">
+          <div className="bg-amber-500/5 border-b border-amber-500/10 backdrop-blur-xl z-10 shrink-0">
             {pinnedMessages.slice(0, 3).map(msg => (
               <div key={msg.id} className="p-3 px-6 flex items-center justify-between gap-6">
                 <div className="flex items-center gap-4 min-w-0">
                   <Pin className="h-4 w-4 text-amber-500 shrink-0" />
-                  <span className="text-xs font-medium text-amber-600/80 truncate">
-                    Pinned: {msg.content}
-                  </span>
+                  <span className="text-xs font-medium text-amber-600/80 truncate">Pinned: {msg.content}</span>
                 </div>
                 <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-500 rounded-md shrink-0" onClick={() => togglePin(msg)}>
                   <PinOff className="h-3.5 w-3.5" />
@@ -350,29 +447,48 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
           </div>
         )}
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 no-scrollbar" ref={scrollRef} onScroll={handleScroll}>
+        <div className={cn(
+          "flex-1 overflow-y-auto no-scrollbar",
+          isFullScreen ? "p-6 sm:p-8 space-y-4 sm:space-y-6" : "p-4 sm:p-6 space-y-4 sm:space-y-6"
+        )} ref={scrollRef} onScroll={handleScroll}>
+          {hasMore && (
+            <div className="text-center py-4">
+              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => fetchMessages(cursor)} disabled={isFetchingMore}>
+                {isFetchingMore ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : null}
+                Load older messages
+              </Button>
+            </div>
+          )}
+
           {isLoading && messages.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-20">
               <Loader2 className="h-16 w-16 sm:h-20 sm:w-20 animate-spin mb-6" />
               <p className="text-xs font-semibold">Loading messages...</p>
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-10">
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-20">
               <MessageSquare className="h-24 w-24 sm:h-32 sm:w-32 mb-6" />
               <p className="text-xs font-semibold">No messages yet.</p>
+              <p className="text-[10px] text-muted-foreground/60 mt-1">Send a message to get started.</p>
             </div>
           ) : (
-            messages.map((msg, idx) => {
+            messages.filter(m => !m.deletedAt).map((msg, idx) => {
               const isMe = msg.userId === dbUser?.id || msg.userId === user?.id;
-              const prevMsg = messages[idx - 1];
-              const isSameSender = prevMsg?.userId === msg.userId;
+              const prevMsg = idx > 0 ? messages[idx - 1] : null;
+              const isSameSender = prevMsg && prevMsg.userId === msg.userId && !prevMsg.deletedAt;
 
               return (
-                <FadeIn key={msg.id} delay={0.02} className={cn("flex group", isMe ? "justify-end" : "justify-start", isSameSender ? "mt-[-1rem]" : "mt-0")}>
+                <FadeIn key={msg.id || msg.tempId} delay={0.02} className={cn(
+                  "flex group",
+                  isMe ? "justify-end" : "justify-start",
+                  isSameSender ? "mt-[-1rem]" : "mt-0"
+                )}>
                   <div className={cn("flex gap-3 max-w-[85%] sm:max-w-[75%]", isMe ? "flex-row-reverse" : "flex-row")}>
                     {!isSameSender ? (
-                      <div className={cn("h-8 w-8 sm:h-10 sm:w-10 rounded-xl shrink-0 flex items-center justify-center text-xs font-semibold border transition-all", isMe ? "bg-primary text-primary-foreground" : "bg-muted")}>
+                      <div className={cn(
+                        "h-8 w-8 sm:h-10 sm:w-10 rounded-xl shrink-0 flex items-center justify-center text-xs font-semibold border transition-all",
+                        isMe ? "bg-primary text-primary-foreground" : "bg-muted"
+                      )}>
                         {msg.user?.name?.slice(0, 2).toUpperCase() || "U"}
                       </div>
                     ) : (
@@ -383,10 +499,10 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                         <div className="flex items-center gap-3 mb-1.5 px-2">
                           <span className="text-xs font-medium text-muted-foreground">{msg.user?.name || "Anonymous"}</span>
                           <span className="text-[10px] text-muted-foreground">{format(new Date(msg.createdAt), "HH:mm")}</span>
+                          {msg.isEdited && <span className="text-[9px] text-muted-foreground/40">(edited)</span>}
                           {msg.isPinned && <Pin className="h-3 w-3 text-amber-500" />}
                         </div>
                       )}
-
                       <div className="relative group/bubble">
                         <div className={cn(
                           "rounded-xl px-4 py-2.5 sm:px-5 sm:py-3 text-sm backdrop-blur-3xl border transition-all",
@@ -395,7 +511,10 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                             : "bg-background/40 text-foreground rounded-tl-none"
                         )}>
                           {msg.replyTo && (
-                            <div className={cn("mb-2.5 p-2.5 rounded-lg text-xs border-l-4", isMe ? "bg-black/10 border-white/30 text-white/70" : "bg-muted border-primary/30 text-muted-foreground")}>
+                            <div className={cn(
+                              "mb-2.5 p-2.5 rounded-lg text-xs border-l-4",
+                              isMe ? "bg-black/10 border-white/30 text-white/70" : "bg-muted border-primary/30 text-muted-foreground"
+                            )}>
                               <div className="font-semibold mb-0.5 flex items-center gap-2">
                                 <Reply className="h-3 w-3" /> Replying to {msg.replyTo.userId === user?.id ? "you" : (msg.replyTo.user?.name || "User")}
                               </div>
@@ -427,7 +546,6 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                           })()}
                           <span>{msg.content}</span>
                         </div>
-
                         {msg.userId !== user?.id && (
                           <WorkspaceReactions
                             messageId={msg.id}
@@ -445,16 +563,39 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
           )}
         </div>
 
-        {/* Input Area */}
-        <div className="p-4 sm:p-6 border-t bg-background/40 backdrop-blur-3xl z-20">
+        <div className="shrink-0 p-4 sm:p-6 border-t bg-background/40 backdrop-blur-3xl z-20">
           {Object.keys(typingUsers).length > 0 && (
-            <div className="absolute -top-7 left-12 text-xs text-primary font-medium flex items-center gap-2">
+            <div className="mb-2 text-xs text-primary font-medium flex items-center gap-2">
               <div className="flex gap-1">
                 <div className="h-1 w-1 bg-primary rounded-full animate-bounce" />
                 <div className="h-1 w-1 bg-primary rounded-full animate-bounce [animation-delay:0.2s]" />
                 <div className="h-1 w-1 bg-primary rounded-full animate-bounce [animation-delay:0.4s]" />
               </div>
               {Object.values(typingUsers)[0].name} typing...
+            </div>
+          )}
+
+          {reconnecting && (
+            <div className="mb-3 flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                <span className="text-xs font-medium text-blue-600">Connection lost. Reconnecting...</span>
+              </div>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleReconnect}>
+                <RefreshCw className="h-3 w-3 mr-1" /> Retry
+              </Button>
+            </div>
+          )}
+
+          {retryQueue.current.length > 0 && (
+            <div className="mb-3 flex items-center justify-between p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+                <span className="text-xs font-medium text-amber-600">{retryQueue.current.length} message(s) pending</span>
+              </div>
+              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={sendQueued}>
+                <RefreshCw className="h-3 w-3 mr-1" /> Retry
+              </Button>
             </div>
           )}
 
@@ -499,10 +640,18 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                   <DialogHeader className="mb-6">
                     <DialogTitle className="text-xl font-semibold tracking-tight">Attach File</DialogTitle>
                   </DialogHeader>
-                  <FileUpload workspaceId={workspaceId} onUploadComplete={(data) => { setAttachment({ url: data.url || data.secure_url, originalName: data.originalName || "File", category: (data.url || data.secure_url).match(/\.(jpeg|jpg|gif|png|webp)$/i) ? "image" : "document" }); setIsUploadOpen(false); }} />
+                  <FileUpload workspaceId={workspaceId} onUploadComplete={(data) => {
+                    setAttachment({
+                      url: data.url || data.secure_url,
+                      originalName: data.originalName || "File",
+                      category: (data.url || data.secure_url).match(/\.(jpeg|jpg|gif|png|webp)$/i) ? "image" : "document"
+                    });
+                    setIsUploadOpen(false);
+                  }} />
                 </DialogContent>
               </Dialog>
               <Input
+                ref={composerRef}
                 placeholder={isLimitReached ? "Message limit reached" : "Type a message..."}
                 value={message} onChange={handleInputChange}
                 className="border-none bg-transparent shadow-none focus-visible:ring-0 text-sm h-10"
@@ -516,7 +665,6 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
 
           {isLimitReached && (
             <FadeIn delay={0.1} className="mt-4 flex items-center justify-between p-4 sm:p-6 rounded-xl bg-primary text-primary-foreground shadow-md group overflow-hidden relative">
-              <div className="absolute inset-0 bg-primary/10 opacity-0 group-hover:opacity-100 transition-opacity duration-700 -z-10" />
               <div className="flex items-center gap-4">
                 <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-xl shadow-lg shadow-black/20">
                   <Sparkles className="h-5 w-5 text-white" />
@@ -532,9 +680,8 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
         </div>
       </div>
 
-      {/* Side Panel */}
-      {showSidePanel && (
-        <div className="w-72 lg:w-80 border-l bg-background/40 backdrop-blur-3xl overflow-y-auto hidden lg:block">
+      {showSidePanel && !isFullScreen && (
+        <div className="w-72 lg:w-80 border-l bg-background/40 backdrop-blur-3xl overflow-y-auto hidden lg:block shrink-0">
           <div className="p-4 space-y-3">
             <div className="flex items-center justify-between mb-2">
               <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Workspace Hub</span>
@@ -550,8 +697,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
         </div>
       )}
 
-      {/* Mobile side panel toggle */}
-      {!showSidePanel && (
+      {!showSidePanel && !isFullScreen && (
         <button
           onClick={() => setShowSidePanel(true)}
           className="lg:hidden fixed right-4 bottom-24 z-30 w-10 h-10 rounded-full bg-primary shadow-lg flex items-center justify-center text-white"
@@ -561,4 +707,16 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
       )}
     </div>
   );
+
+  if (isFullScreen) {
+    return (
+      <div className="fixed inset-0 z-[9999] bg-background flex flex-col">
+        <div className="flex-1 overflow-hidden">
+          {chatContent}
+        </div>
+      </div>
+    );
+  }
+
+  return chatContent;
 }
