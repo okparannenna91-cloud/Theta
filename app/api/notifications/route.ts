@@ -14,6 +14,7 @@ export async function GET(req: Request) {
         const filter = searchParams.get("filter") || "all";
         const skip = parseInt(searchParams.get("skip") || "0");
         const take = parseInt(searchParams.get("take") || "20");
+        const search = searchParams.get("search") || "";
 
         if (!workspaceId) return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
 
@@ -38,11 +39,36 @@ export async function GET(req: Request) {
                 where.archived = false;
                 break;
             case "mentions":
-                where.type = "mention";
+                where.type = { in: ["mention", "task_mentioned"] };
                 where.archived = false;
                 break;
             case "assigned":
                 where.type = "task_assigned";
+                where.archived = false;
+                break;
+            case "tasks":
+                where.type = {
+                    in: [
+                        "task_assigned", "task_unassigned", "task_mentioned", "task_completed",
+                        "task_reopened", "task_due_soon", "task_overdue", "task_status_changed",
+                        "priority_changed", "dependency_blocked", "dependency_unblocked",
+                        "recurring_task_created", "comment_reply",
+                    ],
+                };
+                where.archived = false;
+                break;
+            case "calendar":
+                where.type = {
+                    in: ["calendar_event_created", "calendar_event_updated", "calendar_event_starting_soon", "calendar_event_missed"],
+                };
+                where.archived = false;
+                break;
+            case "alerts":
+                where.type = { in: ["smart_alert", "nova_suggestion", "limit_warning"] };
+                where.archived = false;
+                break;
+            case "digest":
+                where.type = { in: ["daily_summary", "weekly_summary"] };
                 where.archived = false;
                 break;
             case "reminders":
@@ -55,6 +81,13 @@ export async function GET(req: Request) {
             default:
                 where.archived = false;
                 break;
+        }
+
+        if (search) {
+            where.OR = [
+                { title: { contains: search, mode: "insensitive" } },
+                { message: { contains: search, mode: "insensitive" } },
+            ];
         }
 
         // Fetch take+1 to detect if there are more pages after post-filtering

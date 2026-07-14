@@ -1,86 +1,106 @@
 "use client";
 
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Bell, Inbox, Check, Loader2, AlertCircle, ChevronRight } from "lucide-react";
+import Link from "next/link";
+import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
-import { NotificationItem } from "@/components/notifications/notification-item";
-import { CheckCheck, Bell } from "lucide-react";
-import { useWorkspace } from "@/hooks/use-workspace";
-import { toast } from "sonner";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
+import { NotificationPanelItem } from "./notification-panel-item";
 
 interface NotificationPanelProps {
-    notifications: any[];
-    onRefresh: () => void;
-    onClearUnread: () => void;
+    workspaceId: string;
+    onClose?: () => void;
 }
 
-export function NotificationPanel({ notifications: rawNotifications, onRefresh, onClearUnread }: NotificationPanelProps) {
-    const { activeWorkspaceId } = useWorkspace();
-    // ✅ Nuclear fix: always guarantee an array regardless of prop shape
-    const notifications = Array.isArray(rawNotifications) ? rawNotifications : [];
+export function NotificationPanel({ workspaceId, onClose }: NotificationPanelProps) {
+    const queryClient = useQueryClient();
 
-    const handleMarkAllAsRead = async () => {
-        try {
-            const res = await fetch("/api/notifications", {
+    const { data, isLoading, isError } = useQuery({
+        queryKey: ["notifications", "panel", workspaceId],
+        queryFn: async () => {
+            const res = await fetch(`/api/notifications?workspaceId=${workspaceId}&take=10`);
+            if (!res.ok) throw new Error("Failed to fetch");
+            return res.json();
+        },
+        enabled: !!workspaceId,
+    });
+
+    const markAllReadMutation = useMutation({
+        mutationFn: async () => {
+            await fetch(`/api/notifications?workspaceId=${workspaceId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ workspaceId: activeWorkspaceId, markAllAsRead: true }),
+                body: JSON.stringify({ markAllAsRead: true }),
             });
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["notifications"] });
+        },
+    });
 
-            if (!res.ok) throw new Error("Failed to mark as read");
-
-            onClearUnread();
-            onRefresh();
-            toast.success("All notifications marked as read");
-        } catch (error) {
-            toast.error("Failed to mark notifications as read");
-        }
-    };
-
-    const unreadNotifications = notifications.filter((n: any) => !n.read);
+    const notifications = data?.notifications || [];
+    const unreadCount = data?.unreadCount || 0;
 
     return (
-        <div className="flex flex-col h-[400px]">
+        <div>
             <div className="flex items-center justify-between p-4 border-b">
-                <h3 className="font-semibold">Notifications</h3>
-                {unreadNotifications.length > 0 && (
-                    <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={handleMarkAllAsRead}
-                        className="h-8 text-xs"
+                <div className="flex items-center gap-2">
+                    <Inbox className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold text-sm">Notifications</h3>
+                    {unreadCount > 0 && (
+                        <span className="text-xs text-muted-foreground">({unreadCount} unread)</span>
+                    )}
+                </div>
+                {unreadCount > 0 && (
+                    <Button variant="ghost" size="sm" className="h-7 text-xs"
+                        onClick={() => markAllReadMutation.mutate()}
                     >
-                        <CheckCheck className="h-4 w-4 mr-1" />
+                        <Check className="h-3 w-3 mr-1" />
                         Mark all read
                     </Button>
                 )}
             </div>
 
-            <ScrollArea className="flex-1">
-                {notifications.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full text-center p-8">
-                        <div className="rounded-full bg-muted p-4 mb-4">
-                            <Bell className="h-8 w-8 text-muted-foreground" />
+            <ScrollArea className="h-[400px]">
+                {isError ? (
+                    <div className="flex flex-col items-center justify-center h-full p-10 text-center">
+                        <AlertCircle className="h-8 w-8 text-destructive mb-3" />
+                        <p className="text-sm font-medium">Failed to load</p>
+                        <p className="text-xs text-muted-foreground mt-1">Could not load notifications.</p>
+                    </div>
+                ) : isLoading ? (
+                    <div className="flex items-center justify-center h-full p-10">
+                        <Loader2 className="h-8 w-8 animate-spin text-primary opacity-50" />
+                    </div>
+                ) : notifications.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center h-full p-10 text-center">
+                        <div className="h-14 w-14 bg-muted rounded-full flex items-center justify-center mb-4">
+                            <Bell className="h-7 w-7 text-muted-foreground/50" />
                         </div>
-                        <p className="text-sm font-medium">No notifications yet</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                            We&apos;ll notify you when something happens
+                        <p className="text-sm font-medium">All caught up!</p>
+                        <p className="text-xs text-muted-foreground mt-1 max-w-[200px]">
+                            New notifications will appear here as they happen.
                         </p>
                     </div>
                 ) : (
                     <div className="divide-y">
-                        {notifications.map((notification) => {
-                            if (!notification || !notification.id) return null;
-                            return (
-                                <NotificationItem
-                                    key={notification.id}
-                                    notification={notification}
-                                    onRefresh={onRefresh}
-                                />
-                            );
-                        })}
+                        {notifications.slice(0, 8).map((n: any) => (
+                            <NotificationPanelItem key={n.id} notification={n} />
+                        ))}
                     </div>
                 )}
             </ScrollArea>
+
+            <div className="p-3 border-t text-center">
+                <Button asChild variant="ghost" size="sm" className="w-full text-xs text-muted-foreground hover:text-primary">
+                    <Link href="/notifications" onClick={onClose}>
+                        View all notifications
+                        <ChevronRight className="h-3 w-3 ml-1" />
+                    </Link>
+                </Button>
+            </div>
         </div>
     );
 }
