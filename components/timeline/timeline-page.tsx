@@ -2,12 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format, addMonths, subMonths } from "date-fns";
 import { useWorkspace } from "@/hooks/use-workspace";
-import {
-    GanttChartSquare, Filter, Plus, ChevronLeft, ChevronRight,
-    Search, Download, Clock
-} from "lucide-react";
+import { CalendarDays, Filter, Plus, Search, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -16,27 +12,21 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import TimelineCanvas from "./timeline-canvas";
+import { ZoomController } from "@/components/shared/timeline/zoom-controller";
 import { exportTimeline } from "@/lib/export/export-service";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
-
-export type ZoomLevel = "hour" | "day" | "week" | "month" | "quarter" | "year";
+import type { ZoomLevel } from "@/components/shared/timeline/types";
 
 export default function TimelinePage() {
     const { activeWorkspaceId } = useWorkspace();
     const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("week");
     const [searchQuery, setSearchQuery] = useState("");
-    const [viewMode, setViewMode] = useState<"project" | "team" | "personal">("project");
     const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
     const [filterPriority, setFilterPriority] = useState("all");
     const [filterStatus, setFilterStatus] = useState("all");
-    const [navDate, setNavDate] = useState(new Date());
-
-    const navLabel = useMemo(() => format(navDate, "MMMM yyyy"), [navDate]);
-    const goToPrev = () => setNavDate(d => subMonths(d, 1));
-    const goToNext = () => setNavDate(d => addMonths(d, 1));
 
     const { data: tasksData, isLoading, isError } = useQuery({
         queryKey: ["timeline-tasks", activeWorkspaceId],
@@ -56,13 +46,6 @@ export default function TimelinePage() {
         const matchesStatus = filterStatus === "all" || t.status === filterStatus;
         return matchesPriority && matchesStatus;
     });
-
-    const zoomOptions: { label: string, value: ZoomLevel }[] = [
-        { label: "Day", value: "day" },
-        { label: "Week", value: "week" },
-        { label: "Month", value: "month" },
-        { label: "Quarter", value: "quarter" },
-    ];
 
     if (isLoading) {
         return (
@@ -85,10 +68,10 @@ export default function TimelinePage() {
         return (
             <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center gap-4">
                 <div className="rounded-full bg-destructive/10 p-4">
-                    <GanttChartSquare className="h-8 w-8 text-destructive" />
+                    <CalendarDays className="h-8 w-8 text-destructive" />
                 </div>
                 <h2 className="text-lg font-semibold">Failed to load timeline</h2>
-                <p className="text-sm text-muted-foreground">There was an error fetching your tasks. Please try again.</p>
+                <p className="text-sm text-muted-foreground">Could not fetch your tasks. Please try again.</p>
                 <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
             </div>
         );
@@ -98,10 +81,10 @@ export default function TimelinePage() {
         return (
             <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center gap-4">
                 <div className="rounded-full bg-muted p-4">
-                    <GanttChartSquare className="h-8 w-8 text-muted-foreground" />
+                    <CalendarDays className="h-8 w-8 text-muted-foreground" />
                 </div>
                 <h2 className="text-lg font-semibold">No tasks yet</h2>
-                <p className="text-sm text-muted-foreground">Create your first task to see it here.</p>
+                <p className="text-sm text-muted-foreground">Create your first task to see it on the timeline.</p>
                 <Button className="text-xs" size="sm" onClick={() => setIsCreateTaskOpen(true)}>
                     <Plus className="h-3.5 w-3.5 mr-1.5" /> New Task
                 </Button>
@@ -114,21 +97,14 @@ export default function TimelinePage() {
             <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 lg:px-6 border-b bg-background/80 backdrop-blur-sm">
                 <div className="flex items-center gap-3">
                     <h1 className="text-lg font-semibold flex items-center gap-2">
-                        <GanttChartSquare className="h-5 w-5 text-primary" />
+                        <CalendarDays className="h-5 w-5 text-primary" />
                         Timeline
-                        <Badge variant="outline" className="text-xs rounded-md px-2 py-0 ml-1">Beta</Badge>
+                        <Badge variant="outline" className="text-xs rounded-md px-2 py-0 ml-1">Roadmap</Badge>
                     </h1>
                 </div>
 
                 <div className="flex items-center gap-3">
-                    <div className="flex bg-muted/50 p-0.5 rounded-md border">
-                        {zoomOptions.map((opt) => (
-                            <button key={opt.value} onClick={() => setZoomLevel(opt.value)}
-                                className={`px-3 py-1 rounded text-xs font-medium transition-colors ${zoomLevel === opt.value ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-                                {opt.label}
-                            </button>
-                        ))}
-                    </div>
+                    <ZoomController zoomLevel={zoomLevel} onZoomChange={setZoomLevel} variant="timeline" />
 
                     <div className="h-8 w-px bg-border mx-1 hidden sm:block" />
 
@@ -193,21 +169,13 @@ export default function TimelinePage() {
             </header>
 
             <div className="flex items-center justify-between px-4 lg:px-6 py-2 border-b bg-muted/20">
-                <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-1">
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={goToPrev}>
-                            <ChevronLeft className="h-3.5 w-3.5" />
-                        </Button>
-                        <span className="text-xs font-medium min-w-[100px] text-center">{navLabel}</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={goToNext}>
-                            <ChevronRight className="h-3.5 w-3.5" />
-                        </Button>
-                    </div>
-                    <div className="h-5 w-px bg-border" />
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span>Local Time</span>
-                    </div>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary" /> Today
+                    </span>
+                    <span className="flex items-center gap-1.5">
+                        <span className="w-3 h-1 rounded bg-muted-foreground/30" /> Task duration
+                    </span>
                 </div>
                 <div className="relative w-56">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -216,7 +184,7 @@ export default function TimelinePage() {
             </div>
 
             <div className="flex-1 overflow-hidden">
-                <TimelineCanvas tasks={filteredTasks} zoomLevel={zoomLevel} searchQuery={searchQuery} />
+                <TimelineCanvas tasks={filteredTasks} zoomLevel={zoomLevel} searchQuery={searchQuery} variant="timeline" />
             </div>
 
             <CreateTaskDialog isOpen={isCreateTaskOpen} onOpenChange={setIsCreateTaskOpen} />

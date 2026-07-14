@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import TimelineCanvas from "../timeline/timeline-canvas";
 import PresenceAvatars from "../gantt/presence-avatars";
 import { toPng } from "html-to-image";
-import { ZoomLevel } from "../timeline/timeline-page";
+import type { ZoomLevel } from "@/components/shared/timeline/types";
 
 interface GanttChartProps {
     tasks: any[];

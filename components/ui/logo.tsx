@@ -5,17 +5,10 @@ import { cn } from "@/lib/utils";
 type LogoSize = "sm" | "md" | "lg" | "xl";
 
 const sizeMap: Record<LogoSize, { icon: number; wordmark: string; container: string }> = {
-<<<<<<< HEAD
   sm: { icon: 28, wordmark: "text-lg", container: "h-9 w-9" },
   md: { icon: 36, wordmark: "text-xl", container: "h-11 w-11" },
   lg: { icon: 44, wordmark: "text-2xl", container: "h-13 w-13" },
   xl: { icon: 56, wordmark: "text-3xl", container: "h-16 w-16" },
-=======
-  sm: { icon: 22, wordmark: "text-base", container: "h-7 w-7" },
-  md: { icon: 28, wordmark: "text-lg", container: "h-9 w-9" },
-  lg: { icon: 36, wordmark: "text-xl", container: "h-11 w-11" },
-  xl: { icon: 48, wordmark: "text-2xl", container: "h-14 w-14" },
->>>>>>> 8eea0877bddcd5f4e7fb7c4ded9348b389bd06f7
 };
 
 interface LogoProps {

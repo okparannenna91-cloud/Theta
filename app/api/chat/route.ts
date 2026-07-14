@@ -186,7 +186,7 @@ export async function POST(req: Request) {
 
         const message = {
             ...messageRaw,
-            user: { id: user.id, name: user.name || user.firstName || "User", imageUrl: user.imageUrl },
+            user: { id: user.id, name: user.name || "User", imageUrl: user.imageUrl },
             replyTo: messageRaw.replyTo ? { ...messageRaw.replyTo, user: replyToUser } : null,
         };
 
