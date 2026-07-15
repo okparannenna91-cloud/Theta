@@ -590,17 +590,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     new Map(tasks.flatMap((t: any) => t.tags || []).map((tag: any) => [tag.id, tag])).values()
   ) as any[], [tasks]);
 
-  if (isLoading) {
-    return (
-      <div className="p-8 flex items-center justify-center h-full">
-        <div className="flex flex-col items-center gap-2">
-          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
-          <p className="text-sm text-muted-foreground animate-pulse">Loading board...</p>
-        </div>
-      </div>
-    );
-  }
-
   const handleDragStart = (event: any) => {
     const { active } = event;
     const type = active.data.current?.type;
@@ -772,6 +761,17 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       queryClient.invalidateQueries({ queryKey: ["board", boardId] });
     }
   }, [queryClient, boardId]);
+
+  if (isLoading) {
+    return (
+      <div className="p-8 flex items-center justify-center h-full">
+        <div className="flex flex-col items-center gap-2">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+          <p className="text-sm text-muted-foreground animate-pulse">Loading board...</p>
+        </div>
+      </div>
+    );
+  }
 
   const handleBatchDelete = () => {
     showConfirm({
