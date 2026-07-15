@@ -29,6 +29,7 @@ export async function GET(
           orderBy: { order: "asc" },
         },
         tasks: {
+          orderBy: { order: "asc" },
           include: {
             project: {
               select: {

@@ -55,16 +55,16 @@ import {
   closestCorners,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
+  useDroppable,
   DragOverlay,
 } from "@dnd-kit/core";
 import {
-  arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
-  horizontalListSortingStrategy,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -81,20 +81,6 @@ import { getBoardChannel } from "@/lib/ably";
 async function fetchBoard(id: string) {
   const res = await fetch(`/api/boards/${id}`);
   if (!res.ok) throw new Error("Failed to fetch board");
-  return res.json();
-}
-
-async function updateTaskOrder(
-  taskId: string,
-  columnId: string,
-  order: number
-) {
-  const res = await fetch(`/api/tasks/${taskId}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ columnId, order }),
-  });
-  if (!res.ok) throw new Error("Failed to update task");
   return res.json();
 }
 
@@ -123,22 +109,6 @@ async function deleteColumn(columnId: string) {
     method: "DELETE",
   });
   if (!res.ok) throw new Error("Failed to delete column");
-  return res.json();
-}
-
-async function updateColumnOrders(columns: any[]) {
-  if (!columns || columns.length === 0) return;
-  const boardId = columns[0].boardId;
-  if (!boardId) return;
-
-  const res = await fetch(`/api/boards/${boardId}/columns/reorder`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ 
-      columnOrders: columns.filter((c: any) => c && c.id).map((c: any, i: number) => ({ id: c.id, order: i * 10 })) 
-    }),
-  });
-  if (!res.ok) throw new Error("Failed to update column order");
   return res.json();
 }
 
@@ -284,30 +254,27 @@ function SortableTask({
   );
 }
 
-function SortableColumn({ column, children }: { column: any; children: React.ReactNode }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id: column.id,
-    data: { type: "Column", column },
+function ColumnContainer({ 
+  column, 
+  children 
+}: { 
+  column: any; 
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ 
+    id: column.id, 
+    data: { type: "Column", column } 
   });
 
-  const style = {
-    transform: CSS.Translate.toString(transform),
-    transition,
-  };
-
-  if (isDragging) {
-    return (
-      <div 
-        ref={setNodeRef} 
-        style={style} 
-        className="flex-shrink-0 w-[320px] h-full rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 mr-6 flex flex-col"
-      />
-    );
-  }
-
   return (
-    <div ref={setNodeRef} style={style} className="flex-shrink-0 w-[320px] h-full flex flex-col group/col">
-       {React.cloneElement(children as React.ReactElement, { attributes, listeners })}
+    <div 
+      ref={setNodeRef}
+      className={cn(
+        "flex-shrink-0 w-[320px] flex flex-col bg-muted/30 rounded-xl border shadow-sm max-h-full transition-colors",
+        isOver && "ring-2 ring-primary/30 bg-primary/5 border-primary/30"
+      )}
+    >
+      {children}
     </div>
   );
 }
@@ -336,10 +303,8 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const [editedName, setEditedName] = useState("");
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [presenceUsers, setPresenceUsers] = useState<any[]>([]);
-  const [activeColumn, setActiveColumn] = useState<any>(null);
 
-  // Prevent concurrent drag-end mutations
-  const dragMutationRef = useRef(false);
+  const boardRef = useRef<any>(null);
 
   // Filter & Sort state
   const [filterConfig, setFilterConfig] = useState<FilterConfig>({});
@@ -363,6 +328,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   useAbly(boardChannel, "column:created", handleAblyUpdate);
   useAbly(boardChannel, "column:updated", handleAblyUpdate);
   useAbly(boardChannel, "column:deleted", handleAblyUpdate);
+  useAbly(boardChannel, "column:reordered", handleAblyUpdate);
 
   // Presence logic
   useEffect(() => {
@@ -403,6 +369,8 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     queryFn: () => fetchBoard(boardId),
     enabled: !!boardId,
   });
+
+  boardRef.current = board;
 
   useEffect(() => {
     if (board) {
@@ -445,49 +413,13 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     useSensor(PointerSensor, {
       activationConstraint: { distance: 5 },
     }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 200, tolerance: 5 },
+    }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
-
-  const updateMutation = useMutation({
-    mutationFn: ({
-      taskId,
-      columnId,
-      order,
-    }: {
-      taskId: string;
-      columnId: string;
-      order: number;
-    }) => updateTaskOrder(taskId, columnId, order),
-    onMutate: async (newTask) => {
-      await queryClient.cancelQueries({ queryKey: ["board", boardId] });
-      const previousBoard = queryClient.getQueryData(["board", boardId]);
-
-      if (previousBoard) {
-        queryClient.setQueryData(["board", boardId], {
-          ...previousBoard,
-          tasks: (previousBoard as any).tasks.map((t: any) =>
-            t.id === newTask.taskId
-              ? { ...t, columnId: newTask.columnId, order: newTask.order }
-              : t
-          ),
-          columns: (previousBoard as any).columns,
-        });
-      }
-
-      return { previousBoard };
-    },
-    onError: (err, newTask, context) => {
-      if (context?.previousBoard) {
-        queryClient.setQueryData(["board", boardId], context.previousBoard);
-      }
-      toast.error("Failed to move task");
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
-    },
-  });
 
   const createColumnMutation = useMutation({
     mutationFn: (name: string) => createColumn(boardId, name),
@@ -634,7 +566,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
   // Sort tasks
   const sortedTasks = useMemo(() => [...filteredTasks].sort((a: any, b: any) => {
-    if (!sortConfig) return 0;
+    if (!sortConfig) return (a.order || 0) - (b.order || 0);
     const dir = sortConfig.direction === "asc" ? 1 : -1;
     switch (sortConfig.field) {
       case "title": return dir * (a.title || "").localeCompare(b.title || "");
@@ -674,99 +606,172 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     const type = active.data.current?.type;
     if (type === "Task") {
       setActiveTask(active.data.current.task);
-    } else if (type === "Column") {
-      setActiveColumn(active.data.current.column);
     }
   };
 
-  const handleDragEnd = async (event: any) => {
-    if (dragMutationRef.current) return;
-    dragMutationRef.current = true;
-    setTimeout(() => { dragMutationRef.current = false; }, 1000);
+  const handleDragOver = useCallback((event: any) => {
+    const { active, over } = event;
+    if (!over) return;
+    if (active.data.current?.type !== "Task") return;
 
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const latestBoard = queryClient.getQueryData(["board", boardId]) as any;
+    if (!latestBoard) return;
+    const latestTasks = latestBoard.tasks || [];
+    const latestColumns = latestBoard.columns || [];
+
+    const activeTask = latestTasks.find((t: any) => t.id === activeId);
+    if (!activeTask) return;
+
+    let targetColumnId: string;
+    const overColumn = latestColumns.find((c: any) => c.id === overId);
+    if (overColumn) {
+      targetColumnId = overId;
+    } else {
+      const overTask = latestTasks.find((t: any) => t.id === overId);
+      if (!overTask) return;
+      targetColumnId = overTask.columnId;
+    }
+
+    if (activeTask.columnId === targetColumnId) return;
+
+    queryClient.setQueryData(["board", boardId], (old: any) => {
+      if (!old) return old;
+      return {
+        ...old,
+        tasks: old.tasks.map((t: any) =>
+          t.id === activeId ? { ...t, columnId: targetColumnId } : t
+        ),
+      };
+    });
+  }, [queryClient, boardId]);
+
+  const handleDragEnd = useCallback(async (event: any) => {
     const { active, over } = event;
     setActiveTask(null);
-    setActiveColumn(null);
 
     if (!over) return;
 
-    const activeId = active.id;
-    const overId = over.id;
+    const activeId = active.id as string;
+    const overId = over.id as string;
 
-    const activeType = active.data.current?.type;
-    if (activeType === "Column") {
-      if (activeId !== overId) {
-        const oldIndex = columns.findIndex((c: any) => c.id === activeId);
-        const newIndex = columns.findIndex((c: any) => c.id === overId);
-        const newColumns = arrayMove(columns, oldIndex, newIndex);
+    if (active.data.current?.type !== "Task") return;
 
-        // Cancel pending Ably invalidations before optimistic update
-        await queryClient.cancelQueries({ queryKey: ["board", boardId] });
+    const latestBoard = queryClient.getQueryData(["board", boardId]) as any;
+    if (!latestBoard) return;
+    const latestTasks = latestBoard.tasks || [];
+    const latestColumns = latestBoard.columns || [];
 
-        // Snapshot previous state for rollback
-        const previousBoard = queryClient.getQueryData(["board", boardId]);
-
-        // Optimistic UI update
-        queryClient.setQueryData(["board", boardId], {
-          ...board,
-          columns: newColumns
-        });
-
-        // Update column orders in DB
-        try {
-          await updateColumnOrders(newColumns);
-        } catch {
-          // Rollback on failure
-          if (previousBoard) {
-            queryClient.setQueryData(["board", boardId], previousBoard);
-          }
-          toast.error("Failed to save column order");
-        }
-      }
-      return;
-    }
-
-    const activeTaskData = tasks.find((t: any) => t.id === activeId);
+    const activeTaskData = latestTasks.find((t: any) => t.id === activeId);
     if (!activeTaskData) return;
 
-    const overColumn = columns.find((c: any) => c.id === overId);
-    let targetColumnIdOffset = "";
-    let targetOrder = 0;
+    let targetColumnId: string;
+    let targetIndex: number;
 
+    const overColumn = latestColumns.find((c: any) => c.id === overId);
     if (overColumn) {
-      targetColumnIdOffset = overId;
-      const columnTasks = tasks.filter((t: any) => t.columnId === targetColumnIdOffset);
-      targetOrder = columnTasks.length > 0
-        ? Math.max(...columnTasks.map((t: any) => t.order)) + 100
-        : 100;
-    } else {
-      const overTask = tasks.find((t: any) => t.id === overId);
-      if (!overTask) return;
-
-      targetColumnIdOffset = overTask.columnId;
-      const columnTasks = tasks
-        .filter((t: any) => t.columnId === targetColumnIdOffset)
-        .filter((t: any) => t.id !== activeId)
+      targetColumnId = overId;
+      const columnTasks = latestTasks
+        .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
         .sort((a: any, b: any) => a.order - b.order);
+      targetIndex = columnTasks.length;
+    } else {
+      const overTask = latestTasks.find((t: any) => t.id === overId);
+      if (!overTask) return;
+      targetColumnId = overTask.columnId;
+      const columnTasks = latestTasks
+        .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
+        .sort((a: any, b: any) => a.order - b.order);
+      targetIndex = columnTasks.findIndex((t: any) => t.id === overId);
+      if (targetIndex === -1) targetIndex = columnTasks.length;
+    }
 
-      const overIndex = columnTasks.findIndex((t: any) => t.id === overId);
-      if (overIndex === -1) {
-        targetOrder = columnTasks.length > 0
-          ? Math.max(...columnTasks.map((t: any) => t.order)) + 100
-          : 100;
-      } else if (overIndex === 0) {
-        targetOrder = columnTasks[0].order / 2;
-      } else {
-        const beforeOrder = columnTasks[overIndex - 1].order;
-        const afterOrder = columnTasks[overIndex].order;
-        targetOrder = beforeOrder + (afterOrder - beforeOrder) / 2;
+    const originalBoard = boardRef.current;
+    const originalTask = (originalBoard?.tasks || []).find((t: any) => t.id === activeId);
+    if (originalTask && originalTask.columnId === targetColumnId) {
+      const origColTasks = (originalBoard?.tasks || [])
+        .filter((t: any) => t.columnId === targetColumnId)
+        .sort((a: any, b: any) => a.order - b.order);
+      const origIndex = origColTasks.findIndex((t: any) => t.id === activeId);
+      if (origIndex === targetIndex) return;
+    }
+
+    const columnTasks = latestTasks
+      .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
+      .sort((a: any, b: any) => a.order - b.order);
+
+    const reorderedTasks = [...columnTasks];
+    reorderedTasks.splice(targetIndex, 0, activeTaskData);
+
+    const updates: { id: string; columnId: string; order: number }[] = [];
+    let needsRenormalize = false;
+
+    for (let i = 0; i < reorderedTasks.length; i++) {
+      if (i === 0) continue;
+      const prevOrder = (i - 1) * 1000;
+      const thisOrder = i * 1000;
+      if (thisOrder - prevOrder <= 1) {
+        needsRenormalize = true;
+        break;
       }
     }
 
-    if (targetColumnIdOffset && (targetColumnIdOffset !== activeTaskData.columnId || activeId !== overId)) {
-      updateMutation.mutate({ taskId: activeId, columnId: targetColumnIdOffset, order: targetOrder });
+    if (needsRenormalize) {
+      for (let i = 0; i < reorderedTasks.length; i++) {
+        const task = reorderedTasks[i];
+        const newOrder = i * 1000;
+        if (task.order !== newOrder || task.columnId !== targetColumnId) {
+          updates.push({ id: task.id, columnId: targetColumnId, order: newOrder });
+        }
+      }
+    } else {
+      for (let i = 0; i < reorderedTasks.length; i++) {
+        const task = reorderedTasks[i];
+        const newOrder = i * 1000;
+        if (task.order !== newOrder || task.columnId !== targetColumnId) {
+          updates.push({ id: task.id, columnId: targetColumnId, order: newOrder });
+        }
+      }
     }
-  };
+
+    if (updates.length === 0) return;
+
+    await queryClient.cancelQueries({ queryKey: ["board", boardId] });
+    const previousBoard = queryClient.getQueryData(["board", boardId]);
+
+    queryClient.setQueryData(["board", boardId], (old: any) => {
+      if (!old) return old;
+      const updateMap = new Map(updates.map((u) => [u.id, u]));
+      return {
+        ...old,
+        tasks: old.tasks.map((t: any) => {
+          const update = updateMap.get(t.id);
+          if (update) {
+            return { ...t, columnId: update.columnId, order: update.order };
+          }
+          return t;
+        }),
+      };
+    });
+
+    try {
+      const res = await fetch(`/api/boards/${boardId}/tasks/reorder`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ updates }),
+      });
+      if (!res.ok) throw new Error("Failed to save task position");
+    } catch {
+      if (previousBoard) {
+        queryClient.setQueryData(["board", boardId], previousBoard);
+      }
+      toast.error("Failed to save task position");
+    } finally {
+      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+    }
+  }, [queryClient, boardId]);
 
   const handleBatchDelete = () => {
     showConfirm({
@@ -863,6 +868,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
             sensors={sensors}
             collisionDetection={closestCorners}
             onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
             onDragEnd={handleDragEnd}
           >
             <div className="h-full flex gap-6 p-6 sm:p-8 overflow-x-auto">
@@ -878,11 +884,11 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                 </div>
               ) : (
                 <>
-                <SortableContext items={columns.map((c: any) => c.id)} strategy={horizontalListSortingStrategy}>
                 {columns.map((column: any) => {
                   const columnTasks = sortedTasks.filter((t: any) => t.columnId === column.id);
+                  const taskIds = columnTasks.map((t: any) => t.id);
                   return (
-                    <div key={column.id} className="flex-shrink-0 w-[320px] flex flex-col bg-muted/30 rounded-xl border shadow-sm max-h-full">
+                    <ColumnContainer key={column.id} column={column}>
                       {/* Column Header */}
                       <div className="p-4 border-b bg-card rounded-t-xl flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
@@ -925,21 +931,23 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                       </div>
                       {/* Column Tasks */}
                       <ScrollArea className="flex-1 p-3">
-                        <div className="space-y-3">
-                          {columnTasks.map((task: any) => (
-                            <SortableTask
-                              key={task.id}
-                              task={task}
-                              onClick={() => setSelectedTask(task)}
-                              isSelected={selectedTaskIds.includes(task.id)}
-                              onSelect={(checked) => {
-                                setSelectedTaskIds(prev =>
-                                  checked ? [...prev, task.id] : prev.filter(id => id !== task.id)
-                                );
-                              }}
-                            />
-                          ))}
-                        </div>
+                        <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
+                          <div className="space-y-3 min-h-[60px]">
+                            {columnTasks.map((task: any) => (
+                              <SortableTask
+                                key={task.id}
+                                task={task}
+                                onClick={() => setSelectedTask(task)}
+                                isSelected={selectedTaskIds.includes(task.id)}
+                                onSelect={(checked) => {
+                                  setSelectedTaskIds(prev =>
+                                    checked ? [...prev, task.id] : prev.filter(id => id !== task.id)
+                                  );
+                                }}
+                              />
+                            ))}
+                          </div>
+                        </SortableContext>
                       </ScrollArea>
                       {/* Add Task */}
                       <div className="p-3 border-t">
@@ -955,10 +963,9 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                           <Plus className="h-4 w-4 mr-2" /> Add Task
                         </Button>
                       </div>
-                    </div>
+                    </ColumnContainer>
                   );
                 })}
-                </SortableContext>
               {/* New Column Button */}
               {columns.length > 0 && (
                 <div className="flex-shrink-0 w-[320px]">
@@ -979,11 +986,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                 <Card className="p-4 w-[320px] shadow-xl bg-card border-primary/30 rotate-3">
                   <TaskCardContent task={activeTask} />
                 </Card>
-              )}
-              {activeColumn && (
-                <div className="w-[320px] h-16 rounded-lg bg-card border-2 border-primary/30 shadow-xl flex items-center px-4">
-                  <span className="font-semibold text-sm">{activeColumn.name}</span>
-                </div>
               )}
             </DragOverlay>
           </DndContext>
