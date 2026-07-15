@@ -317,9 +317,16 @@ export class NovaAgent {
           : state.route === "CONVERSATION" ? "conversation"
           : "conversation";
 
+        // Only attach confidence for response types where uncertainty is meaningful:
+        // analysis, planning, research, reports. NOT for action confirmations,
+        // greetings, acknowledgements, or casual conversation.
+        const confidenceWorthyFormats: ResponseFormat[] = ["analysis", "plan"];
+        const includeConfidence = confidenceWorthyFormats.includes(formatType)
+          && !!state.reasoningContext?.confidence;
+
         const formatted = ResponseFormatter.format(finalResponse, formatType, {
-          includeConfidence: !!state.reasoningContext?.confidence,
-          confidence: state.reasoningContext?.confidence,
+          includeConfidence,
+          confidence: includeConfidence ? state.reasoningContext?.confidence : undefined,
           includeProactive: !!state.proactiveInsights?.topRecommendation,
           proactiveInsights: state.proactiveInsights
             ? ProactiveIntelligenceEngine.formatInsightsForDisplay(state.proactiveInsights)
