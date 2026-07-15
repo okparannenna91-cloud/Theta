@@ -38,9 +38,34 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Access denied to one or more tasks" }, { status: 403 });
     }
 
+    // Collect all task IDs including descendants
+    async function collectDescendantIds(parentId: string): Promise<string[]> {
+      const children = await prisma.task.findMany({ where: { parentId }, select: { id: true } });
+      let ids: string[] = [];
+      for (const child of children) {
+        ids.push(child.id);
+        ids = ids.concat(await collectDescendantIds(child.id));
+      }
+      return ids;
+    }
+
+    let allTaskIds: string[] = [...taskIds];
+    for (const id of taskIds) {
+      allTaskIds = allTaskIds.concat(await collectDescendantIds(id));
+    }
+    const uniqueTaskIds = [...new Set(allTaskIds)];
+
+    // Delete all related records first
+    await prisma.checklistItem.deleteMany({ where: { taskId: { in: uniqueTaskIds } } });
+    await prisma.timeLog.deleteMany({ where: { taskId: { in: uniqueTaskIds } } });
+    await prisma.comment.deleteMany({ where: { taskId: { in: uniqueTaskIds } } });
+    await prisma.subtask.deleteMany({ where: { taskId: { in: uniqueTaskIds } } });
+    await prisma.taskDependency.deleteMany({ where: { taskId: { in: uniqueTaskIds } } });
+    await prisma.taskDependency.deleteMany({ where: { predecessorId: { in: uniqueTaskIds } } });
+
     const deleted = await prisma.task.deleteMany({
       where: {
-        id: { in: taskIds },
+        id: { in: uniqueTaskIds },
         workspaceId,
       }
     });

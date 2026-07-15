@@ -339,15 +339,28 @@ export async function DELETE(
       return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
     }
 
-    // Manual Cascade: Recursively delete all descendant tasks
+    // Manual Cascade: Recursively delete all descendant tasks and their relations
     async function deleteDescendants(parentId: string) {
       const children = await prisma.task.findMany({ where: { parentId }, select: { id: true } });
       for (const child of children) {
         await deleteDescendants(child.id);
       }
+      await prisma.checklistItem.deleteMany({ where: { taskId: parentId } });
+      await prisma.timeLog.deleteMany({ where: { taskId: parentId } });
+      await prisma.comment.deleteMany({ where: { taskId: parentId } });
+      await prisma.subtask.deleteMany({ where: { taskId: parentId } });
+      await prisma.taskDependency.deleteMany({ where: { taskId: parentId } });
+      await prisma.taskDependency.deleteMany({ where: { predecessorId: parentId } });
       await prisma.task.deleteMany({ where: { parentId } });
     }
     await deleteDescendants(params.id);
+
+    await prisma.checklistItem.deleteMany({ where: { taskId: params.id } });
+    await prisma.timeLog.deleteMany({ where: { taskId: params.id } });
+    await prisma.comment.deleteMany({ where: { taskId: params.id } });
+    await prisma.subtask.deleteMany({ where: { taskId: params.id } });
+    await prisma.taskDependency.deleteMany({ where: { taskId: params.id } });
+    await prisma.taskDependency.deleteMany({ where: { predecessorId: params.id } });
 
     await prisma.task.delete({
       where: { id: params.id },

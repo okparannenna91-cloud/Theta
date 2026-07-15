@@ -119,6 +119,9 @@ const INTENT_CATEGORY_MAP: Record<NovaIntent, ToolCategory[]> = {
   REPORT: ["ANALYSIS", "MEMORY"],
   IMPORT: ["WORKFLOW", "INTEGRATION"],
   EXPORT: ["WORKSPACE", "ANALYSIS"],
+  PLAN: ["TASK", "PROJECT", "WORKFLOW", "ANALYSIS"],
+  ORCHESTRATE: ["WORKFLOW", "AGENT", "TASK", "PROJECT"],
+  CONSULT: ["ANALYSIS", "MEMORY", "TASK"],
 };
 
 export function categoriesForIntent(intent: NovaIntent): ToolCategory[] {

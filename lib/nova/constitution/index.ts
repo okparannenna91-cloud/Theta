@@ -26,7 +26,7 @@ import { DECISION_PHASES, DECISION_PRIORITY_ORDER } from "./decision-framework";
 import { ARCHITECTURAL_RULES } from "./architecture";
 import { MODEL_STACK, MODEL_SELECTION_STRATEGIES, MODEL_SELECTION_RULES } from "./ai-models";
 import { MEMORY_TIERS, MEMORY_TYPES, MEMORY_RULES, MEMORY_USER_CONTROLS } from "./memory";
-import { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY } from "./context";
+import { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, PROACTIVE_INSIGHT_TYPES } from "./context";
 import { TASK_QUALITY_STANDARDS, TASK_CREATION_FLOW, TASK_INTELLIGENCE_CAPABILITIES } from "./task-standards";
 import { PROJECT_STRUCTURE_STANDARDS, PROJECT_CREATION_FLOW, PROJECT_INTELLIGENCE_CAPABILITIES, PROJECT_MONITORING_AREAS } from "./project-standards";
 import { DOCUMENT_TYPES, DOCUMENT_UNDERSTANDING_PIPELINE, DOCUMENT_ACTIONS, DOCUMENT_WORKSPACE_LINK_TYPES } from "./document-standards";
@@ -46,7 +46,7 @@ export function buildSystemPrompt(): string {
 
 export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS'): string {
   const sections: string[] = [
-    `THETA NOVA CONSTITUTION V1`,
+    `THETA NOVA PRIME CONSTITUTION V2`,
     buildSection("SECTION 1 — IDENTITY", [
       `Purpose: ${IDENTITY.coreResponsibility}`,
       `Roles: ${IDENTITY.roles.join(", ")}.`,
@@ -63,7 +63,7 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
   switch (intent) {
     case "CHAT": {
       const chatPhilosophies = PHILOSOPHIES.filter(p =>
-        ["Context Is Sacred", "Intelligence Should Be Invisible", "Trust Must Be Earned", "Conversation First"].includes(p.name)
+        ["Context Is Sacred", "Intelligence Should Be Invisible", "Trust Must Be Earned", "Conversation First", "User Instructions Are Law", "Think Before Acting", "Natural Conversation"].includes(p.name)
       );
       sections.push(
         buildSection("SECTION 2 — CORE PHILOSOPHY", [
@@ -87,7 +87,7 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
         ].join("\n")),
         buildSection("SECTION 8 — CONTEXT SYSTEM", [
           "Context Priority Hierarchy:",
-          ...CONTEXT_PRIORITY_HIERARCHY.map(c => `  • Priority ${c.priority}: ${c.source} — ${c.description}`),
+          ...CONTEXT_PRIORITY_HIERARCHY.map(c => `  • Priority ${c.priority}: ${c.source} — ${c.description} (Token Budget: ${c.tokenBudget})`),
           "",
           "Rules:",
           ...CONTEXT_RULES.map(r => `  • ${r}`),
@@ -105,7 +105,7 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
 
     case "ACTION": {
       const executionPhilosophies = PHILOSOPHIES.filter(p =>
-        ["Execution Over Conversation", "Reduce Human Effort", "Integrate Before Building"].includes(p.name)
+        ["Execution Over Conversation", "Reduce Human Effort", "Integrate Before Building", "User Instructions Are Law", "Goal-Oriented Thinking", "Autonomous Planning", "Tool Orchestration", "Execution Confidence", "Reliable Actions"].includes(p.name)
       );
       sections.push(
         buildSection("SECTION 2 — CORE PHILOSOPHY", [
@@ -158,7 +158,7 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
         ].join("\n")),
         buildSection("SECTION 8 — CONTEXT SYSTEM", [
           "Context Priority Hierarchy:",
-          ...CONTEXT_PRIORITY_HIERARCHY.map(c => `  • Priority ${c.priority}: ${c.source} — ${c.description}`),
+          ...CONTEXT_PRIORITY_HIERARCHY.map(c => `  • Priority ${c.priority}: ${c.source} — ${c.description} (Token Budget: ${c.tokenBudget})`),
           "",
           "Rules:",
           ...CONTEXT_RULES.map(r => `  • ${r}`),
@@ -247,7 +247,7 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
 
     case "ANALYSIS": {
       const analysisPhilosophies = PHILOSOPHIES.filter(p =>
-        ["Context Is Sacred", "Intelligence Should Be Invisible", "Trust Must Be Earned", "Conversation First"].includes(p.name)
+        ["Context Is Sacred", "Intelligence Should Be Invisible", "Trust Must Be Earned", "Conversation First", "Think Before Acting", "Goal-Oriented Thinking", "Proactive Intelligence"].includes(p.name)
       );
       sections.push(
         buildSection("SECTION 2 — CORE PHILOSOPHY", [
@@ -294,13 +294,16 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
         ].join("\n")),
         buildSection("SECTION 8 — CONTEXT SYSTEM", [
           "Context Priority Hierarchy:",
-          ...CONTEXT_PRIORITY_HIERARCHY.map(c => `  • Priority ${c.priority}: ${c.source} — ${c.description}`),
+          ...CONTEXT_PRIORITY_HIERARCHY.map(c => `  • Priority ${c.priority}: ${c.source} — ${c.description} (Token Budget: ${c.tokenBudget})`),
           "",
           "Rules:",
           ...CONTEXT_RULES.map(r => `  • ${r}`),
           "",
           "Context Window Strategy:",
           ...CONTEXT_WINDOW_STRATEGY.map(s => `  • ${s}`),
+          "",
+          "Proactive Insight Types:",
+          ...PROACTIVE_INSIGHT_TYPES.map(t => `  • ${t}`),
         ].join("\n")),
         buildSection("SECTION 13 — SEARCH INTELLIGENCE", [
           "Search Domains:",
@@ -362,7 +365,7 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
 
   }
 
-  sections.push("", `THETA NOVA CONSTITUTION V1 — INTENT: ${intent}`);
+  sections.push("", `THETA NOVA PRIME CONSTITUTION V2 — INTENT: ${intent}`);
   return sections.join("\n\n");
 }
 

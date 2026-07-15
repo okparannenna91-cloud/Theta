@@ -25,7 +25,7 @@ export const telemetry = {
   trackRequest(opts: {
     userId: string;
     workspaceId: string;
-    path: "CHAT" | "ACTION" | "ANALYSIS";
+    path: "CHAT" | "ACTION" | "ANALYSIS" | "PLANNING" | "ORCHESTRATION";
     intent: string;
     strategy: string;
     totalDurationMs: number;

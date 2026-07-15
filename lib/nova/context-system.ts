@@ -1,11 +1,11 @@
 import { prisma } from "../prisma";
 import { logger } from "../logger";
 import { canAccessProject, canAccessProjectResource } from "../project-permissions";
-import { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, getContextPriority, type ContextSource } from "./constitution/context";
+import { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, getContextPriority, getTokenBudget, PROACTIVE_INSIGHT_TYPES, type ContextSource } from "./constitution/context";
 
-export { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, type ContextSource } from "./constitution/context";
+export { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, PROACTIVE_INSIGHT_TYPES, type ContextSource } from "./constitution/context";
 
-const MAX_CONTEXT_TOKENS = 4000;
+const TOTAL_TOKEN_BUDGET = 4000;
 
 const workspaceCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_TTL_MS = 5000;
@@ -24,6 +24,7 @@ function getCachedOrFetch<T>(key: string, fetcher: () => Promise<T>): Promise<T>
 function estimateTokens(text: string): number {
   return Math.ceil(text.length / 4);
 }
+
 function truncateToBudget(text: string, budget: number): string {
   const tokens = estimateTokens(text);
   if (tokens <= budget) return text;
@@ -50,11 +51,20 @@ export interface ResolvedContext {
   priority: number;
 }
 
+export interface ProactiveInsight {
+  type: string;
+  severity: "low" | "medium" | "high";
+  message: string;
+  affectedItems: string[];
+}
+
 export class ContextSystem {
+  /**
+   * Get active context with token budgeting
+   */
   public static async getActiveContext(options: ContextOptions) {
     const { workspaceId, userId, projectId, taskId, documentId } = options;
     
-
     let [workspace, project, task, document, user] = await Promise.all([
       getCachedOrFetch(`workspace:${workspaceId}`, () => prisma.workspace.findUnique({ where: { id: workspaceId } })),
       projectId ? getCachedOrFetch(`project:${projectId}`, async () => {
@@ -100,29 +110,151 @@ export class ContextSystem {
       priority: taskId ? 1 : documentId ? 2 : projectId ? 3 : 5,
     };
 
+    // Build context with token budgeting
     let promptString = "ACTIVE EXECUTION CONTEXT:\n";
-    if (resolvedContext.task) {
-      promptString += `[PRIMARY] ACTIVE TASK (Priority 1):\n- Title: ${resolvedContext.task.title}\n- Description: ${resolvedContext.task.description || "N/A"}\n- Status: ${resolvedContext.task.status}\n- Priority: ${resolvedContext.task.priority}\n- Subtasks: ${resolvedContext.task.subtasks.join(", ") || "None"}\n\n`;
+    let remainingTokens = TOTAL_TOKEN_BUDGET;
+
+    // Add context in priority order, respecting token budgets
+    for (const sourceDef of CONTEXT_PRIORITY_HIERARCHY) {
+      const tokenBudget = getTokenBudget(sourceDef.source);
+      const actualBudget = Math.min(tokenBudget, remainingTokens);
+
+      if (actualBudget <= 0) break;
+
+      let contextText = "";
+      switch (sourceDef.source) {
+        case "CURRENT_TASK":
+          if (resolvedContext.task) {
+            contextText = `[PRIMARY] ACTIVE TASK (Priority 1):\n- Title: ${resolvedContext.task.title}\n- Description: ${resolvedContext.task.description || "N/A"}\n- Status: ${resolvedContext.task.status}\n- Priority: ${resolvedContext.task.priority}\n- Subtasks: ${resolvedContext.task.subtasks.join(", ") || "None"}\n\n`;
+          }
+          break;
+        case "CURRENT_DOCUMENT":
+          if (resolvedContext.document) {
+            contextText = `[SECONDARY] ACTIVE DOCUMENT (Priority 2):\n- Title: ${resolvedContext.document.title}\n- Snippet: ${resolvedContext.document.content || "N/A"}\n\n`;
+          }
+          break;
+        case "CURRENT_PROJECT":
+          if (resolvedContext.project) {
+            contextText = `[TERTIARY] ACTIVE PROJECT (Priority 3):\n- Name: ${resolvedContext.project.name}\n- Description: ${resolvedContext.project.description || "N/A"}\n\n`;
+          }
+          break;
+        case "CURRENT_SPRINT":
+          if (resolvedContext.sprint) {
+            contextText = `[QUATERNARY] ACTIVE SPRINT (Priority 4):\n- Name: ${resolvedContext.sprint.name}\n- Status: ${resolvedContext.sprint.status || "N/A"}\n\n`;
+          }
+          break;
+        case "WORKSPACE":
+          if (resolvedContext.workspace) {
+            contextText = `[BASE] ACTIVE WORKSPACE (Priority 5):\n- Name: ${resolvedContext.workspace.name}\n- Plan Tier: ${resolvedContext.workspace.plan}\n\n`;
+          }
+          break;
+        default:
+          break;
+      }
+
+      if (contextText) {
+        const truncated = truncateToBudget(contextText, actualBudget);
+        promptString += truncated;
+        remainingTokens -= estimateTokens(truncated);
+      }
     }
-    if (resolvedContext.document) {
-      promptString += `[SECONDARY] ACTIVE DOCUMENT (Priority 2):\n- Title: ${resolvedContext.document.title}\n- Snippet: ${resolvedContext.document.content || "N/A"}\n\n`;
-    }
-    if (resolvedContext.project) {
-      promptString += `[TERTIARY] ACTIVE PROJECT (Priority 3):\n- Name: ${resolvedContext.project.name}\n- Description: ${resolvedContext.project.description || "N/A"}\n\n`;
-    }
-    if (resolvedContext.sprint) {
-      promptString += `[QUATERNARY] ACTIVE SPRINT (Priority 4):\n- Name: ${resolvedContext.sprint.name}\n- Status: ${resolvedContext.sprint.status || "N/A"}\n\n`;
-    }
-    if (resolvedContext.workspace) {
-      promptString += `[BASE] ACTIVE WORKSPACE (Priority 5):\n- Name: ${resolvedContext.workspace.name}\n- Plan Tier: ${resolvedContext.workspace.plan}\n\n`;
-    }
+
+    // Add user context at the end
     if (resolvedContext.user) {
       promptString += `[OPERATOR] ACTIVE USER (Priority 6):\n- Name: ${resolvedContext.user.name || "N/A"}\n`;
     }
 
-    promptString = truncateToBudget(promptString, MAX_CONTEXT_TOKENS);
-
     return { structured: resolvedContext, promptString };
+  }
+
+  /**
+   * Get proactive insights based on workspace state
+   */
+  public static async getProactiveInsights(workspaceId: string): Promise<ProactiveInsight[]> {
+    const insights: ProactiveInsight[] = [];
+
+    try {
+      // Check for overdue tasks
+      const overdueTasks = await prisma.task.findMany({
+        where: {
+          workspaceId,
+          dueDate: { lt: new Date() },
+          status: { notIn: ["done", "completed", "cancelled"] },
+        },
+        select: { title: true, dueDate: true },
+      });
+
+      if (overdueTasks.length > 0) {
+        insights.push({
+          type: "DEADLINE_RISK",
+          severity: overdueTasks.length > 3 ? "high" : "medium",
+          message: `${overdueTasks.length} tasks are overdue`,
+          affectedItems: overdueTasks.map(t => t.title),
+        });
+      }
+
+      // Check for unassigned tasks
+      const unassignedTasks = await prisma.task.findMany({
+        where: {
+          workspaceId,
+          userId: undefined,
+          status: { notIn: ["done", "completed", "cancelled"] },
+        },
+        select: { title: true },
+      });
+
+      if (unassignedTasks.length > 0) {
+        insights.push({
+          type: "UNASSIGNED_WORK",
+          severity: unassignedTasks.length > 5 ? "high" : "medium",
+          message: `${unassignedTasks.length} tasks are unassigned`,
+          affectedItems: unassignedTasks.map(t => t.title),
+        });
+      }
+
+      // Check for blocked tasks
+      const blockedTasks = await prisma.task.findMany({
+        where: {
+          workspaceId,
+          status: "blocked",
+        },
+        select: { title: true },
+      });
+
+      if (blockedTasks.length > 0) {
+        insights.push({
+          type: "BLOCKED_TASKS",
+          severity: blockedTasks.length > 2 ? "high" : "medium",
+          message: `${blockedTasks.length} tasks are blocked`,
+          affectedItems: blockedTasks.map(t => t.title),
+        });
+      }
+
+      // Check for stalled tasks (no update in 4+ days)
+      const fourDaysAgo = new Date(Date.now() - 4 * 24 * 60 * 60 * 1000);
+      const stalledTasks = await prisma.task.findMany({
+        where: {
+          workspaceId,
+          status: "in-progress",
+          updatedAt: { lt: fourDaysAgo },
+        },
+        select: { title: true, updatedAt: true },
+      });
+
+      if (stalledTasks.length > 0) {
+        insights.push({
+          type: "STALLED_PROGRESS",
+          severity: stalledTasks.length > 2 ? "high" : "medium",
+          message: `${stalledTasks.length} tasks haven't been updated in 4+ days`,
+          affectedItems: stalledTasks.map(t => t.title),
+        });
+      }
+
+    } catch (error) {
+      logger.warn("[ContextSystem] Failed to get proactive insights:", error);
+    }
+
+    return insights;
   }
 
   public static getContextRules() {

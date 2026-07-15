@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 
 import { DecisionFramework } from "@/lib/nova/decision-framework";
+import { ReasoningEngine, type ReasoningResult } from "@/lib/nova/reasoning-engine";
 import { detectPromptInjection } from "@/lib/nova/security-guard";
 import { sanitizeUserInput } from "@/lib/nova/output-validator";
 import { logger } from "@/lib/logger";
@@ -68,6 +69,7 @@ export async function POST(req: Request) {
     let workspaceId: string = "";
     let route: ReturnType<typeof routeRequest> | undefined;
     let decision: ReturnType<typeof DecisionFramework.evaluate> | undefined;
+    let reasoningResult: ReasoningResult | undefined;
 
     try {
         user = await getCurrentUser();
@@ -116,17 +118,34 @@ export async function POST(req: Request) {
             }
         }
 
-        decision = DecisionFramework.evaluate(sanitizedPrompt);
-        if (decision.requiresApproval) {
-            return NextResponse.json({
-                error: `**ACTION BLOCKED — CONFIRMATION REQUIRED**\n\nYour request has been classified as **HIGH RISK** (${decision.intent} action).\nPlease confirm explicitly if you want to proceed.`,
-                requiresApproval: true,
-                riskLevel: decision.riskLevel,
-                intent: decision.intent,
-            }, { status: 403 });
-        }
+        // Nova Prime: Use ReasoningEngine for think-before-acting pipeline
+        // Falls back to simple DecisionFramework if workspace context unavailable
+        if (workspaceId) {
+          try {
+            reasoningResult = await ReasoningEngine.reason(sanitizedPrompt, {
+              workspaceId,
+              userId: user.id,
+              projectId: projectId || undefined,
+            });
+            decision = reasoningResult.decision;
+            route = reasoningResult.route;
 
-        route = routeRequest(sanitizedPrompt, decision.intent, decision.strategy);
+            logger.info("[NovaPrime] Reasoning pipeline completed", {
+              intent: reasoningResult.intent,
+              confidence: reasoningResult.confidence,
+              actionType: reasoningResult.actionType,
+              path: route.path,
+            });
+          } catch (reasoningError) {
+            logger.warn("[NovaPrime] ReasoningEngine failed, falling back to DecisionFramework:", reasoningError);
+            decision = DecisionFramework.evaluate(sanitizedPrompt);
+            route = routeRequest(sanitizedPrompt, decision.intent, decision.strategy);
+          }
+        } else {
+          // No workspace context available - use simple evaluation
+          decision = DecisionFramework.evaluate(sanitizedPrompt);
+          route = routeRequest(sanitizedPrompt, decision.intent, decision.strategy);
+        }
 
         if (workspaceId) {
             const { getNovaRequestCount } = await import("@/lib/usage-tracking");
@@ -140,6 +159,26 @@ export async function POST(req: Request) {
             }
         }
 
+        // Approval check for high-risk actions
+        if (decision.requiresApproval) {
+            return NextResponse.json({
+                error: `**ACTION BLOCKED — CONFIRMATION REQUIRED**\n\nYour request has been classified as **HIGH RISK** (${decision.intent} action).\nPlease confirm explicitly if you want to proceed.`,
+                requiresApproval: true,
+                riskLevel: decision.riskLevel,
+                intent: decision.intent,
+            }, { status: 403 });
+        }
+
+        // Build reasoning context for the agent (Nova Prime enhancement)
+        const reasoningContext = reasoningResult ? {
+          intent: reasoningResult.intent,
+          confidence: reasoningResult.confidence,
+          actionType: reasoningResult.actionType,
+          missingInfo: reasoningResult.missingInfo,
+          suggestedClarification: reasoningResult.suggestedClarification,
+          mentalModel: reasoningResult.mentalModel,
+        } : undefined;
+
         // LangGraph Agent — primary orchestration for all routes
         const { runNovaAgent } = await import("@/lib/langraph");
         const agentResult = await runNovaAgent(sanitizedPrompt, {
@@ -151,6 +190,7 @@ export async function POST(req: Request) {
             systemPrompt: NOVA_SYSTEM_PROMPT,
             intent: decision.intent,
             routeDecision: route,
+            reasoningContext,
         });
         logger.info("[LangGraph] Agent handled request", {
             provider: agentResult.provider,

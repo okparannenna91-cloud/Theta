@@ -1,4 +1,5 @@
-export const NOVA_VERSION = "3.0.0";
+export const NOVA_VERSION = "4.0.0";
+export const NOVA_NAME = "Nova Prime";
 
 import { buildSystemPrompt } from "./constitution/index";
 export const NOVA_SYSTEM_PROMPT = buildSystemPrompt();
@@ -21,6 +22,7 @@ export {
   EXECUTION_PRINCIPLES,
   CONFIRMATION_RULES,
   EXECUTION_STEPS,
+  EXECUTION_STEP_LABELS,
   type ConfirmationLevel,
   type ExecutionStep,
 } from "./constitution/execution-principles";
@@ -29,6 +31,7 @@ export {
   DECISION_PHASES,
   DECISION_PRIORITY_ORDER,
   intentFromString,
+  getConfidenceLevel,
   type NovaIntent,
   type DecisionStrategy,
 } from "./constitution/decision-framework";
@@ -64,7 +67,9 @@ export {
   CONTEXT_PRIORITY_HIERARCHY,
   CONTEXT_RULES,
   CONTEXT_WINDOW_STRATEGY,
+  PROACTIVE_INSIGHT_TYPES,
   getContextPriority,
+  getTokenBudget,
   type ContextSource,
   type ContextPriority,
 } from "./constitution/context";
@@ -168,3 +173,13 @@ export {
 } from "./constitution/evolution";
 
 export { buildSystemPrompt, buildSystemPromptForIntent } from "./constitution/index";
+
+// Nova Prime Engines
+export { ReasoningEngine } from "./reasoning-engine";
+export { ParameterExtractor } from "./parameter-extractor";
+export { PlanningEngine } from "./planning-engine";
+export { WorkflowOrchestrator } from "./workflow-orchestrator";
+export { ValidationEngine } from "./validation-engine";
+export { ProactiveIntelligenceEngine } from "./proactive-intelligence";
+export { ResponseFormatter } from "./response-formatter";
+export { PhilosophyEngine } from "./philosophy-engine";

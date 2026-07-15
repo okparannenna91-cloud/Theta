@@ -1,11 +1,12 @@
 export { NovaAgent } from "./nova-agent";
-export type { NovaAgentState, NovaRoute } from "./nova-agent";
+export type { NovaAgentState, NovaRoute, ReasoningContext } from "./nova-agent";
 export { routeModel, executeWithProvider } from "./model-router";
 export type { RouterConfig, RouterProvider, TaskCategory } from "./model-router";
 export { buildLangGraphTools, buildToolByName, getAvailableToolNames, buildLangGraphToolWrapper } from "./tools";
 export type { LangGraphToolContext } from "./tools";
 
 import { NovaAgent } from "./nova-agent";
+import type { ReasoningContext } from "./nova-agent";
 import { routeModel } from "./model-router";
 import type { RouteDecision } from "@/lib/nova/intent-router";
 import type { NovaIntent } from "@/lib/nova/constitution/decision-framework";
@@ -20,6 +21,7 @@ export interface NovaAgentOptions {
   systemPrompt?: string;
   intent: NovaIntent;
   routeDecision: RouteDecision;
+  reasoningContext?: ReasoningContext;
 }
 
 export interface NovaAgentResult {
@@ -51,6 +53,7 @@ export async function runNovaAgent(prompt: string, options: NovaAgentOptions): P
     routerConfig: routeModel(prompt),
     toolResults: [],
     response: "",
+    reasoningContext: options.reasoningContext,
   });
 
   return {
