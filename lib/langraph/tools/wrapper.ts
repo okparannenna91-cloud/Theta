@@ -27,7 +27,9 @@ export function buildLangGraphTools(
   const aiTools = Object.keys(tools).map((name) => buildLangGraphToolWrapper(ctx, name));
   const { buildServiceTools } = require("./services");
   const serviceTools = buildServiceTools(ctx);
-  return [...aiTools, ...serviceTools];
+  const { buildRAGTools } = require("./rag");
+  const ragTools = buildRAGTools(ctx);
+  return [...aiTools, ...serviceTools, ...ragTools];
 }
 
 export function buildLangGraphToolWrapper(
@@ -68,7 +70,9 @@ export function buildAllLangGraphTools(
   const aiTools = Object.keys(tools).map((name) => buildLangGraphToolWrapper(ctx, name));
   const { buildServiceTools } = require("./services");
   const serviceTools = buildServiceTools(ctx);
-  return [...aiTools, ...serviceTools];
+  const { buildRAGTools } = require("./rag");
+  const ragTools = buildRAGTools(ctx);
+  return [...aiTools, ...serviceTools, ...ragTools];
 }
 
 

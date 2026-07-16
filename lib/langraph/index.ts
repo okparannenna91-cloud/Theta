@@ -4,6 +4,9 @@ export { routeModel, executeWithProvider } from "./model-router";
 export type { RouterConfig, RouterProvider, TaskCategory } from "./model-router";
 export { buildLangGraphTools, buildToolByName, getAvailableToolNames, buildLangGraphToolWrapper } from "./tools";
 export type { LangGraphToolContext } from "./tools";
+export { getLangChainModel, clearModelCache } from "./models";
+export { createNovaGraph, runNovaGraph } from "./agent-graph";
+export type { NovaGraphInput, NovaGraphOutput } from "./agent-graph";
 
 import { NovaAgent } from "./nova-agent";
 import type { ReasoningContext } from "./nova-agent";

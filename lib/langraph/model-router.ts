@@ -1,4 +1,6 @@
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
 import { logger } from "@/lib/logger";
+import { getLangChainModel } from "./models";
 
 export type RouterProvider = "openrouter" | "openai" | "gemini" | "cohere";
 
@@ -191,30 +193,11 @@ export async function executeWithProvider(
 ): Promise<string> {
   logger.info("[ModelRouter] Executing with provider", { provider, model });
 
-  switch (provider) {
-    case "openrouter": {
-      const { generateWithOpenRouter } = await import("@/lib/openrouter");
-      return generateWithOpenRouter(prompt, systemPrompt, undefined, model);
-    }
-    case "openai": {
-      const { generateWithOpenAI } = await import("@/lib/openai");
-      const result = await generateWithOpenAI(prompt, systemPrompt, undefined, model);
-      return result ?? "";
-    }
-    case "gemini": {
-      const { getModel } = await import("@/lib/gemini");
-      const geminiModel = getModel(model);
-      const result = await geminiModel.generateContent({
-        contents: [{ role: "user", parts: [{ text: `${systemPrompt}\n\nUser Prompt: ${prompt}` }] }],
-      });
-      return result.response.text();
-    }
-    case "cohere": {
-      const { generateWithCohere } = await import("@/lib/cohere");
-      return generateWithCohere(prompt, systemPrompt, undefined, model);
-    }
-    default: {
-      throw new Error(`Unknown provider: ${provider}`);
-    }
-  }
+  const chatModel = getLangChainModel(provider, model);
+  const response = await chatModel.invoke([
+    new SystemMessage(systemPrompt),
+    new HumanMessage(prompt),
+  ]);
+
+  return typeof response.content === "string" ? response.content : JSON.stringify(response.content);
 }

@@ -137,14 +137,14 @@ export class ValidationEngine {
     const results: ValidationResult[] = [];
 
     if (actionType === "create") {
-      // Validate title
-      const title = params.title as string;
+      // Validate title/name — required for task, project, document creation
+      const title = (params.title || params.name) as string;
       if (!title || title.trim().length === 0) {
         results.push({
-          status: "invalid",
+          status: "warning",
           field: "title",
-          message: "Title is required for creation actions",
-          severity: "high",
+          message: "No title or name was detected. Please provide one if needed.",
+          severity: "medium",
         });
       } else if (title.length > 200) {
         results.push({

@@ -1,6 +1,6 @@
-import { streamText } from "ai";
-import { createOpenAI } from "@ai-sdk/openai";
-import { buildLangGraphTools, type LangGraphToolContext } from "../tools";
+import { HumanMessage, SystemMessage } from "@langchain/core/messages";
+import { getLangChainModel } from "../models";
+import { routeModel } from "../model-router";
 import { logger } from "@/lib/logger";
 
 export interface StreamResult {
@@ -11,40 +11,39 @@ export interface StreamResult {
 export async function executeStream(
   prompt: string,
   systemPrompt: string,
-  ctx: LangGraphToolContext,
+  _ctx: unknown,
   options?: { model?: string; signal?: AbortSignal; onToken?: (token: string) => void; onFinish?: (text: string) => void },
 ): Promise<StreamResult> {
-  const apiKey = process.env.OPENROUTER_API_KEY;
-  if (!apiKey) throw new Error("No AI provider API key configured for streaming");
+  const route = options?.model
+    ? routeModel(options.model)
+    : routeModel(prompt);
 
-  const provider = createOpenAI({
-    apiKey,
-    baseURL: "https://openrouter.ai/api/v1",
-    headers: { "HTTP-Referer": "https://thetapm.site", "X-Title": "Nova AI" },
-  });
+  const chatModel = getLangChainModel(route.provider, route.model);
 
-  const tools = buildLangGraphTools(ctx);
-  const toolDefs: Record<string, any> = {};
-  for (const t of tools) toolDefs[t.name] = t;
+  let collectedText = "";
 
-  const collected: string[] = [];
-  const result = await streamText({
-    model: provider(options?.model || "openrouter/free"),
-    system: systemPrompt,
-    prompt,
-    tools: Object.keys(toolDefs).length > 0 ? toolDefs : undefined,
-    abortSignal: options?.signal,
-    onFinish: ({ text, finishReason }) => {
-      collected.push(text);
-      logger.info("[StreamHandler] Finished", { finishReason, length: text.length });
-      options?.onFinish?.(text);
-    },
-  });
+  const stream = await chatModel.stream(
+    [
+      new SystemMessage(systemPrompt),
+      new HumanMessage(prompt),
+    ],
+    { signal: options?.signal }
+  );
 
-  for await (const chunk of result.textStream) {
-    collected.push(chunk);
-    options?.onToken?.(chunk);
+  for await (const chunk of stream) {
+    const content = typeof chunk.content === "string" ? chunk.content : "";
+    if (content) {
+      collectedText += content;
+      options?.onToken?.(content);
+    }
   }
 
-  return { text: collected.join("") };
+  logger.info("[StreamHandler] Finished", {
+    provider: route.provider,
+    model: route.model,
+    length: collectedText.length,
+  });
+  options?.onFinish?.(collectedText);
+
+  return { text: collectedText };
 }

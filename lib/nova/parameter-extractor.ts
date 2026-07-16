@@ -33,10 +33,10 @@ const STATUS_KEYWORDS = {
 };
 
 const TITLE_PATTERNS = [
-  /(?:create|make|add|new)\s+(?:a\s+)?(?:task|todo|item)\s+(?:called|named|titled|title)?\s*["']?([^"']+?)["']?\s*(?:with|having|priority|due|assign|$)/i,
-  /(?:create|make|add|new)\s+(?:a\s+)?(?:task|todo|item)\s+["']([^"']+)["']/i,
-  /(?:task|todo|item)\s+(?:called|named|titled|title)\s+["']?([^"']+?)["']?\s*(?:with|having|priority|due|assign|$)/i,
-  /["']([^"']+)["']\s+(?:task|todo|item)/i,
+  /(?:create|make|add|new)\s+(?:a\s+)?(?:task|todo|item|project|workspace|document)\s+(?:called|named|titled|title)?\s*["']?([^"']+?)["']?\s*(?:with|having|priority|due|assign|status|$)/i,
+  /(?:create|make|add|new)\s+(?:a\s+)?(?:task|todo|item|project|workspace|document)\s+["']([^"']+)["']/i,
+  /(?:task|todo|item|project|workspace|document)\s+(?:called|named|titled|title)\s+["']?([^"']+?)["']?\s*(?:with|having|priority|due|assign|status|$)/i,
+  /["']([^"']+)["']\s+(?:task|todo|item|project|workspace|document)/i,
 ];
 
 const DATE_PATTERNS = [

@@ -12,12 +12,14 @@ import { loadMemory } from "./nodes/memory-loader";
 import { executeWithFallback } from "./nodes/provider-fallback";
 import { executeStream } from "./nodes/stream-handler";
 import { validateAndSanitize, optimizeResponse, runQualityGate } from "./nodes/output-validator";
-import { sanitizeUserInput, detectRawToolCalls, extractToolCallsFromText } from "@/lib/nova/output-validator";
+import { sanitizeUserInput } from "@/lib/nova/output-validator";
 import { enforcePermission } from "./nodes/security-enforcer";
 import { tryDirectAction } from "./nodes/direct-action-router";
 import { executeTool } from "./nodes/tool-executor";
 import { planAndExecute } from "./nodes/agent-planner";
 import { saveConversationMemory } from "./nodes/memory-saver";
+import { getLangChainModel } from "./models";
+import { HumanMessage, SystemMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 
 export type NovaRoute = "CHAT" | "ACTION" | "ANALYSIS" | "CONVERSATION" | "PLANNING" | "ORCHESTRATION";
 
@@ -77,6 +79,68 @@ export class NovaAgent {
 
   constructor(ctx: LangGraphToolContext) {
     this.ctx = ctx;
+  }
+
+  /**
+   * Execute with LangChain agent: model gets tools bound, decides what to call,
+   * LangChain handles the tool-calling loop.
+   */
+  private async executeWithLangChainAgent(
+    prompt: string,
+    systemPrompt: string,
+    routerConfig: RouterConfig,
+    options?: { signal?: AbortSignal; onToken?: (token: string) => void; onFinish?: (text: string) => void },
+  ): Promise<{ text: string; toolResults: Array<{ toolName: string; result?: unknown; error?: string }> }> {
+    const model = getLangChainModel(routerConfig.provider, routerConfig.model);
+    const tools = buildLangGraphTools(this.ctx);
+    // bindTools is on all concrete model classes but not on BaseChatModel type
+    const modelWithTools = tools.length > 0 ? (model as any).bindTools(tools) : model;
+
+    const messages: (SystemMessage | HumanMessage | AIMessage | ToolMessage)[] = [
+      new SystemMessage(systemPrompt),
+      new HumanMessage(prompt),
+    ];
+
+    const toolResults: Array<{ toolName: string; result?: unknown; error?: string }> = [];
+    const MAX_ITERATIONS = 5;
+
+    for (let i = 0; i < MAX_ITERATIONS; i++) {
+      if (options?.signal?.aborted) throw new Error("Aborted");
+
+      const response = await modelWithTools.invoke(messages, {
+        signal: options?.signal,
+      });
+
+      const content = typeof response.content === "string" ? response.content : JSON.stringify(response.content);
+      const toolCalls = response.tool_calls || [];
+
+      if (toolCalls.length === 0) {
+        logger.info("[NovaAgent] LangChain agent completed", { iterations: i + 1, responseLength: content.length });
+        return { text: content, toolResults };
+      }
+
+      logger.info("[NovaAgent] LangChain agent calling tools", {
+        iteration: i + 1,
+        tools: toolCalls.map((tc: { name: string }) => tc.name),
+      });
+
+      messages.push(new AIMessage({ content: content || "", tool_calls: toolCalls }));
+
+      for (const tc of toolCalls) {
+        const result = await executeTool(this.ctx, tc.name, tc.args as Record<string, unknown>);
+        const toolOutput = result.success
+          ? (typeof result.result === "object" && result.result
+              ? (result.result as any).message || JSON.stringify(result.result)
+              : String(result.result))
+          : `Error: ${result.error}`;
+
+        toolResults.push({ toolName: tc.name, result: result.result, error: result.error });
+        messages.push(new ToolMessage(toolOutput, tc.id!));
+      }
+    }
+
+    const lastAssistant = messages.filter((m): m is AIMessage => m instanceof AIMessage).pop();
+    return { text: lastAssistant?.content as string || "", toolResults };
   }
 
   private async reExecuteExtractedToolCalls(toolCalls: Array<{ tool: string; params: Record<string, unknown> }>): Promise<string> {
@@ -238,8 +302,16 @@ export class NovaAgent {
       const pageContextSection = state.pageContext
         ? `[CURRENT PAGE: ${state.pageContext.type || "unknown"}] — User is viewing the ${state.pageContext.type || "page"}.`
         : "";
+      const knowledgeInstructions = `[KNOWLEDGE TOOLS]
+You have access to knowledge and search tools. Use them proactively:
+- search_knowledge_base: Search workspace documents, wiki pages, help docs
+- search_tasks_and_projects: Find tasks and projects by name or description
+- get_team_activity: See recent team activity
+When the user asks about company info, policies, or how things work, search the knowledge base first before answering.
+When asked about project status or what someone is working on, search tasks/projects.`;
       const systemPrompt = [
         basePrompt,
+        knowledgeInstructions,
         state.workspaceContext || "",
         state.memoryContext || "",
         state.conversationContext || "",
@@ -269,18 +341,36 @@ export class NovaAgent {
       }
 
       // Step 8: Execute with model provider via LangGraph node
+      // If fast-path handled it, pass tool results to LLM for natural response.
+      // Otherwise, use LangChain agent with bound tools so the model can decide.
       let text: string;
       try {
-        if (state.shouldStream && state.route !== "ACTION") {
-          const streamResult = await executeStream(actionPrompt, systemPrompt, this.ctx, {
-            signal: state.signal,
-            onToken: state.onToken,
-            onFinish: state.onFinish,
-          });
-          text = streamResult.text;
+        if (fastPathHandled && toolExecutionResults.length > 0) {
+          // Fast-path already executed tools — just need LLM to generate natural response
+          if (state.shouldStream && state.route !== "ACTION") {
+            const streamResult = await executeStream(actionPrompt, systemPrompt, this.ctx, {
+              signal: state.signal,
+              onToken: state.onToken,
+              onFinish: state.onFinish,
+            });
+            text = streamResult.text;
+          } else {
+            const rawResult = await executeWithFallback(actionPrompt, systemPrompt, state.routerConfig);
+            text = typeof rawResult === "string" ? rawResult : String(rawResult);
+          }
         } else {
-          const rawResult = await executeWithFallback(actionPrompt, systemPrompt, state.routerConfig);
-          text = typeof rawResult === "string" ? rawResult : String(rawResult);
+          // No fast-path — LangChain agent decides what tools to call
+          const agentResult = await this.executeWithLangChainAgent(
+            actionPrompt,
+            systemPrompt,
+            state.routerConfig,
+            { signal: state.signal, onToken: state.onToken, onFinish: state.onFinish },
+          );
+          text = agentResult.text;
+          if (agentResult.toolResults.length > 0) {
+            toolExecutionResults = agentResult.toolResults;
+            state.toolResults = toolExecutionResults;
+          }
         }
       } catch (llmError: any) {
         // LLM unavailable — use fallback templates for fast-path results

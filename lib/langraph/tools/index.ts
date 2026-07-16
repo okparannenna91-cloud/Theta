@@ -11,7 +11,9 @@ export function buildLangGraphTools(ctx: LangGraphToolContext, categories?: Tool
   const aiTools = Object.keys(tools).map((name) => buildLangGraphToolWrapper(ctx, name));
   const { buildServiceTools } = require("./services");
   const serviceTools = buildServiceTools(ctx);
-  return [...aiTools, ...serviceTools];
+  const { buildRAGTools } = require("./rag");
+  const ragTools = buildRAGTools(ctx);
+  return [...aiTools, ...serviceTools, ...ragTools];
 }
 
 export function buildToolByName(ctx: LangGraphToolContext, toolName: string): DynamicStructuredTool {
