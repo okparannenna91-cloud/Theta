@@ -1,8 +1,10 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useEffect, useCallback, useRef } from "react";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
+import { useAbly } from "@/hooks/use-ably";
+import { getWorkspaceChannel } from "@/lib/ably";
 import { useRouter } from "next/navigation";
 import {
     Activity as ActivityIcon,
@@ -21,6 +23,7 @@ import {
     ChevronDown,
     ChevronRight,
     Zap,
+    ArrowUp,
 } from "lucide-react";
 import { format, isSameDay, startOfDay } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -318,11 +321,30 @@ function GroupedActivityCard({
 export default function ActivityPage() {
     const { activeWorkspaceId } = useWorkspace();
     const router = useRouter();
+    const queryClient = useQueryClient();
     const { ref, inView } = useInView();
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedProject, setSelectedProject] = useState<string | null>(null);
     const [selectedUser, setSelectedUser] = useState<string | null>(null);
     const [selectedType, setSelectedType] = useState<string | null>(null);
+    const [hasNewActivity, setHasNewActivity] = useState(false);
+    const newActivityDataRef = useRef<any>(null);
+
+    const handleNewActivity = useCallback((data: any) => {
+        newActivityDataRef.current = data;
+        setHasNewActivity(true);
+    }, []);
+
+    useAbly(
+        activeWorkspaceId ? getWorkspaceChannel(activeWorkspaceId) : null,
+        "activity:created",
+        handleNewActivity
+    );
+
+    const showNewActivity = useCallback(() => {
+        setHasNewActivity(false);
+        queryClient.invalidateQueries({ queryKey: ["activity-feed", activeWorkspaceId] });
+    }, [queryClient, activeWorkspaceId]);
 
     const projectsQuery = useQuery({
         queryKey: ["workspace-projects", activeWorkspaceId],
@@ -492,6 +514,16 @@ export default function ActivityPage() {
                 </div>
 
                 {!isLoading && <SummaryCards summary={summary} />}
+
+                {hasNewActivity && (
+                    <button
+                        onClick={showNewActivity}
+                        className="w-full mb-4 py-2 px-4 bg-primary/10 hover:bg-primary/20 border border-primary/20 rounded-lg text-xs font-medium text-primary transition-all flex items-center justify-center gap-2"
+                    >
+                        <ArrowUp className="h-3 w-3" />
+                        New activity — click to refresh
+                    </button>
+                )}
 
                 <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-6">
                     <div className="relative w-full sm:w-72">

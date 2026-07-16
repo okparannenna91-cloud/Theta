@@ -273,6 +273,11 @@ export default function NotificationsDashboard() {
                                                 <h3 className={`text-sm ${!n.read ? "font-semibold" : "font-medium text-muted-foreground"}`}>
                                                     {n.title}
                                                 </h3>
+                                                {n.groupCount > 1 && (
+                                                    <Badge variant="secondary" className="text-[9px] h-4 px-1.5 rounded-full">
+                                                        {n.groupCount}x
+                                                    </Badge>
+                                                )}
                                                 {n.pinned && <Pin className="h-3 w-3 text-primary rotate-45" />}
                                                 {n.priority && n.priority !== "low" && (
                                                     <div className={`h-2 w-2 rounded-full ${PRIORITY_COLORS[n.priority]}`} />

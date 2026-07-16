@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useCallback, useEffect } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
 import {
     BarChart3, Filter, Plus, Search, Download,
@@ -28,10 +28,12 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { toast } from "sonner";
 import type { ZoomLevel, UndoCommand, Baseline } from "@/components/shared/timeline/types";
 
 export default function GanttPage() {
     const { activeWorkspaceId } = useWorkspace();
+    const queryClient = useQueryClient();
     const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("week");
     const [searchQuery, setSearchQuery] = useState("");
     const [isFullScreen, setIsFullScreen] = useState(false);
@@ -41,10 +43,74 @@ export default function GanttPage() {
     const [schedulingMode, setSchedulingMode] = useState<"auto" | "manual">("auto");
     const [undoStack, setUndoStack] = useState<UndoCommand[]>([]);
     const [redoStack, setRedoStack] = useState<UndoCommand[]>([]);
-    const [baselines, setBaselines] = useState<Baseline[]>([]);
     const [baselineDialog, setBaselineDialog] = useState(false);
     const [baselineLabel, setBaselineLabel] = useState("");
     const [showBaselines, setShowBaselines] = useState(true);
+    const [workingDaysDialog, setWorkingDaysDialog] = useState(false);
+    const [holidaysDialog, setHolidaysDialog] = useState(false);
+    const [workingDays, setWorkingDays] = useState({
+        monday: true, tuesday: true, wednesday: true, thursday: true,
+        friday: true, saturday: false, sunday: false,
+    });
+    const [holidays, setHolidays] = useState<{ date: string; label: string }[]>([]);
+    const [holidayDate, setHolidayDate] = useState("");
+    const [holidayLabel, setHolidayLabel] = useState("");
+
+    const { data: baselinesData, isLoading: baselinesLoading } = useQuery({
+        queryKey: ["baselines", activeWorkspaceId],
+        queryFn: async () => {
+            const res = await fetch(`/api/baselines?workspaceId=${activeWorkspaceId}`);
+            if (!res.ok) throw new Error("Failed to fetch baselines");
+            return res.json();
+        },
+        enabled: !!activeWorkspaceId,
+    });
+
+    const baselines = useMemo(() => baselinesData?.baselines || [], [baselinesData]);
+
+    const saveBaselineMutation = useMutation({
+        mutationFn: async (data: { label: string; tasks: any[] }) => {
+            const res = await fetch("/api/baselines", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    workspaceId: activeWorkspaceId,
+                    label: data.label,
+                    tasks: data.tasks,
+                }),
+            });
+            if (!res.ok) throw new Error("Failed to save baseline");
+            return res.json();
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["baselines", activeWorkspaceId] });
+            toast.success("Baseline saved");
+        },
+        onError: () => {
+            toast.error("Failed to save baseline");
+        },
+    });
+
+    const saveScheduleMutation = useMutation({
+        mutationFn: async (data: { workingDays: any; holidays: any[]; projectId?: string }) => {
+            const res = await fetch(`/api/projects/${data.projectId || "current"}/schedule`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    workingDays: data.workingDays,
+                    holidays: data.holidays,
+                }),
+            });
+            if (!res.ok) throw new Error("Failed to save schedule");
+            return res.json();
+        },
+        onSuccess: () => {
+            toast.success("Schedule saved");
+        },
+        onError: () => {
+            toast.error("Failed to save schedule");
+        },
+    });
 
     const { data: tasksData, isLoading, isError } = useQuery({
         queryKey: ["timeline-tasks", activeWorkspaceId],
@@ -114,18 +180,10 @@ export default function GanttPage() {
             startDate: t.startDate,
             dueDate: t.dueDate,
         }));
-        const newBaseline: Baseline = {
-            startDate: new Date().toISOString(),
-            dueDate: new Date().toISOString(),
-            label: baselineLabel.trim(),
-            createdAt: new Date().toISOString(),
-        };
-        const baselineData = { ...newBaseline, tasks: baselineTasks };
-        setBaselines(prev => [...prev, baselineData]);
-        localStorage.setItem(`theta-baseline-${activeWorkspaceId}`, JSON.stringify(baselineData));
+        saveBaselineMutation.mutate({ label: baselineLabel.trim(), tasks: baselineTasks });
         setBaselineLabel("");
         setBaselineDialog(false);
-    }, [baselineLabel, tasks, activeWorkspaceId]);
+    }, [baselineLabel, tasks, saveBaselineMutation]);
 
     if (isLoading) {
         return (
@@ -317,7 +375,7 @@ export default function GanttPage() {
                                 {baselines.length > 0 && (
                                     <>
                                         <DropdownMenuSeparator />
-                                        {baselines.map((b, i) => (
+                                        {baselines.map((b: any, i: number) => (
                                             <div key={i} className="text-[10px] text-muted-foreground px-2 py-1 truncate">
                                                 {b.label} · {new Date(b.createdAt || "").toLocaleDateString()}
                                             </div>
@@ -336,8 +394,12 @@ export default function GanttPage() {
                             </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent className="w-44 rounded-lg">
-                            <DropdownMenuItem className="text-xs py-1.5">Set Working Days</DropdownMenuItem>
-                            <DropdownMenuItem className="text-xs py-1.5">Manage Holidays</DropdownMenuItem>
+                            <DropdownMenuItem className="text-xs py-1.5" onClick={() => setWorkingDaysDialog(true)}>
+                                Set Working Days
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-xs py-1.5" onClick={() => setHolidaysDialog(true)}>
+                                Manage Holidays
+                            </DropdownMenuItem>
                             <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-xs py-1.5">
                                 <RotateCcw className="h-3 w-3 mr-2" /> Recalculate All
@@ -397,6 +459,115 @@ export default function GanttPage() {
                         <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => setBaselineDialog(false)}>Cancel</Button>
                         <Button size="sm" className="text-xs h-8" onClick={handleSaveBaseline} disabled={!baselineLabel.trim()}>
                             <Save className="h-3.5 w-3.5 mr-1" /> Save
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Working Days Dialog */}
+            <Dialog open={workingDaysDialog} onOpenChange={setWorkingDaysDialog}>
+                <DialogContent className="sm:max-w-[400px] rounded-xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-sm flex items-center gap-2">
+                            <CalendarDays className="h-4 w-4 text-primary" />
+                            Set Working Days
+                        </DialogTitle>
+                        <DialogDescription className="text-xs">
+                            Configure which days are considered working days for scheduling.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-3 space-y-2">
+                        {Object.entries(workingDays).map(([day, enabled]) => (
+                            <div key={day} className="flex items-center justify-between p-2 rounded-lg border">
+                                <Label className="text-xs capitalize">{day}</Label>
+                                <input
+                                    type="checkbox"
+                                    checked={enabled}
+                                    onChange={(e) => setWorkingDays(prev => ({ ...prev, [day]: e.target.checked }))}
+                                    className="h-4 w-4"
+                                />
+                            </div>
+                        ))}
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => setWorkingDaysDialog(false)}>Cancel</Button>
+                        <Button size="sm" className="text-xs h-8" onClick={() => {
+                            saveScheduleMutation.mutate({ workingDays, holidays, projectId: "" });
+                            setWorkingDaysDialog(false);
+                        }}>
+                            Save
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Holidays Dialog */}
+            <Dialog open={holidaysDialog} onOpenChange={setHolidaysDialog}>
+                <DialogContent className="sm:max-w-[450px] rounded-xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-sm flex items-center gap-2">
+                            <CalendarDays className="h-4 w-4 text-primary" />
+                            Manage Holidays
+                        </DialogTitle>
+                        <DialogDescription className="text-xs">
+                            Add holidays that should be excluded from scheduling.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="py-3 space-y-3">
+                        <div className="flex gap-2">
+                            <Input
+                                type="date"
+                                className="h-8 text-xs flex-1"
+                                value={holidayDate}
+                                onChange={(e) => setHolidayDate(e.target.value)}
+                            />
+                            <Input
+                                className="h-8 text-xs flex-1"
+                                placeholder="Holiday name"
+                                value={holidayLabel}
+                                onChange={(e) => setHolidayLabel(e.target.value)}
+                            />
+                            <Button
+                                size="sm"
+                                className="h-8 text-xs"
+                                onClick={() => {
+                                    if (holidayDate && holidayLabel) {
+                                        setHolidays(prev => [...prev, { date: holidayDate, label: holidayLabel }]);
+                                        setHolidayDate("");
+                                        setHolidayLabel("");
+                                    }
+                                }}
+                            >
+                                Add
+                            </Button>
+                        </div>
+                        <div className="space-y-1 max-h-40 overflow-y-auto">
+                            {holidays.map((h, i) => (
+                                <div key={i} className="flex items-center justify-between p-2 rounded-lg border text-xs">
+                                    <span>{h.label}</span>
+                                    <span className="text-muted-foreground">{h.date}</span>
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 w-6 p-0 text-destructive"
+                                        onClick={() => setHolidays(prev => prev.filter((_, idx) => idx !== i))}
+                                    >
+                                        ×
+                                    </Button>
+                                </div>
+                            ))}
+                            {holidays.length === 0 && (
+                                <p className="text-xs text-muted-foreground text-center py-4">No holidays configured</p>
+                            )}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" size="sm" className="text-xs h-8" onClick={() => setHolidaysDialog(false)}>Cancel</Button>
+                        <Button size="sm" className="text-xs h-8" onClick={() => {
+                            saveScheduleMutation.mutate({ workingDays, holidays, projectId: "" });
+                            setHolidaysDialog(false);
+                        }}>
+                            Save
                         </Button>
                     </DialogFooter>
                 </DialogContent>

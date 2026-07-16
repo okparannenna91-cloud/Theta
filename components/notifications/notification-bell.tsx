@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Bell, AlertTriangle } from "lucide-react";
 import Link from "next/link";
@@ -15,10 +15,37 @@ import {
 import { Button } from "@/components/ui/button";
 import { NotificationPanel } from "./notification-panel";
 
+function playNotificationSound() {
+    try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        oscillator.type = "sine";
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+        oscillator.frequency.setValueAtTime(660, audioCtx.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.15, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.3);
+    } catch {}
+}
+
+function registerServiceWorker() {
+    if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("/sw.js").catch(() => {});
+    }
+}
+
 export function NotificationBell() {
     const { activeWorkspaceId } = useWorkspace();
     const queryClient = useQueryClient();
     const [isOpen, setIsOpen] = useState(false);
+
+    useEffect(() => {
+        registerServiceWorker();
+    }, []);
 
     const { data } = useQuery({
         queryKey: ["notifications", "unread-count", activeWorkspaceId],
@@ -32,13 +59,12 @@ export function NotificationBell() {
         refetchInterval: 60000,
     });
 
-    // Real-time notification listener
     useAbly(getWorkspaceChannel(activeWorkspaceId || ""), "notification", () => {
+        playNotificationSound();
         queryClient.invalidateQueries({ queryKey: ["notifications", activeWorkspaceId] });
         queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count", activeWorkspaceId] });
     });
 
-    // Real-time count update listener
     useAbly(getWorkspaceChannel(activeWorkspaceId || ""), "notification:count", (msg: any) => {
         queryClient.setQueryData(["notifications", "unread-count", activeWorkspaceId], (old: any) => {
             if (!old) return { unreadCount: msg.count, notifications: [] };

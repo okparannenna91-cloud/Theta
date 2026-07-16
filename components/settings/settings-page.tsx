@@ -44,12 +44,20 @@ export default function SettingsPage() {
   const [emailNotifications, setEmailNotifications] = useState(preferences?.emailNotifications ?? true);
   const [pushNotifications, setPushNotifications] = useState(preferences?.pushNotifications ?? false);
   const [compactMode, setCompactMode] = useState(preferences?.compactMode ?? false);
+  const [dndEnabled, setDndEnabled] = useState(preferences?.dndEnabled ?? false);
+  const [dndStart, setDndStart] = useState(preferences?.dndStart ?? "22:00");
+  const [dndEnd, setDndEnd] = useState(preferences?.dndEnd ?? "08:00");
+  const [notificationSounds, setNotificationSounds] = useState(preferences?.notificationSounds ?? true);
 
   useEffect(() => {
     if (preferences) {
       setEmailNotifications(preferences.emailNotifications ?? true);
       setPushNotifications(preferences.pushNotifications ?? false);
       setCompactMode(preferences.compactMode ?? false);
+      setDndEnabled(preferences.dndEnabled ?? false);
+      setDndStart(preferences.dndStart ?? "22:00");
+      setDndEnd(preferences.dndEnd ?? "08:00");
+      setNotificationSounds(preferences.notificationSounds ?? true);
     }
   }, [preferences]);
 
@@ -61,7 +69,7 @@ export default function SettingsPage() {
     toast.success(`Theme updated to ${newTheme}`);
   };
 
-  const handlePreferenceChange = (key: string, value: boolean) => {
+  const handlePreferenceChange = (key: string, value: any) => {
     updatePreference({ [key]: value });
     toast.success(`${key.replace(/([A-Z])/g, ' $1').toLowerCase()} updated`);
   };
@@ -158,6 +166,44 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground">Get instant desktop alerts</p>
                 </div>
                 <Switch checked={pushNotifications} onCheckedChange={(val) => { setPushNotifications(val); handlePreferenceChange("pushNotifications", val); }} />
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-lg border">
+                <div>
+                  <Label className="text-sm font-medium">Notification Sounds</Label>
+                  <p className="text-xs text-muted-foreground">Play a sound when notifications arrive</p>
+                </div>
+                <Switch checked={notificationSounds} onCheckedChange={(val) => { setNotificationSounds(val); handlePreferenceChange("notificationSounds", val); }} />
+              </div>
+              <div className="p-4 rounded-lg border space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <Label className="text-sm font-medium">Do Not Disturb</Label>
+                    <p className="text-xs text-muted-foreground">Suppress notifications during quiet hours</p>
+                  </div>
+                  <Switch checked={dndEnabled} onCheckedChange={(val) => { setDndEnabled(val); handlePreferenceChange("dndEnabled", val); }} />
+                </div>
+                {dndEnabled && (
+                  <div className="flex items-center gap-3 pt-2">
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">From</Label>
+                      <input
+                        type="time"
+                        value={dndStart}
+                        onChange={(e) => { setDndStart(e.target.value); handlePreferenceChange("dndStart", e.target.value); }}
+                        className="h-8 text-xs rounded-md border bg-background px-2"
+                      />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-xs text-muted-foreground">Until</Label>
+                      <input
+                        type="time"
+                        value={dndEnd}
+                        onChange={(e) => { setDndEnd(e.target.value); handlePreferenceChange("dndEnd", e.target.value); }}
+                        className="h-8 text-xs rounded-md border bg-background px-2"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

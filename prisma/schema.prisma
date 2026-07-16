@@ -79,6 +79,7 @@ model Workspace {
   savedSearches   SavedSearch[]
   meetings        Meeting[]
   evolutionTracking EvolutionTracking[]
+  baselines        Baseline[]
 
   subscription       Subscription?
   invoices           Invoice[]
@@ -293,6 +294,7 @@ model Project {
   documents    Document[]
   activities   Activity[]
   calendarEvents CalendarEvent[]
+  schedule       ProjectSchedule?
 
   @@index([workspaceId])
   @@index([userId])
@@ -628,6 +630,8 @@ model Notification {
   pinned      Boolean  @default(false)
   priority    String   @default("medium") // low, medium, high
   metadata    Json?    @db.Json
+  groupKey    String?
+  groupCount  Int      @default(1)
   workspaceId String   @db.ObjectId
   userId      String   @db.ObjectId
   createdAt   DateTime @default(now())
@@ -785,6 +789,11 @@ model UserPreference {
   compactMode       Boolean  @default(false)
   emailNotifications Boolean @default(true)
   pushNotifications  Boolean @default(false)
+  pushSubscription   Json?    @db.Json
+  dndEnabled         Boolean  @default(false)
+  dndStart           String?
+  dndEnd             String?
+  notificationSounds Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
@@ -1202,4 +1211,31 @@ model EvolutionTracking {
   @@index([workspaceId])
   @@unique([workspaceId, featureKey])
   @@map("evolution_tracking")
+}
+
+model Baseline {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String   @db.ObjectId
+  projectId   String?  @db.ObjectId
+  label       String
+  tasks       Json     // Array of { id, title, startDate, dueDate } snapshots
+  createdAt   DateTime @default(now())
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@map("baselines")
+}
+
+model ProjectSchedule {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  projectId   String   @unique @db.ObjectId
+  workingDays Json     // { monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: false, sunday: false }
+  holidays    Json     // [{ date: "2024-12-25", label: "Christmas" }]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@map("project_schedules")
 }

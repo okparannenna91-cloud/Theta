@@ -1,5 +1,6 @@
 import { inngest } from "@/lib/inngest/client";
 import { dunningCron, trialExpirationCron, trialReminderCron, subscriptionExpirationCron, downgradeSchedulingCron, dataRetentionCleanup } from "@/lib/inngest/functions/billing";
+import { activityRetentionCleanup, archiveReadNotifications, activityDigestEmail } from "@/lib/inngest/functions/activity";
 import { serve } from "inngest/next";
 
 export const { GET, POST, PUT } = serve({
@@ -11,5 +12,8 @@ export const { GET, POST, PUT } = serve({
     subscriptionExpirationCron,
     downgradeSchedulingCron,
     dataRetentionCleanup,
+    activityRetentionCleanup,
+    archiveReadNotifications,
+    activityDigestEmail,
   ],
 });

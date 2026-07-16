@@ -37,6 +37,7 @@
     "@radix-ui/react-scroll-area": "^1.2.10",
     "@radix-ui/react-select": "^2.2.6",
     "@tanstack/react-query": "^5.56.0",
+    "@types/web-push": "^3.6.4",
     "@upstash/redis": "^1.38.0",
     "@vibe/core": "^4.2.3",
     "ably": "^2.0.0",
@@ -70,6 +71,7 @@
     "tailwind-merge": "^2.5.0",
     "tailwindcss-animate": "^1.0.7",
     "three": "^0.183.2",
+    "web-push": "^3.6.7",
     "zod": "^3.23.0"
   },
   "devDependencies": {

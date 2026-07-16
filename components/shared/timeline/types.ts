@@ -24,6 +24,7 @@ export interface TimelineTask {
   isCritical?: boolean;
   baselineStartDate?: string | null;
   baselineDueDate?: string | null;
+  slack?: number;
   color?: string | null;
   user?: { id: string; name: string; imageUrl: string } | null;
   projectId?: string;

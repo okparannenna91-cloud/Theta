@@ -18,6 +18,8 @@ interface TimelineCanvasProps {
     schedulingMode?: "auto" | "manual";
     variant?: TimelineVariant;
     onUndoPush?: (cmd: UndoCommand) => void;
+    workingDays?: Record<string, boolean>;
+    holidays?: { name: string; date: string }[];
 }
 
 export default function TimelineCanvas({
@@ -28,6 +30,8 @@ export default function TimelineCanvas({
     schedulingMode = "auto",
     variant = "timeline",
     onUndoPush,
+    workingDays,
+    holidays,
 }: TimelineCanvasProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);

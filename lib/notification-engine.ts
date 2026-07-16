@@ -8,8 +8,26 @@ import {
   getNotificationCategory,
   getNotificationPriority,
 } from "./notification-types";
+import { sendNotificationEmail } from "@/lib/email/notification-email";
+import { sendPushNotification } from "@/lib/push-notifications";
 
 export type { NotificationType, NotificationPriority, NotificationMetadata };
+
+function isDndActive(dndEnabled: boolean, dndStart: string | null, dndEnd: string | null): boolean {
+  if (!dndEnabled || !dndStart || !dndEnd) return false;
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const [startH, startM] = dndStart.split(":").map(Number);
+  const [endH, endM] = dndEnd.split(":").map(Number);
+  const startMinutes = startH * 60 + startM;
+  const endMinutes = endH * 60 + endM;
+
+  if (startMinutes <= endMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  } else {
+    return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+  }
+}
 
 export async function createNotification(
   userId: string,
@@ -17,31 +35,96 @@ export async function createNotification(
   type: NotificationType,
   title: string,
   message: string,
-  metadata?: NotificationMetadata
+  metadata?: NotificationMetadata,
+  groupKey?: string
 ) {
   const priority = getNotificationPriority(type);
   const category = getNotificationCategory(type);
 
   try {
-    const notification = await prisma.notification.create({
-      data: {
-        userId,
-        workspaceId,
-        type,
-        title,
-        message,
-        priority,
-        metadata: metadata || {},
-        read: false,
-        archived: false,
-      },
-    });
+    const preference = await prisma.userPreference.findUnique({ where: { userId } });
+    const dndActive = isDndActive(
+      preference?.dndEnabled || false,
+      preference?.dndStart || null,
+      preference?.dndEnd || null
+    );
 
-    await publishToAbly(workspaceId, notification);
-    try {
-      const { notifyWorkspace } = await import("./integrations/slack");
-      await notifyWorkspace(workspaceId, message, title);
-    } catch {}
+    let notification: any;
+
+    if (groupKey) {
+      const existing = await prisma.notification.findFirst({
+        where: {
+          userId,
+          workspaceId,
+          groupKey,
+          read: false,
+          archived: false,
+        },
+        orderBy: { createdAt: "desc" },
+      });
+
+      if (existing) {
+        notification = await prisma.notification.update({
+          where: { id: existing.id },
+          data: {
+            message,
+            groupCount: { increment: 1 },
+            metadata: metadata || {},
+            updatedAt: new Date(),
+          },
+        });
+      } else {
+        notification = await prisma.notification.create({
+          data: {
+            userId,
+            workspaceId,
+            type,
+            title,
+            message,
+            priority,
+            metadata: metadata || {},
+            read: false,
+            archived: false,
+            groupKey,
+            groupCount: 1,
+          },
+        });
+      }
+    } else {
+      notification = await prisma.notification.create({
+        data: {
+          userId,
+          workspaceId,
+          type,
+          title,
+          message,
+          priority,
+          metadata: metadata || {},
+          read: false,
+          archived: false,
+          groupCount: 1,
+        },
+      });
+    }
+
+    if (!dndActive) {
+      await publishToAbly(workspaceId, notification);
+      try {
+        const { notifyWorkspace } = await import("./integrations/slack");
+        await notifyWorkspace(workspaceId, message, title);
+      } catch {}
+
+      if (preference?.emailNotifications !== false) {
+        const actionUrl = (metadata as any)?.taskId
+          ? `https://www.thetapm.site/tasks`
+          : undefined;
+        sendNotificationEmail(userId, title, message, actionUrl).catch(() => {});
+      }
+
+      if (preference?.pushNotifications !== false) {
+        sendPushNotification(userId, title, message).catch(() => {});
+      }
+    }
 
     return notification;
   } catch (error) {

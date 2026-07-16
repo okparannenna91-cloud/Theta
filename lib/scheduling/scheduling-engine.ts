@@ -229,6 +229,111 @@ export function detectCriticalPath(tasks: TaskData[]): Set<string> {
     return criticalPath;
 }
 
+export function calculateSlack(tasks: TaskData[]): Map<string, number> {
+    const slackMap = new Map<string, number>();
+    if (tasks.length === 0) return slackMap;
+
+    const taskMap = new Map(tasks.map(t => [t.id, {
+        ...t,
+        earlyStart: 0,
+        earlyFinish: 0,
+        lateStart: 0,
+        lateFinish: 0
+    }]));
+
+    const processed = new Set<string>();
+    const processing = new Set<string>();
+
+    function forwardPass(taskId: string) {
+        if (processed.has(taskId)) return;
+        if (processing.has(taskId)) return;
+        processing.add(taskId);
+        const task = taskMap.get(taskId);
+        if (!task) { processing.delete(taskId); return; }
+
+        let maxEF = 0;
+        let maxConstraint = 0;
+        task.predecessors.forEach(dep => {
+            forwardPass(dep.predecessorId);
+            const pred = taskMap.get(dep.predecessorId);
+            if (!pred) return;
+            switch (dep.type) {
+                case "SS":
+                    maxConstraint = Math.max(maxConstraint, pred.earlyStart + dep.lagMinutes);
+                    break;
+                case "FF":
+                    maxConstraint = Math.max(maxConstraint, pred.earlyFinish + dep.lagMinutes - task.durationMinutes);
+                    break;
+                case "SF":
+                    maxConstraint = Math.max(maxConstraint, pred.earlyStart + dep.lagMinutes - task.durationMinutes);
+                    break;
+                case "FS":
+                default:
+                    maxEF = Math.max(maxEF, pred.earlyFinish + dep.lagMinutes);
+                    break;
+            }
+        });
+        task.earlyStart = Math.max(maxEF, maxConstraint);
+        task.earlyFinish = task.earlyStart + task.durationMinutes;
+        processing.delete(taskId);
+        processed.add(taskId);
+    }
+    tasks.forEach(t => forwardPass(t.id));
+
+    const projectDuration = Math.max(...Array.from(taskMap.values()).map(t => t.earlyFinish));
+
+    const backwardProcessed = new Set<string>();
+    const backwardProcessing = new Set<string>();
+
+    function backwardPass(taskId: string) {
+        if (backwardProcessed.has(taskId)) return;
+        if (backwardProcessing.has(taskId)) return;
+        backwardProcessing.add(taskId);
+        const task = taskMap.get(taskId);
+        if (!task) { backwardProcessing.delete(taskId); return; }
+
+        const successors = tasks.filter(t => t.predecessors.some(p => p.predecessorId === taskId));
+        if (successors.length === 0) {
+            task.lateFinish = projectDuration;
+        } else {
+            let minLS = projectDuration;
+            successors.forEach(succTask => {
+                backwardPass(succTask.id);
+                const succ = taskMap.get(succTask.id);
+                const dep = succTask.predecessors.find(p => p.predecessorId === taskId);
+                if (!succ || !dep) return;
+                switch (dep.type) {
+                    case "SS":
+                        minLS = Math.min(minLS, succ.lateStart - dep.lagMinutes);
+                        break;
+                    case "FF":
+                        minLS = Math.min(minLS, succ.lateFinish - dep.lagMinutes);
+                        break;
+                    case "SF":
+                        minLS = Math.min(minLS, succ.lateFinish - dep.lagMinutes + task.durationMinutes);
+                        break;
+                    case "FS":
+                    default:
+                        minLS = Math.min(minLS, succ.lateStart - dep.lagMinutes);
+                        break;
+                }
+            });
+            task.lateFinish = minLS;
+        }
+        task.lateStart = task.lateFinish - task.durationMinutes;
+        backwardProcessing.delete(taskId);
+        backwardProcessed.add(taskId);
+    }
+    tasks.forEach(t => backwardPass(t.id));
+
+    taskMap.forEach((t, id) => {
+        const slack = t.lateStart - t.earlyStart;
+        slackMap.set(id, Math.max(0, slack));
+    });
+
+    return slackMap;
+}
+
 export function calculateProgressRollup(tasks: any[]): any[] {
     const map = new Map<string, any>(tasks.map(t => [t.id, { ...t, children: [] }]));
     const roots: any[] = [];
