@@ -1,5 +1,6 @@
 import { TRIGGER_DEFINITIONS, ACTION_DEFINITIONS, AUTOMATION_SAFETY_RULES, type AutomationTrigger, type AutomationAction } from "./constitution/automation-standards";
 import { STATUS_DONE, STATUS_IN_PROGRESS, STATUS_TODO } from "../constants/status";
+import type { AutomationConfig } from "../ai-tools/types";
 
 export { TRIGGER_DEFINITIONS, ACTION_DEFINITIONS, AUTOMATION_SAFETY_RULES, type AutomationTrigger, type AutomationAction } from "./constitution/automation-standards";
 
@@ -7,7 +8,7 @@ export interface AutomatedWorkflow {
   name: string;
   trigger: AutomationTrigger;
   action: AutomationAction;
-  config: Record<string, any>;
+  config: AutomationConfig;
   explanation: string;
 }
 
@@ -17,7 +18,7 @@ export class AutomationIntelligence {
 
     let trigger: AutomationTrigger = "TASK_CREATED";
     let action: AutomationAction = "SEND_NOTIFICATION";
-    const config: Record<string, any> = { notifyRole: "member" };
+    const config: AutomationConfig = { notifyRole: "member" };
     let explanation = "Triggered when a task is created to notify team members.";
     let name = `Auto: ${command.substring(0, 40)}`;
 

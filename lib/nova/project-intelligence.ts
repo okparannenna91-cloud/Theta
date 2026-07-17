@@ -67,7 +67,7 @@ export class ProjectIntelligence {
     const stalledTasks = tasks.filter(t => t.status === STATUS_IN_PROGRESS && new Date(t.updatedAt) < fourDaysAgo).length;
 
     const blockedTasks = tasks.filter(t =>
-      t.status === STATUS_BLOCKED || t.predecessors?.some((d: any) => d.type === "FS")
+      t.status === STATUS_BLOCKED || t.predecessors?.some((d: { type: string }) => d.type === "FS")
     ).length;
 
     const rate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 100;

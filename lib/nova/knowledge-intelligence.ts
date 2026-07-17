@@ -1,7 +1,9 @@
 import { prisma } from "../prisma";
 import { redis } from "../redis/client";
-import { SecurityGuard } from "./security-guard";
+import { SEARCH_INTELLIGENCE_RULES } from "./constitution/search-standards";
 import { SearchIntelligence } from "./search-intelligence";
+import { SecurityGuard } from "./security-guard";
+import type { Prisma } from "@prisma/client";
 import { KNOWLEDGE_PIPELINE, KNOWLEDGE_CITATION_RULES, KNOWLEDGE_STORAGE_ARCHITECTURE } from "./constitution/knowledge-standards";
 
 export { KNOWLEDGE_PIPELINE, KNOWLEDGE_CITATION_RULES, KNOWLEDGE_STORAGE_ARCHITECTURE } from "./constitution/knowledge-standards";
@@ -48,7 +50,7 @@ export class KnowledgeIntelligence {
     }
   }
 
-  public static async search(query: string, options: SearchOptions): Promise<any[]> {
+  public static async search(query: string, options: SearchOptions): Promise<Prisma.DocumentGetPayload<{}>[]> {
     const scope = SearchIntelligence.parseQuery(query);
 
 
@@ -88,8 +90,8 @@ export class KnowledgeIntelligence {
         await prisma.entityLink.create({
           data: { sourceId, targetId, relation },
         });
-      } catch (error: any) {
-        if (error?.code !== "P2002") {
+      } catch (error: unknown) {
+        if (error && typeof error === "object" && "code" in error && (error as { code: string }).code !== "P2002") {
           throw error;
         }
       }

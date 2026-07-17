@@ -46,10 +46,15 @@ export async function cacheInvalidate(key: string): Promise<void> {
 
 export async function cacheInvalidatePattern(pattern: string): Promise<void> {
   try {
-    const keys = await redis.keys(pattern);
-    if (keys.length > 0) {
-      await redis.del(...keys);
-    }
+    let cursor = 0;
+    do {
+      const result = await redis.scan(cursor, { match: pattern, count: 100 });
+      cursor = Number(result[0]);
+      const keys = result[1];
+      if (keys.length > 0) {
+        await redis.del(...(keys as string[]));
+      }
+    } while (cursor !== 0);
   } catch {
     // cache invalidation failure is non-fatal
   }

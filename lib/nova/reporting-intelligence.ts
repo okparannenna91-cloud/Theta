@@ -102,7 +102,7 @@ export class ReportingIntelligence {
     }
   }
 
-  private static generateProjectMetrics(structured: any): string {
+  private static generateProjectMetrics(structured: { project?: { name: string; description?: string | null } | null; workspace?: { name: string; plan: string } | null; task?: { title: string; status: string } | null }): string {
     const lines: string[] = [];
     if (structured.project) {
       lines.push(`- **Project**: ${structured.project.name}`);
@@ -117,11 +117,11 @@ export class ReportingIntelligence {
     return lines.join("\n");
   }
 
-  private static generateRiskSection(structured: any): string {
+  private static generateRiskSection(structured: { project?: { name: string; description?: string | null } | null; workspace?: { name: string; plan: string } | null; task?: { title: string; status: string } | null }): string {
     return `- **Schedule Risk**: No critical schedule deviations detected\n- **Resource Risk**: Team capacity appears adequate\n- **Quality Risk**: No quality concerns identified`;
   }
 
-  private static generateTrendSection(structured: any): string {
+  private static generateTrendSection(structured: { project?: { name: string; description?: string | null } | null; workspace?: { name: string; plan: string } | null; task?: { title: string; status: string } | null }): string {
     return `- **Velocity**: Maintaining steady progress\n- **Completion Rate**: On track with project milestones\n- **Team Activity**: Consistent engagement detected`;
   }
 

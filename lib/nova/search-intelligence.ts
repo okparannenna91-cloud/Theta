@@ -1,4 +1,5 @@
 import { prisma } from "../prisma";
+import type { Prisma } from "@prisma/client";
 import { SEARCH_DOMAINS, SEARCH_TYPES, SEARCH_RANKING_PRINCIPLES, SEARCH_INTELLIGENCE_RULES, type SearchDomain, type SearchType } from "./constitution/search-standards";
 
 export { SEARCH_DOMAINS, SEARCH_TYPES, SEARCH_RANKING_PRINCIPLES, SEARCH_INTELLIGENCE_RULES, type SearchDomain, type SearchType } from "./constitution/search-standards";
@@ -69,7 +70,7 @@ export class SearchIntelligence {
     try {
       
       const saved = await prisma.savedSearch.create({
-        data: { workspaceId, userId, name, query, domain, searchType, filters: (filters ?? {}) as any },
+        data: { workspaceId, userId, name, query, domain, searchType, filters: (filters ?? {}) as Prisma.InputJsonValue },
       });
       return saved.id;
     } catch (error) {
@@ -97,7 +98,7 @@ export class SearchIntelligence {
 
   public static async deleteSavedSearch(workspaceId: string, searchId: string, userId?: string): Promise<boolean> {
     try {
-      const where: any = { id: searchId, workspaceId };
+      const where: { id: string; workspaceId: string; userId?: string } = { id: searchId, workspaceId };
       if (userId) where.userId = userId;
       await prisma.savedSearch.delete({ where });
       return true;
@@ -109,7 +110,7 @@ export class SearchIntelligence {
 
   public static async togglePinSearch(workspaceId: string, searchId: string, isPinned: boolean, userId?: string): Promise<boolean> {
     try {
-      const where: any = { id: searchId, workspaceId };
+      const where: { id: string; workspaceId: string; userId?: string } = { id: searchId, workspaceId };
       if (userId) where.userId = userId;
       await prisma.savedSearch.update({ where, data: { isPinned } });
       return true;

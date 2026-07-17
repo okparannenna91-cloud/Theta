@@ -12,7 +12,7 @@ export function buildAutomationTools(ctx: ToolContext): ToolModule {
   return {
     create_automation: {
       description: 'Create a new automated workflow in the workspace.',
-      inputSchema: z.object({ name: z.string(), trigger: z.string(), action: z.string(), config: z.record(z.any()) }),
+      inputSchema: z.object({ name: z.string(), trigger: z.string(), action: z.string(), config: z.record(z.unknown()) }),
       execute: async ({ name, trigger, action, config }: Record<string, unknown>) => {
         await enforce(ctx, "admin", "workspace");
         const cfg = config as Record<string, unknown>;

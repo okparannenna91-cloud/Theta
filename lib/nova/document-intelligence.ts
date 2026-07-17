@@ -1,93 +1,279 @@
+import { prisma } from "../prisma";
+import { logger } from "../logger";
 import { DOCUMENT_TYPES, DOCUMENT_UNDERSTANDING_PIPELINE, DOCUMENT_ACTIONS, DOCUMENT_WORKSPACE_LINK_TYPES, type DocumentType } from "./constitution/document-standards";
 
 export { DOCUMENT_TYPES, DOCUMENT_UNDERSTANDING_PIPELINE, DOCUMENT_ACTIONS, DOCUMENT_WORKSPACE_LINK_TYPES, type DocumentType } from "./constitution/document-standards";
 
-export interface ActionableDocumentDetails {
-  documentType: DocumentType;
+const GENERATION_MODEL = "openrouter/google/gemini-2.0-flash-001";
+
+interface DocumentSummary {
   summary: string;
+  keyPoints: string[];
+  actionItems: { title: string; assignee?: string; priority?: string; dueDate?: string }[];
   decisions: string[];
-  extractedTasks: string[];
-  requirements: string[];
   risks: string[];
-  suggestedLinks: string[];
-  suggestedProjects: string[];
+  relatedDocumentIds: string[];
+  linkedTaskTitles: string[];
+  linkedProjectIds: string[];
+}
+
+interface SearchResult {
+  documentId: string;
+  title: string;
+  relevance: number;
+  snippet: string;
+}
+
+async function generateEmbedding(text: string): Promise<number[] | null> {
+  try {
+    const { default: OpenAI } = await import("openai");
+    const client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const response = await client.embeddings.create({
+      model: "text-embedding-3-small",
+      input: text.slice(0, 8000),
+    });
+    return response.data[0].embedding;
+  } catch (error) {
+    logger.warn("[DocumentIntelligence] Embedding generation failed:", error);
+    return null;
+  }
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (a.length !== b.length || a.length === 0) return 0;
+  let dotProduct = 0;
+  let normA = 0;
+  let normB = 0;
+  for (let i = 0; i < a.length; i++) {
+    dotProduct += a[i] * b[i];
+    normA += a[i] * a[i];
+    normB += b[i] * b[i];
+  }
+  const denominator = Math.sqrt(normA) * Math.sqrt(normB);
+  return denominator === 0 ? 0 : dotProduct / denominator;
+}
+
+function parseJsonFromLLM(text: string): unknown {
+  const jsonMatch = text.match(/```json\s*([\s\S]*?)```/) ?? text.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) throw new Error("No JSON found in LLM response");
+  const raw = jsonMatch[1] ?? jsonMatch[0];
+  return JSON.parse(raw.trim());
+}
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
 }
 
 export class DocumentIntelligence {
-  public static analyze(title: string, content: string): ActionableDocumentDetails {
-    const combinedText = `${title}\n${content}`.toLowerCase();
+  static async onDocumentCreated(documentId: string): Promise<void> {
+    const doc = await prisma.document.findUnique({ where: { id: documentId } });
+    if (!doc?.content) return;
 
-    let documentType: DocumentType = "GENERAL";
-    if (combinedText.includes("prd") || combinedText.includes("requirements") || combinedText.includes("product requirement")) {
-      documentType = "PRD";
-    } else if (combinedText.includes("technical spec") || combinedText.includes("architecture") || combinedText.includes("design specification")) {
-      documentType = "TECHNICAL_SPEC";
-    } else if (combinedText.includes("meeting notes") || combinedText.includes("sync notes") || combinedText.includes("minutes")) {
-      documentType = "MEETING_NOTES";
-    } else if (combinedText.includes("sop") || combinedText.includes("standard operating") || combinedText.includes("procedure")) {
-      documentType = "SOP";
-    } else if (combinedText.includes("retro") || combinedText.includes("post-mortem") || combinedText.includes("lessons learned")) {
-      documentType = "RETROSPECTIVE";
-    }
+    const plainText = stripHtml(doc.content);
+    if (plainText.length < 20) return;
 
-    const decisions: string[] = [];
-    const extractedTasks: string[] = [];
-    const requirements: string[] = [];
-    const risks: string[] = [];
-    const suggestedLinks: string[] = [];
-    const suggestedProjects: string[] = [];
+    const embedding = await generateEmbedding(plainText);
+    if (!embedding) return;
 
-    const lines = content.split("\n");
-    for (const line of lines) {
-      const trimmed = line.trim();
-      const lower = trimmed.toLowerCase();
+    await prisma.$runCommandRaw({
+      update: "documents",
+      updates: [{ q: { _id: { $oid: documentId } }, u: { $set: { embedding: JSON.stringify(embedding) } } }],
+    });
 
-      if (lower.includes("decision:") || lower.includes("agreed:") || lower.includes("we decided")) {
-        decisions.push(trimmed.replace(/^(decision:|agreed:|we decided)/i, "").trim());
-      }
-
-      if (trimmed.startsWith("- [ ]") || trimmed.startsWith("- [x]")) {
-        extractedTasks.push(trimmed.replace(/^-\s*\[[ x]\]/i, "").trim());
-      } else if (lower.includes("todo:") || lower.includes("action item:") || lower.includes("action:")) {
-        extractedTasks.push(trimmed.replace(/^(todo:|action item:|action:)/i, "").trim());
-      }
-
-      if (lower.includes("requirement:") || lower.includes("must have") || lower.includes("need:")) {
-        requirements.push(trimmed.replace(/^(requirement:|need:)/i, "").trim());
-      }
-
-      if (lower.includes("risk:") || lower.includes("concern:") || lower.includes("blocker:")) {
-        risks.push(trimmed.replace(/^(risk:|concern:|blocker:)/i, "").trim());
-      }
-
-      if (trimmed.includes("#") || trimmed.includes("@")) {
-        const matches = trimmed.match(/[#@]\w+/g);
-        if (matches) matches.forEach(m => suggestedLinks.push(m));
-      }
-
-      if (lower.includes("project:") || trimmed.match(/^#\s*project/i)) {
-        suggestedProjects.push(trimmed.replace(/^(project:|#\s*project)/i, "").trim());
-      }
-    }
-
-    const wordCount = content.split(/\s+/).length;
-    const summary = wordCount > 50
-      ? `${content.split(/\s+/).slice(0, 50).join(" ")}...`
-      : content;
-
-    return {
-      documentType,
-      summary,
-      decisions: [...new Set(decisions)],
-      extractedTasks: [...new Set(extractedTasks)],
-      requirements: [...new Set(requirements)],
-      risks: [...new Set(risks)],
-      suggestedLinks: [...new Set(suggestedLinks)],
-      suggestedProjects: [...new Set(suggestedProjects)],
-    };
+    logger.info(`[DocumentIntelligence] Embedding generated for document ${documentId}`);
   }
 
-  public static classifyDocumentType(title: string, content: string): DocumentType {
-    return this.analyze(title, content).documentType;
+  static async searchDocuments(workspaceId: string, query: string, limit = 5): Promise<SearchResult[]> {
+    const queryEmbedding = await generateEmbedding(query);
+    if (!queryEmbedding) return [];
+
+    const response = await prisma.$runCommandRaw({
+      find: "documents",
+      filter: { workspaceId: { $oid: workspaceId }, status: "PUBLISHED", embedding: { $exists: true } },
+      projection: { _id: 1, title: 1, content: 1, embedding: 1 },
+    }) as { cursor?: { firstBatch?: Array<{ _id: { $oid: string }; title: string; content?: string; embedding?: string }> } };
+
+    const docs = response.cursor?.firstBatch ?? [];
+    const results: SearchResult[] = [];
+
+    for (const doc of docs) {
+      if (!doc.embedding) continue;
+      const docEmbedding: number[] = JSON.parse(doc.embedding);
+      const similarity = cosineSimilarity(queryEmbedding, docEmbedding);
+      if (similarity < 0.5) continue;
+
+      const plainText = doc.content ? stripHtml(doc.content) : "";
+      const snippet = plainText.slice(0, 200);
+
+      results.push({
+        documentId: (doc._id as { $oid: string }).$oid,
+        title: doc.title,
+        relevance: similarity,
+        snippet,
+      });
+    }
+
+    results.sort((a, b) => b.relevance - a.relevance);
+    return results.slice(0, limit);
+  }
+
+  static async generateDocumentSummary(documentId: string): Promise<DocumentSummary | null> {
+    const doc = await prisma.document.findUnique({ where: { id: documentId } });
+    if (!doc?.content) return null;
+
+    const plainText = stripHtml(doc.content);
+
+    const relevantDocs = await this.searchDocuments(doc.workspaceId, plainText, 3);
+
+    const relatedContext = relevantDocs
+      .filter((d) => d.documentId !== documentId)
+      .map((d) => `- "${d.title}": ${d.snippet}`)
+      .join("\n");
+
+    const existingTasks = await prisma.task.findMany({
+      where: { workspaceId: doc.workspaceId },
+      select: { id: true, title: true },
+      take: 20,
+    });
+
+    const existingProjects = await prisma.project.findMany({
+      where: { workspaceId: doc.workspaceId },
+      select: { id: true, name: true },
+    });
+
+    const taskList = existingTasks.map((t) => `- [${t.id}] ${t.title}`).join("\n");
+    const projectList = existingProjects.map((p) => `- [${p.id}] ${p.name}`).join("\n");
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: GENERATION_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: `You are a document analysis engine. Analyze the document and return a JSON object with these fields:
+- summary: 2-3 sentence summary
+- keyPoints: array of key points (max 10)
+- actionItems: array of objects { title, assignee?, priority?: "low"|"medium"|"high", dueDate? }
+- decisions: array of decisions made
+- risks: array of risks or concerns
+- linkedTaskTitles: array of existing task titles from the provided list that are relevant
+- linkedProjectIds: array of project IDs from the provided list that are relevant
+
+Return ONLY valid JSON. Do not add commentary.`,
+          },
+          {
+            role: "user",
+            content: `Document title: ${doc.title}
+Tags: ${doc.tags.join(", ")}
+
+Content:
+${plainText.slice(0, 6000)}
+
+Related documents in workspace:
+${relatedContext || "None"}
+
+Existing tasks (match relevant ones):
+${taskList || "None"}
+
+Existing projects (match relevant ones):
+${projectList || "None"}`,
+          },
+        ],
+        temperature: 0.3,
+      }),
+    });
+
+    if (!response.ok) {
+      logger.warn(`[DocumentIntelligence] LLM call failed: ${response.status}`);
+      return null;
+    }
+
+    const data = await response.json();
+    const raw = data.choices?.[0]?.message?.content;
+    if (!raw) return null;
+
+    try {
+      const parsed = parseJsonFromLLM(raw) as Omit<DocumentSummary, "relatedDocumentIds">;
+      return {
+        ...parsed,
+        relatedDocumentIds: relevantDocs.filter((d) => d.documentId !== documentId).map((d) => d.documentId),
+      };
+    } catch (error) {
+      logger.warn("[DocumentIntelligence] Failed to parse LLM response:", error);
+      return null;
+    }
+  }
+
+  static classifyDocumentType(title: string, content: string): DocumentType {
+    const combinedText = `${title} ${content}`.toLowerCase();
+
+    if (combinedText.includes("prd") || combinedText.includes("requirements") || combinedText.includes("product requirement")) return "PRD";
+    if (combinedText.includes("technical spec") || combinedText.includes("architecture") || combinedText.includes("design specification")) return "TECHNICAL_SPEC";
+    if (combinedText.includes("meeting notes") || combinedText.includes("sync notes") || combinedText.includes("minutes")) return "MEETING_NOTES";
+    if (combinedText.includes("sop") || combinedText.includes("standard operating") || combinedText.includes("procedure")) return "SOP";
+    if (combinedText.includes("retro") || combinedText.includes("post-mortem") || combinedText.includes("lessons learned")) return "RETROSPECTIVE";
+
+    return "GENERAL";
+  }
+
+  static async createTasksFromDocument(documentId: string, userId: string): Promise<string[]> {
+    const summary = await this.generateDocumentSummary(documentId);
+    if (!summary?.actionItems.length) return [];
+
+    const doc = await prisma.document.findUnique({ where: { id: documentId } });
+    if (!doc) return [];
+
+    const createdTaskIds: string[] = [];
+
+    for (const item of summary.actionItems) {
+      let assigneeId = userId;
+      if (item.assignee) {
+        const member = await prisma.teamMember.findFirst({
+          where: {
+            team: { workspaceId: doc.workspaceId },
+            user: { name: { contains: item.assignee, mode: "insensitive" } },
+          },
+          select: { userId: true },
+        });
+        if (member) assigneeId = member.userId;
+      }
+
+      const task = await prisma.task.create({
+        data: {
+          title: item.title,
+          description: `Auto-created from document: ${doc.title}`,
+          status: "todo",
+          priority: (item.priority as "low" | "medium" | "high") ?? "medium",
+          workspaceId: doc.workspaceId,
+          projectId: doc.projectId ?? "",
+          userId: assigneeId,
+          assigneeIds: [assigneeId],
+          dueDate: item.dueDate ? new Date(item.dueDate) : undefined,
+        },
+      });
+
+      createdTaskIds.push(task.id);
+    }
+
+    return createdTaskIds;
+  }
+
+  static async analyze(title: string, content: string): Promise<DocumentSummary> {
+    const plainText = stripHtml(content);
+    return {
+      summary: plainText.slice(0, 300),
+      keyPoints: [],
+      actionItems: [],
+      decisions: [],
+      risks: [],
+      relatedDocumentIds: [],
+      linkedTaskTitles: [],
+      linkedProjectIds: [],
+    };
   }
 }

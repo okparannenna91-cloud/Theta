@@ -37,7 +37,7 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
             description: description as string | undefined,
             coverImage: coverImage as string | undefined,
             color: color as string | undefined,
-            visibility: (visibility as string | undefined) as any || "private",
+            visibility: (visibility as string | undefined) || "private",
             workspaceId,
             userId: user.id,
             members: { create: { userId: user.id, role: "manager" } },

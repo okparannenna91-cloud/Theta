@@ -284,6 +284,7 @@ export interface ReviewContext {
   workspaceContext?: string;
   userPrompt: string;
   conversationHistory?: string;
+  __extractedToolCalls?: Array<{ tool: string; params: Record<string, unknown> }>;
 }
 
 export interface ReviewResult {
@@ -336,7 +337,7 @@ export class ResponseQualityGate {
       issues.push("Detected raw tool call text in response");
       const extracted = extractToolCallsFromText(revised);
       if (extracted.length > 0) {
-        (context as any).__extractedToolCalls = extracted;
+        context.__extractedToolCalls = extracted;
       }
       revised = "Let me look into that for you.";
     }

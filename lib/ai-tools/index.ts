@@ -159,7 +159,7 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
 
     dispatch_ui_action: {
       description: 'Dispatch a direct UI action to the client.',
-      inputSchema: z.object({ action: z.enum(['NAVIGATE', 'OPEN_MODAL', 'SWITCH_TAB', 'REFRESH_DATA']), payload: z.record(z.any()) }),
+      inputSchema: z.object({ action: z.enum(['NAVIGATE', 'OPEN_MODAL', 'SWITCH_TAB', 'REFRESH_DATA']), payload: z.record(z.unknown()) }),
       execute: async ({ action, payload }: Record<string, unknown>) => {
         const channel = getAblyChannel(`workspace:${workspaceId}`);
         await channel.publish('UI_ACTION', { action, payload, userId: user.id });

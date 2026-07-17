@@ -65,7 +65,17 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
           if (!access.hasAccess) return { error: "Access denied to the specified project." };
         }
 
-        const taskData: any = {
+        const taskData: {
+          title: string;
+          description?: string;
+          priority: string;
+          status: string;
+          workspaceId: string;
+          projectId: string;
+          userId: string;
+          dueDate?: Date;
+          tagIds?: string[];
+        } = {
           title: title as string,
           description: description as string | undefined,
           priority: resolvedPriority(initialPriority as string, recommendation),
@@ -110,7 +120,14 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
         const hasAccess = await canAccessProjectResource(user.id, workspaceId, existingTask.projectId);
         if (!hasAccess) return { error: "Access denied to this task's project." };
 
-        const updateData: any = {};
+        const updateData: {
+          status?: string;
+          priority?: string;
+          title?: string;
+          userId?: string;
+          completedAt?: Date | null;
+          progress?: number;
+        } = {};
         if (status) updateData.status = status as string;
         if (priority) updateData.priority = priority as string;
         if (title) updateData.title = title as string;
@@ -237,7 +254,7 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
     },
     set_task_metadata: {
       description: 'Set custom metadata for a task.',
-      inputSchema: z.object({ taskId: z.string(), fields: z.record(z.any()) }),
+      inputSchema: z.object({ taskId: z.string(), fields: z.record(z.unknown()) }),
       execute: async ({ taskId, fields }: Record<string, unknown>) => {
         await enforce(ctx, "write", "task");
         const task = await prisma.task.findUnique({ where: { id: taskId as string } });

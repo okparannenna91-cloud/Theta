@@ -32,9 +32,9 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
       execute: async ({ title, content }: Record<string, unknown>) => {
         await enforce(ctx, "write", "document");
         await auditToolExecution(workspaceId, user.id, "create_document", { title });
-        const analysis = DocumentIntelligence.analyze(title as string, content as string);
+        const analysis = await DocumentIntelligence.analyze(title as string, content as string);
         let targetProjectId: string | null = null;
-        if (analysis.extractedTasks.length > 0) {
+        if (analysis.actionItems.length > 0) {
           const { getAccessibleProjectIds } = await import("../project-permissions");
           const accessibleIds = await getAccessibleProjectIds(user.id, workspaceId);
           const targetProject = accessibleIds.length > 0
@@ -43,10 +43,10 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
           targetProjectId = targetProject?.id ?? null;
         }
         const result = await prisma.$transaction(async (tx) => {
-          const doc = await tx.document.create({ data: { title: title as string, content: content as string, workspaceId, userId: user.id, tags: analysis.suggestedLinks } });
+          const doc = await tx.document.create({ data: { title: title as string, content: content as string, workspaceId, userId: user.id, tags: analysis.relatedDocumentIds } });
           if (targetProjectId) {
-            await Promise.all(analysis.extractedTasks.map(async (t: string) => {
-              await tx.task.create({ data: { title: t, description: `Auto-extracted from: ${title}`, priority: "medium", status: "todo", workspaceId, projectId: targetProjectId!, userId: user.id } });
+            await Promise.all(analysis.actionItems.map(async (item) => {
+              await tx.task.create({ data: { title: item.title, description: `Auto-extracted from: ${title}`, priority: item.priority ?? "medium", status: "todo", workspaceId, projectId: targetProjectId!, userId: user.id } });
             }));
           }
           for (const dec of analysis.decisions) {

@@ -200,7 +200,7 @@ Consider: urgency, complexity, impact, and keywords. Be conservative with estima
       const now = new Date();
       const daysSinceLastUpdate = Math.floor((now.getTime() - new Date(task.updatedAt).getTime()) / (1000 * 60 * 60 * 24));
       const isOverdue = task.dueDate ? new Date(task.dueDate) < now && task.status !== STATUS_DONE : false;
-      const hasBlockingDependencies = task.predecessors?.some((d: any) => d.type === "FS") ?? false;
+      const hasBlockingDependencies = task.predecessors?.some((d: { type: string }) => d.type === "FS") ?? false;
 
       let status: TaskHealthStatus["status"] = "ON_TRACK";
       if (isOverdue) status = "OVERDUE";

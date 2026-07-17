@@ -61,6 +61,7 @@ model Workspace {
   boards        Board[]
   teams         Team[]
   notifications Notification[]
+  proactiveInsights ProactiveInsight[]
   activities    Activity[]
   chatMessages  ChatMessage[]
   invites       Invite[]
@@ -644,6 +645,29 @@ model Notification {
   @@index([userId])
   @@index([createdAt])
   @@map("notifications")
+}
+
+model ProactiveInsight {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId   String   @db.ObjectId
+  type          String   // DEADLINE_RISK, UNASSIGNED_WORK, BLOCKED_TASKS, etc.
+  severity      String   // low, medium, high, critical
+  title         String
+  message       String
+  affectedItems Json     @db.Json // string[]
+  suggestedAction String
+  dismissed     Boolean  @default(false)
+  resolvedAt    DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([type])
+  @@index([severity])
+  @@index([createdAt])
+  @@map("proactive_insights")
 }
 
 model Activity {
