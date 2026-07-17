@@ -235,19 +235,6 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
         return { success: true, message: `Logged **${Math.round((duration as number)/60)} minutes** to the task.` };
       }
     },
-    set_recurring: {
-      description: 'Set a task to recur on a regular interval.',
-      inputSchema: z.object({ taskId: z.string(), interval: z.enum(['daily', 'weekly', 'monthly', 'quarterly']) }),
-      execute: async ({ taskId, interval }: Record<string, unknown>) => {
-        await enforce(ctx, "write", "task");
-        const task = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true, workspaceId: true, description: true } });
-        if (!task) return { error: "Task not found." };
-        const { canAccessProjectResource } = await import("../project-permissions");
-        if (!await canAccessProjectResource(user.id, workspaceId, task.projectId)) return { error: "Access denied." };
-        await prisma.task.update({ where: { id: taskId as string }, data: { description: `[RECURRING: ${(interval as string).toUpperCase()}]\n${task.description || ''}` } });
-        return { success: true, message: `Task set to recur **${interval}**.` };
-      }
-    },
     set_task_metadata: {
       description: 'Set custom metadata for a task.',
       inputSchema: z.object({ taskId: z.string(), fields: z.record(z.any()) }),
@@ -277,15 +264,6 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
         const children = childTaskTitles as string[] | undefined;
         if (children) { await Promise.all(children.map((t: string) => prisma.task.create({ data: { title: t, parentId: epic.id, workspaceId, userId: user.id, projectId: epic.projectId } }))); }
         return { success: true, message: `Epic "**${title}**" created.`, id: epic.id };
-      }
-    },
-    create_approval_request: {
-      description: 'Create a formal approval request.',
-      inputSchema: z.object({ entityId: z.string(), approverId: z.string(), note: z.string().optional() }),
-      execute: async ({ entityId, approverId, note }: Record<string, unknown>) => {
-        await enforce(ctx, "write", "task");
-        await prisma.notification.create({ data: { title: "Approval Required", message: `Approval for ${entityId}. Note: ${note || 'None'}`, type: "APPROVAL", userId: approverId as string, workspaceId, priority: "high", metadata: JSON.parse(JSON.stringify({ entityId, requesterId: user.id })) } });
-        return { success: true, message: "Approval request sent." };
       }
     },
   };

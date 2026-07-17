@@ -78,8 +78,6 @@ export class DecisionFramework {
     let strategy: DecisionStrategy = "PATH_A_IMMEDIATE";
     if (riskLevel === "HIGH") {
       strategy = "PATH_B_CONFIRMATION";
-    } else if (cleanPrompt.includes("then") || cleanPrompt.includes("and then") || cleanPrompt.includes("steps")) {
-      strategy = "PATH_C_MULTISTEP";
     } else if (intent === "READ" && !cleanPrompt.includes("task") && !cleanPrompt.includes("project")) {
       strategy = "PATH_D_INFO";
     }

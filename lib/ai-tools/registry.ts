@@ -22,10 +22,8 @@ const TOOL_CATEGORY_MAP: Record<string, ToolCategory> = {
   create_dependency: "TASK",
   set_estimation: "TASK",
   log_time: "TASK",
-  set_recurring: "TASK",
   set_task_metadata: "TASK",
   create_epic: "TASK",
-  create_approval_request: "TASK",
   // — Project CRUD —
   list_projects: "PROJECT",
   create_project: "PROJECT",
@@ -50,12 +48,10 @@ const TOOL_CATEGORY_MAP: Record<string, ToolCategory> = {
   search_workspace: "DOCUMENT",
   list_prompt_templates: "DOCUMENT",
   // — Analysis & reports —
-  evaluate_risks: "ANALYSIS",
   get_suggestions: "ANALYSIS",
   generate_daily_brief: "ANALYSIS",
   generate_meeting_prep: "ANALYSIS",
   generate_standup: "ANALYSIS",
-  generate_dashboard_config: "ANALYSIS",
   // — Workflow & forms —
   create_automation: "WORKFLOW",
   create_form: "WORKFLOW",
@@ -80,8 +76,6 @@ const TOOL_CATEGORY_MAP: Record<string, ToolCategory> = {
   // — UI actions —
   dispatch_ui_action: "UI",
   update_board_layout: "UI",
-  // — Agent orchestration —
-  orchestrate_agentic_workflow: "AGENT",
 };
 
 export function getToolCategory(toolName: string): ToolCategory | null {

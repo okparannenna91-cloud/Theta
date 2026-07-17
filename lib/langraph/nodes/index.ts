@@ -13,7 +13,5 @@ export type { DirectActionResult } from "./direct-action-router";
 export { executeStream } from "./stream-handler";
 export type { StreamResult } from "./stream-handler";
 export { executeWithFallback } from "./provider-fallback";
-export { planAndExecute, formatPlanResponse } from "./agent-planner";
-export type { AgentPlan, PlanStep, PlanResult } from "./agent-planner";
 export { saveConversationMemory } from "./memory-saver";
 export type { SaveMemoryOptions } from "./memory-saver";

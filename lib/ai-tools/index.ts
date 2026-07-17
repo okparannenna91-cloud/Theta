@@ -12,8 +12,6 @@ import { buildSearchTools } from "./search-tools";
 import { telemetry } from "@/lib/nova/telemetry";
 import { getAblyChannel } from "@/lib/ably-server";
 import { prisma } from "@/lib/prisma";
-import { AgentFramework } from "@/lib/nova/agent-framework";
-import { mem0 } from "@/lib/mem0";
 import { logger } from "@/lib/logger";
 
 export interface ToolContext {
@@ -184,25 +182,6 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
         return { success: true, message: `Updated board layout for **${boardId}**.` };
       }
     },
-    evaluate_risks: {
-      description: 'Evaluate a task or project for potential risks.',
-      inputSchema: z.object({ taskId: z.string().optional(), projectId: z.string().optional() }),
-      execute: async ({ taskId }: Record<string, unknown>) => {
-        await enforce(ctx, "read", "project");
-        if (taskId) {
-          const t = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true, workspaceId: true } });
-          if (!t || t.workspaceId !== workspaceId) {
-            return { risks: [], mitigation: "Task not found in your workspace." };
-          }
-          const { canAccessProject } = await import("../project-permissions");
-          const access = await canAccessProject(user.id, t.projectId, workspaceId);
-          if (!access.hasAccess) {
-            return { risks: [], mitigation: "Access denied to this task's project." };
-          }
-        }
-        return { risks: ["High dependency on external API", "Overlapping deadlines", "Resource bottleneck"], mitigation: "Consider breaking down the task further." };
-      }
-    },
     generate_standup: {
       description: 'Generate a daily standup report.',
       inputSchema: z.object({ userId: z.string() }),
@@ -211,11 +190,18 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
         await auditToolExecution(workspaceId, user.id, "generate_standup", { userId: targetUserId });
         const { getAccessibleProjectIds } = await import("../project-permissions");
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
-        const [activity, tasks] = await Promise.all([
+        const [activity, tasks, blockedTasks] = await Promise.all([
           prisma.activity.findMany({ where: { userId: targetUserId as string, workspaceId, projectId: { in: accessibleProjectIds } }, take: 5, orderBy: { createdAt: 'desc' } }),
-          prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, status: "in_progress" } })
+          prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, status: "in_progress" } }),
+          prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, status: "blocked" }, take: 5 })
         ]);
-        return { yesterday: activity.map((a: { action: string }) => a.action), today: tasks.map((t: { title: string }) => t.title), blockers: ["None reported by system"] };
+        return {
+          yesterday: activity.map((a: { action: string }) => a.action),
+          today: tasks.map((t: { title: string }) => t.title),
+          blockers: blockedTasks.length > 0
+            ? blockedTasks.map((t: { title: string }) => t.title)
+            : ["No blockers reported"]
+        };
       }
     },
     get_suggestions: {
@@ -272,11 +258,6 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
         return { agenda: ["Status update", "Blockers review", "Resource allocation", "Action items"], context: tasks.map((t: { title: string }) => t.title) };
       }
     },
-    generate_dashboard_config: {
-      description: 'Generate a JSON dashboard configuration.',
-      inputSchema: z.object({ title: z.string(), focus: z.enum(['tasks', 'productivity', 'billing', 'velocity']) }),
-      execute: async ({ title, focus }: Record<string, unknown>) => ({ dashboard: { title, layout: "grid", widgets: [{ type: "stat", title: "Active Projects", metric: "count_projects" }, { type: "chart", title: "Task Velocity", focus }, { type: "list", title: "Blockers", filter: "overdue" }] } })
-    },
     save_conversation: {
       description: 'Save the current AI conversation.',
       inputSchema: z.object({ title: z.string(), messages: z.array(z.object({ role: z.string(), content: z.string() })) }),
@@ -297,55 +278,6 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
         return { active: active.map((i: { provider: string }) => i.provider), available: [...AVAILABLE_INTEGRATIONS] };
       }
     },
-    orchestrate_agentic_workflow: {
-      description: 'Trigger a multi-step autonomous workflow using specialized agents.',
-      inputSchema: z.object({ objective: z.string(), context: z.string().optional() }),
-      execute: async ({ objective, context: extraContext }: Record<string, unknown>) => {
-        await enforce(ctx, "write", "project");
-        const plans = await AgentFramework.planExecution(objective as string);
-        if (plans.length === 0) {
-          return { message: `No specialized agents matched objective: "**${objective}**". Consider using more specific keywords (e.g., sprint, task, report, document, risk, automate).`, agents: [] };
-        }
-        const results: Array<{ agentId: string; agentName: string; result: string }> = [];
-        for (const plan of plans) {
-          const agent = AgentFramework.getAgent(plan.agentId);
-          const stepOutputs: string[] = [];
-          for (const step of plan.steps) {
-            const toolFn = _toolsRef[step.tool]?.execute;
-            if (toolFn) {
-              try {
-                const output = await toolFn(step.params);
-                stepOutputs.push(`[${step.tool}] ${JSON.stringify(output)}`);
-              } catch (e: unknown) {
-                const error = e as Error;
-                stepOutputs.push(`[${step.tool}] ERROR: ${error.message}`);
-              }
-            } else {
-              stepOutputs.push(`[${step.tool}] SKIPPED (tool not found)`);
-            }
-          }
-          if (agent) {
-            await prisma.activity.create({
-              data: {
-                action: "AGENT_WORKFLOW_STEP",
-                entityType: "AGENT",
-                entityId: agent.id,
-                workspaceId,
-                userId: user.id,
-                metadata: JSON.parse(JSON.stringify({ agent: agent.name, steps: plan.steps.map((s: { tool: string }) => s.tool), outputs: stepOutputs, objective, extraContext })),
-              },
-            });
-          }
-          const summary = `**${agent?.name || plan.agentId}**: ${stepOutputs.join("; ")}`;
-          results.push({ agentId: plan.agentId, agentName: agent?.name || plan.agentId, result: summary });
-        }
-        return {
-          message: `**Orchestration complete.** Executed ${results.length} agent(s) for: "${objective}".`,
-          agents: results,
-          steps: plans.flatMap((p: { steps: Array<{ description: string }> }) => p.steps.map((s: { description: string }) => s.description)),
-        };
-      }
-    },
     remember_preference: {
       description: 'Save a user preference to memory.',
       inputSchema: z.object({ key: z.string().min(1).max(100).describe("Preference key (max 100 chars)."), value: z.string().min(1).max(2000).describe("Preference value (max 2000 chars).") }),
@@ -359,14 +291,9 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
         if (existingCount >= 100) {
           return { success: false, message: "Memory limit reached (max 100 preferences). Clear some before saving more." };
         }
-        let mem0Synced = false;
-        try {
-          await mem0.add([{ role: "user", content: `User preference: ${key} = ${value}` }], { user_id: user.id, metadata: { workspaceId } });
-          mem0Synced = true;
-        } catch (e) { logger.warn("Mem0 sync failed:", e); }
         const scopedKey = `${workspaceId}:${key}`;
         await prisma.aiMemory.upsert({ where: { userId_key: { userId: user.id, key: scopedKey } }, update: { content: value as string, workspaceId }, create: { userId: user.id, workspaceId, key: scopedKey, content: value as string } });
-        return { success: true, message: `Remembered: **${key}**${mem0Synced ? "" : " (memory sync unavailable)"}` };
+        return { success: true, message: `Remembered: **${key}**` };
       }
     },
   };

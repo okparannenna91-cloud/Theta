@@ -20,25 +20,11 @@ export * from "./integration-rules";
 export * from "./evolution";
 
 import { IDENTITY, IDENTITY_RULES, EVOLUTION_STAGES, CURRENT_STAGE } from "./identity";
-import { PHILOSOPHIES, ACTION_PRIORITY_ORDER } from "./philosophy";
-import { EXECUTION_PRINCIPLES, CONFIRMATION_RULES, EXECUTION_STEPS, EXECUTION_STEP_LABELS } from "./execution-principles";
-import { DECISION_PHASES, DECISION_PRIORITY_ORDER } from "./decision-framework";
-import { ARCHITECTURAL_RULES } from "./architecture";
-import { MODEL_STACK, MODEL_SELECTION_STRATEGIES, MODEL_SELECTION_RULES } from "./ai-models";
-import { MEMORY_TIERS, MEMORY_TYPES, MEMORY_RULES, MEMORY_USER_CONTROLS } from "./memory";
+import { PHILOSOPHIES } from "./philosophy";
+import { EXECUTION_PRINCIPLES } from "./execution-principles";
+import { REPORT_TYPES, REPORT_GENERATION_PROCESS } from "./reporting-standards";
 import { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, PROACTIVE_INSIGHT_TYPES } from "./context";
-import { TASK_QUALITY_STANDARDS, TASK_CREATION_FLOW, TASK_INTELLIGENCE_CAPABILITIES } from "./task-standards";
-import { PROJECT_STRUCTURE_STANDARDS, PROJECT_CREATION_FLOW, PROJECT_INTELLIGENCE_CAPABILITIES, PROJECT_MONITORING_AREAS } from "./project-standards";
-import { DOCUMENT_TYPES, DOCUMENT_UNDERSTANDING_PIPELINE, DOCUMENT_ACTIONS, DOCUMENT_WORKSPACE_LINK_TYPES } from "./document-standards";
-import { TRIGGER_DEFINITIONS, ACTION_DEFINITIONS, AUTOMATION_SAFETY_RULES } from "./automation-standards";
-import { SEARCH_DOMAINS, SEARCH_TYPES, SEARCH_RANKING_PRINCIPLES, SEARCH_INTELLIGENCE_RULES } from "./search-standards";
-import { KNOWLEDGE_PIPELINE, KNOWLEDGE_CITATION_RULES } from "./knowledge-standards";
-import { MEETING_PHASES } from "./meeting-standards";
-import { REPORT_TYPES, REPORT_GENERATION_PROCESS, REPORT_ANSWERS } from "./reporting-standards";
-import { AGENT_REGISTRY, AGENT_COLLABORATION_RULES } from "./agent-framework";
-import { PERMISSION_MATRIX, SENSITIVE_ACTIONS, AUDIT_LOGGING_REQUIREMENTS, DATA_PROTECTION_RULES, AI_SECURITY_RULES, SECURITY_PRIORITY_ORDER } from "./security";
-import { INTEGRATION_PRIORITY_FRAMEWORK, INTEGRATION_EVALUATION_QUESTIONS, INFRASTRUCTURE_DISCIPLINE_RULES } from "./integration-rules";
-import { EVOLUTION_MILESTONES, LONG_TERM_VISION, FUTURE_PRINCIPLES, HUMAN_CONTROL_RULE } from "./evolution";
+import { AI_SECURITY_RULES } from "./security";
 
 export function buildSystemPrompt(): string {
   return buildSystemPromptForIntent("ANALYSIS");
@@ -73,32 +59,6 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
             ...p.rules.map(r => `  • ${r}`),
           ].join("\n")),
         ].join("\n\n")),
-        buildSection("SECTION 7 — MEMORY SYSTEM", [
-          ...MEMORY_TIERS.map(t => `  • ${t.tier} (${t.storage}): ${t.purpose}`),
-          "",
-          "Memory Types:",
-          ...MEMORY_TYPES.map(m => `  • ${m.type}: ${m.description}`),
-          "",
-          "Rules:",
-          ...MEMORY_RULES.map(r => `  • ${r}`),
-          "",
-          "User Controls:",
-          ...MEMORY_USER_CONTROLS.map(c => `  • ${c}`),
-        ].join("\n")),
-        buildSection("SECTION 8 — CONTEXT SYSTEM", [
-          "Context Priority Hierarchy:",
-          ...CONTEXT_PRIORITY_HIERARCHY.map(c => `  • Priority ${c.priority}: ${c.source} — ${c.description} (Token Budget: ${c.tokenBudget})`),
-          "",
-          "Rules:",
-          ...CONTEXT_RULES.map(r => `  • ${r}`),
-          "",
-          "Context Window Strategy:",
-          ...CONTEXT_WINDOW_STRATEGY.map(s => `  • ${s}`),
-        ].join("\n")),
-        buildSection("SECTION 18 — SECURITY RULES", [
-          "AI Security Rules:",
-          ...AI_SECURITY_RULES.map(r => `  • ${r}`),
-        ].join("\n")),
       );
       break;
     }
@@ -121,123 +81,7 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
             ...p.details.map(d => `  • ${d}`),
           ].join("\n")),
         ].join("\n\n")),
-        buildSection("SECTION 4 — DECISION FRAMEWORK", [
-          "Decision Priority Order:",
-          ...DECISION_PRIORITY_ORDER.map((p, i) => `  ${i + 1}. ${p}`),
-          "",
-          ...DECISION_PHASES.map(phase => [
-            `Phase: ${phase.name}`,
-            `  ${phase.description}`,
-            ...phase.steps.map(s => `  • ${s}`),
-          ].join("\n")),
-        ].join("\n\n")),
-        buildSection("SECTION 5 — ARCHITECTURE", [
-          ...ARCHITECTURAL_RULES.map(r => `• ${r}`),
-        ].join("\n")),
-        buildSection("SECTION 6 — AI MODELS", [
-          "Model Stack:",
-          ...MODEL_STACK.map(m => `  • ${m.provider} (${m.layer}): ${m.purpose}`),
-          "",
-          "Model Selection:",
-          ...MODEL_SELECTION_STRATEGIES.map(s => `  • ${s.complexity} (${s.description}): ${s.recommendedModels.join(", ")}`),
-          "",
-          "Rules:",
-          ...MODEL_SELECTION_RULES.map(r => `  • ${r}`),
-        ].join("\n")),
-        buildSection("SECTION 7 — MEMORY SYSTEM", [
-          ...MEMORY_TIERS.map(t => `  • ${t.tier} (${t.storage}): ${t.purpose}`),
-          "",
-          "Memory Types:",
-          ...MEMORY_TYPES.map(m => `  • ${m.type}: ${m.description}`),
-          "",
-          "Rules:",
-          ...MEMORY_RULES.map(r => `  • ${r}`),
-          "",
-          "User Controls:",
-          ...MEMORY_USER_CONTROLS.map(c => `  • ${c}`),
-        ].join("\n")),
-        buildSection("SECTION 8 — CONTEXT SYSTEM", [
-          "Context Priority Hierarchy:",
-          ...CONTEXT_PRIORITY_HIERARCHY.map(c => `  • Priority ${c.priority}: ${c.source} — ${c.description} (Token Budget: ${c.tokenBudget})`),
-          "",
-          "Rules:",
-          ...CONTEXT_RULES.map(r => `  • ${r}`),
-          "",
-          "Context Window Strategy:",
-          ...CONTEXT_WINDOW_STRATEGY.map(s => `  • ${s}`),
-        ].join("\n")),
-        buildSection("SECTION 9 — TASK INTELLIGENCE", [
-          "Task Creation Flow:",
-          ...TASK_CREATION_FLOW.map((s, i) => `  ${i + 1}. ${s}`),
-          "",
-          "Quality Standards:",
-          ...TASK_QUALITY_STANDARDS.map(s => `  • ${s.attribute}: ${s.description}`),
-          "",
-          "Capabilities:",
-          ...TASK_INTELLIGENCE_CAPABILITIES.map(c => `  • ${c.name}: ${c.description}`),
-        ].join("\n")),
-        buildSection("SECTION 10 — PROJECT INTELLIGENCE", [
-          "Project Creation Flow:",
-          ...PROJECT_CREATION_FLOW.map((s, i) => `  ${i + 1}. ${s}`),
-          "",
-          "Structure Standards:",
-          ...PROJECT_STRUCTURE_STANDARDS.map(s => `  • ${s.component}: ${s.description}`),
-          "",
-          "Monitoring Areas:",
-          ...PROJECT_MONITORING_AREAS.map(a => `  • ${a}`),
-          "",
-          "Capabilities:",
-          ...PROJECT_INTELLIGENCE_CAPABILITIES.map(c => `  • ${c.name}: ${c.description}`),
-        ].join("\n")),
-        buildSection("SECTION 11 — DOCUMENT INTELLIGENCE", [
-          "Document Types:",
-          ...DOCUMENT_TYPES.map(d => `  • ${d.type}: ${d.description}`),
-          "",
-          "Understanding Pipeline:",
-          ...DOCUMENT_UNDERSTANDING_PIPELINE.map((s, i) => `  ${i + 1}. ${s}`),
-          "",
-          "Available Actions:",
-          ...DOCUMENT_ACTIONS.map(a => `  • ${a.name}: ${a.description}`),
-          "",
-          "Workspace Link Types:",
-          ...DOCUMENT_WORKSPACE_LINK_TYPES.map(l => `  • ${l}`),
-        ].join("\n")),
-        buildSection("SECTION 12 — AUTOMATION INTELLIGENCE", [
-          "Available Triggers:",
-          ...TRIGGER_DEFINITIONS.map(t => `  • ${t.trigger}: ${t.description}`),
-          "",
-          "Available Actions:",
-          ...ACTION_DEFINITIONS.map(a => `  • ${a.action}: ${a.description}`),
-          "",
-          "Safety Rules:",
-          ...AUTOMATION_SAFETY_RULES.map(r => `  • ${r}`),
-        ].join("\n")),
-        buildSection("SECTION 13 — SEARCH INTELLIGENCE", [
-          "Search Domains:",
-          ...SEARCH_DOMAINS.map(d => `  • ${d.domain}: ${d.description}`),
-          "",
-          "Search Types:",
-          ...SEARCH_TYPES.map(t => `  • ${t.type}: ${t.description}`),
-          "",
-          "Ranking Principles:",
-          ...SEARCH_RANKING_PRINCIPLES.map(p => `  • ${p}`),
-          "",
-          "Rules:",
-          ...SEARCH_INTELLIGENCE_RULES.map(r => `  • ${r}`),
-        ].join("\n")),
         buildSection("SECTION 18 — SECURITY RULES", [
-          "Permission Levels:",
-          ...PERMISSION_MATRIX.map(p => `  • ${p.role}: ${p.description}`),
-          "",
-          "Sensitive Actions (Require Confirmation):",
-          ...SENSITIVE_ACTIONS.map(a => `  • ${a}`),
-          "",
-          "Audit Logging Requirements:",
-          ...AUDIT_LOGGING_REQUIREMENTS.map(r => `  • ${r}`),
-          "",
-          "Data Protection Rules:",
-          ...DATA_PROTECTION_RULES.map(r => `  • ${r}`),
-          "",
           "AI Security Rules:",
           ...AI_SECURITY_RULES.map(r => `  • ${r}`),
         ].join("\n")),
@@ -246,51 +90,13 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
     }
 
     case "ANALYSIS": {
-      const analysisPhilosophies = PHILOSOPHIES.filter(p =>
-        ["Context Is Sacred", "Intelligence Should Be Invisible", "Trust Must Be Earned", "Conversation First", "Think Before Acting", "Goal-Oriented Thinking", "Proactive Intelligence"].includes(p.name)
-      );
       sections.push(
-        buildSection("SECTION 2 — CORE PHILOSOPHY", [
-          ...analysisPhilosophies.map(p => [
-            `Philosophy: ${p.name}`,
-            `  ${p.description}`,
-            ...p.rules.map(r => `  • ${r}`),
-          ].join("\n")),
-        ].join("\n\n")),
-        buildSection("SECTION 4 — DECISION FRAMEWORK", [
-          "Decision Priority Order:",
-          ...DECISION_PRIORITY_ORDER.map((p, i) => `  ${i + 1}. ${p}`),
+        buildSection("SECTION 5 — REPORTING STANDARDS", [
+          "Report Types:",
+          ...REPORT_TYPES.map(r => `  • ${r.type}: ${r.description}`),
           "",
-          ...DECISION_PHASES.map(phase => [
-            `Phase: ${phase.name}`,
-            `  ${phase.description}`,
-            ...phase.steps.map(s => `  • ${s}`),
-          ].join("\n")),
-        ].join("\n\n")),
-        buildSection("SECTION 5 — ARCHITECTURE", [
-          ...ARCHITECTURAL_RULES.map(r => `• ${r}`),
-        ].join("\n")),
-        buildSection("SECTION 6 — AI MODELS", [
-          "Model Stack:",
-          ...MODEL_STACK.map(m => `  • ${m.provider} (${m.layer}): ${m.purpose}`),
-          "",
-          "Model Selection:",
-          ...MODEL_SELECTION_STRATEGIES.map(s => `  • ${s.complexity} (${s.description}): ${s.recommendedModels.join(", ")}`),
-          "",
-          "Rules:",
-          ...MODEL_SELECTION_RULES.map(r => `  • ${r}`),
-        ].join("\n")),
-        buildSection("SECTION 7 — MEMORY SYSTEM", [
-          ...MEMORY_TIERS.map(t => `  • ${t.tier} (${t.storage}): ${t.purpose}`),
-          "",
-          "Memory Types:",
-          ...MEMORY_TYPES.map(m => `  • ${m.type}: ${m.description}`),
-          "",
-          "Rules:",
-          ...MEMORY_RULES.map(r => `  • ${r}`),
-          "",
-          "User Controls:",
-          ...MEMORY_USER_CONTROLS.map(c => `  • ${c}`),
+          "Generation Process:",
+          ...REPORT_GENERATION_PROCESS.map((s, i) => `  ${i + 1}. ${s}`),
         ].join("\n")),
         buildSection("SECTION 8 — CONTEXT SYSTEM", [
           "Context Priority Hierarchy:",
@@ -304,60 +110,6 @@ export function buildSystemPromptForIntent(intent: 'CHAT' | 'ACTION' | 'ANALYSIS
           "",
           "Proactive Insight Types:",
           ...PROACTIVE_INSIGHT_TYPES.map(t => `  • ${t}`),
-        ].join("\n")),
-        buildSection("SECTION 13 — SEARCH INTELLIGENCE", [
-          "Search Domains:",
-          ...SEARCH_DOMAINS.map(d => `  • ${d.domain}: ${d.description}`),
-          "",
-          "Search Types:",
-          ...SEARCH_TYPES.map(t => `  • ${t.type}: ${t.description}`),
-          "",
-          "Ranking Principles:",
-          ...SEARCH_RANKING_PRINCIPLES.map(p => `  • ${p}`),
-          "",
-          "Rules:",
-          ...SEARCH_INTELLIGENCE_RULES.map(r => `  • ${r}`),
-        ].join("\n")),
-        buildSection("SECTION 14 — KNOWLEDGE INTELLIGENCE", [
-          "Pipeline:",
-          ...KNOWLEDGE_PIPELINE.map((s, i) => `  ${i + 1}. ${s.step} — ${s.description}`),
-          "",
-          "Citation Rules:",
-          ...KNOWLEDGE_CITATION_RULES.map(r => `  • ${r}`),
-        ].join("\n")),
-        buildSection("SECTION 15 — MEETING INTELLIGENCE", [
-          ...MEETING_PHASES.map(phase => [
-            `${phase.phase}: ${phase.description}`,
-            ...phase.capabilities.map(c => `  • ${c}`),
-          ].join("\n")),
-        ].join("\n\n")),
-        buildSection("SECTION 16 — REPORTING INTELLIGENCE", [
-          "Report Types:",
-          ...REPORT_TYPES.map(r => `  • ${r.type}: ${r.description}`),
-          "",
-          "Generation Process:",
-          ...REPORT_GENERATION_PROCESS.map((s, i) => `  ${i + 1}. ${s}`),
-          "",
-          "Every Report Answers:",
-          ...REPORT_ANSWERS.map(a => `  • ${a}`),
-        ].join("\n")),
-        buildSection("SECTION 18 — SECURITY RULES", [
-          "Permission Levels:",
-          ...PERMISSION_MATRIX.map(p => `  • ${p.role}: ${p.description}`),
-          "",
-          "AI Security Rules:",
-          ...AI_SECURITY_RULES.map(r => `  • ${r}`),
-        ].join("\n")),
-        buildSection("SECTION 20 — FUTURE EVOLUTION", [
-          `Current Stage: ${CURRENT_STAGE}`,
-          ...EVOLUTION_MILESTONES.map(m => `  • ${m.stage}: ${m.target} — ${m.capabilities.join(", ")}`),
-          "",
-          `Long-Term Vision: ${LONG_TERM_VISION}`,
-          "",
-          "Future Principles:",
-          ...FUTURE_PRINCIPLES.map(p => `  • ${p}`),
-          "",
-          HUMAN_CONTROL_RULE,
         ].join("\n")),
       );
       break;

@@ -1056,6 +1056,7 @@ model AiMemory {
   workspaceId String?  @db.ObjectId
   key         String   // e.g., "writing_style", "preferred_tone"
   content     String
+  embedding   String?  // JSON-serialized float array for semantic search
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 

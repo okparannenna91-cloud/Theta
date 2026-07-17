@@ -3,12 +3,12 @@ import { getCurrentUser } from "@/lib/auth";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 
 import { DecisionFramework } from "@/lib/nova/decision-framework";
-import { ReasoningEngine, type ReasoningResult } from "@/lib/nova/reasoning-engine";
 import { detectPromptInjection } from "@/lib/nova/security-guard";
 import { sanitizeUserInput } from "@/lib/nova/output-validator";
 import { logger } from "@/lib/logger";
 import { routeRequest } from "@/lib/nova/intent-router";
 import { telemetry } from "@/lib/nova/telemetry";
+import { buildSystemPromptForIntent } from "@/lib/nova/config";
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 60;
@@ -30,38 +30,14 @@ async function isRateLimited(userId: string): Promise<boolean> {
   }
 }
 
-import { NOVA_SYSTEM_PROMPT as CORE_NOVA_SYSTEM_PROMPT } from "@/lib/nova/config";
-
-const NOVA_SYSTEM_PROMPT = `${CORE_NOVA_SYSTEM_PROMPT}
-
-[OPERATING GUIDELINES]
-1. RESPOND CONVERSATIONALLY: When a user asks a question or makes a statement (not a command), respond naturally without calling tools. Only use tools when the user explicitly requests an action (e.g., "create a task", "list my tasks", "delete project X").
-2. EXPLAINABILITY: Always explain *why* you are taking an action. Cite where you found information.
-3. TRANSPARENCY: If a tool execution fails or needs more info, be clear about it.
-4. PROACTIVITY: If a project seems stalled or tasks are overdue, suggest next steps — but only when it meaningfully advances the user's goal.
-5. FORMATTING: Use bold for entity names. Use Mermaid.js syntax for diagrams (e.g. flowcharts, gantt charts) when explaining complex dependencies or workflows. When listing data, format it as a markdown table.
-6. REAL-TIME: You can broadcast updates via Ably for immediate UI feedback.
-7. READ TOOLS: Use list_tasks, list_projects, list_workspaces, list_members when the user explicitly asks to see or list items. For questions about these things, answer conversationally instead of calling tools.
-
-BEHAVIORAL RULES:
-- Talk like a smart teammate, not a documentation page
-- Before asking any question, check what you already know from context
-- When suggesting actions, mention what you can do next — not what the user should do
-- Never say "I am an AI", "As a language model", or reference any AI provider
-- Never reference internal tool names, function names, agent names, or system components
-- Format for scannability: bold key terms, use tables for structured data
-- For long lists, show top 5 and offer to show more
-- Reference the user's actual data by name, not generically
-- If only one project exists and the user asks about "my project", use it automatically
-
-IDENTITY:
-- You are Nova, the AI operating system of Theta
-- Never say "I'm an AI", "I'm a language model", "I'm ChatGPT", or reference any AI provider
-- When asked "what are you?" respond: "I'm Nova — your workspace's AI project manager"
-- Your knowledge comes from the user's workspace, not the internet
-- You are not a general-purpose chatbot — you are deeply integrated into their project management workflow
-
-You are professional, data-driven, and helpful. Respond naturally to questions and use tools only when explicitly requested.`;
+function getSystemPromptForIntent(intent: string): string {
+  const constitutionIntent = intent === "PLAN" || intent === "ORCHESTRATE" || intent === "CONSULT"
+    ? "ANALYSIS"
+    : intent === "CREATE" || intent === "UPDATE" || intent === "DELETE" || intent === "AUTOMATE"
+      ? "ACTION"
+      : "CHAT";
+  return buildSystemPromptForIntent(constitutionIntent as 'CHAT' | 'ACTION' | 'ANALYSIS');
+}
 
 export async function POST(req: Request) {
     const requestStart = Date.now();
@@ -69,7 +45,6 @@ export async function POST(req: Request) {
     let workspaceId: string = "";
     let route: ReturnType<typeof routeRequest> | undefined;
     let decision: ReturnType<typeof DecisionFramework.evaluate> | undefined;
-    let reasoningResult: ReasoningResult | undefined;
 
     try {
         user = await getCurrentUser();
@@ -118,34 +93,16 @@ export async function POST(req: Request) {
             }
         }
 
-        // Nova Prime: Use ReasoningEngine for think-before-acting pipeline
-        // Falls back to simple DecisionFramework if workspace context unavailable
-        if (workspaceId) {
-          try {
-            reasoningResult = await ReasoningEngine.reason(sanitizedPrompt, {
-              workspaceId,
-              userId: user.id,
-              projectId: projectId || undefined,
-            });
-            decision = reasoningResult.decision;
-            route = reasoningResult.route;
+        // Intent classification and risk gating
+        decision = DecisionFramework.evaluate(sanitizedPrompt);
+        route = routeRequest(sanitizedPrompt, decision.intent, decision.strategy);
 
-            logger.info("[NovaPrime] Reasoning pipeline completed", {
-              intent: reasoningResult.intent,
-              confidence: reasoningResult.confidence,
-              actionType: reasoningResult.actionType,
-              path: route.path,
-            });
-          } catch (reasoningError) {
-            logger.warn("[NovaPrime] ReasoningEngine failed, falling back to DecisionFramework:", reasoningError);
-            decision = DecisionFramework.evaluate(sanitizedPrompt);
-            route = routeRequest(sanitizedPrompt, decision.intent, decision.strategy);
-          }
-        } else {
-          // No workspace context available - use simple evaluation
-          decision = DecisionFramework.evaluate(sanitizedPrompt);
-          route = routeRequest(sanitizedPrompt, decision.intent, decision.strategy);
-        }
+        logger.info("[Nova] Intent classified", {
+          intent: decision.intent,
+          strategy: decision.strategy,
+          path: route.path,
+          riskLevel: decision.riskLevel,
+        });
 
         if (workspaceId) {
             const { getNovaRequestCount } = await import("@/lib/usage-tracking");
@@ -169,16 +126,6 @@ export async function POST(req: Request) {
             }, { status: 403 });
         }
 
-        // Build reasoning context for the agent (Nova Prime enhancement)
-        const reasoningContext = reasoningResult ? {
-          intent: reasoningResult.intent,
-          confidence: reasoningResult.confidence,
-          actionType: reasoningResult.actionType,
-          missingInfo: reasoningResult.missingInfo,
-          suggestedClarification: reasoningResult.suggestedClarification,
-          mentalModel: reasoningResult.mentalModel,
-        } : undefined;
-
         // LangGraph Agent — primary orchestration for all routes
         const { runNovaAgent } = await import("@/lib/langraph");
         const agentResult = await runNovaAgent(sanitizedPrompt, {
@@ -187,10 +134,9 @@ export async function POST(req: Request) {
             projectId: projectId || undefined,
             conversationId: conversationId || undefined,
             pageContext: pageContext || undefined,
-            systemPrompt: NOVA_SYSTEM_PROMPT,
+            systemPrompt: getSystemPromptForIntent(decision.intent),
             intent: decision.intent,
             routeDecision: route,
-            reasoningContext,
         });
         logger.info("[LangGraph] Agent handled request", {
             provider: agentResult.provider,

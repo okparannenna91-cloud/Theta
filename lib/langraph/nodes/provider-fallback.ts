@@ -4,10 +4,10 @@ import type { ProviderName } from "@/lib/nova/provider-health";
 import { logger } from "@/lib/logger";
 import type { RouterConfig, RouterProvider } from "../model-router";
 
-const FALLBACK_MODELS: Record<string, string> = {
-  gemini: "gemini-2.5-flash",
-  cohere: "command-a-03-2025",
-  openai: "gpt-4o-mini",
+const FALLBACK_MODELS: Record<string, { provider: string; model: string }> = {
+  gemini: { provider: "gemini", model: "gemini-2.5-flash" },
+  cohere: { provider: "cohere", model: "command-a-03-2025" },
+  openai: { provider: "openrouter", model: "openai/gpt-4o-mini" },
 };
 
 export async function executeWithFallback(
@@ -36,10 +36,11 @@ export async function executeWithFallback(
   const available: { provider: RouterProvider; model: string }[] = [];
 
   for (const p of fallbackOrder) {
+    const fallback = FALLBACK_MODELS[p];
     const envKey = { gemini: "GEMINI_API_KEY", cohere: "COHERE_API_KEY", openai: "OPENAI_API_KEY" }[p];
     const providerName = { gemini: "Gemini", cohere: "Cohere", openai: "OpenAI" }[p];
     if (process.env[envKey] && health.isAvailable(providerName as ProviderName)) {
-      available.push({ provider: p, model: FALLBACK_MODELS[p] });
+      available.push({ provider: fallback.provider as RouterProvider, model: fallback.model });
     }
   }
 

@@ -20,7 +20,6 @@ describe("Nova Regression Tests", () => {
       "loadWorkspaceContext fetched the data",
       "loadMemory retrieved conversation history",
       "tryDirectAction handled the command",
-      "planAndExecute decomposed the request",
       "streamText generated the response",
       "enforcePermission checked access",
       "saveConversationMemory persisted the data",
@@ -54,9 +53,9 @@ describe("Nova Regression Tests", () => {
       "list_projects", "create_project", "update_project", "delete_project",
       "project_health_analysis", "create_sprint_board",
       "list_workspaces", "update_workspace", "list_members",
-      "evaluate_risks", "get_suggestions", "generate_daily_brief",
+      "get_suggestions", "generate_daily_brief",
       "generate_standup", "search_workspace", "create_document",
-      "create_automation", "dispatch_ui_action", "orchestrate_agentic_workflow",
+      "create_automation", "dispatch_ui_action",
     ];
 
     for (const toolName of toolNames) {

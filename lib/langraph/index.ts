@@ -8,11 +8,11 @@ export { getLangChainModel, clearModelCache } from "./models";
 export { createNovaGraph, runNovaGraph } from "./agent-graph";
 export type { NovaGraphInput, NovaGraphOutput } from "./agent-graph";
 
-import { NovaAgent } from "./nova-agent";
 import type { ReasoningContext } from "./nova-agent";
 import { routeModel } from "./model-router";
 import type { RouteDecision } from "@/lib/nova/intent-router";
 import type { NovaIntent } from "@/lib/nova/constitution/decision-framework";
+import { runNovaGraph } from "./agent-graph";
 import { logger } from "@/lib/logger";
 
 export interface NovaAgentOptions {
@@ -38,33 +38,25 @@ export interface NovaAgentResult {
 
 export async function runNovaAgent(prompt: string, options: NovaAgentOptions): Promise<NovaAgentResult> {
   const start = Date.now();
-  const agent = new NovaAgent({ userId: options.userId, workspaceId: options.workspaceId, projectId: options.projectId });
 
-  logger.info("[LangGraph] Running Nova agent", { workspaceId: options.workspaceId, promptPreview: prompt.substring(0, 80) });
+  logger.info("[LangGraph] Running Nova agent via graph", { workspaceId: options.workspaceId, promptPreview: prompt.substring(0, 80) });
 
-  const finalState = await agent.execute({
+  const routerConfig = routeModel(prompt);
+
+  const result = await runNovaGraph({
     prompt,
-    systemPrompt: options.systemPrompt,
-    userId: options.userId,
-    workspaceId: options.workspaceId,
-    projectId: options.projectId,
-    conversationId: options.conversationId,
-    pageContext: options.pageContext,
-    route: "CHAT",
+    systemPrompt: options.systemPrompt || "You are Nova, the intelligent operating system of Theta.",
+    ctx: { userId: options.userId, workspaceId: options.workspaceId, projectId: options.projectId },
     intent: options.intent,
     routeDecision: options.routeDecision,
-    routerConfig: routeModel(prompt),
-    toolResults: [],
-    response: "",
-    reasoningContext: options.reasoningContext,
   });
 
   return {
-    response: finalState.response,
-    route: finalState.route,
-    provider: finalState.routerConfig?.provider || "unknown",
-    model: finalState.routerConfig?.model || "unknown",
-    toolResults: finalState.toolResults,
+    response: result.response,
+    route: result.route,
+    provider: routerConfig.provider,
+    model: routerConfig.model,
+    toolResults: result.toolResults,
     durationMs: Date.now() - start,
   };
 }

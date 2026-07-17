@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { ReasoningEngine } from "@/lib/nova/reasoning-engine";
 import { ParameterExtractor } from "@/lib/nova/parameter-extractor";
 import { PlanningEngine } from "@/lib/nova/planning-engine";
 import { WorkflowOrchestrator } from "@/lib/nova/workflow-orchestrator";

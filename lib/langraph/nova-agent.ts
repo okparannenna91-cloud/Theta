@@ -6,6 +6,7 @@ import { ParameterExtractor, type ExtractedParameters } from "@/lib/nova/paramet
 import { ValidationEngine, type ActionValidation } from "@/lib/nova/validation-engine";
 import { ProactiveIntelligenceEngine, type InsightSummary } from "@/lib/nova/proactive-intelligence";
 import { ResponseFormatter, type ResponseFormat } from "@/lib/nova/response-formatter";
+import { classifyComplexity, generatePlan, summarizePlan, type ExecutionPlan } from "@/lib/nova/multi-step-planner";
 import { logger } from "@/lib/logger";
 import { loadWorkspaceContext } from "./nodes/context-loader";
 import { loadMemory } from "./nodes/memory-loader";
@@ -16,7 +17,6 @@ import { sanitizeUserInput } from "@/lib/nova/output-validator";
 import { enforcePermission } from "./nodes/security-enforcer";
 import { tryDirectAction } from "./nodes/direct-action-router";
 import { executeTool } from "./nodes/tool-executor";
-import { planAndExecute } from "./nodes/agent-planner";
 import { saveConversationMemory } from "./nodes/memory-saver";
 import { getLangChainModel } from "./models";
 import { HumanMessage, SystemMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
@@ -56,7 +56,6 @@ export interface NovaAgentState {
   signal?: AbortSignal;
   reasoningContext?: ReasoningContext;
 
-  // Set during execution
   route: NovaRoute;
   intent: NovaIntent;
   routeDecision: RouteDecision;
@@ -68,7 +67,6 @@ export interface NovaAgentState {
   response: string;
   error?: string;
 
-  // Nova Prime fields
   extractedParams?: ExtractedParameters;
   actionValidation?: ActionValidation;
   proactiveInsights?: InsightSummary;
@@ -81,10 +79,6 @@ export class NovaAgent {
     this.ctx = ctx;
   }
 
-  /**
-   * Execute with LangChain agent: model gets tools bound, decides what to call,
-   * LangChain handles the tool-calling loop.
-   */
   private async executeWithLangChainAgent(
     prompt: string,
     systemPrompt: string,
@@ -177,268 +171,43 @@ export class NovaAgent {
   async execute(state: NovaAgentState): Promise<NovaAgentState> {
     const start = Date.now();
     try {
-      // Step 1: Use route decision from upstream (already computed in route.ts).
-      // If not provided, compute one from passed intent or default to READ.
       const route = state.routeDecision ?? routeRequest(state.prompt, state.intent ?? "READ", "PATH_B_CONFIRMATION");
       state.route = route.path;
 
-      // Step 2: Enforce base permission via LangGraph node
       await enforcePermission(state.userId, state.workspaceId, "read", "workspace");
 
-      // Step 3: Configure model router
       state.routerConfig = routeModel(state.prompt);
 
-      // Step 4: Load context via LangGraph node (before direct action so tools have context)
       if (state.workspaceId && route.contextDepth !== "minimal") {
-        const loadedContext = await loadWorkspaceContext(state.workspaceId, state.userId, state.projectId, route.contextDepth);
-        state.workspaceContext = loadedContext.workspaceContext ? sanitizeUserInput(loadedContext.workspaceContext) : "";
-
-        const { ContextSystem } = await import("@/lib/nova/context-system");
-        const workspaceOverview = await ContextSystem.loadWorkspaceOverview(state.workspaceId);
-        if (workspaceOverview) {
-          state.workspaceContext = (state.workspaceContext || "") + "\n\n" + workspaceOverview;
-        }
-
-        const memoryDepth = route.contextDepth === "full" ? "full" : "lightweight";
-        const loadedMemory = await loadMemory(state.userId, state.workspaceId, state.conversationId, memoryDepth);
-        if (loadedMemory.longTerm.length > 0) {
-          state.memoryContext = `[NOVA LONG-TERM MEMORY]\n${loadedMemory.longTerm.map(m => `- ${m.key}: ${sanitizeUserInput(m.value).substring(0, 200)}`).join("\n")}`;
-        }
-
-        if (loadedMemory.shortTerm.length > 0) {
-          const recentMessages = loadedMemory.shortTerm.slice(-10);
-          const formattedHistory = recentMessages.map(m => {
-            const role = m.role === "user" ? "User" : "Nova";
-            const content = sanitizeUserInput(m.content).substring(0, 150);
-            return `${role}: ${content}`;
-          }).join("\n");
-          state.conversationContext = `[RECENT CONVERSATION]\n${formattedHistory}`;
-        }
+        await this.loadContext(state, route);
       }
 
-      // Step 4.5: Nova Prime - Extract parameters from prompt
       state.extractedParams = ParameterExtractor.extract(state.prompt);
 
-      // Step 4.6: Nova Prime - Validate action before execution (for write actions)
       const writeIntents = ["CREATE", "UPDATE", "DELETE", "AUTOMATE", "IMPORT", "EXPORT"];
       if (writeIntents.includes(state.intent)) {
-        try {
-          const validationContext = {
-            workspaceId: state.workspaceId,
-            userId: state.userId,
-            userRole: state.reasoningContext?.mentalModel?.userRole || "member",
-            existingTaskTitles: [],
-            existingProjectNames: [],
-            teamMembers: state.reasoningContext?.mentalModel?.team?.activeMembers || [],
-          };
-          state.actionValidation = ValidationEngine.validateAction(
-            state.intent.toLowerCase(),
-            {
-              title: state.extractedParams.title,
-              priority: state.extractedParams.priority,
-              dueDate: state.extractedParams.dueDate,
-              assignee: state.extractedParams.assignee,
-            },
-            validationContext
-          );
-
-          if (!state.actionValidation.isValid) {
-            logger.info("[NovaPrime] Action validation failed", { errors: state.actionValidation.errors });
-            return { ...state, response: ValidationEngine.generateValidationMessage(state.actionValidation) };
-          }
-
-          if (state.actionValidation.requiresConfirmation) {
-            const confirmMsg = ValidationEngine.generateValidationMessage(state.actionValidation);
-            logger.info("[NovaPrime] Action requires confirmation", { warnings: state.actionValidation.warnings });
-            return { ...state, response: confirmMsg };
-          }
-        } catch (validationError) {
-          logger.warn("[NovaPrime] ValidationEngine failed, continuing:", validationError);
-        }
+        const shouldReturn = await this.validateAction(state);
+        if (shouldReturn) return state;
       }
 
-      // Step 4.7: Nova Prime - Proactive intelligence (for ANALYSIS/REPORT/CHAT routes)
       if (["ANALYSIS", "REPORT", "CHAT"].includes(state.route) && state.workspaceId) {
-        try {
-          state.proactiveInsights = await ProactiveIntelligenceEngine.analyzeWorkspace(state.workspaceId);
-        } catch (insightError) {
-          logger.warn("[NovaPrime] ProactiveIntelligence failed:", insightError);
-        }
+        await this.loadProactiveInsights(state);
       }
 
-      // Step 5: Try direct action fast-path via LangGraph node
-      // If fast-path handles it, we still pass results to LLM for natural response
-      let toolExecutionResults: Array<{ toolName: string; result?: unknown; error?: string }> = [];
-      let fastPathHandled = false;
+      const executionPlan = await this.planIfComplex(state);
 
-      if (state.route === "ACTION") {
-        const directResult = await tryDirectAction(state.prompt, this.ctx);
-        if (directResult.handled) {
-          fastPathHandled = true;
-          toolExecutionResults = [{ toolName: directResult.actionName || "direct_action", result: directResult.message, error: directResult.error }];
-          state.toolResults = toolExecutionResults;
-          logger.info("[NovaAgent] Direct action executed", { action: directResult.actionName, durationMs: Date.now() - start });
-        }
-      }
+      const { toolExecutionResults, fastPathHandled } = await this.executeTools(state, executionPlan);
 
-      // Step 6: Check for multi-step planning
-      if (!fastPathHandled) {
-        const isMultiStep = /then|and then|steps/i.test(state.prompt);
-        if (isMultiStep && state.route === "ACTION") {
-          const planResult = await planAndExecute(state.prompt, this.ctx);
-          if (planResult.plans.length > 0) {
-            fastPathHandled = true;
-            toolExecutionResults = planResult.results.flat().map(r => ({ toolName: r.toolName, result: r.result, error: r.error }));
-            state.toolResults = toolExecutionResults;
-            logger.info("[NovaAgent] Multi-step plan executed", { agents: planResult.plans.length, durationMs: Date.now() - start });
-          }
-        }
-      }
+      const systemPrompt = this.buildSystemPrompt(state, route);
+      const actionPrompt = this.buildActionPrompt(state, toolExecutionResults, fastPathHandled);
 
-      logger.info("[NovaAgent] Execution plan", { route: state.route, provider: state.routerConfig.provider, model: state.routerConfig.model, contextDepth: route.contextDepth, fastPathHandled });
+      const text = await this.callLLM(state, actionPrompt, systemPrompt, toolExecutionResults, fastPathHandled);
 
-      // Step 7: Build system prompt
-      const basePrompt = state.systemPrompt || "You are Nova, the intelligent operating system of Theta.";
-      const pageContextSection = state.pageContext
-        ? `[CURRENT PAGE: ${state.pageContext.type || "unknown"}] — User is viewing the ${state.pageContext.type || "page"}.`
-        : "";
-      const knowledgeInstructions = `[KNOWLEDGE TOOLS]
-You have access to knowledge and search tools. Use them proactively:
-- search_knowledge_base: Search workspace documents, wiki pages, help docs
-- search_tasks_and_projects: Find tasks and projects by name or description
-- get_team_activity: See recent team activity
-When the user asks about company info, policies, or how things work, search the knowledge base first before answering.
-When asked about project status or what someone is working on, search tasks/projects.`;
-      const systemPrompt = [
-        basePrompt,
-        knowledgeInstructions,
-        state.workspaceContext || "",
-        state.memoryContext || "",
-        state.conversationContext || "",
-        pageContextSection,
-        route.promptSuffix,
-      ].filter(Boolean).join("\n\n");
+      let finalResponse = await this.runQualityChecks(text, state, route);
 
-      // Step 7.5: If tools were executed via fast-path, build a prompt that includes tool results
-      // so the LLM can generate a natural response instead of using hardcoded templates
-      let actionPrompt: string;
-      if (fastPathHandled && toolExecutionResults.length > 0) {
-        const toolResultSummary = toolExecutionResults.map(r => {
-          if (r.error) return `Tool "${r.toolName}" failed: ${r.error}`;
-          const data = typeof r.result === "object" && r.result ? r.result : { message: String(r.result) };
-          return `Tool "${r.toolName}" result: ${JSON.stringify(data)}`;
-        }).join("\n");
+      finalResponse = this.formatResponse(finalResponse, state);
 
-        actionPrompt = `${state.prompt}\n\nThe following tools were executed to fulfill your request:\n${toolResultSummary}\n\nUsing the tool results above, generate a natural, concise response to the user. Preserve all factual accuracy from the tool results. Do not invent data that wasn't returned by the tools. Do not reference tool names or internal systems in your response.`;
-      } else {
-        actionPrompt = state.route === "ACTION"
-          ? `${state.prompt}\n\nUse your available capabilities to fulfill this request. Do not reference tool names or internal systems in your response.`
-          : state.route === "ANALYSIS"
-            ? `${state.prompt}\n\nAnalyze the available information and provide insights with evidence from the workspace.`
-            : state.route === "CONVERSATION"
-              ? `${state.prompt}\n\n[CONVERSATION] Respond naturally. You have no tools available in this mode.`
-              : state.prompt;
-      }
-
-      // Step 8: Execute with model provider via LangGraph node
-      // If fast-path handled it, pass tool results to LLM for natural response.
-      // Otherwise, use LangChain agent with bound tools so the model can decide.
-      let text: string;
-      try {
-        if (fastPathHandled && toolExecutionResults.length > 0) {
-          // Fast-path already executed tools — just need LLM to generate natural response
-          if (state.shouldStream && state.route !== "ACTION") {
-            const streamResult = await executeStream(actionPrompt, systemPrompt, this.ctx, {
-              signal: state.signal,
-              onToken: state.onToken,
-              onFinish: state.onFinish,
-            });
-            text = streamResult.text;
-          } else {
-            const rawResult = await executeWithFallback(actionPrompt, systemPrompt, state.routerConfig);
-            text = typeof rawResult === "string" ? rawResult : String(rawResult);
-          }
-        } else {
-          // No fast-path — LangChain agent decides what tools to call
-          const agentResult = await this.executeWithLangChainAgent(
-            actionPrompt,
-            systemPrompt,
-            state.routerConfig,
-            { signal: state.signal, onToken: state.onToken, onFinish: state.onFinish },
-          );
-          text = agentResult.text;
-          if (agentResult.toolResults.length > 0) {
-            toolExecutionResults = agentResult.toolResults;
-            state.toolResults = toolExecutionResults;
-          }
-        }
-      } catch (llmError: any) {
-        // LLM unavailable — use fallback templates for fast-path results
-        if (fastPathHandled && toolExecutionResults.length > 0) {
-          logger.warn("[NovaAgent] LLM unavailable, using fallback templates:", llmError.message);
-          text = this.generateFallbackResponse(toolExecutionResults, state.prompt);
-        } else {
-          throw llmError;
-        }
-      }
-
-      // Step 9: Validate, optimize, and run quality gate via LangGraph nodes
-      const qualityGateResult = this.runQualityGate(text, state, route);
-      if (!qualityGateResult.passed) {
-        logger.info("[NovaAgent] Quality gate revised response", { issues: qualityGateResult.issues });
-      }
-
-      let finalResponse = qualityGateResult.response;
-
-      if (qualityGateResult.extractedToolCalls && qualityGateResult.extractedToolCalls.length > 0) {
-        logger.info("[NovaAgent] Re-executing extracted tool calls", { count: qualityGateResult.extractedToolCalls.length });
-        const reExecuted = await this.reExecuteExtractedToolCalls(qualityGateResult.extractedToolCalls);
-        if (reExecuted) {
-          finalResponse = reExecuted;
-          const reQg = this.runQualityGate(reExecuted, state, route);
-          finalResponse = reQg.response;
-        }
-      }
-
-      // Step 9.5: Nova Prime - Format response with ResponseFormatter
-      try {
-        const formatType: ResponseFormat = state.route === "ACTION" ? "action"
-          : state.route === "ANALYSIS" ? "analysis"
-          : state.route === "CONVERSATION" ? "conversation"
-          : "conversation";
-
-        // Only attach confidence for response types where uncertainty is meaningful:
-        // analysis, planning, research, reports. NOT for action confirmations,
-        // greetings, acknowledgements, or casual conversation.
-        const confidenceWorthyFormats: ResponseFormat[] = ["analysis", "plan"];
-        const includeConfidence = confidenceWorthyFormats.includes(formatType)
-          && !!state.reasoningContext?.confidence;
-
-        const formatted = ResponseFormatter.format(finalResponse, formatType, {
-          includeConfidence,
-          confidence: includeConfidence ? state.reasoningContext?.confidence : undefined,
-          includeProactive: !!state.proactiveInsights?.topRecommendation,
-          proactiveInsights: state.proactiveInsights
-            ? ProactiveIntelligenceEngine.formatInsightsForDisplay(state.proactiveInsights)
-            : undefined,
-          workspaceName: state.reasoningContext?.mentalModel?.workspace?.name,
-          projectName: state.reasoningContext?.mentalModel?.project?.name,
-        });
-
-        finalResponse = formatted.content;
-      } catch (formatError) {
-        logger.warn("[NovaPrime] ResponseFormatter failed, using raw response:", formatError);
-      }
-
-      // Step 10: Save conversation to memory via LangGraph node
-      await saveConversationMemory({
-        userId: state.userId,
-        workspaceId: state.workspaceId,
-        conversationId: state.conversationId,
-        prompt: state.prompt,
-        response: finalResponse,
-        toolResults: state.toolResults,
-      }).catch(() => {});
+      await this.saveMemory(state, finalResponse);
 
       logger.info("[NovaAgent] Execution complete", { route: state.route, durationMs: Date.now() - start, responseLength: finalResponse.length });
 
@@ -454,10 +223,293 @@ When asked about project status or what someone is working on, search tasks/proj
     }
   }
 
-  /**
-   * Generate fallback response when LLM is unavailable.
-   * Uses concise templates based on tool results.
-   */
+  private async loadContext(state: NovaAgentState, route: RouteDecision): Promise<void> {
+    const loadedContext = await loadWorkspaceContext(state.workspaceId, state.userId, state.projectId, route.contextDepth);
+    state.workspaceContext = loadedContext.workspaceContext ? sanitizeUserInput(loadedContext.workspaceContext) : "";
+
+    const { ContextSystem } = await import("@/lib/nova/context-system");
+    const workspaceOverview = await ContextSystem.loadWorkspaceOverview(state.workspaceId);
+    if (workspaceOverview) {
+      state.workspaceContext = (state.workspaceContext || "") + "\n\n" + workspaceOverview;
+    }
+
+    const memoryDepth = route.contextDepth === "full" ? "full" : "lightweight";
+    const loadedMemory = await loadMemory(state.userId, state.workspaceId, state.conversationId, memoryDepth);
+    if (loadedMemory.longTerm.length > 0) {
+      state.memoryContext = `[NOVA LONG-TERM MEMORY]\n${loadedMemory.longTerm.map(m => `- ${m.key}: ${sanitizeUserInput(m.value).substring(0, 200)}`).join("\n")}`;
+    }
+
+    if (loadedMemory.shortTerm.length > 0) {
+      const recentMessages = loadedMemory.shortTerm.slice(-10);
+      const formattedHistory = recentMessages.map(m => {
+        const role = m.role === "user" ? "User" : "Nova";
+        const content = sanitizeUserInput(m.content).substring(0, 150);
+        return `${role}: ${content}`;
+      }).join("\n");
+      state.conversationContext = `[RECENT CONVERSATION]\n${formattedHistory}`;
+    }
+  }
+
+  private async validateAction(state: NovaAgentState): Promise<boolean> {
+    try {
+      const validationContext = {
+        workspaceId: state.workspaceId,
+        userId: state.userId,
+        userRole: state.reasoningContext?.mentalModel?.userRole || "member",
+        existingTaskTitles: [],
+        existingProjectNames: [],
+        teamMembers: state.reasoningContext?.mentalModel?.team?.activeMembers || [],
+      };
+      state.actionValidation = ValidationEngine.validateAction(
+        state.intent.toLowerCase(),
+        {
+          title: state.extractedParams?.title,
+          priority: state.extractedParams?.priority,
+          dueDate: state.extractedParams?.dueDate,
+          assignee: state.extractedParams?.assignee,
+        },
+        validationContext
+      );
+
+      if (!state.actionValidation.isValid) {
+        logger.info("[NovaPrime] Action validation failed", { errors: state.actionValidation.errors });
+        state.response = ValidationEngine.generateValidationMessage(state.actionValidation);
+        return true;
+      }
+
+      if (state.actionValidation.requiresConfirmation) {
+        state.response = ValidationEngine.generateValidationMessage(state.actionValidation);
+        logger.info("[NovaPrime] Action requires confirmation", { warnings: state.actionValidation.warnings });
+        return true;
+      }
+    } catch (validationError) {
+      logger.warn("[NovaPrime] ValidationEngine failed, continuing:", validationError);
+    }
+    return false;
+  }
+
+  private async loadProactiveInsights(state: NovaAgentState): Promise<void> {
+    try {
+      state.proactiveInsights = await ProactiveIntelligenceEngine.analyzeWorkspace(state.workspaceId);
+    } catch (insightError) {
+      logger.warn("[NovaPrime] ProactiveIntelligence failed:", insightError);
+    }
+  }
+
+  private async planIfComplex(state: NovaAgentState): Promise<ExecutionPlan | null> {
+    if (state.route !== "ACTION" || !state.workspaceId) return null;
+
+    try {
+      const complexity = await classifyComplexity(state.prompt, state.workspaceContext || "");
+      if (complexity.isComplex) {
+        const tools = buildLangGraphTools(this.ctx);
+        const toolNames = tools.map((t: any) => t.name || "unknown");
+        const plan = await generatePlan(state.prompt, state.workspaceContext || "", toolNames);
+        if (plan.needsPlan && plan.steps.length > 0) {
+          logger.info("[MultiStepPlanner] Complex request detected", {
+            steps: plan.steps.length,
+            reasoning: plan.reasoning,
+          });
+          return plan;
+        }
+      }
+    } catch (planError) {
+      logger.warn("[MultiStepPlanner] Planning failed, continuing with normal flow:", planError);
+    }
+    return null;
+  }
+
+  private async executeTools(
+    state: NovaAgentState,
+    executionPlan: ExecutionPlan | null,
+  ): Promise<{ toolExecutionResults: Array<{ toolName: string; result?: unknown; error?: string }>; fastPathHandled: boolean }> {
+    let toolExecutionResults: Array<{ toolName: string; result?: unknown; error?: string }> = [];
+    let fastPathHandled = false;
+
+    if (executionPlan && executionPlan.needsPlan && executionPlan.steps.length > 0) {
+      logger.info("[NovaAgent] Executing multi-step plan", { steps: executionPlan.steps.length });
+      for (const step of executionPlan.steps) {
+        if (step.toolHint === "llm") continue;
+
+        try {
+          const result = await executeTool(this.ctx, step.toolHint, step.params);
+          const toolOutput = result.success
+            ? (typeof result.result === "object" && result.result
+                ? (result.result as any).message || JSON.stringify(result.result)
+                : String(result.result))
+            : `Error: ${result.error}`;
+
+          toolExecutionResults.push({ toolName: step.toolHint, result: result.result, error: result.error });
+          logger.info("[MultiStepPlanner] Step executed", { step: step.id, tool: step.toolHint, success: result.success });
+        } catch (stepError: any) {
+          toolExecutionResults.push({ toolName: step.toolHint, error: stepError.message });
+          logger.warn("[MultiStepPlanner] Step failed", { step: step.id, tool: step.toolHint, error: stepError.message });
+        }
+      }
+      if (toolExecutionResults.length > 0) {
+        fastPathHandled = true;
+        state.toolResults = toolExecutionResults;
+      }
+    }
+
+    if (state.route === "ACTION" && !fastPathHandled) {
+      const directResult = await tryDirectAction(state.prompt, this.ctx);
+      if (directResult.handled) {
+        fastPathHandled = true;
+        toolExecutionResults = [{ toolName: directResult.actionName || "direct_action", result: directResult.message, error: directResult.error }];
+        state.toolResults = toolExecutionResults;
+        logger.info("[NovaAgent] Direct action executed", { action: directResult.actionName });
+      }
+    }
+
+    return { toolExecutionResults, fastPathHandled };
+  }
+
+  private buildSystemPrompt(state: NovaAgentState, route: RouteDecision): string {
+    const basePrompt = state.systemPrompt || "You are Nova, the intelligent operating system of Theta.";
+    const pageContextSection = state.pageContext
+      ? `[CURRENT PAGE: ${state.pageContext.type || "unknown"}] — User is viewing the ${state.pageContext.type || "page"}.`
+      : "";
+
+    return [
+      basePrompt,
+      state.workspaceContext || "",
+      state.memoryContext || "",
+      state.conversationContext || "",
+      pageContextSection,
+      route.promptSuffix,
+    ].filter(Boolean).join("\n\n");
+  }
+
+  private buildActionPrompt(
+    state: NovaAgentState,
+    toolExecutionResults: Array<{ toolName: string; result?: unknown; error?: string }>,
+    fastPathHandled: boolean,
+  ): string {
+    if (fastPathHandled && toolExecutionResults.length > 0) {
+      const toolResultSummary = toolExecutionResults.map(r => {
+        if (r.error) return `Tool "${r.toolName}" failed: ${r.error}`;
+        const data = typeof r.result === "object" && r.result ? r.result : { message: String(r.result) };
+        return `Tool "${r.toolName}" result: ${JSON.stringify(data)}`;
+      }).join("\n");
+
+      return `${state.prompt}\n\nThe following tools were executed to fulfill your request:\n${toolResultSummary}\n\nUsing the tool results above, generate a natural, concise response to the user. Preserve all factual accuracy from the tool results. Do not invent data that wasn't returned by the tools. Do not reference tool names or internal systems in your response.`;
+    }
+
+    if (state.route === "ACTION") {
+      return `${state.prompt}\n\nUse your available capabilities to fulfill this request. Do not reference tool names or internal systems in your response.`;
+    }
+    if (state.route === "ANALYSIS") {
+      return `${state.prompt}\n\nAnalyze the available information and provide insights with evidence from the workspace.`;
+    }
+    if (state.route === "CONVERSATION") {
+      return `${state.prompt}\n\n[CONVERSATION] Respond naturally. You have no tools available in this mode.`;
+    }
+    return state.prompt;
+  }
+
+  private async callLLM(
+    state: NovaAgentState,
+    actionPrompt: string,
+    systemPrompt: string,
+    toolExecutionResults: Array<{ toolName: string; result?: unknown; error?: string }>,
+    fastPathHandled: boolean,
+  ): Promise<string> {
+    try {
+      if (fastPathHandled && toolExecutionResults.length > 0) {
+        if (state.shouldStream && state.route !== "ACTION") {
+          const streamResult = await executeStream(actionPrompt, systemPrompt, this.ctx, {
+            signal: state.signal,
+            onToken: state.onToken,
+            onFinish: state.onFinish,
+          });
+          return streamResult.text;
+        } else {
+          const rawResult = await executeWithFallback(actionPrompt, systemPrompt, state.routerConfig);
+          return typeof rawResult === "string" ? rawResult : String(rawResult);
+        }
+      } else {
+        const agentResult = await this.executeWithLangChainAgent(
+          actionPrompt,
+          systemPrompt,
+          state.routerConfig,
+          { signal: state.signal, onToken: state.onToken, onFinish: state.onFinish },
+        );
+        if (agentResult.toolResults.length > 0) {
+          state.toolResults = agentResult.toolResults;
+        }
+        return agentResult.text;
+      }
+    } catch (llmError: any) {
+      if (fastPathHandled && toolExecutionResults.length > 0) {
+        logger.warn("[NovaAgent] LLM unavailable, using fallback templates:", llmError.message);
+        return this.generateFallbackResponse(toolExecutionResults, state.prompt);
+      }
+      throw llmError;
+    }
+  }
+
+  private async runQualityChecks(text: string, state: NovaAgentState, route: RouteDecision): Promise<string> {
+    const qualityGateResult = this.runQualityGate(text, state, route);
+    if (!qualityGateResult.passed) {
+      logger.info("[NovaAgent] Quality gate revised response", { issues: qualityGateResult.issues });
+    }
+
+    let finalResponse = qualityGateResult.response;
+
+    if (qualityGateResult.extractedToolCalls && qualityGateResult.extractedToolCalls.length > 0) {
+      logger.info("[NovaAgent] Re-executing extracted tool calls", { count: qualityGateResult.extractedToolCalls.length });
+      const reExecuted = await this.reExecuteExtractedToolCalls(qualityGateResult.extractedToolCalls);
+      if (reExecuted) {
+        finalResponse = reExecuted;
+        const reQg = this.runQualityGate(reExecuted, state, route);
+        finalResponse = reQg.response;
+      }
+    }
+
+    return finalResponse;
+  }
+
+  private formatResponse(finalResponse: string, state: NovaAgentState): string {
+    try {
+      const formatType: ResponseFormat = state.route === "ACTION" ? "action"
+        : state.route === "ANALYSIS" ? "analysis"
+        : state.route === "CONVERSATION" ? "conversation"
+        : "conversation";
+
+      const confidenceWorthyFormats: ResponseFormat[] = ["analysis", "plan"];
+      const includeConfidence = confidenceWorthyFormats.includes(formatType)
+        && !!state.reasoningContext?.confidence;
+
+      const formatted = ResponseFormatter.format(finalResponse, formatType, {
+        includeConfidence,
+        confidence: includeConfidence ? state.reasoningContext?.confidence : undefined,
+        includeProactive: !!state.proactiveInsights?.topRecommendation,
+        proactiveInsights: state.proactiveInsights
+          ? ProactiveIntelligenceEngine.formatInsightsForDisplay(state.proactiveInsights)
+          : undefined,
+        workspaceName: state.reasoningContext?.mentalModel?.workspace?.name,
+        projectName: state.reasoningContext?.mentalModel?.project?.name,
+      });
+
+      return formatted.content;
+    } catch (formatError) {
+      logger.warn("[NovaPrime] ResponseFormatter failed, using raw response:", formatError);
+      return finalResponse;
+    }
+  }
+
+  private async saveMemory(state: NovaAgentState, finalResponse: string): Promise<void> {
+    await saveConversationMemory({
+      userId: state.userId,
+      workspaceId: state.workspaceId,
+      conversationId: state.conversationId,
+      prompt: state.prompt,
+      response: finalResponse,
+      toolResults: state.toolResults,
+    }).catch(() => {});
+  }
+
   private generateFallbackResponse(
     toolResults: Array<{ toolName: string; result?: unknown; error?: string }>,
     userPrompt: string
@@ -476,7 +528,6 @@ When asked about project status or what someone is working on, search tasks/proj
       if (message) {
         parts.push(String(message));
       } else if (data && typeof data === "object") {
-        // Extract key fields for a natural summary
         const title = (data as any).title || (data as any).name;
         const status = (data as any).status;
         const priority = (data as any).priority;

@@ -137,12 +137,6 @@ export {
 } from "./constitution/reporting-standards";
 
 export {
-  AGENT_REGISTRY,
-  AGENT_COLLABORATION_RULES,
-  type AgentDefinition,
-} from "./constitution/agent-framework";
-
-export {
   PERMISSION_MATRIX,
   SENSITIVE_ACTIONS,
   AUDIT_LOGGING_REQUIREMENTS,
@@ -175,7 +169,6 @@ export {
 export { buildSystemPrompt, buildSystemPromptForIntent } from "./constitution/index";
 
 // Nova Prime Engines
-export { ReasoningEngine } from "./reasoning-engine";
 export { ParameterExtractor } from "./parameter-extractor";
 export { PlanningEngine } from "./planning-engine";
 export { WorkflowOrchestrator } from "./workflow-orchestrator";

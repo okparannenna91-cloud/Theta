@@ -17,7 +17,6 @@ import { SEARCH_DOMAINS, SEARCH_TYPES, SEARCH_RANKING_PRINCIPLES } from "@/lib/n
 import { KNOWLEDGE_PIPELINE } from "@/lib/nova/config";
 import { MEETING_PHASES } from "@/lib/nova/config";
 import { REPORT_TYPES } from "@/lib/nova/config";
-import { AGENT_REGISTRY } from "@/lib/nova/config";
 import { PERMISSION_MATRIX, SENSITIVE_ACTIONS, AI_SECURITY_RULES } from "@/lib/nova/config";
 import { INTEGRATION_PRIORITY_FRAMEWORK, INFRASTRUCTURE_DISCIPLINE_RULES } from "@/lib/nova/config";
 import { EVOLUTION_MILESTONES, LONG_TERM_VISION, HUMAN_CONTROL_RULE } from "@/lib/nova/config";
@@ -40,10 +39,9 @@ const CONSTITUTION_SECTIONS: Record<string, object> = {
   "14": { number: 14, title: "Knowledge Intelligence", data: { pipeline: KNOWLEDGE_PIPELINE } },
   "15": { number: 15, title: "Meeting Intelligence", data: { phases: MEETING_PHASES } },
   "16": { number: 16, title: "Reporting Intelligence", data: { reportTypes: REPORT_TYPES } },
-  "17": { number: 17, title: "Agent Framework", data: { agents: AGENT_REGISTRY } },
-  "18": { number: 18, title: "Security Rules", data: { permissionMatrix: PERMISSION_MATRIX, sensitiveActions: SENSITIVE_ACTIONS, aiRules: AI_SECURITY_RULES } },
-  "19": { number: 19, title: "Third-Party Integration Rules", data: { priorityFramework: INTEGRATION_PRIORITY_FRAMEWORK, disciplineRules: INFRASTRUCTURE_DISCIPLINE_RULES } },
-  "20": { number: 20, title: "Future Evolution", data: { milestones: EVOLUTION_MILESTONES, longTermVision: LONG_TERM_VISION, humanControlRule: HUMAN_CONTROL_RULE } },
+  "17": { number: 17, title: "Security Rules", data: { permissionMatrix: PERMISSION_MATRIX, sensitiveActions: SENSITIVE_ACTIONS, aiRules: AI_SECURITY_RULES } },
+  "18": { number: 18, title: "Third-Party Integration Rules", data: { priorityFramework: INTEGRATION_PRIORITY_FRAMEWORK, disciplineRules: INFRASTRUCTURE_DISCIPLINE_RULES } },
+  "19": { number: 19, title: "Future Evolution", data: { milestones: EVOLUTION_MILESTONES, longTermVision: LONG_TERM_VISION, humanControlRule: HUMAN_CONTROL_RULE } },
 };
 
 export async function GET(req: NextRequest) {
@@ -71,7 +69,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       version: "3.0.0",
-      totalSections: 20,
+      totalSections: 19,
       sections: Object.entries(CONSTITUTION_SECTIONS).map(([num, s]: [string, any]) => ({
         number: s.number,
         title: s.title,

@@ -46,18 +46,6 @@ export class KnowledgeIntelligence {
     } catch {
       // cache write failure is non-fatal
     }
-
-    if (process.env.MEM0_API_KEY) {
-      try {
-        const { mem0 } = await import("../mem0");
-        await mem0.add([{ role: "user", content }], {
-          userId: userId,
-          metadata: { workspaceId, docId: doc.id, title },
-        });
-      } catch (error) {
-        console.warn("[KnowledgeIntelligence] Mem0 sync failed:", error);
-      }
-    }
   }
 
   public static async search(query: string, options: SearchOptions): Promise<any[]> {
