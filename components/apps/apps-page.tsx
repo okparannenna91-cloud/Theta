@@ -397,7 +397,7 @@ export default function AppsPage() {
                             <div className="flex-1">
                                 <p className="text-sm font-medium">Describe your automation in plain English</p>
                                 <p className="text-xs text-muted-foreground mt-0.5">
-                                    Example: "When a task is moved to Done, notify the team on Slack"
+                                    Example: &quot;When a task is moved to Done, notify the team on Slack&quot;
                                 </p>
                             </div>
                             <Button variant="outline" size="sm" onClick={() => toast.info("Coming soon: NL-to-Automation")}>
