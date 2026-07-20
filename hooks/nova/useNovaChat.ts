@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useRef } from "react";
 import type { Message } from "@/components/ai/nova/types";
+import type { FileAttachment } from "@/lib/nova/file-upload";
 import { useNovaStreaming } from "./useNovaStreaming";
 
 export function useNovaChat() {
@@ -35,29 +36,55 @@ export function useNovaChat() {
   }, []);
 
   const sendMessage = useCallback(
-    async (opts: { workspaceId: string; conversationId: string | null; projectId?: string; pageContext?: { path: string; type: string }; onUsageUpdate?: () => void }) => {
+    async (opts: { workspaceId: string; conversationId: string | null; projectId?: string; pageContext?: { path: string; type: string }; onUsageUpdate?: () => void; fileAttachments?: FileAttachment[] }) => {
       const currentInput = input.trim();
       if (!currentInput || isLoading) return;
 
-      appendUserMessage(currentInput);
+      const displayAttachments = opts.fileAttachments?.map(f => ({ name: f.name, type: f.type, url: "" }));
+      appendUserMessage(currentInput, displayAttachments);
       const savedInput = currentInput;
       setInput("");
       lastPromptRef.current = savedInput;
       setIsLoading(true);
 
-      let firstChunk = true;
+      let accumulated = "";
+      let messageAppended = false;
+
       await streamResponse({
         prompt: savedInput,
         workspaceId: opts.workspaceId,
         conversationId: opts.conversationId,
         projectId: opts.projectId,
         pageContext: opts.pageContext,
-        onChunk: (content) => {
-          if (firstChunk) { firstChunk = false; appendNovaMessage(content); }
-          else updateLastNovaMessage(content);
+        attachments: opts.fileAttachments,
+        onToken: (token) => {
+          accumulated += token;
+          if (!messageAppended) {
+            messageAppended = true;
+            appendNovaMessage(accumulated);
+          } else {
+            updateLastNovaMessage(accumulated);
+          }
         },
-        onComplete: () => {},
-        onError: (error) => appendNovaMessage(error),
+        onToolStart: (tools, iteration) => {
+          const toolList = tools.join(", ");
+          if (!messageAppended) {
+            messageAppended = true;
+            appendNovaMessage(`Using ${toolList}...`);
+          }
+        },
+        onComplete: (fullResponse, metadata) => {
+          if (fullResponse) {
+            updateLastNovaMessage(fullResponse);
+          }
+        },
+        onError: (error) => {
+          if (!messageAppended) {
+            appendNovaMessage(error);
+          } else {
+            updateLastNovaMessage(error);
+          }
+        },
       });
 
       opts.onUsageUpdate?.();

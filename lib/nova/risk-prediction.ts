@@ -1,52 +1,40 @@
-import { prisma } from "../prisma";
+import { prisma } from "@/lib/prisma";
 import { executeWithProvider } from "@/lib/langraph/model-router";
 import { logger } from "@/lib/logger";
-
-export interface TeamVelocity {
-  memberId: string;
-  memberName: string;
-  tasksCompleted: number;
-  avgCompletionDays: number;
-  velocityScore: number; // tasks per week
-}
-
-export interface ProjectRiskAssessment {
-  projectId: string;
-  projectName: string;
-  overallRiskScore: number; // 0-100, higher = more risk
-  riskLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
-  velocityRisk: number;
-  capacityRisk: number;
-  scheduleRisk: number;
-  dependencyRisk: number;
-  risks: Array<{
-    type: string;
-    severity: string;
-    description: string;
-    affectedItems: string[];
-  }>;
-  forecast: {
-    estimatedCompletionDate: string;
-    confidence: "HIGH" | "MEDIUM" | "LOW";
-    daysRemaining: number;
-  } | null;
-  llmAssessment: string | null;
-  calculatedAt: Date;
-}
 
 const STATUS_DONE = ["done", "completed"];
 const STATUS_IN_PROGRESS = ["in-progress", "in_progress"];
 const STATUS_BLOCKED = ["blocked"];
 
+export interface VelocityEntry {
+  memberId: string;
+  name: string;
+  velocity: number;
+  trend: "improving" | "stable" | "declining";
+}
+
+export interface RiskFactor {
+  score: number;
+  level: "low" | "medium" | "high" | "critical";
+  factors: string[];
+  assessment: string;
+  recommendations: string[];
+}
+
+export interface WorkspaceRiskOverview {
+  projectId: string;
+  projectName: string;
+  risk: RiskFactor;
+}
+
 export class RiskPredictionEngine {
-  /**
-   * Calculate team velocity: tasks completed per member over last 30 days
-   */
   static async calculateTeamVelocity(
     workspaceId: string,
     projectId?: string,
-  ): Promise<TeamVelocity[]> {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    days: number = 30,
+  ): Promise<VelocityEntry[]> {
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const halfCutoff = new Date(Date.now() - (days / 2) * 24 * 60 * 60 * 1000);
 
     const where: {
       workspaceId: string;
@@ -56,7 +44,7 @@ export class RiskPredictionEngine {
     } = {
       workspaceId,
       status: { in: STATUS_DONE },
-      updatedAt: { gte: thirtyDaysAgo },
+      updatedAt: { gte: cutoff },
     };
     if (projectId) where.projectId = projectId;
 
@@ -69,64 +57,81 @@ export class RiskPredictionEngine {
       },
     });
 
-    // Group by member
-    const memberStats = new Map<string, { count: number; totalDays: number }>();
+    const allMemberStats = new Map<string, { count: number; totalDays: number }>();
+    const recentMemberStats = new Map<string, { count: number; totalDays: number }>();
 
     for (const task of completedTasks) {
+      const completionDays = Math.max(
+        1,
+        Math.ceil(
+          (new Date(task.updatedAt).getTime() - new Date(task.createdAt).getTime()) /
+            (1000 * 60 * 60 * 24)
+        )
+      );
+
+      const isRecent = new Date(task.updatedAt) >= halfCutoff;
+
       for (const memberId of task.assigneeIds) {
-        const existing = memberStats.get(memberId) || { count: 0, totalDays: 0 };
-        const completionDays = Math.max(1, Math.ceil(
-          (new Date(task.updatedAt).getTime() - new Date(task.createdAt).getTime()) / (1000 * 60 * 60 * 24)
-        ));
+        const existing = allMemberStats.get(memberId) || { count: 0, totalDays: 0 };
         existing.count++;
         existing.totalDays += completionDays;
-        memberStats.set(memberId, existing);
+        allMemberStats.set(memberId, existing);
+
+        if (isRecent) {
+          const recent = recentMemberStats.get(memberId) || { count: 0, totalDays: 0 };
+          recent.count++;
+          recent.totalDays += completionDays;
+          recentMemberStats.set(memberId, recent);
+        }
       }
     }
 
-    // Get member names
-    const memberIds = Array.from(memberStats.keys());
+    const memberIds = Array.from(allMemberStats.keys());
+    if (memberIds.length === 0) return [];
+
     const members = await prisma.user.findMany({
       where: { id: { in: memberIds } },
       select: { id: true, name: true },
     });
-    const memberNameMap = new Map(members.map(m => [m.id, m.name || "Unknown"]));
+    const nameMap = new Map(members.map((m) => [m.id, m.name || "Unknown"]));
 
-    // Calculate velocity scores
-    const velocities: TeamVelocity[] = [];
-    for (const [memberId, stats] of memberStats) {
-      const avgDays = stats.count > 0 ? stats.totalDays / stats.count : 0;
-      const velocityPerWeek = avgDays > 0 ? (stats.count / 30) * 7 : 0;
+    const entries: VelocityEntry[] = [];
+    for (const [memberId, stats] of allMemberStats) {
+      const velocity = Math.round((stats.count / days) * 10) / 10;
 
-      velocities.push({
+      const recentStats = recentMemberStats.get(memberId);
+      const recentVelocity = recentStats
+        ? Math.round((recentStats.count / (days / 2)) * 10) / 10
+        : velocity;
+
+      let trend: VelocityEntry["trend"] = "stable";
+      if (recentVelocity > velocity * 1.2) trend = "improving";
+      else if (recentVelocity < velocity * 0.8) trend = "declining";
+
+      entries.push({
         memberId,
-        memberName: memberNameMap.get(memberId) || "Unknown",
-        tasksCompleted: stats.count,
-        avgCompletionDays: Math.round(avgDays * 10) / 10,
-        velocityScore: Math.round(velocityPerWeek * 10) / 10,
+        name: nameMap.get(memberId) || "Unknown",
+        velocity,
+        trend,
       });
     }
 
-    return velocities.sort((a, b) => b.velocityScore - a.velocityScore);
+    return entries.sort((a, b) => b.velocity - a.velocity);
   }
 
-  /**
-   * Assess risk for a specific project
-   */
-  static async assessProjectRisk(
+  static async predictProjectRisk(
     workspaceId: string,
     projectId: string,
-  ): Promise<ProjectRiskAssessment> {
+  ): Promise<RiskFactor> {
     const project = await prisma.project.findFirst({
       where: { id: projectId, workspaceId },
       select: { id: true, name: true },
     });
 
     if (!project) {
-      return this.emptyAssessment(projectId, "Project not found");
+      return { score: 0, level: "low", factors: [], assessment: "Project not found.", recommendations: [] };
     }
 
-    // Get all tasks for this project
     const tasks = await prisma.task.findMany({
       where: { projectId, workspaceId },
       include: { predecessors: true },
@@ -134,232 +139,255 @@ export class RiskPredictionEngine {
 
     const now = new Date();
     const totalTasks = tasks.length;
-    const completedTasks = tasks.filter(t => STATUS_DONE.includes(t.status)).length;
-    const activeTasks = tasks.filter(t => STATUS_IN_PROGRESS.includes(t.status));
-    const overdueTasks = tasks.filter(t =>
-      t.dueDate && new Date(t.dueDate) < now && !STATUS_DONE.includes(t.status)
+    if (totalTasks === 0) {
+      return { score: 0, level: "low", factors: [], assessment: "No tasks in this project.", recommendations: ["Add tasks to the project to enable risk analysis."] };
+    }
+
+    const completedTasks = tasks.filter((t) => STATUS_DONE.includes(t.status));
+    const openTasks = tasks.filter((t) => !STATUS_DONE.includes(t.status));
+    const overdueTasks = openTasks.filter(
+      (t) => t.dueDate && new Date(t.dueDate) < now
     );
-    const blockedTasks = tasks.filter(t =>
-      STATUS_BLOCKED.includes(t.status) || t.predecessors?.some((p: { type: string }) => p.type === "FS")
+    const blockedTasks = tasks.filter(
+      (t) =>
+        STATUS_BLOCKED.includes(t.status) ||
+        t.predecessors?.some((p: { type: string }) => p.type === "FS")
     );
 
-    // Calculate velocity
+    const totalEstimatedHours = openTasks.reduce(
+      (sum, t) => sum + (t.estimatedHours || 0),
+      0
+    );
+
     const velocity = await this.calculateTeamVelocity(workspaceId, projectId);
-    const totalVelocity = velocity.reduce((sum, v) => sum + v.velocityScore, 0);
+    const teamVelocity = velocity.reduce((sum, v) => sum + v.velocity, 0);
 
-    // Calculate risk scores
-    const velocityRisk = this.calculateVelocityRisk(activeTasks.length, totalVelocity);
-    const capacityRisk = this.calculateCapacityRisk(activeTasks.length, velocity);
-    const scheduleRisk = this.calculateScheduleRisk(overdueTasks.length, totalTasks);
-    const dependencyRisk = this.calculateDependencyRisk(blockedTasks.length, totalTasks);
-
-    const overallRiskScore = Math.round(
-      (velocityRisk * 0.3 + capacityRisk * 0.25 + scheduleRisk * 0.3 + dependencyRisk * 0.15)
-    );
-
-    const riskLevel = overallRiskScore >= 75 ? "CRITICAL"
-      : overallRiskScore >= 50 ? "HIGH"
-      : overallRiskScore >= 25 ? "MEDIUM"
-      : "LOW";
-
-    // Build risks list
-    const risks: ProjectRiskAssessment["risks"] = [];
-
-    if (overdueTasks.length > 0) {
-      risks.push({
-        type: "SCHEDULE",
-        severity: overdueTasks.length > 3 ? "CRITICAL" : "HIGH",
-        description: `${overdueTasks.length} tasks past due date`,
-        affectedItems: overdueTasks.map(t => t.title),
-      });
+    let daysRemaining: number | null = null;
+    const projectTasksWithDue = tasks.filter((t) => t.dueDate);
+    if (projectTasksWithDue.length > 0) {
+      const latestDue = projectTasksWithDue.reduce((max, t) => {
+        const d = new Date(t.dueDate!);
+        return d > max ? d : max;
+      }, new Date(0));
+      daysRemaining = Math.max(0, Math.ceil((latestDue.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
     }
 
+    const factors: string[] = [];
+    let score = 0;
+
+    // Workload vs velocity gap
+    if (teamVelocity > 0) {
+      const daysOfWork = totalEstimatedHours > 0
+        ? totalEstimatedHours / (teamVelocity * 8)
+        : openTasks.length / teamVelocity;
+      if (daysRemaining !== null && daysOfWork > daysRemaining) {
+        const gap = Math.round(((daysOfWork - daysRemaining) / daysRemaining) * 100);
+        score += Math.min(40, gap);
+        factors.push(`Workload exceeds capacity by ${gap}% (estimated ${Math.round(daysOfWork)} days vs ${daysRemaining} days remaining)`);
+      }
+    } else if (openTasks.length > 0) {
+      score += 30;
+      factors.push("No team velocity data — cannot complete work forecast");
+    }
+
+    // Overdue tasks percentage
+    if (openTasks.length > 0) {
+      const overduePercent = Math.round((overdueTasks.length / openTasks.length) * 100);
+      if (overduePercent > 0) {
+        score += Math.min(30, overduePercent);
+        factors.push(`${overdueTasks.length} of ${openTasks.length} open tasks are overdue (${overduePercent}%)`);
+      }
+    }
+
+    // Blocked tasks
     if (blockedTasks.length > 0) {
-      risks.push({
-        type: "DEPENDENCY",
-        severity: blockedTasks.length > 2 ? "HIGH" : "MEDIUM",
-        description: `${blockedTasks.length} tasks blocked by dependencies`,
-        affectedItems: blockedTasks.map(t => t.title),
-      });
+      const blockedPercent = Math.round((blockedTasks.length / totalTasks) * 100);
+      score += Math.min(20, blockedPercent * 2);
+      factors.push(`${blockedTasks.length} task(s) blocked by dependencies`);
     }
 
-    if (activeTasks.length > totalVelocity * 2) {
-      risks.push({
-        type: "CAPACITY",
-        severity: "HIGH",
-        description: `Active task count (${activeTasks.length}) exceeds team velocity capacity (${totalVelocity.toFixed(1)}/week)`,
-        affectedItems: [],
-      });
+    // Dependency chain depth
+    const dependencyChainDepth = this.calculateDependencyDepth(tasks);
+    if (dependencyChainDepth > 3) {
+      score += Math.min(10, (dependencyChainDepth - 3) * 2);
+      factors.push(`Dependency chain depth of ${dependencyChainDepth} levels increases risk`);
     }
 
-    // Calculate forecast
-    let forecast: ProjectRiskAssessment["forecast"] = null;
-    if (completedTasks > 0 && totalVelocity > 0) {
-      const remainingTasks = totalTasks - completedTasks;
-      const daysRemaining = Math.ceil((remainingTasks / totalVelocity) * 7);
-      const estimatedDate = new Date(now.getTime() + daysRemaining * 24 * 60 * 60 * 1000);
+    score = Math.min(100, Math.round(score));
 
-      forecast = {
-        estimatedCompletionDate: estimatedDate.toISOString().split("T")[0],
-        confidence: overallRiskScore < 25 ? "HIGH" : overallRiskScore < 50 ? "MEDIUM" : "LOW",
-        daysRemaining,
-      };
-    }
+    const level: RiskFactor["level"] =
+      score >= 75 ? "critical"
+      : score >= 50 ? "high"
+      : score >= 25 ? "medium"
+      : "low";
 
-    return {
-      projectId,
-      projectName: project.name,
-      overallRiskScore,
-      riskLevel,
-      velocityRisk,
-      capacityRisk,
-      scheduleRisk,
-      dependencyRisk,
-      risks,
-      forecast,
-      llmAssessment: null,
-      calculatedAt: now,
-    };
-  }
+    let assessment = "";
+    let recommendations: string[] = [];
 
-  /**
-   * Generate LLM-based risk assessment for deeper insights
-   */
-  static async generateLLMRiskAssessment(
-    assessment: ProjectRiskAssessment,
-    velocity: TeamVelocity[],
-  ): Promise<string> {
-    const velocitySummary = velocity.length > 0
-      ? velocity.map(v => `${v.memberName}: ${v.velocityScore}/week, ${v.avgCompletionDays} avg days`).join("\n")
-      : "No velocity data available";
+    try {
+      const velocitySummary = velocity.length > 0
+        ? velocity.map((v) => `${v.name}: ${v.velocity}/day (${v.trend})`).join(", ")
+        : "No velocity data";
 
-    const prompt = `You are a project risk analyst. Analyze this project's risk profile and provide actionable insights.
+      const prompt = `You are a project risk analyst. Analyze this project and provide a concise risk assessment.
 
-Project: ${assessment.projectName}
-Overall Risk Score: ${assessment.overallRiskScore}/100 (${assessment.riskLevel})
+Project: ${project.name}
+Risk Score: ${score}/100 (${level})
+Open tasks: ${openTasks.length} | Completed: ${completedTasks.length} | Overdue: ${overdueTasks.length} | Blocked: ${blockedTasks.length}
+Total estimated hours: ${totalEstimatedHours}h
+Days remaining: ${daysRemaining ?? "unknown"}
+Team velocity: ${teamVelocity} tasks/day
+Team: ${velocitySummary}
 
-Risk Breakdown:
-- Velocity Risk: ${assessment.velocityRisk}/100
-- Capacity Risk: ${assessment.capacityRisk}/100
-- Schedule Risk: ${assessment.scheduleRisk}/100
-- Dependency Risk: ${assessment.dependencyRisk}/100
-
-Team Velocity (last 30 days):
-${velocitySummary}
-
-Active Risks:
-${assessment.risks.map(r => `- [${r.severity}] ${r.type}: ${r.description}`).join("\n") || "None"}
-
-Forecast: ${assessment.forecast ? `${assessment.forecast.estimatedCompletionDate} (${assessment.forecast.confidence} confidence)` : "N/A"}
+Risk factors:
+${factors.map((f) => `- ${f}`).join("\n") || "None detected"}
 
 Provide:
-1. Top 3 specific actions to reduce risk
-2. Risk趋势分析 (are things getting better or worse?)
-3. One-paragraph executive summary
+1. A 2-3 sentence risk assessment paragraph
+2. 3-5 specific, actionable recommendations to reduce risk
 
 Be direct and specific. No filler.`;
 
-    try {
       const response = await executeWithProvider(
         "gemini",
         "gemini-2.5-flash",
-        "You are a concise project risk analyst. Be direct, no fluff.",
-        prompt,
+        "You are a concise project risk analyst. Return JSON with keys: assessment (string), recommendations (string[]).",
+        prompt
       );
-      return response;
+
+      const cleaned = response.replace(/```json\n?|\n?```/g, "").trim();
+      try {
+        const parsed = JSON.parse(cleaned);
+        assessment = parsed.assessment || response;
+        recommendations = Array.isArray(parsed.recommendations) ? parsed.recommendations : [];
+      } catch {
+        assessment = response;
+      }
     } catch (error) {
-      logger.warn("[RiskPrediction] LLM assessment failed:", error);
-      return this.generateFallbackAssessment(assessment);
+      logger.warn("[RiskPrediction] LLM assessment failed, using fallback:", error);
+      assessment = this.generateFallbackAssessment(project.name, score, level, factors);
+      recommendations = this.generateFallbackRecommendations(level, overdueTasks.length, blockedTasks.length);
     }
+
+    if (recommendations.length === 0) {
+      recommendations = this.generateFallbackRecommendations(level, overdueTasks.length, blockedTasks.length);
+    }
+
+    return { score, level, factors, assessment, recommendations };
   }
 
-  /**
-   * Assess risk for all projects in a workspace
-   */
-  static async assessWorkspaceRisks(
-    workspaceId: string,
-  ): Promise<ProjectRiskAssessment[]> {
+  static async getWorkspaceRiskOverview(workspaceId: string): Promise<WorkspaceRiskOverview[]> {
     const projects = await prisma.project.findMany({
       where: { workspaceId },
-      select: { id: true },
+      select: { id: true, name: true },
     });
 
-    const assessments: ProjectRiskAssessment[] = [];
+    const results: WorkspaceRiskOverview[] = [];
 
     for (const project of projects) {
-      const assessment = await this.assessProjectRisk(workspaceId, project.id);
-
-      // Generate LLM assessment for high-risk projects
-      if (assessment.overallRiskScore >= 50) {
-        const velocity = await this.calculateTeamVelocity(workspaceId, project.id);
-        assessment.llmAssessment = await this.generateLLMRiskAssessment(assessment, velocity);
+      try {
+        const risk = await this.predictProjectRisk(workspaceId, project.id);
+        results.push({
+          projectId: project.id,
+          projectName: project.name,
+          risk,
+        });
+      } catch (error) {
+        logger.warn(`[RiskPrediction] Failed for project ${project.id}:`, error);
+        results.push({
+          projectId: project.id,
+          projectName: project.name,
+          risk: { score: 0, level: "low", factors: [], assessment: "Analysis failed.", recommendations: [] },
+        });
       }
-
-      assessments.push(assessment);
     }
 
-    return assessments.sort((a, b) => b.overallRiskScore - a.overallRiskScore);
+    return results.sort((a, b) => b.risk.score - a.risk.score);
   }
 
-  private static calculateVelocityRisk(activeTasks: number, teamVelocity: number): number {
-    if (teamVelocity === 0) return activeTasks > 0 ? 80 : 20;
-    const ratio = activeTasks / (teamVelocity * 2); // 2 weeks of work
-    return Math.min(100, Math.round(ratio * 50));
-  }
+  private static calculateDependencyDepth(
+    tasks: Array<{ predecessors?: Array<{ predecessorId: string }> }>
+  ): number {
+    const taskIds = new Set(tasks.map((t) => {
+      const anyT = t as { id?: string };
+      return anyT.id || "";
+    }));
+    const dependencyMap = new Map<string, string[]>();
 
-  private static calculateCapacityRisk(activeTasks: number, velocity: TeamVelocity[]): number {
-    if (velocity.length === 0) return activeTasks > 0 ? 70 : 10;
-    const avgVelocity = velocity.reduce((sum, v) => sum + v.velocityScore, 0) / velocity.length;
-    if (avgVelocity === 0) return 60;
-    const imbalance = Math.max(...velocity.map(v => v.velocityScore)) / avgVelocity;
-    return Math.min(100, Math.round(imbalance * 30));
-  }
-
-  private static calculateScheduleRisk(overdueTasks: number, totalTasks: number): number {
-    if (totalTasks === 0) return 0;
-    const overdueRate = overdueTasks / totalTasks;
-    return Math.min(100, Math.round(overdueRate * 200));
-  }
-
-  private static calculateDependencyRisk(blockedTasks: number, totalTasks: number): number {
-    if (totalTasks === 0) return 0;
-    const blockedRate = blockedTasks / totalTasks;
-    return Math.min(100, Math.round(blockedRate * 150));
-  }
-
-  private static generateFallbackAssessment(assessment: ProjectRiskAssessment): string {
-    const lines: string[] = [];
-    lines.push(`**Risk Assessment: ${assessment.projectName}**`);
-    lines.push(`Overall Risk: ${assessment.overallRiskScore}/100 (${assessment.riskLevel})`);
-    lines.push("");
-
-    if (assessment.risks.length > 0) {
-      lines.push("**Active Risks:**");
-      assessment.risks.forEach(r => lines.push(`- ${r.description}`));
+    for (const task of tasks) {
+      const anyT = task as { id?: string; predecessors?: Array<{ predecessorId: string }> };
+      if (anyT.id && anyT.predecessors) {
+        dependencyMap.set(
+          anyT.id,
+          anyT.predecessors.map((p) => p.predecessorId)
+        );
+      }
     }
 
-    if (assessment.forecast) {
-      lines.push("");
-      lines.push(`**Forecast:** ${assessment.forecast.estimatedCompletionDate} (${assessment.forecast.confidence} confidence)`);
+    let maxDepth = 0;
+
+    const visited = new Set<string>();
+    const dfs = (taskId: string, depth: number): void => {
+      if (visited.has(taskId)) return;
+      visited.add(taskId);
+      maxDepth = Math.max(maxDepth, depth);
+
+      const deps = dependencyMap.get(taskId) || [];
+      for (const depId of deps) {
+        if (taskIds.has(depId)) {
+          dfs(depId, depth + 1);
+        }
+      }
+      visited.delete(taskId);
+    };
+
+    for (const taskId of taskIds) {
+      if (taskId) dfs(taskId, 0);
     }
 
+    return maxDepth;
+  }
+
+  private static generateFallbackAssessment(
+    name: string,
+    score: number,
+    level: string,
+    factors: string[],
+  ): string {
+    const lines = [
+      `Project "${name}" has a risk score of ${score}/100 (${level}).`,
+      "",
+    ];
+    if (factors.length > 0) {
+      lines.push("Key factors:");
+      factors.forEach((f) => lines.push(`- ${f}`));
+    } else {
+      lines.push("No significant risk factors detected.");
+    }
     return lines.join("\n");
   }
 
-  private static emptyAssessment(projectId: string, reason: string): ProjectRiskAssessment {
-    return {
-      projectId,
-      projectName: reason,
-      overallRiskScore: 0,
-      riskLevel: "LOW",
-      velocityRisk: 0,
-      capacityRisk: 0,
-      scheduleRisk: 0,
-      dependencyRisk: 0,
-      risks: [],
-      forecast: null,
-      llmAssessment: null,
-      calculatedAt: new Date(),
-    };
+  private static generateFallbackRecommendations(
+    level: string,
+    overdueCount: number,
+    blockedCount: number,
+  ): string[] {
+    const recs: string[] = [];
+
+    if (overdueCount > 0) {
+      recs.push(`Address ${overdueCount} overdue task(s) by updating deadlines or reprioritizing`);
+    }
+    if (blockedCount > 0) {
+      recs.push(`Resolve ${blockedCount} blocked task(s) to unblock the dependency chain`);
+    }
+    if (level === "critical" || level === "high") {
+      recs.push("Consider reducing scope or adding team members to meet deadlines");
+      recs.push("Schedule a risk review meeting with the team this week");
+    }
+    if (recs.length === 0) {
+      recs.push("Continue monitoring project health and maintain current pace");
+    }
+
+    return recs;
   }
 }

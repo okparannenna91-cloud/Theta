@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FolderKanban, CheckSquare, Users, TrendingUp, Target, Activity, Clock, ArrowRight, ArrowUp, Sparkles, Brain } from "lucide-react";
+import { FolderKanban, CheckSquare, Users, TrendingUp, Target, Activity, Clock, ArrowRight, ArrowUp, ArrowDown, Minus, Sparkles, Brain } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useI18n } from "@/lib/i18n";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -134,6 +134,15 @@ export default function DashboardPage() {
     );
   }
 
+  const trendPercent = (key: string) => data?.trends?.[key] ?? 0;
+  const TrendIcon = ({ value }: { value: number }) => {
+    if (value > 0) return <ArrowUp className="w-3 h-3" />;
+    if (value < 0) return <ArrowDown className="w-3 h-3" />;
+    return <Minus className="w-3 h-3" />;
+  };
+  const trendColor = (value: number) =>
+    value > 0 ? "text-emerald-600" : value < 0 ? "text-red-500" : "text-muted-foreground";
+
   const stats = [
     {
       title: t("projects"),
@@ -141,6 +150,7 @@ export default function DashboardPage() {
       icon: FolderKanban,
       color: "text-primary",
       bg: "bg-primary/10",
+      trend: trendPercent("projects"),
     },
     {
       title: t("active_tasks"),
@@ -148,6 +158,7 @@ export default function DashboardPage() {
       icon: CheckSquare,
       color: "text-emerald-500",
       bg: "bg-emerald-500/10",
+      trend: trendPercent("tasks"),
     },
     {
       title: t("team_members"),
@@ -155,6 +166,7 @@ export default function DashboardPage() {
       icon: Users,
       color: "text-violet-500",
       bg: "bg-violet-500/10",
+      trend: 0,
     },
     {
       title: t("completion_rate"),
@@ -162,6 +174,7 @@ export default function DashboardPage() {
       icon: Target,
       color: "text-amber-500",
       bg: "bg-amber-500/10",
+      trend: trendPercent("completionRate"),
     },
   ];
 
@@ -185,9 +198,9 @@ export default function DashboardPage() {
                 </div>
               </div>
               <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-              <div className="flex items-center gap-1 mt-2 text-xs text-emerald-600">
-                <ArrowUp className="w-3 h-3" />
-                {t("trend_positive")}
+              <div className={cn("flex items-center gap-1 mt-2 text-xs", trendColor(stat.trend))}>
+                <TrendIcon value={stat.trend} />
+                {stat.trend > 0 ? `+${stat.trend}%` : stat.trend === 0 ? "No change" : `${stat.trend}%`}
               </div>
             </CardContent>
           </Card>

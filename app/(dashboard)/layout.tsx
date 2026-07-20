@@ -8,6 +8,7 @@ import dynamic from "next/dynamic";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { AppsDropdown } from "@/components/apps/apps-dropdown";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
+import { MobileNav } from "@/components/layout/mobile-nav";
 
 const NovaAssistant = dynamic(() => import("@/components/ai/nova-assistant").then(m => ({ default: m.NovaAssistant })), {
   ssr: false,
@@ -35,7 +36,7 @@ export default function DashboardLayout({
                 <LanguageSwitcher />
               </div>
             </header>
-            <main className="flex-1 overflow-y-auto px-8 pt-4">
+            <main className="flex-1 overflow-y-auto px-4 md:px-8 pt-4 pb-20 md:pb-4">
               <Breadcrumbs />
               <ErrorBoundary>
                 {children}
@@ -43,6 +44,7 @@ export default function DashboardLayout({
             </main>
           </div>
           <NovaAssistant />
+          <MobileNav />
         </div>
       </OnboardingRedirect>
     </AuthGuard>

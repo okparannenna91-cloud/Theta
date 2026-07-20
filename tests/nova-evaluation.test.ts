@@ -6,162 +6,162 @@ import { ResponseQualityGate } from "@/lib/nova/output-validator";
 describe("Nova Evaluation Suite — Routing", () => {
   describe("General chat", () => {
     it("routes greeting to CONVERSATION", () => {
-      const route = routeRequest("hi", "READ", "PATH_B_CONFIRMATION");
-      expect(route.path).toBe("CONVERSATION");
+      const route = routeRequest("hi", "READ");
+      expect(route.path).toBe("CHAT");
     });
 
-    it("routes 'what can you do' to CONVERSATION", () => {
-      const route = routeRequest("what can you do", "READ", "PATH_B_CONFIRMATION");
-      expect(route.path).toBe("CONVERSATION");
+    it("routes 'what can you do' to CHAT", () => {
+      const route = routeRequest("what can you do", "READ");
+      expect(route.path).toBe("CHAT");
     });
 
-    it("routes 'who are you' to CONVERSATION", () => {
-      const route = routeRequest("who are you", "READ", "PATH_B_CONFIRMATION");
-      expect(route.path).toBe("CONVERSATION");
+    it("routes 'who are you' to CHAT", () => {
+      const route = routeRequest("who are you", "READ");
+      expect(route.path).toBe("CHAT");
     });
 
-    it("routes thanks to CONVERSATION", () => {
-      const route = routeRequest("thanks", "READ", "PATH_B_CONFIRMATION");
-      expect(route.path).toBe("CONVERSATION");
+    it("routes thanks to CHAT", () => {
+      const route = routeRequest("thanks", "READ");
+      expect(route.path).toBe("CHAT");
     });
 
-    it("routes goodbye to CONVERSATION", () => {
-      const route = routeRequest("goodbye", "READ", "PATH_B_CONFIRMATION");
-      expect(route.path).toBe("CONVERSATION");
+    it("routes goodbye to CHAT", () => {
+      const route = routeRequest("goodbye", "READ");
+      expect(route.path).toBe("CHAT");
     });
   });
 
   describe("Task management", () => {
     it("routes 'create a task' to ACTION", () => {
-      const route = routeRequest("create a task called 'Fix login bug'", "CREATE", "PATH_A_IMMEDIATE");
+      const route = routeRequest("create a task called 'Fix login bug'", "CREATE");
       expect(route.path).toBe("ACTION");
     });
 
     it("routes 'list my tasks' to CHAT", () => {
-      const route = routeRequest("list my tasks", "READ", "PATH_B_CONFIRMATION");
+      const route = routeRequest("list my tasks", "READ");
       expect(route.path).toBe("CHAT");
     });
 
     it("routes 'what tasks are overdue' to CHAT (not CONVERSATION)", () => {
-      const route = routeRequest("what tasks are overdue", "READ", "PATH_B_CONFIRMATION");
+      const route = routeRequest("what tasks are overdue", "READ");
       expect(route.path).toBe("CHAT");
     });
 
     it("routes 'break down this task' to ACTION", () => {
-      const route = routeRequest("break down this task into subtasks", "CREATE", "PATH_A_IMMEDIATE");
+      const route = routeRequest("break down this task into subtasks", "CREATE");
       expect(route.path).toBe("ACTION");
     });
 
     it("routes 'set priority to high' to ACTION", () => {
-      const route = routeRequest("set priority to high", "UPDATE", "PATH_A_IMMEDIATE");
+      const route = routeRequest("set priority to high", "UPDATE");
       expect(route.path).toBe("ACTION");
     });
   });
 
   describe("Project management", () => {
     it("routes 'create project' to ACTION", () => {
-      const route = routeRequest("create project 'Website Redesign'", "CREATE", "PATH_A_IMMEDIATE");
+      const route = routeRequest("create project 'Website Redesign'", "CREATE");
       expect(route.path).toBe("ACTION");
     });
 
     it("routes 'how is my project doing' to CHAT", () => {
-      const route = routeRequest("how is my project doing", "READ", "PATH_B_CONFIRMATION");
+      const route = routeRequest("how is my project doing", "READ");
       expect(route.path).toBe("CHAT");
     });
 
     it("routes 'list projects' to CHAT", () => {
-      const route = routeRequest("list projects", "READ", "PATH_B_CONFIRMATION");
+      const route = routeRequest("list projects", "READ");
       expect(route.path).toBe("CHAT");
     });
 
     it("routes 'project health check' to ANALYSIS", () => {
-      const route = routeRequest("run a project health check", "ANALYZE", "PATH_B_CONFIRMATION");
+      const route = routeRequest("run a project health check", "ANALYZE");
       expect(route.path).toBe("ANALYSIS");
     });
   });
 
   describe("Calendar", () => {
     it("routes 'what's on my calendar' to CHAT", () => {
-      const route = routeRequest("what's on my calendar", "READ", "PATH_B_CONFIRMATION");
+      const route = routeRequest("what's on my calendar", "READ");
       expect(route.path).toBe("CHAT");
     });
 
     it("routes 'upcoming deadlines' to CHAT", () => {
-      const route = routeRequest("show me upcoming deadlines", "READ", "PATH_B_CONFIRMATION");
+      const route = routeRequest("show me upcoming deadlines", "READ");
       expect(route.path).toBe("CHAT");
     });
   });
 
   describe("Teams", () => {
     it("routes 'who is on my team' to CHAT", () => {
-      const route = routeRequest("who is on my team", "READ", "PATH_B_CONFIRMATION");
+      const route = routeRequest("who is on my team", "READ");
       expect(route.path).toBe("CHAT");
     });
 
     it("routes 'invite member' to ACTION", () => {
-      const route = routeRequest("invite member john@example.com", "CREATE", "PATH_A_IMMEDIATE");
+      const route = routeRequest("invite member john@example.com", "CREATE");
       expect(route.path).toBe("ACTION");
     });
   });
 
   describe("Analytics", () => {
     it("routes 'show velocity' to ANALYSIS", () => {
-      const route = routeRequest("show team velocity", "ANALYZE", "PATH_B_CONFIRMATION");
+      const route = routeRequest("show team velocity", "ANALYZE");
       expect(route.path).toBe("ANALYSIS");
     });
 
     it("routes 'task completion rate' to CHAT", () => {
-      const route = routeRequest("what is my task completion rate", "READ", "PATH_B_CONFIRMATION");
+      const route = routeRequest("what is my task completion rate", "READ");
       expect(route.path).toBe("CHAT");
     });
   });
 
   describe("Risk analysis", () => {
     it("routes 'run risk assessment' to ANALYSIS", () => {
-      const route = routeRequest("run a risk assessment", "ANALYZE", "PATH_B_CONFIRMATION");
+      const route = routeRequest("run a risk assessment", "ANALYZE");
       expect(route.path).toBe("ANALYSIS");
     });
 
     it("routes 'what are the blockers' to CHAT", () => {
-      const route = routeRequest("what are the current blockers", "READ", "PATH_B_CONFIRMATION");
+      const route = routeRequest("what are the current blockers", "READ");
       expect(route.path).toBe("CHAT");
     });
   });
 
   describe("Reporting", () => {
     it("routes 'generate standup' to ANALYSIS", () => {
-      const route = routeRequest("generate a daily standup", "REPORT", "PATH_B_CONFIRMATION");
+      const route = routeRequest("generate a daily standup", "REPORT");
       expect(route.path).toBe("ANALYSIS");
     });
 
     it("routes 'status report' to ANALYSIS", () => {
-      const route = routeRequest("generate a status report", "REPORT", "PATH_B_CONFIRMATION");
+      const route = routeRequest("generate a status report", "REPORT");
       expect(route.path).toBe("ANALYSIS");
     });
   });
 
   describe("Planning", () => {
     it("routes 'plan a sprint' to ACTION", () => {
-      const route = routeRequest("plan a sprint for next week", "CREATE", "PATH_A_IMMEDIATE");
+      const route = routeRequest("plan a sprint for next week", "CREATE");
       expect(route.path).toBe("ACTION");
     });
   });
 
   describe("Ambiguous requests", () => {
     it("routes 'help' to CONVERSATION", () => {
-      const route = routeRequest("help", "READ", "PATH_B_CONFIRMATION");
-      expect(route.path).toBe("CONVERSATION");
+      const route = routeRequest("help", "READ");
+      expect(route.path).toBe("CHAT");
     });
   });
 
   describe("Context awareness", () => {
     it("routes workspace-related questions to CHAT (not CONVERSATION)", () => {
-      const route = routeRequest("anything urgent", "READ", "PATH_B_CONFIRMATION");
+      const route = routeRequest("anything urgent", "READ");
       expect(route.path).toBe("CHAT");
     });
 
     it("routes 'team workload' to CHAT", () => {
-      const route = routeRequest("show team workload", "READ", "PATH_B_CONFIRMATION");
+      const route = routeRequest("show team workload", "READ");
       expect(route.path).toBe("CHAT");
     });
   });

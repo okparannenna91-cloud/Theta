@@ -53,7 +53,6 @@ describe("Nova Regression Tests", () => {
       "list_projects", "create_project", "update_project", "delete_project",
       "project_health_analysis", "create_sprint_board",
       "list_workspaces", "update_workspace", "list_members",
-      "get_suggestions", "generate_daily_brief",
       "generate_standup", "search_workspace", "create_document",
       "create_automation", "dispatch_ui_action",
     ];

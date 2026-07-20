@@ -2,7 +2,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_ADDRESS = "Theta <notifications@thetapm.site>";
+const FROM_ADDRESS = "Theta <noreply@thetapm.site>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.thetapm.site";
 const UNSUBSCRIBE_URL = `${APP_URL}/settings/notifications`;
 
@@ -410,7 +410,7 @@ export async function sendPaymentSuccessEmail(to: string, plan: string, amount: 
             </a>
         </div>
     `;
-    const { html, text } = wrapEmail(content);
+    const { html, text } = wrapEmail(content, `<a href="${UNSUBSCRIBE_URL}" style="color: #94a3b8; text-decoration: underline;">Manage email preferences</a>`);
     return await sendEmail({ to, subject: `Payment Successful - Welcome to Theta ${plan}`, html, text });
 }
 
@@ -435,7 +435,7 @@ export async function sendPaymentFailedEmail(to: string, plan: string) {
             If you have any questions, please reply to this email.
         </p>
     `;
-    const { html, text } = wrapEmail(content);
+    const { html, text } = wrapEmail(content, `<a href="${UNSUBSCRIBE_URL}" style="color: #94a3b8; text-decoration: underline;">Manage email preferences</a>`);
     return await sendEmail({ to, subject: `Payment Failed - Action Required for ${plan}`, html, text });
 }
 
@@ -463,6 +463,6 @@ export async function sendWelcomeEmail(to: string, name: string) {
             Have questions? Just reply to this email!
         </p>
     `;
-    const { html, text } = wrapEmail(content);
+    const { html, text } = wrapEmail(content, `<a href="${UNSUBSCRIBE_URL}" style="color: #94a3b8; text-decoration: underline;">Manage email preferences</a>`);
     return await sendEmail({ to, subject: "Welcome to Theta - Let's get started!", html, text });
 }

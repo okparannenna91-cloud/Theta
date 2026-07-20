@@ -8,6 +8,25 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
   const { user, workspaceId, projectId } = ctx;
 
   return {
+    semantic_search: {
+      description: 'Perform semantic vector search across workspace documents for conceptually similar content.',
+      inputSchema: z.object({ query: z.string(), maxResults: z.number().optional() }),
+      execute: async ({ query, maxResults }: Record<string, unknown>) => {
+        await enforce(ctx, "read", "workspace");
+        await auditToolExecution(workspaceId, user.id, "semantic_search", { query });
+        const { RAGPipeline } = await import("@/lib/nova/rag-pipeline");
+        const results = await RAGPipeline.search(workspaceId, query as string, { maxResults: (maxResults as number) || 5 });
+        return {
+          results: results.map((r: any) => ({
+            title: r.chunk.metadata.title,
+            type: r.chunk.metadata.type,
+            score: Math.round(r.score * 100),
+            content: r.chunk.content.substring(0, 500),
+          })),
+          count: results.length,
+        };
+      }
+    },
     search_workspace: {
       description: 'Perform a deep semantic search across the entire workspace.',
       inputSchema: z.object({ query: z.string() }),
@@ -54,6 +73,10 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
           }
           return doc;
         });
+        try {
+          const { RAGPipeline } = await import("@/lib/nova/rag-pipeline");
+          await RAGPipeline.indexDocument(result.id, workspaceId, title as string, content as string, "document");
+        } catch { /* RAG indexing is best-effort */ }
         return { success: true, message: `Document "**${title}**" created.`, id: result.id };
       }
     },
@@ -87,6 +110,10 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
           if (!access.hasAccess) return { success: false, message: "Access denied." };
         }
         await prisma.document.delete({ where: { id: id as string, workspaceId } });
+        try {
+          const { RAGPipeline } = await import("@/lib/nova/rag-pipeline");
+          await RAGPipeline.removeDocument(id as string);
+        } catch { /* RAG cleanup is best-effort */ }
         return { success: true, message: "Document deleted." };
       }
     },

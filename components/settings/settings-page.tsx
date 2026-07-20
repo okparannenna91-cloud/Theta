@@ -12,7 +12,8 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Settings, Palette, Bell, Shield, Smartphone, Moon, Sun, Laptop,
-  Calendar, ExternalLink, Check, Zap, Globe, Lock, Code, Sparkles, Rocket
+  Calendar, ExternalLink, Check, Zap, Globe, Lock, Code, Sparkles, Rocket, Terminal,
+  Building2, Users, CreditCard, BarChart3
 } from "lucide-react";
 import { usePreferences } from "@/hooks/use-preferences";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -48,6 +49,9 @@ export default function SettingsPage() {
   const [dndStart, setDndStart] = useState(preferences?.dndStart ?? "22:00");
   const [dndEnd, setDndEnd] = useState(preferences?.dndEnd ?? "08:00");
   const [notificationSounds, setNotificationSounds] = useState(preferences?.notificationSounds ?? true);
+  const [proactiveSuggestions, setProactiveSuggestions] = useState(preferences?.proactiveSuggestions ?? true);
+  const [autoSummarize, setAutoSummarize] = useState(preferences?.autoSummarize ?? true);
+  const [taskIntelligence, setTaskIntelligence] = useState(preferences?.taskIntelligence ?? true);
 
   useEffect(() => {
     if (preferences) {
@@ -58,6 +62,9 @@ export default function SettingsPage() {
       setDndStart(preferences.dndStart ?? "22:00");
       setDndEnd(preferences.dndEnd ?? "08:00");
       setNotificationSounds(preferences.notificationSounds ?? true);
+      setProactiveSuggestions(preferences.proactiveSuggestions ?? true);
+      setAutoSummarize(preferences.autoSummarize ?? true);
+      setTaskIntelligence(preferences.taskIntelligence ?? true);
     }
   }, [preferences]);
 
@@ -226,9 +233,11 @@ export default function SettingsPage() {
               <div className="flex items-center justify-between p-4 rounded-lg border">
                 <div>
                   <Label className="text-sm font-medium">Two-Factor Authentication</Label>
-                  <p className="text-xs text-muted-foreground">Add an extra layer of security</p>
+                  <p className="text-xs text-muted-foreground">Add an extra layer of security to your account</p>
                 </div>
-                <Button variant="outline" size="sm">Configure</Button>
+                <Button variant="outline" size="sm" onClick={() => router.push("/profile")}>
+                  Configure
+                </Button>
               </div>
               <div className="flex items-center justify-between p-4 rounded-lg border">
                 <div>
@@ -261,6 +270,60 @@ export default function SettingsPage() {
           </Card>
         </section>
 
+        {/* Workspace Settings */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Building2 className="h-4 w-4 text-blue-500" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold">Workspace</h2>
+              <p className="text-xs text-muted-foreground">Manage workspace settings and billing</p>
+            </div>
+          </div>
+
+          <Card className="border shadow-sm">
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg border">
+                <div className="flex items-center gap-3">
+                  <CreditCard className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label className="text-sm font-medium">Current Plan</Label>
+                    <p className="text-xs text-muted-foreground capitalize">{currentPlan === "theta_plus" ? "Theta+" : currentPlan}</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => router.push("/billing")}>
+                  Manage Billing
+                </Button>
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-lg border">
+                <div className="flex items-center gap-3">
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label className="text-sm font-medium">Team Members</Label>
+                    <p className="text-xs text-muted-foreground">Manage who has access to this workspace</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => router.push("/teams")}>
+                  Manage Team
+                </Button>
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-lg border">
+                <div className="flex items-center gap-3">
+                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
+                  <div>
+                    <Label className="text-sm font-medium">Usage & Limits</Label>
+                    <p className="text-xs text-muted-foreground">View your current resource usage</p>
+                  </div>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => router.push("/analytics")}>
+                  View Analytics
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+
         {/* Nova AI */}
         <section>
           <div className="flex items-center gap-3 mb-4">
@@ -280,21 +343,21 @@ export default function SettingsPage() {
                   <Label className="text-sm font-medium">Proactive Suggestions</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">Allow Nova to surface insights and suggestions automatically</p>
                 </div>
-                <Switch checked />
+                <Switch checked={proactiveSuggestions} onCheckedChange={(val) => { setProactiveSuggestions(val); handlePreferenceChange("proactiveSuggestions", val); }} />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-medium">Auto-Summarize</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">Nova summarizes completed tasks and activity changes</p>
                 </div>
-                <Switch checked />
+                <Switch checked={autoSummarize} onCheckedChange={(val) => { setAutoSummarize(val); handlePreferenceChange("autoSummarize", val); }} />
               </div>
               <div className="flex items-center justify-between">
                 <div>
                   <Label className="text-sm font-medium">Task Intelligence</Label>
                   <p className="text-xs text-muted-foreground mt-0.5">AI analyzes tasks to suggest priorities and effort estimates</p>
                 </div>
-                <Switch checked />
+                <Switch checked={taskIntelligence} onCheckedChange={(val) => { setTaskIntelligence(val); handlePreferenceChange("taskIntelligence", val); }} />
               </div>
               <div className="border-t pt-4 mt-2 space-y-2">
                 <Button
@@ -376,6 +439,43 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
+        </section>
+
+        {/* MCP Server */}
+        <section>
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
+              <Terminal className="h-4 w-4 text-blue-500" />
+            </div>
+            <div>
+              <h2 className="text-base font-semibold">MCP Server</h2>
+              <p className="text-xs text-muted-foreground">Model Context Protocol for AI integrations</p>
+            </div>
+          </div>
+
+          <Card className="border shadow-sm">
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center justify-between p-4 rounded-lg border">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <Terminal className="h-5 w-5 text-blue-500" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-semibold">Theta MCP Server</h3>
+                    <p className="text-xs text-muted-foreground">Connect AI assistants (Claude, GPT) to your workspace via stdio transport</p>
+                  </div>
+                </div>
+                <Badge variant="outline" className="text-xs">10 tools</Badge>
+              </div>
+              <div className="p-3 rounded-lg bg-muted/50 font-mono text-xs text-muted-foreground overflow-x-auto">
+                npx theta-mcp --workspace-id={"<your-workspace-id>"}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                The MCP server provides tools for tasks, projects, boards, search, analytics, and workspace management.
+                Configure in your AI client&apos;s MCP settings.
+              </p>
+            </CardContent>
+          </Card>
         </section>
 
         <div className="text-center pt-4">

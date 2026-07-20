@@ -136,6 +136,19 @@ export async function acceptInvite(token: string, userId: string) {
         action: "joined",
     });
 
+    // Trigger Automations — MEMBER_ADDED
+    if (wasNewMember) {
+        try {
+            const { processAutomations } = await import("@/lib/automations/engine");
+            await processAutomations(invite.workspaceId, "MEMBER_ADDED", {
+                userId,
+                role: invite.role,
+            });
+        } catch (automationError) {
+            console.error("Failed to trigger automations on member added:", automationError);
+        }
+    }
+
     // Real-time synchronization (Ably)
     try {
         const { publishToChannel, getWorkspaceChannel } = await import("@/lib/ably");

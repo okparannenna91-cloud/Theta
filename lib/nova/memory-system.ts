@@ -1,10 +1,39 @@
 import { redis } from "../redis/client";
 import { prisma } from "../prisma";
 import { logger } from "../logger";
-import { MEMORY_TIERS, MEMORY_TYPES, MEMORY_RULES, MEMORY_USER_CONTROLS, type MemoryType, type MemoryTier } from "./constitution/memory";
 
-export { type MemoryType, type MemoryTier } from "./constitution/memory";
-export { MEMORY_TIERS, MEMORY_TYPES, MEMORY_RULES, MEMORY_USER_CONTROLS } from "./constitution/memory";
+export type MemoryType = "USER" | "TEAM" | "WORKSPACE" | "BEHAVIORAL" | "PLANNING_STYLE" | "CADENCE" | "CONVENTIONS" | "PAST_DECISIONS";
+export type MemoryTier = "LONG_TERM" | "SHORT_TERM" | "WORKING";
+
+export const MEMORY_TIERS: Array<{ tier: MemoryTier; storage: string; purpose: string }> = [
+  { tier: "LONG_TERM", storage: "Mem0 + Prisma", purpose: "User preferences, conventions, past decisions" },
+  { tier: "SHORT_TERM", storage: "Upstash Redis", purpose: "Session state, recent conversations" },
+  { tier: "WORKING", storage: "In-memory", purpose: "Immediate context for current request" },
+];
+
+export const MEMORY_TYPES: Array<{ type: MemoryType; description: string }> = [
+  { type: "USER", description: "Individual user preferences" },
+  { type: "TEAM", description: "Team-level conventions" },
+  { type: "WORKSPACE", description: "Workspace-wide settings" },
+  { type: "BEHAVIORAL", description: "Learned patterns from recurring actions" },
+  { type: "PLANNING_STYLE", description: "How the user prefers plans" },
+  { type: "CADENCE", description: "Timing and rhythm of work" },
+  { type: "CONVENTIONS", description: "Naming and formatting standards" },
+  { type: "PAST_DECISIONS", description: "Previous decisions and rationale" },
+];
+
+export const MEMORY_RULES: string[] = [
+  "Remember useful preferences and recurring patterns",
+  "Don't remember temporary details or outdated context",
+  "Only relevant memories should be used",
+  "Never ask users to repeat information Nova already knows",
+];
+
+export const MEMORY_USER_CONTROLS: string[] = [
+  "Users must be able to enable/disable memory",
+  "Users must be able to clear/review/delete specific memories",
+  "Users remain in control of their memory",
+];
 
 export interface MemoryPayload {
   userId: string;
@@ -79,11 +108,14 @@ function calculateConfidence(
   const recencyMs = now.getTime() - updatedAt.getTime();
   const recencyDays = recencyMs / (1000 * 60 * 60 * 24);
 
-  const ageFactor = Math.max(0.2, 1 - ageDays / 365);
-  const recencyFactor = Math.max(0.3, 1 - recencyDays / 90);
-  const frequencyFactor = Math.min(1, 0.5 + accessCount * 0.1);
+  // Exponential decay for age — older memories lose confidence
+  const ageFactor = Math.max(0.1, Math.exp(-ageDays / 180));
+  // Exponential decay for recency — recently accessed memories are more relevant
+  const recencyFactor = Math.max(0.2, Math.exp(-recencyDays / 30));
+  // Access frequency boost — frequently accessed memories are more important
+  const frequencyFactor = Math.min(1, 0.3 + accessCount * 0.15);
 
-  return Math.round((ageFactor * 0.3 + recencyFactor * 0.5 + frequencyFactor * 0.2) * 100) / 100;
+  return Math.round((ageFactor * 0.3 + recencyFactor * 0.4 + frequencyFactor * 0.3) * 100) / 100;
 }
 
 export class MemorySystem {
@@ -162,8 +194,15 @@ export class MemorySystem {
     }
 
     try {
+      // Plan-aware search limit
+      const { getPlanLimits, isValidPlan } = await import("@/lib/plan-limits");
+      const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { plan: true } });
+      const planName = isValidPlan(workspace?.plan ?? "") ? workspace?.plan as "free" | "growth" | "pro" | "theta_plus" : "free";
+      const limits = getPlanLimits(planName);
+      const searchLimit = limits.maxMemoryItems === -1 ? 500 : Math.min(limits.maxMemoryItems, 500);
+
       const where: { userId: string; workspaceId: string } = { userId, workspaceId };
-      const records = await prisma.aiMemory.findMany({ where, take: 200 });
+      const records = await prisma.aiMemory.findMany({ where, take: searchLimit });
 
       const scored = records
         .filter((r) => r.embedding)

@@ -2,18 +2,31 @@ import { prisma } from "../prisma";
 import { ContextSystem } from "./context-system";
 import { SecurityGuard } from "./security-guard";
 import { redis } from "../redis/client";
-import { REPORT_TYPES, REPORT_GENERATION_PROCESS, REPORT_ANSWERS, REPORT_FREQUENCIES, REPORT_CHANNELS, type ReportType, type ReportFrequency, type DistributionChannel } from "./constitution/reporting-standards";
 
-export {
-  REPORT_TYPES,
-  REPORT_GENERATION_PROCESS,
-  REPORT_ANSWERS,
-  REPORT_FREQUENCIES,
-  REPORT_CHANNELS,
-  type ReportType,
-  type ReportFrequency,
-  type DistributionChannel,
-} from "./constitution/reporting-standards";
+export type ReportType = "PROJECT" | "SPRINT" | "TEAM" | "EXECUTIVE" | "CLIENT";
+export type ReportFrequency = "DAILY" | "WEEKLY" | "SPRINT" | "MONTHLY" | "QUARTERLY";
+export type DistributionChannel = "DASHBOARD" | "EMAIL" | "CLIENT_PORTAL" | "NOTIFICATION";
+
+export const REPORT_TYPES = [
+  { type: "PROJECT", description: "Project progress updates" },
+  { type: "SPRINT", description: "Sprint performance" },
+  { type: "TEAM", description: "Workload analysis" },
+  { type: "EXECUTIVE", description: "High-level summaries" },
+  { type: "CLIENT", description: "Deliverables completed" },
+];
+
+export const REPORT_GENERATION_PROCESS = [
+  "Collect workspace data", "Analyze trends", "Identify risks",
+  "Generate insights", "Create formatted report", "Distribute to channels",
+];
+
+export const REPORT_ANSWERS = [
+  "What happened?", "What changed?", "What is at risk?",
+  "What requires attention?", "What should happen next?",
+];
+
+export const REPORT_FREQUENCIES: ReportFrequency[] = ["DAILY", "WEEKLY", "SPRINT", "MONTHLY", "QUARTERLY"];
+export const REPORT_CHANNELS: DistributionChannel[] = ["DASHBOARD", "EMAIL", "CLIENT_PORTAL", "NOTIFICATION"];
 
 export class ReportingIntelligence {
   public static async generateReport(
@@ -29,11 +42,11 @@ export class ReportingIntelligence {
     const { structured, promptString } = await ContextSystem.getActiveContext({ workspaceId, userId });
 
     const typeDef = REPORT_TYPES.find(t => t.type === type);
-    const contents = typeDef?.contents.join(", ") || "General metrics";
+    const contents = typeDef?.description || "General metrics";
 
-    const projectMetrics = this.generateProjectMetrics(structured);
-    const riskSection = this.generateRiskSection(structured);
-    const trendSection = this.generateTrendSection(structured);
+    const projectMetrics = await this.generateProjectMetrics(structured);
+    const riskSection = await this.generateRiskSection(workspaceId);
+    const trendSection = await this.generateTrendSection(workspaceId);
 
     const report = [
       `# ${typeDef?.description || `${type} Report`}`,
@@ -86,7 +99,8 @@ export class ReportingIntelligence {
   public static async distribute(
     report: string,
     channels: DistributionChannel[],
-    recipients: string[]
+    recipients: string[],
+    workspaceId?: string,
   ): Promise<void> {
     for (const channel of channels) {
       if (channel === "EMAIL") {
@@ -95,14 +109,32 @@ export class ReportingIntelligence {
           await sendEmail(to, "Nova Automated Report", report);
         }
       } else if (channel === "DASHBOARD") {
-        console.log(`[ReportingIntelligence] Dashboard distribution not yet implemented.`);
+        try {
+          await redis.set(`report:latest:${workspaceId || "global"}`, report, { ex: 86400 * 7 });
+        } catch {
+          // non-fatal
+        }
       } else if (channel === "NOTIFICATION") {
-        console.log(`[ReportingIntelligence] Notification distribution not yet implemented.`);
+        try {
+          const { createNotification } = await import("@/lib/notification-engine");
+          for (const userId of recipients) {
+            await createNotification(
+              userId,
+              workspaceId || "",
+              "smart_alert",
+              "New Report Available",
+              "A new automated report has been generated and is ready to view.",
+              { deepLink: `/reports` },
+            );
+          }
+        } catch {
+          // non-fatal
+        }
       }
     }
   }
 
-  private static generateProjectMetrics(structured: { project?: { name: string; description?: string | null } | null; workspace?: { name: string; plan: string } | null; task?: { title: string; status: string } | null }): string {
+  private static async generateProjectMetrics(structured: { project?: { name: string; description?: string | null } | null; workspace?: { name: string; plan: string } | null; task?: { title: string; status: string } | null }): Promise<string> {
     const lines: string[] = [];
     if (structured.project) {
       lines.push(`- **Project**: ${structured.project.name}`);
@@ -117,12 +149,102 @@ export class ReportingIntelligence {
     return lines.join("\n");
   }
 
-  private static generateRiskSection(structured: { project?: { name: string; description?: string | null } | null; workspace?: { name: string; plan: string } | null; task?: { title: string; status: string } | null }): string {
-    return `- **Schedule Risk**: No critical schedule deviations detected\n- **Resource Risk**: Team capacity appears adequate\n- **Quality Risk**: No quality concerns identified`;
+  private static async generateRiskSection(workspaceId: string): Promise<string> {
+    const lines: string[] = [];
+
+    try {
+      const overdueTasks = await prisma.task.count({
+        where: {
+          workspaceId,
+          status: { notIn: ["done", "completed", "cancelled"] },
+          dueDate: { lt: new Date() },
+        },
+      });
+
+      const blockedTasks = await prisma.task.count({
+        where: {
+          workspaceId,
+          status: "blocked",
+        },
+      });
+
+      const activeTasks = await prisma.task.count({
+        where: {
+          workspaceId,
+          status: { notIn: ["done", "completed", "cancelled"] },
+        },
+      });
+
+      if (overdueTasks > 0) {
+        lines.push(`- **Schedule Risk**: ${overdueTasks} overdue task(s) require attention`);
+      } else {
+        lines.push(`- **Schedule Risk**: No overdue tasks detected`);
+      }
+
+      if (blockedTasks > 0) {
+        lines.push(`- **Blocked Risk**: ${blockedTasks} blocked task(s) need resolution`);
+      } else {
+        lines.push(`- **Blocked Risk**: No blocked tasks`);
+      }
+
+      const riskRatio = activeTasks > 0 ? (overdueTasks + blockedTasks) / activeTasks : 0;
+      if (riskRatio > 0.3) {
+        lines.push(`- **Overall Risk Level**: HIGH (${Math.round(riskRatio * 100)}% of active tasks at risk)`);
+      } else if (riskRatio > 0.1) {
+        lines.push(`- **Overall Risk Level**: MEDIUM (${Math.round(riskRatio * 100)}% of active tasks at risk)`);
+      } else {
+        lines.push(`- **Overall Risk Level**: LOW`);
+      }
+    } catch {
+      lines.push(`- **Risk Assessment**: Unable to compute risk metrics`);
+    }
+
+    return lines.join("\n");
   }
 
-  private static generateTrendSection(structured: { project?: { name: string; description?: string | null } | null; workspace?: { name: string; plan: string } | null; task?: { title: string; status: string } | null }): string {
-    return `- **Velocity**: Maintaining steady progress\n- **Completion Rate**: On track with project milestones\n- **Team Activity**: Consistent engagement detected`;
+  private static async generateTrendSection(workspaceId: string): Promise<string> {
+    const lines: string[] = [];
+
+    try {
+      const now = new Date();
+      const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+      const sixtyDaysAgo = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+
+      const recentCompleted = await prisma.task.count({
+        where: {
+          workspaceId,
+          status: { in: ["done", "completed"] },
+          updatedAt: { gte: thirtyDaysAgo },
+        },
+      });
+
+      const previousCompleted = await prisma.task.count({
+        where: {
+          workspaceId,
+          status: { in: ["done", "completed"] },
+          updatedAt: { gte: sixtyDaysAgo, lt: thirtyDaysAgo },
+        },
+      });
+
+      if (recentCompleted > previousCompleted) {
+        lines.push(`- **Velocity Trend**: IMPROVING (${recentCompleted} vs ${previousCompleted} tasks completed)`);
+      } else if (recentCompleted === previousCompleted) {
+        lines.push(`- **Velocity Trend**: STABLE (${recentCompleted} tasks completed per period)`);
+      } else {
+        lines.push(`- **Velocity Trend**: DECLINING (${recentCompleted} vs ${previousCompleted} tasks completed)`);
+      }
+
+      const totalTasks = await prisma.task.count({ where: { workspaceId } });
+      const completedTasks = await prisma.task.count({
+        where: { workspaceId, status: { in: ["done", "completed"] } },
+      });
+      const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+      lines.push(`- **Completion Rate**: ${completionRate}% (${completedTasks}/${totalTasks} tasks)`);
+    } catch {
+      lines.push(`- **Trend Analysis**: Unable to compute trend data`);
+    }
+
+    return lines.join("\n");
   }
 
   public static getReportTypes() {

@@ -156,7 +156,9 @@ export function buildWorkspaceTools(ctx: ToolContext): ToolModule {
         await enforce(ctx, "read", "billing");
         
         const history = await prisma.billingLog.findMany({ where: { workspaceId }, take: 5, orderBy: { createdAt: 'desc' } });
-        return { history: history.map((h: { createdAt: Date; amount: number | null; action: string }) => ({ date: h.createdAt, amount: h.amount, status: h.action, metadata: decryptSensitiveFields("billingLog", h as unknown as Record<string, unknown>).metadata })), plan: "Enterprise Alpha" };
+        const subscription = await prisma.subscription.findFirst({ where: { workspaceId } });
+        const planName = subscription?.planKey || "Free";
+        return { history: history.map((h: { createdAt: Date; amount: number | null; action: string }) => ({ date: h.createdAt, amount: h.amount, status: h.action, metadata: decryptSensitiveFields("billingLog", h as unknown as Record<string, unknown>).metadata })), plan: planName };
       }
     },
   };

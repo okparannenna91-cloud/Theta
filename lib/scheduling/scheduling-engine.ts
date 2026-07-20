@@ -40,13 +40,70 @@ function isWorkingDay(date: Date, config: SchedulingConfig): boolean {
 function addWorkingMinutes(date: Date, minutes: number, config: SchedulingConfig): Date {
     let remaining = minutes;
     let current = new Date(date);
+
+    // Calculate minutes available in current working day
+    const currentHour = current.getHours();
+    const currentMinute = current.getMinutes();
+    const dayMinutesUsed = (currentHour - config.workingHourStart) * 60 + currentMinute;
+    const dayMinutesAvailable = (config.workingHourEnd - config.workingHourStart) * 60;
+
+    // If we're in a working day, use remaining minutes in the day first
+    if (isWorkingDay(current, config) && currentHour >= config.workingHourStart && currentHour < config.workingHourEnd) {
+        const minutesLeftToday = dayMinutesAvailable - dayMinutesUsed;
+        if (remaining <= minutesLeftToday) {
+            return addMinutes(current, remaining);
+        }
+        remaining -= minutesLeftToday;
+    }
+
+    // Jump to next working day start
+    current = jumpToNextWorkingDayStart(current, config);
+
+    // Process full working days in bulk (much faster than minute-by-minute)
+    const minutesPerDay = dayMinutesAvailable;
+    if (minutesPerDay > 0 && remaining > minutesPerDay) {
+        const fullDays = Math.floor(remaining / minutesPerDay);
+        if (fullDays > 0) {
+            let daysJumped = 0;
+            let tempDate = new Date(current);
+            while (daysJumped < fullDays) {
+                tempDate = addDays(tempDate, 1);
+                if (isWorkingDay(tempDate, config)) {
+                    daysJumped++;
+                }
+            }
+            current = new Date(tempDate);
+            current.setHours(config.workingHourStart, 0, 0, 0);
+            remaining = remaining % minutesPerDay;
+        }
+    }
+
+    // Handle remaining minutes within the final working day
     while (remaining > 0) {
         current = addMinutes(current, 1);
-        if (isWorkingDay(current, config)) {
+        if (isWorkingDay(current, config) && current.getHours() >= config.workingHourStart && current.getHours() < config.workingHourEnd) {
             remaining--;
+        } else if (!isWorkingDay(current, config) || current.getHours() >= config.workingHourEnd) {
+            current = jumpToNextWorkingDayStart(current, config);
         }
     }
     return current;
+}
+
+function jumpToNextWorkingDayStart(date: Date, config: SchedulingConfig): Date {
+    let result = new Date(date);
+    // If current time is past working hours or not a working day, move to next working day start
+    if (!isWorkingDay(result, config) || result.getHours() >= config.workingHourEnd) {
+        result = addDays(result, 1);
+    }
+    // Find the next working day
+    let attempts = 0;
+    while (!isWorkingDay(result, config) && attempts < 30) {
+        result = addDays(result, 1);
+        attempts++;
+    }
+    result.setHours(config.workingHourStart, 0, 0, 0);
+    return result;
 }
 
 export function calculateSchedules(tasks: TaskData[], config: SchedulingConfig = DEFAULT_CONFIG) {

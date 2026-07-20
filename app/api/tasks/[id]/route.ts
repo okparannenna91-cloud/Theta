@@ -245,18 +245,84 @@ export async function PATCH(
       }
     }
 
-    // Trigger Automations if status changed (Phase 2)
-    if (data.status && data.status !== task.status) {
-        try {
-            const { processAutomations } = await import("@/lib/automations/engine");
-            await processAutomations(task.workspaceId, "TASK_STATUS_UPDATED", {
-                taskId: updated.id,
-                projectId: updated.projectId,
-                userId: user.id
-            });
-        } catch (automationError) {
-            console.error("Failed to trigger automations on status change:", automationError);
+    // Auto-populate AI columns when fieldValues change
+    if (data.fieldValues !== undefined && updated.boardId) {
+      try {
+        const { autoPopulateAIColumns } = await import("@/lib/nova/column-ai-processor");
+        const aiResults = await autoPopulateAIColumns(params.id, task.workspaceId);
+        if (Object.keys(aiResults).length > 0) {
+          const currentFV = (typeof updated.fieldValues === "object" && updated.fieldValues !== null)
+            ? updated.fieldValues as Record<string, any>
+            : {};
+          const merged = { ...currentFV, ...aiResults };
+          await prisma.task.update({
+            where: { id: params.id },
+            data: { fieldValues: merged as any },
+          });
+          const updatedWithAI = await prisma.task.findUnique({ where: { id: params.id } });
+          if (updatedWithAI) {
+            await publishToChannel(workspaceChannel, "task:updated", updatedWithAI);
+            const aiBoardChannel = getBoardChannel(updated.workspaceId, updated.boardId);
+            await publishToChannel(aiBoardChannel, "task:updated", updatedWithAI);
+          }
         }
+      } catch (aiError) {
+        console.error("AI column processing failed:", aiError);
+      }
+    }
+
+    // Trigger Automations — fire all relevant triggers
+    try {
+        const { processAutomations } = await import("@/lib/automations/engine");
+        const baseCtx = { taskId: updated.id, projectId: updated.projectId, userId: user.id };
+
+        // TASK_STATUS_UPDATED always fires when status changes
+        if (data.status && data.status !== task.status) {
+            await processAutomations(task.workspaceId, "TASK_STATUS_UPDATED", {
+                ...baseCtx,
+                taskTitle: updated.title,
+                oldValue: task.status,
+                newValue: data.status,
+            });
+
+            // TASK_COMPLETED fires when status moves to a completion state
+            const completionKeywords = ['done', 'complete', 'finished', 'approved'];
+            const isNowCompleted = completionKeywords.includes(data.status.toLowerCase());
+            const wasCompleted = completionKeywords.includes(task.status.toLowerCase());
+            if (isNowCompleted && !wasCompleted) {
+                await processAutomations(task.workspaceId, "TASK_COMPLETED", {
+                    ...baseCtx,
+                    taskTitle: updated.title,
+                });
+            }
+        }
+
+        // TASK_ASSIGNED fires when assignee list changes
+        if (data.assigneeIds !== undefined) {
+            const oldIds = JSON.stringify(task.assigneeIds?.sort() || []);
+            const newIds = JSON.stringify((data.assigneeIds as string[]).sort());
+            if (oldIds !== newIds) {
+                await processAutomations(task.workspaceId, "TASK_ASSIGNED", {
+                    ...baseCtx,
+                    taskTitle: updated.title,
+                    oldValue: task.assigneeIds,
+                    newValue: data.assigneeIds,
+                });
+            }
+        }
+
+        // TASK_PRIORITY_CHANGED fires when priority changes
+        if (data.priority && data.priority !== task.priority) {
+            await processAutomations(task.workspaceId, "TASK_PRIORITY_CHANGED", {
+                ...baseCtx,
+                taskTitle: updated.title,
+                taskPriority: data.priority as string,
+                oldValue: task.priority,
+                newValue: data.priority,
+            });
+        }
+    } catch (automationError) {
+        console.error("Failed to trigger automations:", automationError);
     }
 
     // Notify blocked task assignees when a blocking task completes

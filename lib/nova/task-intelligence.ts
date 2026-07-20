@@ -1,9 +1,25 @@
 import { prisma } from "../prisma";
-import { TASK_QUALITY_STANDARDS, TASK_CREATION_FLOW, TASK_INTELLIGENCE_CAPABILITIES } from "./constitution/task-standards";
 import { STATUS_DONE } from "../constants/status";
 import { logger } from "../logger";
 
-export { TASK_QUALITY_STANDARDS, TASK_CREATION_FLOW, TASK_INTELLIGENCE_CAPABILITIES } from "./constitution/task-standards";
+export const TASK_QUALITY_STANDARDS = [
+  { attribute: "Actionable", description: "Every task should represent concrete work" },
+  { attribute: "Clear", description: "The task objective should be unambiguous" },
+  { attribute: "Specific", description: "The task should have defined scope" },
+  { attribute: "Measurable", description: "The task should have clear completion criteria" },
+];
+
+export const TASK_CREATION_FLOW = [
+  "Identify objective", "Determine deliverables", "Generate tasks",
+  "Estimate effort", "Identify dependencies", "Recommend priorities",
+];
+
+export const TASK_INTELLIGENCE_CAPABILITIES = [
+  { name: "Smart Prioritization", description: "Recommends priority levels based on content" },
+  { name: "Smart Assignment", description: "Considers expertise and workload" },
+  { name: "Dependency Detection", description: "Identifies blocking tasks" },
+  { name: "Duplicate Detection", description: "Identifies similar tasks" },
+];
 
 export interface TaskRecommendation {
   priority: "low" | "medium" | "high" | "urgent";

@@ -7,6 +7,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProjectOverview } from "@/components/projects/project-overview";
 import { ProjectActivity } from "@/components/projects/project-activity";
 import { ProjectSettings } from "@/components/projects/project-settings";
+import { ProjectAnalytics } from "@/components/projects/project-analytics";
+import { DocumentList } from "@/components/documents/document-list";
+import { DocumentEditor } from "@/components/documents/document-editor";
+import { MeetingList } from "@/components/meetings/meeting-list";
+import { AutomationList } from "@/components/automations/automation-list";
 import { 
     ArrowLeft, 
     LayoutList, 
@@ -19,7 +24,12 @@ import {
     Settings,
     Users as UsersIcon,
     MessageSquare,
-    Calendar
+    Calendar,
+    Zap,
+    FileText,
+    Sliders,
+    Plus,
+    CalendarCheck,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -28,6 +38,9 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import Link from "next/link";
 import { ProjectTasksView } from "@/components/projects/project-tasks-view";
 import dynamic from "next/dynamic";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 const KanbanBoard = dynamic(() => import("@/components/boards/kanban-board"), { ssr: false });
 const TimelineView = dynamic(() => import("@/components/projects/timeline-view").then(m => ({ default: m.TimelineView })), { ssr: false });
@@ -36,7 +49,10 @@ const CalendarView = dynamic(() => import("@/components/projects/calendar-view")
 import { InviteMemberDialog } from "@/components/projects/invite-member-dialog";
 import { ProjectTeamsTab } from "@/components/projects/project-teams-tab";
 import { User } from "lucide-react";
-import { cn } from "@/lib/utils";
+import {
+    Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 async function fetchProject(id: string, workspaceId?: string | null) {
     const url = workspaceId ? `/api/projects/${id}?workspaceId=${workspaceId}` : `/api/projects/${id}`;
@@ -49,11 +65,39 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     const { activeWorkspaceId } = useWorkspace();
     const [view, setView] = useState("overview");
     const [isInviteOpen, setIsInviteOpen] = useState(false);
+    const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+    const [showNewDoc, setShowNewDoc] = useState(false);
+    const [newDocTitle, setNewDocTitle] = useState("");
+    const queryClient = useQueryClient();
 
     const { data: project, isLoading } = useQuery({
         queryKey: ["project", params.id, activeWorkspaceId],
         queryFn: () => fetchProject(params.id, activeWorkspaceId),
         enabled: !!params.id,
+    });
+
+    const createDocMutation = useMutation({
+        mutationFn: async () => {
+            const res = await fetch("/api/documents", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: newDocTitle,
+                    workspaceId: activeWorkspaceId,
+                    projectId: params.id,
+                }),
+            });
+            if (!res.ok) throw new Error("Failed to create document");
+            return res.json();
+        },
+        onSuccess: (doc) => {
+            queryClient.invalidateQueries({ queryKey: ["documents"] });
+            setSelectedDocId(doc.id);
+            setShowNewDoc(false);
+            setNewDocTitle("");
+            toast.success("Document created");
+        },
+        onError: () => toast.error("Failed to create document"),
     });
 
     if (isLoading) {
@@ -90,6 +134,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         { id: "overview", label: "Overview", icon: Info },
         { id: "tasks", label: "Tasks", icon: LayoutList },
         { id: "boards", label: "Boards", icon: Columns },
+        { id: "sprints", label: "Sprints", icon: Zap },
+        { id: "documents", label: "Documents", icon: FileText },
+        { id: "meetings", label: "Meetings", icon: CalendarCheck },
+        { id: "custom-fields", label: "Fields", icon: Sliders },
         { id: "teams", label: "Teams", icon: UsersIcon },
         { id: "members", label: "Members", icon: User },
         { id: "calendar", label: "Calendar", icon: CalendarDays },
@@ -97,6 +145,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         { id: "gantt", label: "Gantt", icon: GanttIcon },
         { id: "activity", label: "Activity", icon: ActivityIcon },
         { id: "analytics", label: "Insights", icon: TrendingUp },
+        { id: "automations", label: "Automations", icon: Zap },
         { id: "settings", label: "Settings", icon: Settings },
     ];
 
@@ -140,7 +189,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
-                            onClick={() => setView(tab.id)}
+                            onClick={() => { setView(tab.id); if (tab.id !== "documents") setSelectedDocId(null); }}
                             className={cn(
                                 "flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-t-md transition-colors whitespace-nowrap border-b-2",
                                 view === tab.id
@@ -217,6 +266,131 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                                 </CardContent>
                             </Card>
                         )}
+                    </div>
+                )}
+
+                {view === "sprints" && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold">Sprints</h2>
+                                <p className="text-sm text-muted-foreground">Manage iterative work cycles for this project</p>
+                            </div>
+                            <Button size="sm">
+                                <Zap className="h-4 w-4 mr-2" />
+                                New Sprint
+                            </Button>
+                        </div>
+                        <Card className="border-2 border-dashed border-border">
+                            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+                                    <Zap className="h-6 w-6 text-primary" />
+                                </div>
+                                <h3 className="text-sm font-semibold mb-1">No active sprints</h3>
+                                <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+                                    Create a sprint to organize work into time-boxed iterations with burndown tracking.
+                                </p>
+                                <Button variant="outline">Create Sprint</Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {view === "documents" && (
+                    <div className="space-y-6">
+                        {selectedDocId ? (
+                            <DocumentEditor
+                                documentId={selectedDocId}
+                                onBack={() => setSelectedDocId(null)}
+                            />
+                        ) : (
+                            <>
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <h2 className="text-lg font-semibold">Documents</h2>
+                                        <p className="text-sm text-muted-foreground">Project wiki, specs, and documentation</p>
+                                    </div>
+                                    <Dialog open={showNewDoc} onOpenChange={setShowNewDoc}>
+                                        <DialogTrigger asChild>
+                                            <Button size="sm">
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                New Document
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>New Document</DialogTitle>
+                                                <DialogDescription>Create a new document for this project</DialogDescription>
+                                            </DialogHeader>
+                                            <div className="py-4">
+                                                <Input
+                                                    placeholder="Document title"
+                                                    value={newDocTitle}
+                                                    onChange={(e) => setNewDocTitle(e.target.value)}
+                                                    onKeyDown={(e) => {
+                                                        if (e.key === "Enter" && newDocTitle.trim()) {
+                                                            createDocMutation.mutate();
+                                                        }
+                                                    }}
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <DialogFooter>
+                                                <Button variant="outline" size="sm" onClick={() => setShowNewDoc(false)}>Cancel</Button>
+                                                <Button
+                                                    size="sm"
+                                                    onClick={() => createDocMutation.mutate()}
+                                                    disabled={!newDocTitle.trim() || createDocMutation.isPending}
+                                                >
+                                                    {createDocMutation.isPending ? "Creating..." : "Create"}
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
+                                <DocumentList
+                                    projectId={params.id}
+                                    onSelectDocument={setSelectedDocId}
+                                />
+                            </>
+                        )}
+                    </div>
+                )}
+
+                {view === "meetings" && (
+                    <div className="space-y-6">
+                        <div>
+                            <h2 className="text-lg font-semibold">Meetings</h2>
+                            <p className="text-sm text-muted-foreground">AI-powered meeting intelligence with agenda generation and post-briefs</p>
+                        </div>
+                        <MeetingList projectId={params.id} />
+                    </div>
+                )}
+
+                {view === "custom-fields" && (
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h2 className="text-lg font-semibold">Custom Fields</h2>
+                                <p className="text-sm text-muted-foreground">Define custom data fields for tasks in this project</p>
+                            </div>
+                            <Button size="sm">
+                                <Sliders className="h-4 w-4 mr-2" />
+                                Add Field
+                            </Button>
+                        </div>
+                        <Card className="border-2 border-dashed border-border">
+                            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
+                                    <Sliders className="h-6 w-6 text-muted-foreground" />
+                                </div>
+                                <h3 className="text-sm font-semibold mb-1">No custom fields</h3>
+                                <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+                                    Add custom fields to track additional data like story points, sprint, or any custom attribute.
+                                </p>
+                                <Button variant="outline">Create Custom Field</Button>
+                            </CardContent>
+                        </Card>
                     </div>
                 )}
 
@@ -312,19 +486,17 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                                 Live
                             </Badge>
                         </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-                            {["Total Tasks", "Completed", "In Progress", "Overdue"].map((label, i) => (
-                                <Card key={i} className="border shadow-sm">
-                                    <CardHeader className="pb-2">
-                                        <CardTitle className="text-xs font-medium text-muted-foreground">{label}</CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <Skeleton className="h-8 w-16 rounded-md" />
-                                    </CardContent>
-                                </Card>
-                            ))}
+                        <ProjectAnalytics projectId={project.id} />
+                    </div>
+                )}
+
+                {view === "automations" && (
+                    <div className="space-y-6">
+                        <div>
+                            <h2 className="text-lg font-semibold">Automations</h2>
+                            <p className="text-sm text-muted-foreground">Automate repetitive workflows with triggers and actions</p>
                         </div>
+                        <AutomationList />
                     </div>
                 )}
                 

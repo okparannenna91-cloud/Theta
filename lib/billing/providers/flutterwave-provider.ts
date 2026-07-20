@@ -13,7 +13,7 @@ export class FlutterwaveProvider implements BillingProvider {
   get currencies(): Currency[] {
     return process.env.FLUTTERWAVE_SECRET_KEY ? ["USD", "EUR", "GBP"] : [];
   }
-  readonly capabilities = ["payment_intents", "checkout_sessions", "refunds", "webhooks"] as const;
+  readonly capabilities = ["payment_intents", "checkout_sessions", "subscriptions", "refunds", "webhooks"] as const;
 
   async createCustomer(email: string, name?: string, metadata?: Record<string, string>): Promise<CustomerResult> {
     const response = await flwFetch("/customers", {
@@ -91,19 +91,79 @@ export class FlutterwaveProvider implements BillingProvider {
   }
 
   async createSubscription(customerId: string, params: SubscriptionParams): Promise<SubscriptionResult> {
-    throw new ProviderNotSupportedError("flutterwave", "createSubscription");
+    // Step 1: Create a plan on Flutterwave if we don't have one yet
+    // Use quantity * plan price as the amount, or default to 0 for free trials
+    const planCode = await this.resolveOrCreatePlan(params.planKey, params.interval, params.quantity ?? 1, "USD");
+
+    // Step 2: Subscribe the customer to the plan
+    const response = await flwFetch("/subscriptions", {
+      method: "POST",
+      body: JSON.stringify({
+        customer: customerId,
+        plan: planCode,
+        start_date: new Date().toISOString(),
+      }),
+    });
+
+    const sub = response.data;
+    return {
+      id: sub.id?.toString() ?? sub.subscription_code ?? "",
+      status: sub.status === "active" ? "active" : "pending",
+      currentPeriodStart: new Date(sub.start_date ?? Date.now()).getTime(),
+      currentPeriodEnd: new Date(sub.next_payment_date ?? Date.now() + 30 * 24 * 60 * 60 * 1000).getTime(),
+      customerId,
+    };
   }
 
   async updateSubscription(subscriptionId: string, params: Partial<SubscriptionParams>): Promise<SubscriptionResult> {
-    throw new ProviderNotSupportedError("flutterwave", "updateSubscription");
+    if (params.planKey) {
+      const planCode = await this.resolveOrCreatePlan(params.planKey, params.interval ?? "monthly", params.quantity ?? 1, "USD");
+      const response = await flwFetch(`/subscriptions/${subscriptionId}`, {
+        method: "PUT",
+        body: JSON.stringify({ plan: planCode }),
+      });
+      return {
+        id: response.data?.id?.toString() ?? subscriptionId,
+        status: response.data?.status ?? "active",
+        currentPeriodStart: Date.now(),
+        currentPeriodEnd: Date.now() + 30 * 24 * 60 * 60 * 1000,
+        customerId: params.customerId ?? "",
+      };
+    }
+    const response = await flwFetch(`/subscriptions/${subscriptionId}`);
+    return {
+      id: response.data?.id?.toString() ?? subscriptionId,
+      status: response.data?.status ?? "active",
+      currentPeriodStart: Date.now(),
+      currentPeriodEnd: Date.now() + 30 * 24 * 60 * 60 * 1000,
+      customerId: params.customerId ?? "",
+    };
   }
 
   async cancelSubscription(subscriptionId: string, options?: { cancelAtPeriodEnd?: boolean }): Promise<void> {
-    return;
+    try {
+      await flwFetch(`/subscriptions/${subscriptionId}/cancel`, {
+        method: "GET",
+      });
+      logger.info(`[Flutterwave] Subscription ${subscriptionId} canceled`);
+    } catch (error: any) {
+      logger.error(`[Flutterwave] Failed to cancel subscription ${subscriptionId}: ${error.message}`);
+      throw new Error(`Failed to cancel Flutterwave subscription: ${error.message}`);
+    }
   }
 
   async retrieveSubscription(subscriptionId: string): Promise<SubscriptionData> {
-    throw new ProviderNotSupportedError("flutterwave", "retrieveSubscription");
+    const response = await flwFetch(`/subscriptions/${subscriptionId}`);
+    const sub = response.data;
+    return {
+      id: sub.id?.toString() ?? subscriptionId,
+      status: sub.status,
+      interval: sub.interval,
+      currentPeriodStart: new Date(sub.start_date ?? Date.now()).getTime(),
+      currentPeriodEnd: new Date(sub.next_payment_date ?? Date.now()).getTime(),
+      cancelAtPeriodEnd: sub.status === "cancelled",
+      customerId: sub.customer?.id?.toString() ?? "",
+    };
   }
 
   async chargeCustomer(customerId: string, amount: number, currency: string, params?: ChargeParams): Promise<ChargeResult> {
@@ -260,17 +320,93 @@ export class FlutterwaveProvider implements BillingProvider {
     throw new ProviderNotSupportedError("flutterwave", "voidInvoice");
   }
 
-  private extractToken(metadata: any): string | null {
+  /**
+   * Extract payment token from providerMetadata for tokenized charges
+   */
+  extractToken(metadata: any): string | null {
     if (!metadata) return null;
     if (typeof metadata === "string") {
       try {
         const parsed = JSON.parse(metadata);
-        return parsed?.token ?? null;
+        return parsed?.token ?? parsed?.payment_token ?? null;
       } catch {
         return null;
       }
     }
-    return (metadata as any)?.token ?? null;
+    return (metadata as any)?.token ?? (metadata as any)?.payment_token ?? null;
+  }
+
+  /**
+   * Store payment token in workspace providerMetadata after successful checkout
+   */
+  async storePaymentToken(workspaceId: string, token: string, authorization?: Record<string, any>): Promise<void> {
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { providerMetadata: true },
+    });
+
+    const existing = (workspace?.providerMetadata as Record<string, any>) ?? {};
+    const updated = {
+      ...existing,
+      token,
+      payment_token: token,
+      ...(authorization ? { authorization } : {}),
+      storedAt: new Date().toISOString(),
+    };
+
+    await prisma.workspace.update({
+      where: { id: workspaceId },
+      data: { providerMetadata: updated as any },
+    });
+
+    logger.info(`[Flutterwave] Payment token stored for workspace ${workspaceId}`);
+  }
+
+  /**
+   * Resolve or create a Flutterwave plan for subscriptions
+   * Flutterwave requires plan creation before customer subscription
+   */
+  private async resolveOrCreatePlan(planKey: string, interval: string, quantity: number, currency: string): Promise<string> {
+    // Check if we already have a plan code stored
+    try {
+      // List existing plans to find a match
+      const response = await flwFetch("/plans", { method: "GET" });
+      const plans = response.data ?? [];
+      const existing = plans.find((p: any) =>
+        p.name?.toLowerCase().includes(planKey) &&
+        p.interval?.toLowerCase() === interval
+      );
+      if (existing) {
+        return existing.id?.toString() ?? existing.plan_code;
+      }
+    } catch (error) {
+      logger.warn(`[Flutterwave] Failed to list plans, will create new: ${error}`);
+    }
+
+    // Look up the plan amount from BILLING_PLANS
+    const { BILLING_PLANS } = await import("@/lib/billing-plans");
+    const billingPlan = BILLING_PLANS.find(p => p.planKey === planKey);
+    const amountInCents = billingPlan ? billingPlan.basePriceMonthlyUSD + (quantity * billingPlan.perUserPriceMonthlyUSD) : 0;
+    const amount = amountInCents / 100;
+
+    // Create a new plan
+    const response = await flwFetch("/plans", {
+      method: "POST",
+      body: JSON.stringify({
+        amount,
+        name: `Theta ${planKey} (${interval})`,
+        interval,
+        currency,
+      }),
+    });
+
+    const planCode = response.data?.id?.toString() ?? response.data?.plan_code;
+    if (!planCode) {
+      throw new Error(`Failed to create Flutterwave plan for ${planKey} ${interval}`);
+    }
+
+    logger.info(`[Flutterwave] Created plan: ${planCode} for ${planKey} ${interval}`);
+    return planCode;
   }
 
   private toFlwAmount(amountInCents: number, _currency: string): number {
@@ -282,6 +418,11 @@ export class FlutterwaveProvider implements BillingProvider {
       "charge.completed": "payment.succeeded",
       "charge.success": "payment.succeeded",
       "charge.failed": "payment.failed",
+      "subscription.create": "subscription.created",
+      "subscription.complete": "subscription.created",
+      "subscription.updated": "subscription.updated",
+      "subscription.cancelled": "subscription.canceled",
+      "subscription.canceled": "subscription.canceled",
       "transfer.completed": "subscription.updated",
       "transfer.failed": "payment.failed",
     };

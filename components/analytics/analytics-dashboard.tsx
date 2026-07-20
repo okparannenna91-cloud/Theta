@@ -20,7 +20,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FolderKanban, ListTodo, CheckCircle2, AlertCircle, Clock, Activity, Users, Lock, Sparkles } from "lucide-react";
+import { FolderKanban, ListTodo, CheckCircle2, AlertCircle, Clock, Activity, Users, Lock, Sparkles, Download } from "lucide-react";
 import { usePopups } from "@/components/popups/popup-manager";
 import { Button } from "@/components/ui/button";
 
@@ -116,16 +116,22 @@ export default function AnalyticsDashboard() {
                     </div>
                 </motion.div>
                 
-                <Select value={days} onValueChange={setDays}>
-                    <SelectTrigger className="w-44 h-10 rounded-lg">
-                        <SelectValue placeholder="Timeframe" />
-                    </SelectTrigger>
-                    <SelectContent className="rounded-lg">
-                        <SelectItem value="7">Last 7 days</SelectItem>
-                        <SelectItem value="30">Last 30 days</SelectItem>
-                        <SelectItem value="90">Last 90 days</SelectItem>
-                    </SelectContent>
-                </Select>
+                <div className="flex items-center gap-3">
+                    <Select value={days} onValueChange={setDays}>
+                        <SelectTrigger className="w-44 h-10 rounded-lg">
+                            <SelectValue placeholder="Timeframe" />
+                        </SelectTrigger>
+                        <SelectContent className="rounded-lg">
+                            <SelectItem value="7">Last 7 days</SelectItem>
+                            <SelectItem value="30">Last 30 days</SelectItem>
+                            <SelectItem value="90">Last 90 days</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button variant="outline" size="sm" className="h-10 gap-2" onClick={() => window.open(`/api/export?workspaceId=${activeWorkspaceId}&format=csv`, "_blank")}>
+                        <Download className="h-4 w-4" />
+                        Export
+                    </Button>
+                </div>
             </div>
 
             {/* Top Stat Cards */}

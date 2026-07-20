@@ -1,57 +1,37 @@
 import { z } from "zod";
 import { executeWithProvider } from "@/lib/langraph/model-router";
 import { logger } from "@/lib/logger";
-import { TRIGGER_DEFINITIONS, ACTION_DEFINITIONS, type AutomationTrigger, type AutomationAction } from "./constitution/automation-standards";
-
-// ──────────────────────────────────────────────
-//  Zod Schemas for Automation Rules
-// ──────────────────────────────────────────────
-
-export const AutomationConditionSchema = z.object({
-  field: z.string(),
-  operator: z.enum(["equals", "not_equals", "contains", "greater_than", "less_than"]),
-  value: z.string(),
-});
-
-export const AutomationTriggerSchema = z.object({
-  type: z.string(),
-  conditions: z.array(AutomationConditionSchema).optional(),
-});
-
-export const AutomationActionSchema = z.object({
-  type: z.string(),
-  params: z.record(z.string(), z.unknown()).optional(),
-});
+import { prisma } from "@/lib/prisma";
+import { AutomationIntelligence, type AutomatedWorkflow } from "./automation-intelligence";
+import { TRIGGER_DEFINITIONS, ACTION_DEFINITIONS } from "./automation-intelligence";
 
 export const AutomationRuleSchema = z.object({
   name: z.string().min(1).max(100),
-  description: z.string().min(1).max(500),
-  trigger: AutomationTriggerSchema,
-  actions: z.array(AutomationActionSchema).min(1).max(5),
-  enabled: z.boolean().default(true),
+  trigger: z.object({
+    type: z.string(),
+    conditions: z.record(z.string(), z.unknown()).optional(),
+  }),
+  actions: z.array(
+    z.object({
+      type: z.string(),
+      params: z.record(z.string(), z.unknown()).optional(),
+    })
+  ).min(1).max(5),
+  explanation: z.string(),
 });
 
-export type AutomationCondition = z.infer<typeof AutomationConditionSchema>;
-export type AutomationTriggerConfig = z.infer<typeof AutomationTriggerSchema>;
-export type AutomationActionConfig = z.infer<typeof AutomationActionSchema>;
-export type SmartAutomationRule = z.infer<typeof AutomationRuleSchema>;
+export type AutomationRule = z.infer<typeof AutomationRuleSchema>;
 
-// ──────────────────────────────────────────────
-//  LLM-Based Automation Parser
-// ──────────────────────────────────────────────
+export class SmartAutomation {
+  static async parseNLToRule(nlCommand: string): Promise<AutomationRule> {
+    const triggers = TRIGGER_DEFINITIONS.map(
+      (t) => `${t.trigger}: ${t.description}`
+    ).join("\n");
+    const actions = ACTION_DEFINITIONS.map(
+      (a) => `${a.action}: ${a.description}`
+    ).join("\n");
 
-export class SmartAutomationEngine {
-  /**
-   * Parse natural language into a structured automation rule using LLM
-   */
-  static async parseNaturalLanguage(
-    userInput: string,
-    workspaceContext?: string,
-  ): Promise<SmartAutomationRule> {
-    const triggers = TRIGGER_DEFINITIONS.map(t => `${t.trigger}: ${t.description}`).join("\n");
-    const actions = ACTION_DEFINITIONS.map(a => `${a.action}: ${a.description}`).join("\n");
-
-    const prompt = `You are an automation rule parser. Convert natural language instructions into a structured automation rule.
+    const prompt = `You are an automation rule parser. Convert natural language into a structured automation rule.
 
 Available Triggers:
 ${triggers}
@@ -59,32 +39,25 @@ ${triggers}
 Available Actions:
 ${actions}
 
-Condition operators: equals, not_equals, contains, greater_than, less_than
+User Instruction: "${nlCommand}"
 
-User Instruction: "${userInput}"
-${workspaceContext ? `\nWorkspace Context: ${workspaceContext}` : ""}
-
-Respond with ONLY a valid JSON object matching this schema:
+Respond with ONLY a valid JSON object:
 {
   "name": "short descriptive name (max 100 chars)",
-  "description": "what this automation does (max 500 chars)",
   "trigger": {
     "type": "TRIGGER_TYPE",
-    "conditions": [
-      { "field": "field_name", "operator": "operator", "value": "value" }
-    ]
+    "conditions": { "field_name": "value" }
   },
   "actions": [
     { "type": "ACTION_TYPE", "params": { "key": "value" } }
   ],
-  "enabled": true
+  "explanation": "human-readable explanation of what this rule does"
 }
 
 Rules:
 - Use ONLY the trigger and action types listed above
-- Conditions are optional — only include if the user specified conditions
+- Conditions object is optional — only include if the user specified conditions
 - Keep it simple — one trigger, 1-5 actions
-- Name should be concise and descriptive
 - If the instruction is ambiguous, make your best interpretation`;
 
     try {
@@ -92,122 +65,261 @@ Rules:
         "gemini",
         "gemini-2.5-flash",
         "You are a JSON-only parser. Respond with valid JSON only, no markdown, no explanation.",
-        prompt,
+        prompt
       );
 
       const cleaned = response.replace(/```json\n?|\n?```/g, "").trim();
       const parsed = JSON.parse(cleaned);
 
-      // Validate with Zod
       const result = AutomationRuleSchema.safeParse(parsed);
       if (!result.success) {
-        logger.warn("[SmartAutomation] Zod validation failed:", result.error.errors);
-        throw new Error(`Invalid automation rule: ${result.error.errors.map(e => e.message).join(", ")}`);
+        logger.warn("[SmartAutomation] Zod validation failed, falling back to NLP:", result.error.errors);
+        return this.fallbackNLToRule(nlCommand);
       }
 
       return result.data;
     } catch (error) {
-      logger.warn("[SmartAutomation] LLM parsing failed:", error);
-      throw error;
+      logger.warn("[SmartAutomation] LLM parsing failed, falling back to NLP:", error);
+      return this.fallbackNLToRule(nlCommand);
     }
   }
 
-  /**
-   * Validate an automation rule against available triggers/actions
-   */
-  static validateRule(rule: SmartAutomationRule): { valid: boolean; errors: string[] } {
-    const errors: string[] = [];
+  private static fallbackNLToRule(nlCommand: string): AutomationRule {
+    const workflow: AutomatedWorkflow = AutomationIntelligence.translateNL(nlCommand);
+    return {
+      name: workflow.name,
+      trigger: {
+        type: workflow.trigger,
+        conditions: {},
+      },
+      actions: [
+        {
+          type: workflow.action,
+          params: workflow.config as Record<string, unknown>,
+        },
+      ],
+      explanation: workflow.explanation,
+    };
+  }
 
-    const validTriggerTypes = TRIGGER_DEFINITIONS.map(t => t.trigger);
-    if (!validTriggerTypes.includes(rule.trigger.type as AutomationTrigger)) {
-      errors.push(`Invalid trigger type: ${rule.trigger.type}. Valid types: ${validTriggerTypes.join(", ")}`);
+  static previewRule(rule: AutomationRule): string {
+    const lines: string[] = [];
+    lines.push(`**Automation Preview: ${rule.name}**`);
+    lines.push("");
+    lines.push(`Trigger: When ${rule.trigger.type.replace(/_/g, " ").toLowerCase()}`);
+
+    if (rule.trigger.conditions && Object.keys(rule.trigger.conditions).length > 0) {
+      const conditions = Object.entries(rule.trigger.conditions)
+        .map(([k, v]) => `${k} = ${String(v)}`)
+        .join(", ");
+      lines.push(`  Conditions: ${conditions}`);
     }
 
-    const validActionTypes = ACTION_DEFINITIONS.map(a => a.action);
+    lines.push("");
+    lines.push("Actions:");
     for (const action of rule.actions) {
-      if (!validActionTypes.includes(action.type as AutomationAction)) {
-        errors.push(`Invalid action type: ${action.type}. Valid types: ${validActionTypes.join(", ")}`);
-      }
+      const paramStr = action.params && Object.keys(action.params).length > 0
+        ? ` (${Object.entries(action.params).map(([k, v]) => `${k}=${String(v)}`).join(", ")})`
+        : "";
+      lines.push(`  - ${action.type.replace(/_/g, " ").toLowerCase()}${paramStr}`);
     }
 
-    if (rule.actions.length === 0) {
-      errors.push("At least one action is required");
+    lines.push("");
+    lines.push(`Explanation: ${rule.explanation}`);
+    lines.push("");
+    lines.push("**Dry Run Simulation:**");
+    lines.push("If this rule were active right now:");
+
+    const triggerDesc = rule.trigger.type.replace(/_/g, " ").toLowerCase();
+    lines.push(`- The system would listen for "${triggerDesc}" events`);
+
+    if (rule.trigger.conditions && Object.keys(rule.trigger.conditions).length > 0) {
+      lines.push(`- Only events matching the conditions would trigger this rule`);
     }
-
-    if (rule.actions.length > 5) {
-      errors.push("Maximum 5 actions allowed");
-    }
-
-    return { valid: errors.length === 0, errors };
-  }
-
-  /**
-   * Generate a human-readable explanation of the automation rule
-   */
-  static explainRule(rule: SmartAutomationRule): string {
-    const triggerDef = TRIGGER_DEFINITIONS.find(t => t.trigger === rule.trigger.type);
-    const triggerDesc = triggerDef?.description || rule.trigger.type;
-
-    let explanation = `When ${triggerDesc.toLowerCase()}`;
-
-    if (rule.trigger.conditions && rule.trigger.conditions.length > 0) {
-      const conditions = rule.trigger.conditions
-        .map(c => `${c.field} ${c.operator} "${c.value}"`)
-        .join(" and ");
-      explanation += ` (if ${conditions})`;
-    }
-
-    explanation += ", then:\n";
 
     for (const action of rule.actions) {
-      const actionDef = ACTION_DEFINITIONS.find(a => a.action === action.type);
-      const actionDesc = actionDef?.description || action.type;
-      explanation += `  - ${actionDesc}`;
-
-      if (action.params && Object.keys(action.params).length > 0) {
-        const params = Object.entries(action.params)
-          .map(([k, v]) => `${k}=${v}`)
-          .join(", ");
-        explanation += ` (${params})`;
-      }
-      explanation += "\n";
+      const actionDesc = action.type.replace(/_/g, " ").toLowerCase();
+      lines.push(`- It would ${actionDesc}${action.params ? ` with parameters: ${JSON.stringify(action.params)}` : ""}`);
     }
 
-    return explanation.trim();
+    return lines.join("\n");
   }
 
-  /**
-   * Get example automations for onboarding
-   */
-  static getExampleAutomations(): Array<{ naturalLanguage: string; rule: Partial<SmartAutomationRule> }> {
-    return [
-      {
-        naturalLanguage: "When a task is completed, notify the project owner",
-        rule: {
-          name: "Task Completion Notification",
-          trigger: { type: "TASK_COMPLETED" },
-          actions: [{ type: "SEND_NOTIFICATION", params: { target: "project_owner" } }],
+  static async getSuggestedRules(workspaceId: string): Promise<AutomationRule[]> {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+
+    const [statusChanges, assignments, tasks] = await Promise.all([
+      prisma.activity.findMany({
+        where: {
+          workspaceId,
+          action: { in: ["status_changed", "STATUS_UPDATED"] },
+          createdAt: { gte: thirtyDaysAgo },
         },
-      },
-      {
-        naturalLanguage: "If a task is overdue for more than 3 days, assign it to the team lead",
-        rule: {
-          name: "Overdue Task Reassignment",
-          trigger: { type: "TASK_OVERDUE", conditions: [{ field: "days_overdue", operator: "greater_than", value: "3" }] },
-          actions: [{ type: "SET_ASSIGNEE", params: { assignTo: "team_lead" } }],
+        select: { metadata: true },
+        take: 200,
+      }),
+      prisma.activity.findMany({
+        where: {
+          workspaceId,
+          action: { in: ["assigned", "TASK_ASSIGNED"] },
+          createdAt: { gte: thirtyDaysAgo },
         },
-      },
-      {
-        naturalLanguage: "When a form is submitted, create a task and notify the team",
-        rule: {
-          name: "Form Submission Handler",
-          trigger: { type: "FORM_SUBMITTED" },
-          actions: [
-            { type: "CREATE_TASK", params: { source: "form" } },
-            { type: "NOTIFY_TEAM", params: { message: "New form submission received" } },
-          ],
+        select: { metadata: true },
+        take: 200,
+      }),
+      prisma.task.findMany({
+        where: { workspaceId },
+        select: {
+          title: true,
+          status: true,
+          priority: true,
+          assigneeIds: true,
+          dueDate: true,
         },
-      },
-    ];
+        take: 200,
+      }),
+    ]);
+
+    const statusTransitionCounts = new Map<string, number>();
+    for (const act of statusChanges) {
+      const meta = act.metadata as Record<string, unknown> | null;
+      const from = String(meta?.oldValue || meta?.from || "unknown");
+      const to = String(meta?.newValue || meta?.to || "unknown");
+      const key = `${from}->${to}`;
+      statusTransitionCounts.set(key, (statusTransitionCounts.get(key) || 0) + 1);
+    }
+
+    const frequentTransitions = Array.from(statusTransitionCounts.entries())
+      .filter(([, count]) => count >= 5)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 3);
+
+    const overdueCount = tasks.filter(
+      (t) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "done" && t.status !== "completed"
+    ).length;
+
+    const unassignedCount = tasks.filter((t) => t.assigneeIds.length === 0).length;
+
+    const highPriorityUnassigned = tasks.filter(
+      (t) => t.priority === "high" && t.assigneeIds.length === 0
+    ).length;
+
+    const contextSummary = `
+Workspace analysis (last 30 days):
+- Frequent status transitions: ${frequentTransitions.map(([k, v]) => `${k} (${v}x)`).join(", ") || "none detected"}
+- Overdue tasks: ${overdueCount}
+- Unassigned tasks: ${unassignedCount}
+- High-priority unassigned: ${highPriorityUnassigned}
+- Total active tasks: ${tasks.filter((t) => t.status !== "done" && t.status !== "completed").length}
+`.trim();
+
+    const prompt = `You are an automation rule suggestion engine. Based on workspace patterns, suggest 2-4 useful automation rules.
+
+${contextSummary}
+
+Available Triggers:
+${TRIGGER_DEFINITIONS.map((t) => `${t.trigger}: ${t.description}`).join("\n")}
+
+Available Actions:
+${ACTION_DEFINITIONS.map((a) => `${a.action}: ${a.description}`).join("\n")}
+
+For each suggestion, respond with a JSON array of objects:
+[
+  {
+    "name": "descriptive name",
+    "trigger": { "type": "TRIGGER_TYPE", "conditions": {} },
+    "actions": [{ "type": "ACTION_TYPE", "params": {} }],
+    "explanation": "why this rule is useful based on the patterns above"
+  }
+]
+
+Rules:
+- Base suggestions on the actual patterns above
+- Only use valid trigger/action types
+- Be specific — reference actual data patterns
+- Keep rules simple and practical
+- Return ONLY the JSON array`;
+
+    try {
+      const response = await executeWithProvider(
+        "gemini",
+        "gemini-2.5-flash",
+        "You are a JSON-only parser. Respond with a valid JSON array only, no markdown.",
+        prompt
+      );
+
+      const cleaned = response.replace(/```json\n?|\n?```/g, "").trim();
+      const parsed = JSON.parse(cleaned);
+
+      if (!Array.isArray(parsed)) {
+        logger.warn("[SmartAutomation] LLM response is not an array");
+        return [];
+      }
+
+      const rules: AutomationRule[] = [];
+      for (const item of parsed) {
+        const result = AutomationRuleSchema.safeParse(item);
+        if (result.success) {
+          rules.push(result.data);
+        }
+      }
+
+      return rules;
+    } catch (error) {
+      logger.warn("[SmartAutomation] LLM suggestion failed:", error);
+      return this.generateStaticSuggestions(overdueCount, unassignedCount, highPriorityUnassigned);
+    }
+  }
+
+  private static generateStaticSuggestions(
+    overdueCount: number,
+    unassignedCount: number,
+    highPriorityUnassigned: number,
+  ): AutomationRule[] {
+    const suggestions: AutomationRule[] = [];
+
+    if (overdueCount > 0) {
+      suggestions.push({
+        name: "Overdue Task Alert",
+        trigger: { type: "DUE_DATE_PASSED", conditions: {} },
+        actions: [
+          { type: "send_notification", params: { title: "Overdue Task", message: "You have an overdue task" } },
+        ],
+        explanation: `Detected ${overdueCount} overdue task(s). This rule notifies assignees when tasks become overdue.`,
+      });
+    }
+
+    if (highPriorityUnassigned > 0) {
+      suggestions.push({
+        name: "High Priority Unassigned Alert",
+        trigger: { type: "TASK_CREATED", conditions: { priority: "high" } },
+        actions: [
+          { type: "send_notification", params: { title: "High Priority Task", message: "New high-priority task needs assignment" } },
+        ],
+        explanation: `Detected ${highPriorityUnassigned} high-priority unassigned tasks. This rule alerts the team when unassigned high-priority tasks are created.`,
+      });
+    }
+
+    if (unassignedCount > 3) {
+      suggestions.push({
+        name: "Auto-assign to Team Lead",
+        trigger: { type: "TASK_CREATED", conditions: { assigneeIds: "empty" } },
+        actions: [
+          { type: "update_task", params: { assigneeId: "team_lead" } },
+        ],
+        explanation: `Detected ${unassignedCount} unassigned tasks. This rule auto-assigns new tasks to the team lead.`,
+      });
+    }
+
+    suggestions.push({
+      name: "Sprint Completion Report",
+      trigger: { type: "SPRINT_COMPLETED", conditions: {} },
+      actions: [
+        { type: "send_notification", params: { title: "Sprint Completed", message: "Sprint completed — view the summary report" } },
+      ],
+      explanation: "Automatically generate and share a sprint summary report when a sprint ends.",
+    });
+
+    return suggestions;
   }
 }

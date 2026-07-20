@@ -1,11 +1,79 @@
 import { prisma } from "../prisma";
 import { logger } from "../logger";
 import { canAccessProject, canAccessProjectResource } from "../project-permissions";
-import { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, getContextPriority, getTokenBudget, PROACTIVE_INSIGHT_TYPES, type ContextSource } from "./constitution/context";
 
-export { CONTEXT_PRIORITY_HIERARCHY, CONTEXT_RULES, CONTEXT_WINDOW_STRATEGY, PROACTIVE_INSIGHT_TYPES, type ContextSource } from "./constitution/context";
+export type ContextSource = "CURRENT_TASK" | "CURRENT_DOCUMENT" | "CURRENT_PROJECT" | "CURRENT_SPRINT" | "WORKSPACE" | "HISTORICAL_MEMORY" | "CONVERSATION_HISTORY" | "PROACTIVE_INSIGHTS";
 
-const TOTAL_TOKEN_BUDGET = 4000;
+export const CONTEXT_PRIORITY_HIERARCHY: Array<{ source: ContextSource; priority: number; description: string; tokenBudget: number }> = [
+  { source: "CURRENT_TASK", priority: 1, description: "Current task", tokenBudget: 500 },
+  { source: "CURRENT_DOCUMENT", priority: 2, description: "Current document", tokenBudget: 400 },
+  { source: "CURRENT_PROJECT", priority: 3, description: "Project goals", tokenBudget: 400 },
+  { source: "CURRENT_SPRINT", priority: 4, description: "Sprint progress", tokenBudget: 300 },
+  { source: "WORKSPACE", priority: 5, description: "Workspace settings", tokenBudget: 300 },
+  { source: "CONVERSATION_HISTORY", priority: 6, description: "Recent conversation", tokenBudget: 500 },
+  { source: "HISTORICAL_MEMORY", priority: 7, description: "User preferences", tokenBudget: 300 },
+];
+
+export const CONTEXT_RULES: string[] = [
+  "Use available context rather than asking for it",
+  "Avoid redundant questions",
+  "Adapt responses to current state",
+  "Never ignore active context",
+];
+
+export const CONTEXT_WINDOW_STRATEGY: string[] = [
+  "Total context budget: 4000 tokens",
+  "Priority determines inclusion order",
+  "High-priority context always included first",
+];
+
+export const PROACTIVE_INSIGHT_TYPES: string[] = [
+  "DEADLINE_RISK: Tasks approaching deadline",
+  "UNASSIGNED_WORK: Tasks without assignees",
+  "BLOCKED_TASKS: Tasks blocked by dependencies",
+  "SPRINT_OVERLOAD: Sprint capacity exceeded",
+];
+
+export function getContextPriority(source: ContextSource): number {
+  const definition = CONTEXT_PRIORITY_HIERARCHY.find(c => c.source === source);
+  return definition?.priority ?? 5;
+}
+
+export function getTokenBudget(source: ContextSource): number {
+  const definition = CONTEXT_PRIORITY_HIERARCHY.find(c => c.source === source);
+  return definition?.tokenBudget ?? 300;
+}
+
+const TOTAL_TOKEN_BUDGET_DEFAULT = Number(process.env.NOVA_TOKEN_BUDGET) || 4000;
+
+/**
+ * Dynamic token budget based on model and request complexity.
+ * Different models support different context windows.
+ */
+function getTokenBudgetForModel(model: string): number {
+  const budgets: Record<string, number> = {
+    "gemini-2.5-flash": 8000,
+    "gpt-4o": 12000,
+    "claude-sonnet-4-20250514": 10000,
+    "command-a-03-2025": 6000,
+  };
+  return budgets[model] || TOTAL_TOKEN_BUDGET_DEFAULT;
+}
+
+/**
+ * Dynamic token budget based on request complexity and model.
+ * Simple tasks get less context, complex tasks get more.
+ */
+function getTokenBudgetForRoute(contextDepth: "minimal" | "standard" | "full", model?: string): number {
+  const modelBudget = model ? getTokenBudgetForModel(model) : TOTAL_TOKEN_BUDGET_DEFAULT;
+  
+  switch (contextDepth) {
+    case "minimal": return Math.min(1500, modelBudget);
+    case "standard": return modelBudget;
+    case "full": return Math.min(modelBudget * 1.5, modelBudget + 2000);
+    default: return modelBudget;
+  }
+}
 
 const workspaceCache = new Map<string, { data: unknown; timestamp: number }>();
 const CACHE_TTL_MS = 5000;
@@ -39,16 +107,19 @@ export interface ContextOptions {
   projectId?: string;
   taskId?: string;
   documentId?: string;
+  contextDepth?: "minimal" | "standard" | "full";
+  model?: string;
 }
 
 export interface ResolvedContext {
   task: { title: string; description?: string | null; status: string; priority: string; subtasks: string[] } | null;
   document: { title: string; content?: string | null } | null;
   project: { name: string; description?: string | null } | null;
-  sprint: { name: string; status: string | null } | null;
+  sprint: { name: string; status: string | null; progress?: number; capacity?: number } | null;
   workspace: { name: string; plan: string } | null;
   user: { name?: string | null } | null;
   priority: number;
+  crossProjectSummary?: string;
 }
 
 export interface ProactiveInsight {
@@ -110,7 +181,39 @@ export class ContextSystem {
       priority: taskId ? 1 : documentId ? 2 : projectId ? 3 : 5,
     };
 
+    // Load sprint data if we have a project
+    if (projectId) {
+      try {
+        const activeSprint = await prisma.sprint.findFirst({
+          where: { projectId, status: "active" },
+          select: { name: true, status: true },
+        });
+        if (activeSprint) {
+          resolvedContext.sprint = { name: activeSprint.name, status: activeSprint.status };
+        }
+      } catch {
+        // Sprint model may not exist
+      }
+    }
+
+    // Load cross-project summary (other projects in workspace)
+    if (options.contextDepth === "full" && projectId) {
+      try {
+        const otherProjects = await prisma.project.findMany({
+          where: { workspaceId, id: { not: projectId } },
+          select: { name: true },
+          take: 5,
+        });
+        if (otherProjects.length > 0) {
+          resolvedContext.crossProjectSummary = otherProjects.map(p => p.name).join(", ");
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
     // Build context with token budgeting
+    const TOTAL_TOKEN_BUDGET = getTokenBudgetForRoute(options.contextDepth || "standard", options.model);
     let promptString = "ACTIVE EXECUTION CONTEXT:\n";
     let remainingTokens = TOTAL_TOKEN_BUDGET;
 
@@ -162,6 +265,11 @@ export class ContextSystem {
     // Add user context at the end
     if (resolvedContext.user) {
       promptString += `[OPERATOR] ACTIVE USER (Priority 6):\n- Name: ${resolvedContext.user.name || "N/A"}\n`;
+    }
+
+    // Add cross-project summary
+    if (resolvedContext.crossProjectSummary) {
+      promptString += `[CROSS-PROJECT] Other projects in workspace: ${resolvedContext.crossProjectSummary}\n`;
     }
 
     return { structured: resolvedContext, promptString };
@@ -313,7 +421,7 @@ export class ContextSystem {
 
   public static async loadWorkspaceOverview(workspaceId: string): Promise<string> {
     try {
-      const [projects, taskCounts, memberCount, recentActivity] = await Promise.all([
+      const [projects, taskCounts, memberCount, recentActivity, teamWorkload] = await Promise.all([
         prisma.project.findMany({
           where: { workspaceId },
           select: { id: true, name: true },
@@ -332,6 +440,17 @@ export class ContextSystem {
           select: { title: true, status: true, priority: true, updatedAt: true },
           orderBy: { updatedAt: "desc" },
           take: 5,
+        }),
+        // Team workload: count active tasks per member
+        prisma.task.groupBy({
+          by: ["userId"],
+          where: {
+            workspaceId,
+            status: { notIn: ["done", "completed", "cancelled"] },
+          },
+          _count: { id: true },
+          orderBy: { _count: { id: "desc" } },
+          take: 10,
         }),
       ]);
 
@@ -363,6 +482,34 @@ export class ContextSystem {
       }
 
       sections.push(`Team members: ${memberCount}`);
+
+      if (teamWorkload.length > 0) {
+        const workloadLines = teamWorkload.map(
+          (w) => `  - ${w.userId}: ${w._count.id} active tasks`
+        );
+        sections.push(`Team workload:\n${workloadLines.join("\n")}`);
+      }
+
+      // Calendar deadlines: upcoming tasks due in the next 7 days
+      const oneWeekFromNow = new Date();
+      oneWeekFromNow.setDate(oneWeekFromNow.getDate() + 7);
+      const upcomingDeadlines = await prisma.task.findMany({
+        where: {
+          workspaceId,
+          dueDate: { gte: new Date(), lte: oneWeekFromNow },
+          status: { notIn: ["done", "completed", "cancelled"] },
+        },
+        select: { title: true, dueDate: true, priority: true },
+        orderBy: { dueDate: "asc" },
+        take: 10,
+      });
+      if (upcomingDeadlines.length > 0) {
+        sections.push("Upcoming deadlines (next 7 days):");
+        for (const task of upcomingDeadlines) {
+          const daysUntil = Math.ceil((task.dueDate!.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+          sections.push(`  - "${task.title}" due in ${daysUntil}d (${task.priority})`);
+        }
+      }
 
       if (recentActivity.length > 0) {
         sections.push("Recent activity:");

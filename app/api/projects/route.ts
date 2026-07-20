@@ -261,6 +261,17 @@ export async function POST(req: Request) {
       }
     );
 
+    // Trigger Automations
+    try {
+      const { processAutomations } = await import("@/lib/automations/engine");
+      await processAutomations(data.workspaceId, "PROJECT_CREATED", {
+        projectId: project.id,
+        userId: user.id,
+      });
+    } catch (automationError) {
+      console.error("Failed to trigger automations on project creation:", automationError);
+    }
+
     return NextResponse.json(project);
   } catch (error: any) {
     if (error instanceof z.ZodError) {

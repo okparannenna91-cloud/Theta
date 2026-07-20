@@ -1,8 +1,35 @@
 import { prisma } from "../prisma";
 import { logger } from "../logger";
-import { DOCUMENT_TYPES, DOCUMENT_UNDERSTANDING_PIPELINE, DOCUMENT_ACTIONS, DOCUMENT_WORKSPACE_LINK_TYPES, type DocumentType } from "./constitution/document-standards";
 
-export { DOCUMENT_TYPES, DOCUMENT_UNDERSTANDING_PIPELINE, DOCUMENT_ACTIONS, DOCUMENT_WORKSPACE_LINK_TYPES, type DocumentType } from "./constitution/document-standards";
+export type DocumentType = "PRD" | "TECHNICAL_SPEC" | "MEETING_NOTES" | "SOP" | "KNOWLEDGE_ARTICLE" | "PROJECT_BRIEF" | "RETROSPECTIVE" | "RESEARCH_REPORT" | "GENERAL";
+
+export const DOCUMENT_TYPES = [
+  { type: "PRD", description: "Product Requirements Document" },
+  { type: "TECHNICAL_SPEC", description: "Technical Specification" },
+  { type: "MEETING_NOTES", description: "Meeting Notes" },
+  { type: "SOP", description: "Standard Operating Procedures" },
+  { type: "KNOWLEDGE_ARTICLE", description: "Knowledge Base Article" },
+  { type: "PROJECT_BRIEF", description: "Project Brief" },
+  { type: "RETROSPECTIVE", description: "Sprint Retrospective" },
+  { type: "RESEARCH_REPORT", description: "Research Report" },
+  { type: "GENERAL", description: "General document" },
+];
+
+export const DOCUMENT_UNDERSTANDING_PIPELINE = [
+  "Identify document type", "Understand purpose", "Extract key information",
+  "Identify actionable content", "Connect to workspace entities",
+];
+
+export const DOCUMENT_ACTIONS = [
+  { name: "Summarize", description: "Generate a concise summary" },
+  { name: "Rewrite", description: "Improve clarity and structure" },
+  { name: "Convert to Tasks", description: "Extract actionable items as tasks" },
+  { name: "Extract Decisions", description: "Identify all decisions made" },
+];
+
+export const DOCUMENT_WORKSPACE_LINK_TYPES = [
+  "Projects", "Tasks", "Sprints", "Goals", "Dashboards",
+];
 
 const GENERATION_MODEL = "openrouter/google/gemini-2.0-flash-001";
 

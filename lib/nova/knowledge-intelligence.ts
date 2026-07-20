@@ -1,12 +1,35 @@
 import { prisma } from "../prisma";
 import { redis } from "../redis/client";
-import { SEARCH_INTELLIGENCE_RULES } from "./constitution/search-standards";
 import { SearchIntelligence } from "./search-intelligence";
 import { SecurityGuard } from "./security-guard";
 import type { Prisma } from "@prisma/client";
-import { KNOWLEDGE_PIPELINE, KNOWLEDGE_CITATION_RULES, KNOWLEDGE_STORAGE_ARCHITECTURE } from "./constitution/knowledge-standards";
 
-export { KNOWLEDGE_PIPELINE, KNOWLEDGE_CITATION_RULES, KNOWLEDGE_STORAGE_ARCHITECTURE } from "./constitution/knowledge-standards";
+export const SEARCH_INTELLIGENCE_RULES = [
+  "Understand the intent behind search queries",
+  "Provide direct answers when possible",
+];
+
+export const KNOWLEDGE_PIPELINE = [
+  { step: "Ingest content", description: "Receive and store new knowledge" },
+  { step: "Classify content", description: "Determine type and category" },
+  { step: "Extract meaning", description: "Identify key concepts" },
+  { step: "Create relationships", description: "Link knowledge to entities" },
+  { step: "Store knowledge", description: "Persist in long-term storage" },
+  { step: "Enable retrieval", description: "Make knowledge queryable" },
+];
+
+export const KNOWLEDGE_CITATION_RULES = [
+  "Show information source for every retrieved piece",
+  "Reference related documents alongside answers",
+  "Distinguish facts from assumptions",
+  "Prioritize accuracy over speed",
+];
+
+export const KNOWLEDGE_STORAGE_ARCHITECTURE = {
+  primary: "MongoDB Atlas",
+  memory: "Mem0",
+  fastRetrieval: "Upstash Redis",
+} as const;
 
 export interface KnowledgeMeta {
   workspaceId: string;

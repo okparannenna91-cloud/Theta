@@ -92,6 +92,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
+  themeColor: "#7c3aed",
 };
 
 import { I18nProvider } from "@/lib/i18n";
@@ -107,6 +108,14 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
+        <head>
+          <link rel="manifest" href="/manifest.json" />
+          <meta name="theme-color" content="#7c3aed" />
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+          <meta name="apple-mobile-web-app-title" content="Theta" />
+          <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
+        </head>
         <body className={`${figtree.variable} ${poppins.variable}`}>
           <ThemeProvider
             attribute="class"
@@ -123,6 +132,21 @@ export default function RootLayout({
                     <I18nProvider>
                       <ApiDebugProvider>
                         <CommandPalette />
+                        <script
+                          dangerouslySetInnerHTML={{
+                            __html: `
+                              if ('serviceWorker' in navigator) {
+                                window.addEventListener('load', function() {
+                                  navigator.serviceWorker.register('/sw.js').then(function(reg) {
+                                    console.log('SW registered:', reg.scope);
+                                  }).catch(function(err) {
+                                    console.log('SW registration failed:', err);
+                                  });
+                                });
+                              }
+                            `,
+                          }}
+                        />
                         {children}
                         <Toaster richColors position="top-center" />
                       </ApiDebugProvider>

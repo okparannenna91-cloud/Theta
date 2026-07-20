@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
-import { GitHubService } from "@/lib/services/githubService";
+import { GitHubIntegration } from "@/lib/integrations/github";
 import { BitbucketService } from "@/lib/services/bitbucketService";
 import { AsanaService } from "@/lib/services/asanaService";
 import { TrelloService } from "@/lib/services/trelloService";
@@ -24,8 +24,8 @@ export async function POST(req: Request) {
 
         switch (provider) {
             case "github":
-                const github = new GitHubService(workspaceId);
-                result = await github.getRepositories();
+                const github = new GitHubIntegration(workspaceId);
+                result = await github.listRepositories(workspaceId);
                 break;
             case "bitbucket":
                 const bitbucket = new BitbucketService(workspaceId);

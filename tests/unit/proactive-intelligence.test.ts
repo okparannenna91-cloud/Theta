@@ -44,7 +44,7 @@ beforeEach(() => {
 describe("ProactiveIntelligenceEngine", () => {
   describe("analyzeWorkspace", () => {
     it("returns empty insights for empty workspace", async () => {
-      mockedPrisma.task.findMany.mockResolvedValue([]);
+      (mockedPrisma.task.findMany as any).mockResolvedValue([]);
       const result = await ProactiveIntelligenceEngine.analyzeWorkspace("ws-1");
       expect(result.insights).toEqual([]);
       expect(result.totalInsights).toBe(0);
@@ -52,7 +52,7 @@ describe("ProactiveIntelligenceEngine", () => {
 
     it("detects overdue tasks", async () => {
       const twoDaysAgo = new Date(Date.now() - 2 * 86400000);
-      mockedPrisma.task.findMany.mockResolvedValue([
+      (mockedPrisma.task.findMany as any).mockResolvedValue([
         { title: "Overdue task 1", status: "todo", dueDate: twoDaysAgo, assigneeIds: ["u1"], userId: "u1", updatedAt: new Date(), projectId: "p1", subtasks: [], estimatedHours: null },
         { title: "Overdue task 2", status: "todo", dueDate: twoDaysAgo, assigneeIds: ["u2"], userId: "u2", updatedAt: new Date(), projectId: "p1", subtasks: [], estimatedHours: null },
         { title: "Overdue task 3", status: "todo", dueDate: twoDaysAgo, assigneeIds: ["u3"], userId: "u3", updatedAt: new Date(), projectId: "p1", subtasks: [], estimatedHours: null },
@@ -64,8 +64,7 @@ describe("ProactiveIntelligenceEngine", () => {
 
     it("detects stalled tasks", async () => {
       const fiveDaysAgo = new Date(Date.now() - 5 * 86400000);
-      const now = new Date();
-      mockedPrisma.task.findMany.mockImplementation(async (args: any) => {
+      (mockedPrisma.task.findMany as any).mockImplementation(async (args: any) => {
         const w = args?.where || {};
         if (w.status === "in-progress" && w.updatedAt) {
           return [{ title: "Stalled task", status: "in-progress", dueDate: null, assigneeIds: ["u1"], userId: "u1", updatedAt: fiveDaysAgo, projectId: "p1", subtasks: [], estimatedHours: null }];
@@ -78,7 +77,7 @@ describe("ProactiveIntelligenceEngine", () => {
     });
 
     it("detects unassigned tasks", async () => {
-      mockedPrisma.task.findMany.mockImplementation(async (args: any) => {
+      (mockedPrisma.task.findMany as any).mockImplementation(async (args: any) => {
         const w = args?.where || {};
         if (w.userId === undefined && w.status?.notIn) {
           return [
@@ -97,7 +96,7 @@ describe("ProactiveIntelligenceEngine", () => {
     });
 
     it("counts severity breakdown correctly", async () => {
-      mockedPrisma.task.findMany.mockResolvedValue([]);
+      (mockedPrisma.task.findMany as any).mockResolvedValue([]);
       const result = await ProactiveIntelligenceEngine.analyzeWorkspace("ws-1");
       expect(result.criticalCount + result.highCount + result.mediumCount + result.lowCount).toBe(0);
     });

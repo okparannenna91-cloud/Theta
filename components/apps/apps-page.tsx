@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { RefreshCw, Trash2, CheckCircle2, Plus, Link2, Search, Zap, ArrowRight } from "lucide-react";
+import { RefreshCw, Trash2, CheckCircle2, Plus, Link2, Search, Zap, ArrowRight, Bot, Terminal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -378,6 +378,79 @@ export default function AppsPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* NL-to-Automation Section */}
+            <div className="mt-10">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Bot className="h-4 w-4 text-primary" />
+                    </div>
+                    <div>
+                        <h2 className="text-base font-semibold">AI Automations</h2>
+                        <p className="text-xs text-muted-foreground">Create automations using natural language</p>
+                    </div>
+                </div>
+                <Card className="border shadow-sm">
+                    <CardContent className="p-5">
+                        <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/30 border">
+                            <Bot className="h-5 w-5 text-primary flex-shrink-0" />
+                            <div className="flex-1">
+                                <p className="text-sm font-medium">Describe your automation in plain English</p>
+                                <p className="text-xs text-muted-foreground mt-0.5">
+                                    Example: "When a task is moved to Done, notify the team on Slack"
+                                </p>
+                            </div>
+                            <Button variant="outline" size="sm" onClick={() => toast.info("Coming soon: NL-to-Automation")}>
+                                <Zap className="h-3.5 w-3.5 mr-1.5" />
+                                Try It
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* GitHub/Slack Webhooks Info */}
+            <div className="mt-6">
+                <div className="flex items-center gap-3 mb-4">
+                    <div className="w-9 h-9 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                        <Terminal className="h-4 w-4 text-emerald-500" />
+                    </div>
+                    <div>
+                        <h2 className="text-base font-semibold">Webhooks</h2>
+                        <p className="text-xs text-muted-foreground">Receive real-time events from connected services</p>
+                    </div>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <Card className="border shadow-sm">
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-zinc-900 flex items-center justify-center">
+                                    <span className="text-white text-xs font-bold">GH</span>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium">GitHub Webhooks</p>
+                                    <p className="text-xs text-muted-foreground">Issues, PRs, pushes</p>
+                                </div>
+                                <Badge variant="outline" className="text-xs">Auto-synced</Badge>
+                            </div>
+                        </CardContent>
+                    </Card>
+                    <Card className="border shadow-sm">
+                        <CardContent className="p-4">
+                            <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-lg bg-white border flex items-center justify-center">
+                                    <span className="text-xs font-bold text-purple-700">S</span>
+                                </div>
+                                <div className="flex-1">
+                                    <p className="text-sm font-medium">Slack Commands</p>
+                                    <p className="text-xs text-muted-foreground">/theta create, /theta status</p>
+                                </div>
+                                <Badge variant="outline" className="text-xs">Auto-synced</Badge>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
         </div>
     );
 }

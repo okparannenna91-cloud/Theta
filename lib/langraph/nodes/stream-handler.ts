@@ -15,8 +15,8 @@ export async function executeStream(
   options?: { model?: string; signal?: AbortSignal; onToken?: (token: string) => void; onFinish?: (text: string) => void },
 ): Promise<StreamResult> {
   const route = options?.model
-    ? routeModel(options.model)
-    : routeModel(prompt);
+    ? await routeModel(options.model)
+    : await routeModel(prompt);
 
   const chatModel = getLangChainModel(route.provider, route.model);
 

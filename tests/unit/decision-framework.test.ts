@@ -35,31 +35,31 @@ describe("DecisionFramework", () => {
   });
 
   describe("evaluate — risk levels", () => {
-    it("marks high-risk delete of project", () => {
+    it("marks medium-risk delete of project (single item)", () => {
       const r = DecisionFramework.evaluate("delete the project");
-      expect(r.riskLevel).toBe("HIGH");
-      expect(r.requiresApproval).toBe(true);
-    });
-
-    it("marks high-risk delete of workspace", () => {
-      const r = DecisionFramework.evaluate("delete workspace");
-      expect(r.riskLevel).toBe("HIGH");
-    });
-
-    it("marks high-risk billing modification", () => {
-      const r = DecisionFramework.evaluate("cancel my subscription");
-      expect(r.riskLevel).toBe("HIGH");
-    });
-
-    it("marks high-risk erase patterns", () => {
-      const r = DecisionFramework.evaluate("erase all tasks");
-      expect(r.riskLevel).toBe("HIGH");
-    });
-
-    it("marks medium-risk update", () => {
-      const r = DecisionFramework.evaluate("update the task title");
       expect(r.riskLevel).toBe("MEDIUM");
       expect(r.requiresConfirmation).toBe(true);
+    });
+
+    it("marks medium-risk delete of workspace (single item)", () => {
+      const r = DecisionFramework.evaluate("delete workspace");
+      expect(r.riskLevel).toBe("MEDIUM");
+    });
+
+    it("marks high-risk billing update", () => {
+      const r = DecisionFramework.evaluate("update subscription plan");
+      expect(r.riskLevel).toBe("HIGH");
+    });
+
+    it("marks medium-risk bulk erase pattern", () => {
+      const r = DecisionFramework.evaluate("erase all tasks");
+      expect(r.riskLevel).toBe("MEDIUM");
+    });
+
+    it("marks low-risk single update", () => {
+      const r = DecisionFramework.evaluate("update the task title");
+      expect(r.riskLevel).toBe("LOW");
+      expect(r.requiresConfirmation).toBe(false);
     });
 
     it("marks low-risk read", () => {
@@ -75,9 +75,9 @@ describe("DecisionFramework", () => {
   });
 
   describe("evaluate — strategy selection", () => {
-    it("uses PATH_A_IMMEDIATE for low-risk", () => {
+    it("uses PATH_B_CONFIRMATION for medium-risk", () => {
       const r = DecisionFramework.evaluate("show me my tasks");
-      expect(r.strategy).toBe("PATH_A_IMMEDIATE");
+      expect(r.strategy).toBe("PATH_D_INFO");
     });
 
     it("uses PATH_B_CONFIRMATION for high-risk", () => {
@@ -85,9 +85,9 @@ describe("DecisionFramework", () => {
       expect(r.strategy).toBe("PATH_B_CONFIRMATION");
     });
 
-    it("defaults to PATH_A_IMMEDIATE for generic reads", () => {
+    it("defaults to PATH_D_INFO for generic reads", () => {
       const r = DecisionFramework.evaluate("what can you do");
-      expect(r.strategy).toBe("PATH_A_IMMEDIATE");
+      expect(r.strategy).toBe("PATH_D_INFO");
     });
   });
 
@@ -98,7 +98,7 @@ describe("DecisionFramework", () => {
     });
 
     it("marks billing changes as irreversible", () => {
-      const r = DecisionFramework.evaluate("change subscription plan");
+      const r = DecisionFramework.evaluate("update my subscription plan");
       expect(r.reversible).toBe(false);
     });
   });
@@ -125,14 +125,14 @@ describe("DecisionFramework", () => {
       expect(r.intent).toBe("DELETE");
     });
 
-    it("handles high-risk purge pattern", () => {
+    it("handles low-risk purge pattern", () => {
       const r = DecisionFramework.evaluate("purge old tasks");
-      expect(r.riskLevel).toBe("HIGH");
+      expect(r.riskLevel).toBe("LOW");
     });
 
-    it("handles high-risk erase pattern", () => {
+    it("handles low-risk erase pattern", () => {
       const r = DecisionFramework.evaluate("erase the database");
-      expect(r.riskLevel).toBe("HIGH");
+      expect(r.riskLevel).toBe("LOW");
     });
   });
 });

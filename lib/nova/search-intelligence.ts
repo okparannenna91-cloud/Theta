@@ -1,8 +1,36 @@
 import { prisma } from "../prisma";
 import type { Prisma } from "@prisma/client";
-import { SEARCH_DOMAINS, SEARCH_TYPES, SEARCH_RANKING_PRINCIPLES, SEARCH_INTELLIGENCE_RULES, type SearchDomain, type SearchType } from "./constitution/search-standards";
 
-export { SEARCH_DOMAINS, SEARCH_TYPES, SEARCH_RANKING_PRINCIPLES, SEARCH_INTELLIGENCE_RULES, type SearchDomain, type SearchType } from "./constitution/search-standards";
+export type SearchDomain = "PROJECTS" | "TASKS" | "DOCUMENTS" | "SPRINTS" | "DASHBOARDS" | "CONVERSATIONS" | "REPORTS" | "KNOWLEDGE_BASE" | "GLOBAL";
+export type SearchType = "KEYWORD" | "SEMANTIC" | "CONTEXTUAL" | "QUESTION_ANSWERING";
+
+export const SEARCH_DOMAINS = [
+  { domain: "PROJECTS", description: "Search across projects" },
+  { domain: "TASKS", description: "Search across tasks" },
+  { domain: "DOCUMENTS", description: "Search across documents" },
+  { domain: "SPRINTS", description: "Search across sprints" },
+  { domain: "GLOBAL", description: "Search across all domains" },
+];
+
+export const SEARCH_TYPES = [
+  { type: "KEYWORD", description: "Exact matching based on keywords" },
+  { type: "SEMANTIC", description: "Meaning-based matching" },
+  { type: "CONTEXTUAL", description: "Results influenced by current context" },
+  { type: "QUESTION_ANSWERING", description: "Directly answers questions" },
+];
+
+export const SEARCH_RANKING_PRINCIPLES = [
+  "Relevance — how closely the result matches",
+  "Context — how relevant to current workspace",
+  "Recency — how recently updated",
+  "Importance — priority or significance",
+];
+
+export const SEARCH_INTELLIGENCE_RULES = [
+  "Understand the intent behind search queries",
+  "Resolve ambiguity in search queries",
+  "Provide direct answers when possible",
+];
 
 export interface SearchQueryScope {
   domain: SearchDomain;

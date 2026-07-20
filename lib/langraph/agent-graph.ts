@@ -1,7 +1,7 @@
 import { Annotation, StateGraph, END } from "@langchain/langgraph";
 import { HumanMessage, SystemMessage, AIMessage, ToolMessage } from "@langchain/core/messages";
 import { getLangChainModel } from "./models";
-import { routeModel } from "./model-router";
+import { routeModel, type RouterConfig } from "./model-router";
 import { buildLangGraphTools, type LangGraphToolContext } from "./tools";
 import { executeTool } from "./nodes/tool-executor";
 import { loadWorkspaceContext } from "./nodes/context-loader";
@@ -11,7 +11,7 @@ import { executeWithFallback } from "./nodes/provider-fallback";
 import { validateAndSanitize, optimizeResponse, runQualityGate } from "./nodes/output-validator";
 import { sanitizeUserInput } from "@/lib/nova/output-validator";
 import { routeRequest, type RouteDecision } from "@/lib/nova/intent-router";
-import { type NovaIntent } from "@/lib/nova/constitution/decision-framework";
+import { type NovaIntent } from "@/lib/nova/constitution/execution";
 import { ParameterExtractor } from "@/lib/nova/parameter-extractor";
 import { ValidationEngine } from "@/lib/nova/validation-engine";
 import { ProactiveIntelligenceEngine } from "@/lib/nova/proactive-intelligence";
@@ -48,9 +48,9 @@ const AgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => null,
   }),
-  routerConfig: Annotation<ReturnType<typeof routeModel>>({
+  routerConfig: Annotation<RouterConfig>({
     reducer: (_, next) => next,
-    default: () => routeModel(""),
+    default: () => ({ provider: "gemini", model: "gemini-2.5-flash", reason: "default", costTier: "low" }),
   }),
   workspaceContext: Annotation<string>({
     reducer: (_, next) => next,
@@ -105,8 +105,8 @@ async function classifyIntent(state: AgentStateType): Promise<Partial<AgentState
   const lastMessage = state.messages[state.messages.length - 1];
   const userContent = lastMessage?.content || "";
 
-  const routeDecision = routeRequest(userContent, state.intent ?? "READ", "PATH_B_CONFIRMATION");
-  const routerConfig = routeModel(userContent);
+  const routeDecision = routeRequest(userContent, state.intent ?? "READ");
+  const routerConfig = await routeModel(userContent, state.toolContext.workspaceId);
 
   logger.info("[Graph] classifyIntent", { route: routeDecision.path, contextDepth: routeDecision.contextDepth });
 
@@ -146,6 +146,21 @@ async function loadContext(state: AgentStateType): Promise<Partial<AgentStateTyp
     memoryContext = `[NOVA LONG-TERM MEMORY]\n${loadedMemory.longTerm.map(m => `- ${m.key}: ${sanitizeUserInput(m.value).substring(0, 200)}`).join("\n")}`;
   }
 
+  let ragContext = "";
+  try {
+    const { RAGPipeline } = await import("@/lib/nova/rag-pipeline");
+    const lastMsg = state.messages[state.messages.length - 1];
+    const userContent = lastMsg?.content || "";
+    const ragResults = await RAGPipeline.getContextForQuery(
+      state.toolContext.workspaceId,
+      userContent,
+      1500,
+    );
+    if (ragResults) {
+      ragContext = `[RELEVANT DOCUMENT CONTEXT]\n${ragResults}`;
+    }
+  } catch { /* RAG is best-effort */ }
+
   let conversationContext = "";
   if (loadedMemory.shortTerm.length > 0) {
     const recentMessages = loadedMemory.shortTerm.slice(-10);
@@ -157,16 +172,13 @@ async function loadContext(state: AgentStateType): Promise<Partial<AgentStateTyp
     conversationContext = `[RECENT CONVERSATION]\n${formattedHistory}`;
   }
 
-  logger.info("[Graph] loadContext", { workspaceContextLen: workspaceContext.length, memoryContextLen: memoryContext.length });
+  logger.info("[Graph] loadContext", { workspaceContextLen: workspaceContext.length, memoryContextLen: memoryContext.length, ragContextLen: ragContext.length });
 
-  return { workspaceContext, memoryContext, conversationContext };
+  return { workspaceContext: (workspaceContext || "") + (ragContext ? "\n\n" + ragContext : ""), memoryContext, conversationContext };
 }
 
-// Node 3: loadMemory — load long-term and short-term memory
-// (Merged into loadContext above for efficiency — this node is a no-op placeholder)
-async function loadMemoryNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
-  return {};
-}
+// Node 3: loadMemory — merged into loadContext above for efficiency
+// (loadMemoryNode removed — was a no-op placeholder)
 
 // Node 4: evaluateRisk — validate action, extract params, load proactive insights
 async function evaluateRisk(state: AgentStateType): Promise<Partial<AgentStateType>> {
@@ -346,18 +358,19 @@ async function saveMemoryNode(state: AgentStateType): Promise<Partial<AgentState
     toolResults: state.toolResults,
   }).catch(() => {});
 
+  try {
+    const { AutoMemoryExtractor } = await import("@/lib/nova/auto-memory-extractor");
+    await AutoMemoryExtractor.extractAndSave(
+      state.toolContext.userId,
+      state.toolContext.workspaceId,
+      state.messages,
+    );
+  } catch { /* auto-extraction is best-effort */ }
+
   return {};
 }
 
 // Conditional edges
-function shouldContinue(state: AgentStateType): "tools" | typeof END {
-  const lastMessage = state.messages[state.messages.length - 1];
-  if (lastMessage?.content?.includes("tool_call")) {
-    return "tools";
-  }
-  return END;
-}
-
 function routeAfterRisk(state: AgentStateType): "returnEarly" | "executeTools" | "callModel" {
   if (state.shouldReturn) {
     return "returnEarly";
@@ -467,12 +480,16 @@ async function formatResponse(state: AgentStateType): Promise<Partial<AgentState
   }
 }
 
-// Build the graph
+// Singleton cached compiled graph
+let _compiledGraph: any = null;
+
+// Build the graph (cached singleton)
 export function createNovaGraph() {
+  if (_compiledGraph) return _compiledGraph;
+
   const workflow = new StateGraph(AgentState)
     .addNode("classifyIntent", classifyIntent)
     .addNode("loadContext", loadContext)
-    .addNode("loadMemory", loadMemoryNode)
     .addNode("evaluateRisk", evaluateRisk)
     .addNode("routeToAgent", routeToAgent)
     .addNode("toolExecutor", toolExecutor)
@@ -481,23 +498,11 @@ export function createNovaGraph() {
     .addNode("formatResponse", formatResponse)
     .addNode("saveMemory", saveMemoryNode)
     .addNode("returnEarly", returnEarly)
-    .addNode("tools", async (state) => {
-      // Legacy tool execution for LangChain agent loop
-      const lastMessage = state.messages[state.messages.length - 1];
-      if (!lastMessage?.content?.includes("tool_call")) return {};
-      let toolCall;
-      try { toolCall = JSON.parse(lastMessage.content).tool_call; } catch { return {}; }
-      if (!toolCall?.name) return {};
-      const result = await executeTool(state.toolContext, toolCall.name, toolCall.arguments || {});
-      const toolResult = result.success ? JSON.stringify(result.result) : `Error: ${result.error}`;
-      return { messages: [...state.messages, { role: "tool", content: toolResult, tool_call_id: toolCall.id || "" } as any] };
-    })
 
-    // Entry: classifyIntent -> loadContext -> loadMemory -> evaluateRisk
+    // Entry: classifyIntent -> loadContext -> evaluateRisk
     .addEdge("__start__", "classifyIntent")
     .addEdge("classifyIntent", "loadContext")
-    .addEdge("loadContext", "loadMemory")
-    .addEdge("loadMemory", "evaluateRisk")
+    .addEdge("loadContext", "evaluateRisk")
 
     // evaluateRisk -> conditional: returnEarly OR routeToAgent
     .addConditionalEdges("evaluateRisk", routeAfterRisk, {
@@ -513,21 +518,21 @@ export function createNovaGraph() {
     .addEdge("routeToAgent", "toolExecutor")
     .addEdge("toolExecutor", "callModel")
 
-    // callModel -> conditional: tools (LangChain loop) OR qualityGate
-    .addConditionalEdges("callModel", shouldContinue, {
-      tools: "tools",
-      [END]: "qualityGate",
-    })
-
-    // tools -> callModel (loop back)
-    .addEdge("tools", "callModel")
+    // callModel -> qualityGate
+    .addEdge("callModel", "qualityGate")
 
     // qualityGate -> formatResponse -> saveMemory -> END
     .addEdge("qualityGate", "formatResponse")
     .addEdge("formatResponse", "saveMemory")
     .addEdge("saveMemory", END);
 
-  return workflow.compile();
+  _compiledGraph = workflow.compile();
+  return _compiledGraph;
+}
+
+// For development hot-reload: invalidate cached graph
+export function invalidateGraphCache() {
+  _compiledGraph = null;
 }
 
 export interface NovaGraphInput {
@@ -556,7 +561,7 @@ export async function runNovaGraph(input: NovaGraphInput): Promise<NovaGraphOutp
     signal: input.signal,
     intent: input.intent ?? "READ",
     routeDecision: input.routeDecision ?? null,
-    routerConfig: routeModel(input.prompt),
+    routerConfig: await routeModel(input.prompt, input.ctx.workspaceId),
     workspaceContext: "",
     memoryContext: "",
     conversationContext: "",

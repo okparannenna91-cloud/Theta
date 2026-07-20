@@ -72,10 +72,12 @@ export async function GET(req: Request) {
     const daysParam = searchParams.get("days");
     const daysBack = daysParam ? parseInt(daysParam, 10) : 7;
     const rangeStart = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+    const prevRangeStart = new Date(Date.now() - daysBack * 2 * 24 * 60 * 60 * 1000);
 
     const [
       projectsCount, tasksCount, membersCount, recentProjects, recentTasks,
-      activities, statuses, totalTaskCount, completedTaskCount
+      activities, statuses, totalTaskCount, completedTaskCount,
+      prevProjectsCount, prevTasksCount, prevCompletedTaskCount, prevTotalTaskCount,
     ] = await Promise.all([
       prisma.project.count({ where: whereProject }),
       prisma.task.count({ where: { ...whereTask, status: { notIn: ["done"] } } }),
@@ -103,9 +105,15 @@ export async function GET(req: Request) {
       // Individual counts instead of groupBy (Prisma MongoDB crashes on nullable fields in groupBy)
       prisma.task.count({ where: whereTask }),
       prisma.task.count({ where: { ...whereTask, status: { in: ["done", "completed"] } } }),
+      // Previous period counts for trend calculation
+      prisma.project.count({ where: { workspaceId, id: { in: accessibleProjectIds }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
+      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, status: { notIn: ["done"] }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
+      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, status: { in: ["done", "completed"] }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
+      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
     ]);
 
     const completionRate = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
+    const prevCompletionRate = prevTotalTaskCount > 0 ? Math.round((prevCompletedTaskCount / prevTotalTaskCount) * 100) : 0;
 
     // Status Distribution: one count per status (separate batch to avoid circular ref)
     const statusCounts = await Promise.all(
@@ -176,6 +184,12 @@ export async function GET(req: Request) {
       tasksCount,
       membersCount,
       completionRate,
+      trends: {
+        projects: prevProjectsCount > 0 ? Math.round(((projectsCount - prevProjectsCount) / prevProjectsCount) * 100) : 0,
+        tasks: prevTasksCount > 0 ? Math.round(((tasksCount - prevTasksCount) / prevTasksCount) * 100) : 0,
+        members: 0,
+        completionRate: completionRate - prevCompletionRate,
+      },
       recentProjects: recentProjects.map(p => ({ id: p.id, name: p.name, tasksCount: p._count.tasks })),
       recentTasks: recentTasks.map(t => ({ id: t.id, title: t.title, status: t.status, project: t.project, priority: t.priority })),
       recentActivities,

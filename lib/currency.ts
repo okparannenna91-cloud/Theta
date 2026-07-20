@@ -5,7 +5,7 @@
 
 const FALLBACK_RATE = 1450; // Current approx market rate
 const CACHE_KEY = "usd_ngn_rate";
-const CACHE_DURATION = 1000 * 60 * 60 * 12; // 12 hours
+const CACHE_DURATION = 1000 * 60 * 60; // 1 hour
 
 interface RateCache {
     rate: number;
@@ -36,10 +36,15 @@ export async function getExchangeRate(): Promise<number> {
             return rate;
         }
     } catch (error) {
-        console.error("[Currency] Failed to fetch exchange rate, using fallback:", error);
+        console.error("[Currency] Failed to fetch exchange rate:", error);
+        if (memoryCache) {
+            console.warn("[Currency] Using stale cached rate due to API failure");
+            return memoryCache.rate;
+        }
+        throw new Error("Unable to fetch exchange rate. Please try again later.");
     }
 
-    return FALLBACK_RATE;
+    throw new Error("Unable to fetch exchange rate. No rate data in API response.");
 }
 
 /**

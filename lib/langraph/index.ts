@@ -1,5 +1,3 @@
-export { NovaAgent } from "./nova-agent";
-export type { NovaAgentState, NovaRoute, ReasoningContext } from "./nova-agent";
 export { routeModel, executeWithProvider } from "./model-router";
 export type { RouterConfig, RouterProvider, TaskCategory } from "./model-router";
 export { buildLangGraphTools, buildToolByName, getAvailableToolNames, buildLangGraphToolWrapper } from "./tools";
@@ -8,10 +6,9 @@ export { getLangChainModel, clearModelCache } from "./models";
 export { createNovaGraph, runNovaGraph } from "./agent-graph";
 export type { NovaGraphInput, NovaGraphOutput } from "./agent-graph";
 
-import type { ReasoningContext } from "./nova-agent";
 import { routeModel } from "./model-router";
 import type { RouteDecision } from "@/lib/nova/intent-router";
-import type { NovaIntent } from "@/lib/nova/constitution/decision-framework";
+import type { NovaIntent } from "@/lib/nova/constitution/execution";
 import { runNovaGraph } from "./agent-graph";
 import { logger } from "@/lib/logger";
 
@@ -24,7 +21,6 @@ export interface NovaAgentOptions {
   systemPrompt?: string;
   intent: NovaIntent;
   routeDecision: RouteDecision;
-  reasoningContext?: ReasoningContext;
 }
 
 export interface NovaAgentResult {
@@ -41,7 +37,7 @@ export async function runNovaAgent(prompt: string, options: NovaAgentOptions): P
 
   logger.info("[LangGraph] Running Nova agent via graph", { workspaceId: options.workspaceId, promptPreview: prompt.substring(0, 80) });
 
-  const routerConfig = routeModel(prompt);
+  const routerConfig = await routeModel(prompt, options.workspaceId);
 
   const result = await runNovaGraph({
     prompt,

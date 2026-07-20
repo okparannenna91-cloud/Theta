@@ -33,6 +33,7 @@ const nextConfig = {
 
   async headers() {
     return [
+      // Security headers for all routes
       {
         source: '/(.*)',
         headers: [
@@ -76,6 +77,36 @@ const nextConfig = {
               "base-uri 'self'",
               "form-action 'self'",
             ].join('; '),
+          },
+        ],
+      },
+      // CDN cache: immutable static assets (hashed filenames) — 1 year
+      {
+        source: '/_next/static/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      // CDN cache: images — 1 day with stale-while-revalidate
+      {
+        source: '/(.*)\\.(jpg|jpeg|png|gif|ico|svg|webp|avif)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=86400, stale-while-revalidate=604800',
+          },
+        ],
+      },
+      // No cache on API routes
+      {
+        source: '/api/:path*',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'no-store, no-cache, must-revalidate',
           },
         ],
       },

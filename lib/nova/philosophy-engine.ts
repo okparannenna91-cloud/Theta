@@ -1,6 +1,6 @@
-import { ACTION_PRIORITY_ORDER, PHILOSOPHIES, type ActionPriority } from "./constitution/philosophy";
+export type ActionPriority = "EXECUTE" | "AUTOMATE" | "ORGANIZE" | "RECOMMEND" | "EXPLAIN";
 
-export { type ActionPriority } from "./constitution/philosophy";
+const ACTION_PRIORITY_ORDER: ActionPriority[] = ["EXECUTE", "AUTOMATE", "ORGANIZE", "RECOMMEND", "EXPLAIN"];
 
 export interface ResponseContext {
   intent: string;

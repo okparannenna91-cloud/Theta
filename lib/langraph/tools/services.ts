@@ -9,9 +9,9 @@ export function buildServiceTools(ctx: LangGraphToolContext): DynamicStructuredT
       description: "Fetch all GitHub repositories for the authenticated user.",
       schema: z.object({}),
       func: async () => {
-        const { GitHubService } = await import("@/lib/services/githubService");
-        const service = new GitHubService(ctx.workspaceId);
-        return service.getRepositories();
+        const { GitHubIntegration } = await import("@/lib/integrations/github");
+        const service = new GitHubIntegration(ctx.workspaceId);
+        return service.listRepositories(ctx.workspaceId);
       },
     }),
     new DynamicStructuredTool({
@@ -19,9 +19,9 @@ export function buildServiceTools(ctx: LangGraphToolContext): DynamicStructuredT
       description: "Fetch recent commits for a GitHub repository.",
       schema: z.object({ owner: z.string(), repo: z.string() }),
       func: async ({ owner, repo }) => {
-        const { GitHubService } = await import("@/lib/services/githubService");
-        const service = new GitHubService(ctx.workspaceId);
-        return service.getCommits(owner as string, repo as string);
+        const { GitHubIntegration } = await import("@/lib/integrations/github");
+        const service = new GitHubIntegration(ctx.workspaceId);
+        return service.listRepositories(ctx.workspaceId);
       },
     }),
     new DynamicStructuredTool({

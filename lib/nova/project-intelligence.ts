@@ -1,8 +1,30 @@
 import { prisma } from "../prisma";
-import { PROJECT_STRUCTURE_STANDARDS, PROJECT_CREATION_FLOW, PROJECT_INTELLIGENCE_CAPABILITIES, PROJECT_MONITORING_AREAS } from "./constitution/project-standards";
 import { STATUS_DONE, STATUS_IN_PROGRESS, STATUS_BLOCKED } from "../constants/status";
 
-export { PROJECT_STRUCTURE_STANDARDS, PROJECT_CREATION_FLOW, PROJECT_INTELLIGENCE_CAPABILITIES, PROJECT_MONITORING_AREAS } from "./constitution/project-standards";
+export const PROJECT_STRUCTURE_STANDARDS = [
+  { component: "Goal", description: "The overall objective" },
+  { component: "Scope", description: "What is included and excluded" },
+  { component: "Milestones", description: "Key checkpoints" },
+  { component: "Tasks", description: "Individual units of work" },
+  { component: "Deadlines", description: "Timeframes for completion" },
+  { component: "Owners", description: "Responsible team members" },
+];
+
+export const PROJECT_CREATION_FLOW = [
+  "Understand objective", "Define scope", "Generate milestones",
+  "Generate tasks", "Identify dependencies", "Build timeline",
+];
+
+export const PROJECT_INTELLIGENCE_CAPABILITIES = [
+  { name: "Risk Detection", description: "Identify schedule and capacity risks" },
+  { name: "Health Scoring", description: "Score projects based on progress" },
+  { name: "Forecasting", description: "Forecast completion dates" },
+];
+
+export const PROJECT_MONITORING_AREAS = [
+  "Progress tracking", "Risk identification", "Delay detection",
+  "Capacity monitoring", "Dependency tracking",
+];
 
 export interface ProjectHealthReport {
   healthScore: number;

@@ -3,7 +3,7 @@ import { addHours, differenceInHours } from "date-fns";
 import { DunningLevel, RetryResult, SubscriptionStatus } from "../types";
 import { transition } from "../subscription-state-machine";
 import { providerRegistry } from "../providers/registry";
-import { getPlanPrice } from "@/lib/billing-plans";
+import { getPlanPriceDynamic } from "@/lib/billing-plans";
 import { logger } from "@/lib/logger";
 
 export class DunningService {
@@ -57,15 +57,28 @@ export class DunningService {
       return { attempted: false, succeeded: false, status: workspace.subscriptionStatus as SubscriptionStatus };
     }
 
+    // Skip Ivno workspaces - they require manual payment via payment URL
+    // Don't auto-retry, just notify the user
+    if (workspace.billingProvider === "ivno") {
+      logger.info(`[Dunning] Skipping Ivno workspace ${workspaceId} - requires manual payment`);
+      return {
+        attempted: false,
+        succeeded: false,
+        status: "past_due",
+        error: "Ivno requires manual payment via payment URL. Auto-retry skipped.",
+      };
+    }
+
     try {
       const provider = providerRegistry.get(workspace.billingProvider ?? "");
 
-      // Ivno creates payment URLs, not charges — skip retry and notify
-      if (provider.id === "ivno") {
-        return await this.escalateDunning(workspaceId, "Ivno requires manual payment via payment URL — auto-retry not supported");
-      }
+      const planPrice = await getPlanPriceDynamic(
+        workspace.plan,
+        (workspace.billingInterval as any) ?? "monthly",
+        0,
+        (workspace.currency as any) ?? "USD"
+      );
 
-      const planPrice = getPlanPrice(workspace.plan, (workspace.billingInterval as any) ?? "monthly", 0, (workspace.currency as any) ?? "USD");
       const chargeResult = await provider.chargeCustomer(
         workspace.providerCustomerId ?? "",
         workspace.plan === "free" ? 0 : planPrice,
@@ -191,6 +204,12 @@ export class DunningService {
     let failed = 0;
 
     for (const workspace of pastDueWorkspaces) {
+      // Skip Ivno workspaces entirely - they require manual payment
+      if (workspace.billingProvider === "ivno") {
+        logger.info(`[Dunning] Skipping Ivno workspace ${workspace.id} in cron - requires manual payment`);
+        continue;
+      }
+
       const level = workspace.dunningLevel ?? 0;
       const levelConfig = DunningService.DUNNING_LEVELS[level] ?? DunningService.DUNNING_LEVELS[DunningService.MAX_DUNNING_LEVEL];
       const lastRetry = workspace.lastRetryAt ?? workspace.dunningStartedAt;

@@ -62,6 +62,8 @@ model Workspace {
   teams         Team[]
   notifications Notification[]
   proactiveInsights ProactiveInsight[]
+  agents        NovaAgent[]
+  agentActions  AgentAction[]
   activities    Activity[]
   chatMessages  ChatMessage[]
   invites       Invite[]
@@ -81,6 +83,8 @@ model Workspace {
   meetings        Meeting[]
   evolutionTracking EvolutionTracking[]
   baselines        Baseline[]
+  sprints         Sprint[]
+  goals           Goal[]
 
   subscription       Subscription?
   invoices           Invoice[]
@@ -124,6 +128,24 @@ model FormResponse {
   @@map("form_responses")
 }
 
+model DocumentChunk {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  documentId   String   @db.ObjectId
+  workspaceId  String   @db.ObjectId
+  content      String
+  embedding    String   // JSON string of number[]
+  chunkIndex   Int
+  totalChunks  Int
+  title        String
+  type         String   @default("document")
+  createdAt    DateTime @default(now())
+
+  @@index([documentId])
+  @@index([workspaceId])
+  @@index([documentId, chunkIndex])
+  @@map("document_chunks")
+}
+
 model Document {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
@@ -141,6 +163,7 @@ model Document {
   isTemplate  Boolean  @default(false)
   views       Int      @default(0)
   lastEditedById String? @db.ObjectId
+  lastEditedBy User? @relation("DocumentLastEditedBy", fields: [lastEditedById], references: [id], onDelete: SetNull)
 
   isPublic    Boolean  @default(false)
   isPinned    Boolean  @default(false)
@@ -154,12 +177,29 @@ model Document {
   parent    Document? @relation("DocumentHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children  Document[] @relation("DocumentHierarchy")
   comments  Comment[]
+  versions  DocumentVersion[]
 
   @@index([workspaceId])
   @@index([userId])
   @@index([projectId])
   @@index([parentId])
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, status])
   @@map("documents")
+}
+
+model DocumentVersion {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  documentId String   @db.ObjectId
+  content    String
+  title      String
+  editedBy   String
+  editedAt   DateTime @default(now())
+
+  document Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@index([documentId])
+  @@map("document_versions")
 }
 
 model Automation {
@@ -178,6 +218,7 @@ model Automation {
   automationLogs AutomationLog[]
 
   @@index([workspaceId])
+  @@index([workspaceId, active, trigger])
   @@map("automations")
 }
 
@@ -260,12 +301,14 @@ model User {
   comments      Comment[]
   timeLogs      TimeLog[]
   documents     Document[]
+  lastEditedDocuments Document[] @relation("DocumentLastEditedBy")
   preferences   UserPreference?
   aiConversations AiConversation[]
   aiMemories      AiMemory[]
   contextSnapshots AiContextSnapshot[]
   savedSearches   SavedSearch[]
   meetings        Meeting[]
+  goals           Goal[]
 
   @@map("users")
 }
@@ -296,6 +339,8 @@ model Project {
   activities   Activity[]
   calendarEvents CalendarEvent[]
   schedule       ProjectSchedule?
+  sprints        Sprint[]
+  goals          Goal[]
 
   @@index([workspaceId])
   @@index([userId])
@@ -389,14 +434,23 @@ model Task {
   vote         Int?
   timeSpent    Int?       // in seconds
 
+  sprintId     String?   @db.ObjectId
+  sprint       Sprint?   @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+
   @@index([workspaceId])
   @@index([projectId])
   @@index([userId])
   @@index([boardId])
   @@index([columnId])
   @@index([status])
+  @@index([sprintId])
   @@index([parentId])
-  @@map("tasks")
+  @@index([assigneeIds])
+  @@index([workspaceId, status])
+  @@index([workspaceId, projectId])
+  @@index([workspaceId, projectId, status])
+  @@index([workspaceId, status, dueDate])
+  @@index([boardId, status])
 }
 
 model TaskDependency {
@@ -465,6 +519,7 @@ model Comment {
   @@index([taskId])
   @@index([documentId])
   @@index([parentId])
+  @@index([taskId, createdAt])
   @@map("comments")
 }
 
@@ -514,6 +569,8 @@ model TimeLog {
 
   @@index([userId])
   @@index([taskId])
+  @@index([createdAt])
+  @@index([taskId, createdAt])
   @@map("time_logs")
 }
 
@@ -644,6 +701,8 @@ model Notification {
   @@index([workspaceId])
   @@index([userId])
   @@index([createdAt])
+  @@index([userId, read])
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 
@@ -667,6 +726,8 @@ model ProactiveInsight {
   @@index([type])
   @@index([severity])
   @@index([createdAt])
+  @@index([workspaceId, dismissed])
+  @@index([workspaceId, createdAt])
   @@map("proactive_insights")
 }
 
@@ -692,6 +753,9 @@ model Activity {
   @@index([entityId])
   @@index([entityType])
   @@index([createdAt])
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, entityType])
+  @@index([userId, createdAt])
   @@map("activities")
 }
 
@@ -781,6 +845,8 @@ model Invite {
 
   @@index([workspaceId])
   @@index([teamId])
+  @@index([workspaceId, status])
+  @@index([email])
   @@map("invites")
 }
 
@@ -1002,21 +1068,6 @@ model CreditBalance {
   @@map("credit_balances")
 }
 
-model Coupon {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  code        String   @unique
-  discountPercent Int  @default(0)
-  discountAmount   Int?
-  maxRedemptions   Int?
-  currentRedemptions Int @default(0)
-  expiresAt        DateTime?
-  planKeys         String[]
-  isActive         Boolean   @default(true)
-  createdAt        DateTime  @default(now())
-
-  @@map("coupons")
-}
-
 model BillingEvent {
   id        String   @id @default(auto()) @map("_id") @db.ObjectId
 
@@ -1055,6 +1106,8 @@ model AiConversation {
   @@index([workspaceId])
   @@index([userId])
   @@index([lastMessageAt])
+  @@index([userId, lastMessageAt])
+  @@index([workspaceId, lastMessageAt])
   @@map("ai_conversations")
 }
 
@@ -1263,4 +1316,113 @@ model ProjectSchedule {
   project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 
   @@map("project_schedules")
+}
+
+model Sprint {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  projectId   String   @db.ObjectId
+  startDate   DateTime
+  endDate     DateTime
+  goal        String?
+  status      String   @default("planned") // planned, active, completed
+  workspaceId String   @db.ObjectId
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([status])
+  @@index([projectId, status])
+  @@index([workspaceId, status])
+  @@map("sprints")
+}
+
+model Goal {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  type        String   @default("okr") // okr, milestone, target
+  ownerId     String   @db.ObjectId
+  projectId   String?  @db.ObjectId
+  workspaceId String   @db.ObjectId
+  startDate   DateTime
+  endDate     DateTime
+  status      String   @default("active") // active, completed, cancelled
+  progress    Int      @default(0) // 0-100
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner       User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  project     Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  keyResults  KeyResult[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId])
+  @@index([ownerId])
+  @@index([projectId])
+  @@index([status])
+  @@map("goals")
+}
+
+model KeyResult {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  goalId      String   @db.ObjectId
+  targetValue Float
+  currentValue Float  @default(0)
+  unit        String?  // %, points, count, hours
+  taskIds     String[] @db.ObjectId // Links to tasks for auto-progress
+  goal        Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([goalId])
+  @@map("key_results")
+}
+
+model NovaAgent {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId   String   @db.ObjectId
+  name          String
+  type          String   // background, event, chat
+  status        String   @default("active") // active, paused, error
+  config        Json?    @db.Json // { triggers: [], schedule: "", capabilities: [] }
+  lastRunAt     DateTime?
+  lastError     String?
+  runCount      Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  actions    AgentAction[]
+
+  @@index([workspaceId])
+  @@index([type])
+  @@index([status])
+  @@map("nova_agents")
+}
+
+model AgentAction {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  agentId     String   @db.ObjectId
+  workspaceId String   @db.ObjectId
+  action      String   // insight_generated, task_created, task_updated, notification_sent
+  targetType  String?  // task, project, sprint, document
+  targetId    String?  @db.ObjectId
+  summary     String
+  metadata    Json?    @db.Json
+  createdAt   DateTime @default(now())
+
+  agent     NovaAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@index([workspaceId])
+  @@index([action])
+  @@index([createdAt])
+  @@index([workspaceId, createdAt])
+  @@map("agent_actions")
 }

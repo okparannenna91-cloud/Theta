@@ -48,9 +48,6 @@ const TOOL_CATEGORY_MAP: Record<string, ToolCategory> = {
   search_workspace: "DOCUMENT",
   list_prompt_templates: "DOCUMENT",
   // — Analysis & reports —
-  get_suggestions: "ANALYSIS",
-  generate_daily_brief: "ANALYSIS",
-  generate_meeting_prep: "ANALYSIS",
   generate_standup: "ANALYSIS",
   // — Workflow & forms —
   create_automation: "WORKFLOW",
@@ -58,7 +55,6 @@ const TOOL_CATEGORY_MAP: Record<string, ToolCategory> = {
   list_forms: "WORKFLOW",
   get_form_responses: "WORKFLOW",
   browse_templates: "WORKFLOW",
-  propose_custom_module: "WORKFLOW",
   // — Integrations —
   list_integrations: "INTEGRATION",
   // — Team tools —

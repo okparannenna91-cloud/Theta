@@ -224,8 +224,19 @@ export function AutomationSettings({ workspaceId }: { workspaceId: string }) {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
+                                        <SelectItem value="TASK_CREATED">Task Created</SelectItem>
                                         <SelectItem value="TASK_STATUS_UPDATED">Task Status Changed</SelectItem>
-                                        <SelectItem value="TASK_CREATED">New Task Created</SelectItem>
+                                        <SelectItem value="TASK_COMPLETED">Task Completed</SelectItem>
+                                        <SelectItem value="TASK_ASSIGNED">Task Assigned</SelectItem>
+                                        <SelectItem value="TASK_PRIORITY_CHANGED">Task Priority Changed</SelectItem>
+                                        <SelectItem value="DUE_DATE_PASSED">Due Date Passed</SelectItem>
+                                        <SelectItem value="PROJECT_CREATED">Project Created</SelectItem>
+                                        <SelectItem value="SPRINT_STARTED">Sprint Started</SelectItem>
+                                        <SelectItem value="SPRINT_COMPLETED">Sprint Completed</SelectItem>
+                                        <SelectItem value="FORM_SUBMITTED">Form Submitted</SelectItem>
+                                        <SelectItem value="DOCUMENT_UPDATED">Document Updated</SelectItem>
+                                        <SelectItem value="USER_INVITED">User Invited</SelectItem>
+                                        <SelectItem value="MEMBER_ADDED">Member Added</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>

@@ -53,7 +53,7 @@ export class ValidationEngine {
       if (r.status === "warning") warnings.push(r.message);
     });
 
-    // Check for duplicates
+    // Check for duplicates — only flag exact matches, not similar ones
     const duplicateResult = this.checkDuplicates(actionType, params, context);
     if (duplicateResult) {
       results.push(duplicateResult);
@@ -207,7 +207,7 @@ export class ValidationEngine {
   }
 
   /**
-   * Validate dates
+   * Validate dates — only check for parseable format, not past/future
    */
   private static validateDates(params: Record<string, unknown>): ValidationResult | null {
     const dueDate = params.dueDate as string;
@@ -223,69 +223,64 @@ export class ValidationEngine {
       };
     }
 
-    const now = new Date();
-    if (date < now) {
-      return {
-        status: "warning",
-        field: "dueDate",
-        message: "The due date is in the past. Would you like to set a future date?",
-        severity: "medium",
-      };
-    }
-
     return null;
   }
 
   /**
-   * Calculate confidence score
+   * Calculate confidence score based on context quality and missing info.
+   * Start high and only drop for real problems.
    */
   private static calculateConfidence(
     results: ValidationResult[],
     params: Record<string, unknown>,
     context: ValidationContext
   ): number {
-    let confidence = 0.5;
+    let confidence = 0.9; // Start optimistic
 
-    // Increase confidence for explicit parameters
-    if (params.title) confidence += 0.1;
-    if (params.priority) confidence += 0.05;
-    if (params.dueDate) confidence += 0.05;
-    if (params.assignee) confidence += 0.05;
-
-    // Decrease confidence for warnings
-    const warningCount = results.filter(r => r.status === "warning").length;
-    confidence -= warningCount * 0.1;
-
-    // Decrease confidence for errors
+    // Errors are real problems
     const errorCount = results.filter(r => r.status === "invalid").length;
-    confidence -= errorCount * 0.2;
+    confidence -= errorCount * 0.3;
 
-    // Ensure confidence is between 0 and 1
-    return Math.max(0, Math.min(1, confidence));
+    // Warnings are minor concerns, not blockers
+    const warningCount = results.filter(r => r.status === "warning").length;
+    confidence -= warningCount * 0.05;
+
+    // Missing title is a real problem for creation
+    const hasTitle = params.title || params.name;
+    if (!hasTitle) confidence -= 0.4;
+
+    // Floor at 0.1
+    return Math.max(0.1, Math.min(1, confidence));
   }
 
   /**
-   * Determine if confirmation is required
+   * Determine if confirmation is required.
+   * Only confirm for genuinely ambiguous or destructive operations.
+   * Default to execution, not confirmation.
    */
   private static requiresConfirmation(
     actionType: string,
     confidence: number,
     warnings: string[]
   ): boolean {
-    // Always require confirmation for delete actions
-    if (actionType === "delete") return true;
+    // Only confirm for bulk/project delete (high risk)
+    // Single item delete: execute immediately
+    if (actionType === "delete") {
+      // Check if this is a bulk delete by looking for keywords
+      // For now, only confirm if confidence is very low (indicating ambiguity)
+      return confidence < 0.3;
+    }
 
-    // Require confirmation for low confidence
-    if (confidence < 0.5) return true;
+    // Only confirm when confidence is VERY low — something is genuinely wrong
+    if (confidence < 0.3) return true;
 
-    // Require confirmation if there are warnings
-    if (warnings.length > 0) return true;
-
+    // Everything else: execute immediately
     return false;
   }
 
   /**
    * Generate user-friendly validation message
+   * Focus on consequences, not formatting
    */
   public static generateValidationMessage(validation: ActionValidation): string {
     if (validation.isValid && validation.warnings.length === 0) {
@@ -298,12 +293,9 @@ export class ValidationEngine {
       parts.push(`**Errors:**\n${validation.errors.map(e => `- ${e}`).join("\n")}`);
     }
 
-    if (validation.warnings.length > 0) {
-      parts.push(`**Warnings:**\n${validation.warnings.map(w => `- ${w}`).join("\n")}`);
-    }
-
-    if (validation.requiresConfirmation) {
-      parts.push("Would you like me to proceed?");
+    if (validation.warnings.length > 0 && validation.requiresConfirmation) {
+      // Only show warnings when we actually need confirmation
+      parts.push(`**Please confirm:**\n${validation.warnings.map(w => `- ${w}`).join("\n")}`);
     }
 
     return parts.join("\n\n");

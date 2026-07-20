@@ -156,6 +156,17 @@ export async function POST(req: Request) {
             createdInvites.push({ ...invite, inviteLink });
         }
 
+        // Trigger Automations
+        try {
+            const { processAutomations } = await import("@/lib/automations/engine");
+            await processAutomations(data.workspaceId, "USER_INVITED", {
+                userId: user.id,
+                invitedEmails: Array.from(emailsToProcess),
+            });
+        } catch (automationError) {
+            console.error("Failed to trigger automations on invite:", automationError);
+        }
+
         // Maintain backward compatibility for single-email calls by returning the first invite as the main object
         return NextResponse.json({
             ...createdInvites[0],

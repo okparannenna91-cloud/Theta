@@ -13,7 +13,7 @@ describe("Constants", () => {
   it("template constants are defined", async () => {
     const mod = await import("@/lib/constants/templates");
     expect(mod.PROMPT_TEMPLATES.length).toBeGreaterThan(0);
-    expect(mod.BROWSE_TEMPLATES.length).toBe(10);
+    expect(mod.BROWSE_TEMPLATES.length).toBe(55);
     expect(mod.AVAILABLE_INTEGRATIONS).toContain("GitHub");
   });
 });
@@ -103,9 +103,9 @@ describe("buildTools factory", () => {
       "list_projects", "list_tasks", "create_task", "update_task",
       "delete_task", "create_project", "update_project", "delete_project",
       "list_members", "invite_member", "create_document", "read_document",
-      "list_prompt_templates", "search_workspace", "get_suggestions",
-      "generate_daily_brief", "generate_meeting_prep", "log_time",
-      "list_forms", "get_form_responses", "list_integrations",
+      "list_prompt_templates", "search_workspace",
+      "generate_ai_standup", "predict_project_risk", "generate_sprint_plan",
+      "log_time", "list_forms", "get_form_responses", "list_integrations",
       "browse_templates", "check_billing_history",
     ];
 

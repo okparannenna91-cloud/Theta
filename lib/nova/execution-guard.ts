@@ -1,4 +1,4 @@
-import type { NovaIntent } from "./constitution/decision-framework";
+import type { NovaIntent } from "./constitution/execution";
 
 const WRITE_TOOLS = new Set([
   "create_task", "update_task", "delete_task", "breakdown_task",

@@ -57,13 +57,5 @@ export function buildAutomationTools(ctx: ToolContext): ToolModule {
       inputSchema: z.object({ category: z.string().optional() }),
       execute: async () => ({ templates: BROWSE_TEMPLATES })
     },
-    propose_custom_module: {
-      description: 'Propose a new custom module structure.',
-      inputSchema: z.object({ moduleName: z.string(), features: z.array(z.string()) }),
-      execute: async ({ moduleName, features }: Record<string, unknown>) => {
-        const featList = features as string[];
-        return { proposal: { module: moduleName, schema: featList.map((f: string) => ({ field: f, type: "String" })), ui: ["Table View", "Detail Sidebar", "Create Modal"] }, note: "Ready for App Builder." };
-      }
-    },
   };
 }

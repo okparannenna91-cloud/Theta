@@ -92,16 +92,14 @@ const TOOL_NAME_PATTERNS = [
   /\bdelete_document\b/,
   /\bsearch_workspace\b/,
   /\blist_prompt_templates\b/,
-  /\bget_suggestions\b/,
-  /\bgenerate_daily_brief\b/,
-  /\bgenerate_meeting_prep\b/,
+  /\bgenerate_standup\b/,
   /\bgenerate_standup\b/,
   /\bcreate_automation\b/,
   /\bcreate_form\b/,
   /\blist_forms\b/,
   /\bget_form_responses\b/,
   /\bbrowse_templates\b/,
-  /\bpropose_custom_module\b/,
+
   /\blist_integrations\b/,
   /\blist_team_members\b/,
   /\bteam_performance\b/,
@@ -307,7 +305,7 @@ const ROBOTIC_ENDINGS = [
   /don'?t hesitate to (?:ask|reach out|contact)[^.]*[!.]*\s*$/i,
 ];
 
-const TOOL_NAME_REGEX = /\b(?:create_task|list_tasks|update_task|delete_task|breakdown_task|create_dependency|set_estimation|log_time|set_task_metadata|create_epic|list_projects|create_project|update_project|delete_project|project_health_analysis|create_sprint_board|list_workspaces|update_workspace|list_members|invite_member|create_client_invite|export_workspace_data|send_team_announcement|set_workspace_goal|check_billing_history|create_document|read_document|delete_document|search_workspace|list_prompt_templates|get_suggestions|generate_daily_brief|generate_meeting_prep|generate_standup|create_automation|create_form|list_forms|get_form_responses|browse_templates|propose_custom_module|list_integrations|list_team_members|team_performance|team_activity|saved_searches|save_search|delete_saved_search|pin_search|save_conversation|remember_preference|dispatch_ui_action|update_board_layout)\b/;
+const TOOL_NAME_REGEX = /\b(?:create_task|list_tasks|update_task|delete_task|breakdown_task|create_dependency|set_estimation|log_time|set_task_metadata|create_epic|list_projects|create_project|update_project|delete_project|project_health_analysis|create_sprint_board|list_workspaces|update_workspace|list_members|invite_member|create_client_invite|export_workspace_data|send_team_announcement|set_workspace_goal|check_billing_history|create_document|read_document|delete_document|search_workspace|list_prompt_templates|generate_standup|create_automation|create_form|list_forms|get_form_responses|browse_templates|list_integrations|list_team_members|team_performance|team_activity|saved_searches|save_search|delete_saved_search|pin_search|save_conversation|remember_preference|dispatch_ui_action|update_board_layout)\b/;
 
 const RAW_TOOL_CALL_PATTERNS = [
   /\[\s*\{\s*"?tool_code"?\s*:/i,
@@ -394,9 +392,7 @@ export class ResponseQualityGate {
           breakdown_task: "task breakdown",
           create_project: "project creation",
           list_projects: "listing projects",
-          get_suggestions: "suggestions",
           generate_standup: "standup generation",
-          generate_daily_brief: "daily brief",
           search_workspace: "workspace search",
           create_document: "document creation",
           create_automation: "automation setup",

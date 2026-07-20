@@ -171,18 +171,22 @@ export class SubscriptionService {
       throw new Error(`Cannot cancel workspace ${workspaceId} with status ${workspace.subscriptionStatus}`);
     }
 
-    const newStatus = transition("active", "subscription.canceled") as SubscriptionStatus;
     const now = new Date();
 
-    // Notify provider first
+    // Notify provider FIRST - if it fails, we surface the error to the user
+    // instead of silently marking as canceled while the provider subscription is still active
     if (workspace.billingProvider && workspace.providerSubscriptionId) {
       try {
         const provider = providerRegistry.get(workspace.billingProvider);
         await provider.cancelSubscription(workspace.providerSubscriptionId, { cancelAtPeriodEnd: true });
-      } catch (error) {
-        logger.error(`[Subscription] Provider cancel failed for workspace ${workspaceId}: ${error}`);
+      } catch (error: any) {
+        logger.error(`[Subscription] Provider cancel failed for workspace ${workspaceId}: ${error.message}`);
+        // Surface the error - don't let the user think they canceled when they didn't
+        throw new Error(`Failed to cancel subscription with payment provider: ${error.message}. Please try again or contact support.`);
       }
     }
+
+    const newStatus = transition("active", "subscription.canceled") as SubscriptionStatus;
 
     await prisma.workspace.update({
       where: { id: workspaceId },
@@ -212,18 +216,20 @@ export class SubscriptionService {
       throw new Error(`Cannot cancel workspace ${workspaceId} with status ${workspace.subscriptionStatus}`);
     }
 
-    const newStatus = transition("active", "subscription.canceled") as SubscriptionStatus;
     const now = new Date();
 
-    // Notify provider first
+    // Notify provider FIRST - surface errors to user
     if (workspace.billingProvider && workspace.providerSubscriptionId) {
       try {
         const provider = providerRegistry.get(workspace.billingProvider);
         await provider.cancelSubscription(workspace.providerSubscriptionId, { cancelAtPeriodEnd: false });
-      } catch (error) {
-        logger.error(`[Subscription] Provider cancel failed for workspace ${workspaceId}: ${error}`);
+      } catch (error: any) {
+        logger.error(`[Subscription] Provider cancel failed for workspace ${workspaceId}: ${error.message}`);
+        throw new Error(`Failed to cancel subscription with payment provider: ${error.message}. Please try again or contact support.`);
       }
     }
+
+    const newStatus = transition("active", "subscription.canceled") as SubscriptionStatus;
 
     await prisma.workspace.update({
       where: { id: workspaceId },
@@ -315,13 +321,18 @@ export class SubscriptionService {
     let effectiveDate: Date | null = null;
 
     if (proration.direction === "upgrade" && proration.chargeAmount > 0) {
-      const provider = providerRegistry.get(workspace.billingProvider ?? "");
-      chargeResult = await provider.chargeCustomer(
-        workspace.providerCustomerId ?? "",
-        proration.chargeAmount,
-        workspace.currency ?? "USD",
-        { description: `Plan upgrade: ${workspace.plan} → ${newPlanKey}` }
-      );
+      try {
+        const provider = providerRegistry.get(workspace.billingProvider ?? "");
+        chargeResult = await provider.chargeCustomer(
+          workspace.providerCustomerId ?? "",
+          proration.chargeAmount,
+          workspace.currency ?? "USD",
+          { description: `Plan upgrade: ${workspace.plan} → ${newPlanKey}` }
+        );
+      } catch (error: any) {
+        logger.error(`[Subscription] Charge failed for plan change in workspace ${workspaceId}: ${error.message}`);
+        throw new Error(`Failed to charge for plan upgrade: ${error.message}. Please check your payment method.`);
+      }
 
       invoice = await invoiceService.createProrationInvoice(
         workspaceId,

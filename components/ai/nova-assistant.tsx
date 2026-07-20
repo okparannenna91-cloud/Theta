@@ -2,12 +2,13 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, History, Zap } from "lucide-react";
+import { MessageSquare, History, Zap, Download, X } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
 
 import { NovaHeader } from "./nova/nova-header";
 import { NovaToggleButton } from "./nova/nova-toggle-button";
@@ -18,6 +19,7 @@ import { NovaActions } from "./nova/nova-actions";
 import { useNovaChat } from "@/hooks/nova/useNovaChat";
 import { useNovaConversations } from "@/hooks/nova/useNovaConversations";
 import { useNovaMemory } from "@/hooks/nova/useNovaMemory";
+import { exportConversation, downloadExport } from "./nova/conversation-export";
 
 export function NovaAssistant() {
   const { activeWorkspaceId } = useWorkspace();
@@ -79,8 +81,47 @@ export function NovaAssistant() {
     return () => window.removeEventListener("nova:open", handler);
   }, [isOpen, isMinimized]);
 
-  const handleSend = useCallback(async () => {
-    if (chat.input.trim().startsWith("/clear")) { chat.clearChat(); conv.setActiveConversationId(null); return; }
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMod = e.metaKey || e.ctrlKey;
+
+      // Cmd+Shift+N -> toggle Nova panel
+      if (isMod && e.shiftKey && e.key === "N") {
+        e.preventDefault();
+        setIsOpen(prev => !prev);
+        return;
+      }
+
+      // Escape -> close Nova panel (only if it's the focused element area)
+      if (e.key === "Escape" && isOpen) {
+        const active = document.activeElement;
+        const isInNova = active?.closest("[data-nova-panel]");
+        if (isInNova || document.activeElement === document.body) {
+          e.preventDefault();
+          setIsOpen(false);
+          return;
+        }
+      }
+
+      // Cmd+Shift+E -> export conversation
+      if (isMod && e.shiftKey && e.key === "E" && isOpen && activeTab === "chat") {
+        e.preventDefault();
+        handleExport();
+        return;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, activeTab, chat.messages]);
+
+  const handleSend = useCallback(async (retryPrompt?: string) => {
+    if (retryPrompt) {
+      chat.setInput(retryPrompt);
+    }
+    const inputToUse = retryPrompt || chat.input;
+    if (inputToUse.trim().startsWith("/clear")) { chat.clearChat(); conv.setActiveConversationId(null); return; }
     if (isLimitReached) { showUpgradePrompt("nova"); return; }
     let convId = conv.activeConversationId;
     if (!convId) {
@@ -98,8 +139,18 @@ export function NovaAssistant() {
     setActiveTab("chat");
   }, [conv, chat]);
 
+  const handleRetry = useCallback((prompt: string) => {
+    handleSend(prompt);
+  }, [handleSend]);
+
+  const handleExport = useCallback(() => {
+    const md = exportConversation(chat.messages, "Nova Conversation");
+    downloadExport(md);
+    toast.success("Conversation exported!");
+  }, [chat.messages]);
+
   return (
-    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[100] flex-col items-end font-sans">
+    <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-[100] flex-col items-end font-sans" data-nova-panel>
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -125,8 +176,21 @@ export function NovaAssistant() {
                   </TabsList>
                 </div>
                 <TabsContent value="chat" className="flex-1 flex flex-col overflow-hidden m-0 data-[state=active]:flex">
-                  <NovaMessageList messages={chat.messages} isStreaming={chat.isStreaming} isLoading={chat.isLoading} lastPrompt={chat.lastPromptRef.current} />
-                  <NovaInput input={chat.input} setInput={chat.setInput} onSend={handleSend} isLoading={chat.isLoading} isLimitReached={isLimitReached} onSlashCommand={(cmd) => { if (cmd === "/clear") { chat.clearChat(); conv.setActiveConversationId(null); } }} />
+                  <NovaMessageList
+                    messages={chat.messages}
+                    isStreaming={chat.isStreaming}
+                    isLoading={chat.isLoading}
+                    lastPrompt={chat.lastPromptRef.current}
+                    onRetry={handleRetry}
+                    onSuggestedPrompt={(prompt) => {
+                      chat.setInput(prompt);
+                      // Auto-send the suggested prompt
+                      setTimeout(() => handleSend(prompt), 50);
+                    }}
+                  />
+                  <div className="px-3 sm:px-4 pb-3 sm:pb-4">
+                    <NovaInput input={chat.input} setInput={chat.setInput} onSend={() => handleSend()} isLoading={chat.isLoading} isLimitReached={isLimitReached} onSlashCommand={(cmd) => { if (cmd === "/clear") { chat.clearChat(); conv.setActiveConversationId(null); } }} />
+                  </div>
                 </TabsContent>
                 <TabsContent value="history" className="flex-1 flex flex-col overflow-hidden m-0">
                   <NovaRecall conversations={conv.conversations} loading={conv.loading} activeConversationId={conv.activeConversationId} memories={mem.memories} onSelectConversation={handleSelectConversation} onDeleteMemory={mem.deleteMemory} onRefreshConversations={conv.fetchConversations} onRefreshMemories={mem.fetchMemories} onSetInput={chat.setInput} onSetActiveTab={setActiveTab} />

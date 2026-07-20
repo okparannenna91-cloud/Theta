@@ -20,6 +20,19 @@ export type BillingPlan = {
   };
 };
 
+/**
+ * Dynamic Pricing Model: Total = Base + (Members x Per-User)
+ *
+ * Free:    $0 + ($0 x members)
+ * Growth:  $5 + ($2 x members)
+ * Pro:     $10 + ($3 x members)
+ * Theta+:  $20 + ($4 x members)
+ *
+ * Pain Funnel Design:
+ * - Free tier is generous enough to build dependency (unlimited projects/tasks)
+ * - But capped at 5 members, 3 boards, 256MB storage, 20 Nova requests
+ * - Optimal conversion window: Days 14-28 when 2-3 walls are hit
+ */
 export const BILLING_PLANS: BillingPlan[] = [
   {
     id: "free",
@@ -28,18 +41,17 @@ export const BILLING_PLANS: BillingPlan[] = [
     priceLabel: "$0",
     basePriceMonthlyUSD: 0,
     perUserPriceMonthlyUSD: 0,
-    maxUsers: 3,
+    maxUsers: 5,
     currency: "USD",
     mode: "subscription",
     description: "Perfect for getting started",
     features: [
-      "Up to 3 users",
-      "3 projects",
-      "25 tasks",
-      "1 team",
-      "100MB storage",
-      "10 Nova AI requests/mo",
-      "2 Kanban boards",
+      "Up to 5 users",
+      "Unlimited projects & tasks",
+      "3 Kanban boards",
+      "256MB storage",
+      "20 Nova AI requests/mo",
+      "1 integration",
       "Email support (72h)",
     ],
   },
@@ -60,14 +72,16 @@ export const BILLING_PLANS: BillingPlan[] = [
     },
     features: [
       "Up to 15 users",
-      "15 projects",
-      "150 tasks",
-      "5 teams",
+      "Unlimited projects & tasks",
+      "Unlimited boards",
       "5GB storage",
       "100 Nova AI requests/mo",
-      "10 Kanban boards",
-      "2 integrations",
-      "Email support (24h)",
+      "3 integrations",
+      "10 automations/mo",
+      "Custom fields (5/project)",
+      "Sprints & Goals",
+      "CSV export",
+      "Email support (48h)",
     ],
   },
   {
@@ -87,13 +101,16 @@ export const BILLING_PLANS: BillingPlan[] = [
     },
     features: [
       "Up to 50 users",
-      "100 projects",
-      "Unlimited tasks & teams",
+      "Unlimited projects, tasks & teams",
       "50GB storage",
       "500 Nova AI requests/mo",
-      "Unlimited Kanban boards",
-      "All integrations",
+      "Unlimited integrations",
+      "Unlimited automations",
+      "Unlimited custom fields",
+      "Full Sprints & Goals",
       "Advanced analytics",
+      "CSV + PDF export",
+      "Time tracking with reports",
       "API access (10k/mo)",
       "Email + Chat (12h)",
     ],
@@ -115,15 +132,16 @@ export const BILLING_PLANS: BillingPlan[] = [
     },
     features: [
       "Unlimited users",
-      "Unlimited projects & tasks",
-      "Unlimited teams",
+      "Unlimited everything",
       "500GB storage",
       "2,000 Nova AI requests/mo",
+      "White label branding",
       "Advanced permissions",
       "Custom automation",
-      "White label branding",
       "24/7 Priority support",
       "Dedicated manager",
+      "API access (100k/mo)",
+      "Lifetime activity history",
     ],
   },
 ];
@@ -137,6 +155,7 @@ export const BILLING_PLAN_LOOKUP = BILLING_PLANS.reduce<
 
 /**
  * Get plan price based on billing interval, currency and member count
+ * Formula: Total = Base + (Active Users x Price Per User)
  */
 export function getPlanPrice(
   planId: string,
@@ -159,8 +178,7 @@ export function getPlanPrice(
     : totalMonthlyUSD;
 
   if (currency === "NGN") {
-     // For this iteration, we'll use a fixed conversion factor of 1250 if dynamic fails
-     return finalAmountUSD * 1250;
+     throw new Error("NGN pricing requires dynamic conversion. Use getPlanPriceDynamic().");
   }
 
   return finalAmountUSD;
@@ -183,14 +201,9 @@ export async function getPlanPriceDynamic(
   }
 
   // Handle NGN dynamically
-  try {
-    const { convertUsdToNgn } = await import("./currency");
-    const usdAmount = getPlanPrice(planId, interval, memberCount, "USD");
-    return await convertUsdToNgn(usdAmount);
-  } catch (error) {
-    console.warn("[Billing] Dynamic conversion failed, using fixed fallback");
-    return getPlanPrice(planId, interval, memberCount, "NGN");
-  }
+  const { convertUsdToNgn } = await import("./currency");
+  const usdAmount = getPlanPrice(planId, interval, memberCount, "USD");
+  return await convertUsdToNgn(usdAmount);
 }
 
 /**
@@ -199,4 +212,3 @@ export async function getPlanPriceDynamic(
 export function getAnnualDiscount(): number {
   return 20; // 20% discount for annual billing
 }
-

@@ -1,6 +1,7 @@
 import { inngest } from "@/lib/inngest/client";
 import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/notification-engine";
+import { sendEmail } from "@/lib/email";
 import { logger } from "@/lib/logger";
 
 async function findExistingReminder(userId: string, type: string, reminderKey: string, windowMinutes: number = 60) {
@@ -602,5 +603,96 @@ export const novaSuggestions = inngest.createFunction(
 
     logger.info("[Notif] Nova suggestions completed", { sent: totalSent });
     return { sent: totalSent };
+  }
+);
+
+// ──────────────────────────────────────────────
+//  INSIGHT DIGEST EMAIL (weekly)
+//  Sends a summary of all Nova agent insights to workspace admins
+// ──────────────────────────────────────────────
+
+export const insightDigestEmail = inngest.createFunction(
+  { id: "notif-insight-digest-email", triggers: [{ cron: "TZ(UTC) 8 * * 1" }] }, // Monday 8am UTC
+  async ({ step }) => {
+    logger.info("[Notif] Insight digest email started");
+
+    const workspaces = await prisma.workspace.findMany({
+      where: { subscriptionStatus: { notIn: ["canceled", "deactivated"] } },
+      include: {
+        members: { where: { role: { in: ["owner", "admin"] } }, include: { user: true } },
+      },
+    });
+
+    let emailsSent = 0;
+
+    for (const ws of workspaces) {
+      try {
+        // Gather last 7 days of insights
+        const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const insights = await prisma.proactiveInsight.findMany({
+          where: { workspaceId: ws.id, createdAt: { gte: weekAgo } },
+          orderBy: { createdAt: "desc" },
+          take: 50,
+        });
+
+        if (insights.length === 0) continue;
+
+        const critical = insights.filter((i) => i.severity === "critical");
+        const high = insights.filter((i) => i.severity === "high");
+        const medium = insights.filter((i) => i.severity === "medium");
+        const low = insights.filter((i) => i.severity === "low");
+
+        const rows = insights
+          .slice(0, 20)
+          .map((i) => {
+            const severityColor = i.severity === "critical" ? "#dc2626" : i.severity === "high" ? "#ea580c" : i.severity === "medium" ? "#ca8a04" : "#16a34a";
+            return `<tr>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">
+                <span style="color:${severityColor};font-weight:600">${i.severity.toUpperCase()}</span>
+              </td>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb">
+                <strong>${i.title}</strong><br/>
+                <span style="color:#6b7280;font-size:13px">${i.message}</span>
+              </td>
+              <td style="padding:8px 12px;border-bottom:1px solid #e5e7eb;font-size:13px;color:#6b7280">
+                ${i.suggestedAction || "—"}
+              </td>
+            </tr>`;
+          })
+          .join("");
+
+        const html = `
+          <div style="font-family:sans-serif;max-width:640px;margin:0 auto">
+            <h2 style="color:#1e40af">Nova Weekly Insight Digest</h2>
+            <p>Here's what Nova found in <strong>${ws.name}</strong> this week:</p>
+            <table style="width:100%;border-collapse:collapse;margin:16px 0">
+              <tr style="background:#f8fafc">
+                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb">Level</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb">Insight</th>
+                <th style="padding:8px 12px;text-align:left;border-bottom:2px solid #e5e7eb">Suggested Action</th>
+              </tr>
+              ${rows}
+            </table>
+            <p style="font-size:14px;color:#374151">
+              <strong>${critical.length}</strong> critical · 
+              <strong>${high.length}</strong> high · 
+              <strong>${medium.length}</strong> medium · 
+              <strong>${low.length}</strong> low
+            </p>
+            <p><a href="https://app.theta.so/dashboard" style="color:#1e40af">View Full Dashboard →</a></p>
+          </div>`;
+
+        for (const member of ws.members) {
+          if (!member.user.email) continue;
+          await sendEmail({ to: member.user.email, subject: `[Theta] Weekly Nova Insight Digest — ${ws.name}`, html });
+          emailsSent++;
+        }
+      } catch (error: any) {
+        logger.warn(`[Notif] Insight digest failed for workspace ${ws.id}: ${error.message}`);
+      }
+    }
+
+    logger.info("[Notif] Insight digest emails completed", { sent: emailsSent });
+    return { sent: emailsSent };
   }
 );

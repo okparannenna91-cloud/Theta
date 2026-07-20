@@ -1,9 +1,14 @@
 import { prisma } from "../prisma";
 import { executeWithProvider } from "@/lib/langraph/model-router";
 import { logger } from "@/lib/logger";
-import { MEETING_PHASES, type MeetingPhase } from "./constitution/meeting-standards";
 
-export { MEETING_PHASES, type MeetingPhase } from "./constitution/meeting-standards";
+export type MeetingPhase = "PRE_MEETING" | "LIVE_MEETING" | "POST_MEETING";
+
+export const MEETING_PHASES = [
+  { phase: "PRE_MEETING", description: "Preparation before the meeting", capabilities: ["Generate agenda", "Surface related documents", "Identify blockers"] },
+  { phase: "LIVE_MEETING", description: "Real-time assistance during meeting", capabilities: ["Capture transcripts", "Identify decisions", "Track assignments"] },
+  { phase: "POST_MEETING", description: "Follow-up after the meeting", capabilities: ["Generate summary", "Extract action items", "Create tasks from decisions"] },
+];
 
 // ──────────────────────────────────────────────
 //  Types

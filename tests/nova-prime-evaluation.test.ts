@@ -6,7 +6,7 @@ import { ValidationEngine } from "@/lib/nova/validation-engine";
 import { ProactiveIntelligenceEngine } from "@/lib/nova/proactive-intelligence";
 import { ResponseFormatter } from "@/lib/nova/response-formatter";
 import { PhilosophyEngine } from "@/lib/nova/philosophy-engine";
-import { intentFromString, getConfidenceLevel } from "@/lib/nova/constitution/decision-framework";
+import { intentFromString, getConfidenceLevel } from "@/lib/nova/constitution/execution";
 import { routeRequest } from "@/lib/nova/intent-router";
 
 describe("Nova Prime Evaluation Suite", () => {
@@ -98,13 +98,13 @@ describe("Nova Prime Evaluation Suite", () => {
     });
 
     it("routes planning to PLANNING path", () => {
-      const route = routeRequest("I want to launch a product", "PLAN", "PATH_E_PLANNING");
+      const route = routeRequest("I want to launch a product", "PLAN");
       expect(route.path).toBe("PLANNING");
     });
 
     it("routes conversation appropriately", () => {
-      const route = routeRequest("hi", "READ", "PATH_B_CONFIRMATION");
-      expect(route.path).toBe("CONVERSATION");
+      const route = routeRequest("hi", "READ");
+      expect(route.path).toBe("CHAT");
     });
   });
 
@@ -119,7 +119,7 @@ describe("Nova Prime Evaluation Suite", () => {
 
     it("returns MEDIUM confidence with partial context", () => {
       const confidence = getConfidenceLevel(
-        "Create a task",
+        "Create a task called Outreach",
         { hasWorkspace: true, hasProject: false, hasTask: false, hasTeam: false }
       );
       expect(confidence).toBe("MEDIUM");
@@ -233,14 +233,14 @@ describe("Nova Prime Evaluation Suite", () => {
       expect(validation.errors.some(e => e.includes("permission"))).toBe(true);
     });
 
-    it("requires confirmation for delete actions", () => {
+    it("does not require confirmation for single delete with high confidence", () => {
       const validation = ValidationEngine.validateAction(
         "delete",
         { title: "Task to delete" },
         { workspaceId: "w1", userId: "u1", userRole: "admin", existingTaskTitles: ["Task to delete"], existingProjectNames: [], teamMembers: ["u1"] }
       );
 
-      expect(validation.requiresConfirmation).toBe(true);
+      expect(validation.requiresConfirmation).toBe(false);
     });
   });
 
@@ -397,7 +397,7 @@ describe("Nova Prime — Integration Tests", () => {
       const intent = intentFromString("I want to launch a product next quarter");
       expect(intent).toBe("PLAN");
 
-      const route = routeRequest("I want to launch a product next quarter", "PLAN", "PATH_E_PLANNING");
+      const route = routeRequest("I want to launch a product next quarter", "PLAN");
       expect(route.path).toBe("PLANNING");
     });
   });

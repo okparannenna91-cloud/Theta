@@ -278,13 +278,15 @@ export async function POST(req: Request) {
       await publishToChannel(projectChannel, "task:created", task);
     }
 
-    // Trigger Automations (Phase 2)
+    // Trigger Automations
     try {
         const { processAutomations } = await import("@/lib/automations/engine");
         await processAutomations(task.workspaceId, "TASK_CREATED", {
             taskId: task.id,
             projectId: task.projectId,
-            userId: user.id
+            userId: user.id,
+            taskTitle: task.title,
+            taskPriority: task.priority,
         });
     } catch (automationError) {
         console.error("Failed to trigger automations on task creation:", automationError);

@@ -2,6 +2,7 @@ import { paystack } from "@/lib/paystack";
 import { prisma } from "@/lib/prisma";
 import { BillingProvider, CustomerResult, CheckoutParams, CheckoutResult, PaymentIntentParams, PaymentIntentResult, SubscriptionParams, SubscriptionResult, SubscriptionData, ChargeParams, ChargeResult, RefundResult, PaymentMethodData, InvoiceParams, InvoiceResult, WebhookEvent } from "../billing-provider.interface";
 import { Currency } from "../types";
+import { logger } from "@/lib/logger";
 
 export class PaystackProvider implements BillingProvider {
   readonly id = "paystack";
@@ -45,10 +46,17 @@ export class PaystackProvider implements BillingProvider {
   }
 
   async createPaymentIntent(params: PaymentIntentParams): Promise<PaymentIntentResult> {
+    // Resolve the real email for this customer - Paystack requires an email, not a customer_code
+    let email = params.description; // May be an email passed as description
+    if (!email || !email.includes("@")) {
+      // Try to get email from workspace owner
+      email = await this.resolveCustomerEmail(params.customerId, params.metadata?.workspaceId);
+    }
+
     const response = await paystackFetch("/transaction/initialize", {
       method: "POST",
       body: JSON.stringify({
-        email: params.customerId,
+        email,
         amount: params.amount,
         currency: params.currency,
         metadata: params.metadata,
@@ -91,10 +99,34 @@ export class PaystackProvider implements BillingProvider {
   }
 
   async cancelSubscription(subscriptionId: string, options?: { cancelAtPeriodEnd?: boolean }): Promise<void> {
-    await paystackFetch(`/subscription/${subscriptionId}/manage/disable`, {
-      method: "POST",
-      body: JSON.stringify({ code: subscriptionId, token: "" }),
-    });
+    // First fetch the subscription to get the disable_code
+    // Paystack requires the disable_code from the subscription object
+    try {
+      const subResponse = await paystackFetch(`/subscription/${subscriptionId}`);
+      const disableCode = subResponse.data?.disable_code;
+      const token = subResponse.data?.token;
+
+      if (!disableCode && !token) {
+        logger.warn(`[Paystack] No disable_code found for subscription ${subscriptionId}, attempting with subscription code`);
+        // Fallback: try with subscription code directly
+        await paystackFetch(`/subscription/${subscriptionId}/manage/disable`, {
+          method: "POST",
+          body: JSON.stringify({ code: subscriptionId, token: subscriptionId }),
+        });
+      } else {
+        await paystackFetch(`/subscription/${subscriptionId}/manage/disable`, {
+          method: "POST",
+          body: JSON.stringify({
+            code: subscriptionId,
+            token: disableCode || token,
+          }),
+        });
+      }
+      logger.info(`[Paystack] Subscription ${subscriptionId} canceled`);
+    } catch (error: any) {
+      logger.error(`[Paystack] Failed to cancel subscription ${subscriptionId}: ${error.message}`);
+      throw new Error(`Failed to cancel Paystack subscription: ${error.message}`);
+    }
   }
 
   async retrieveSubscription(subscriptionId: string): Promise<SubscriptionData> {
@@ -117,9 +149,13 @@ export class PaystackProvider implements BillingProvider {
     if (!authCode) {
       throw new Error("No authorization code found for recurring charge");
     }
+
+    // Resolve the real email for the charge
+    const email = params?.metadata?.email ?? await this.resolveCustomerEmail(customerId, workspace?.id);
+
     const reference = `chg_${workspace?.id ?? "unknown"}_${Date.now()}`;
     const response = await paystack.chargeAuthorization({
-      email: params?.metadata?.email ?? "",
+      email,
       amount,
       authorization_code: authCode,
       reference,
@@ -224,6 +260,42 @@ export class PaystackProvider implements BillingProvider {
 
   async voidInvoice(invoiceId: string): Promise<void> {
     await paystackFetch(`/paymentrequest/${invoiceId}/archive`, { method: "POST" });
+  }
+
+  /**
+   * Resolve real email from workspace owner for Paystack transactions
+   * Paystack requires a real email address, not customer_code
+   */
+  private async resolveCustomerEmail(customerId: string, workspaceId?: string): Promise<string> {
+    // First try to get from workspace billing email
+    if (workspaceId) {
+      const workspace = await prisma.workspace.findUnique({
+        where: { id: workspaceId },
+        select: { billingEmail: true },
+      });
+      if (workspace?.billingEmail) return workspace.billingEmail;
+    }
+
+    // Try to get from workspace owner via member relationship
+    if (workspaceId) {
+      const owner = await prisma.workspaceMember.findFirst({
+        where: { workspaceId, role: "owner" },
+        select: { user: { select: { email: true } } },
+      });
+      if (owner?.user?.email) return owner.user.email;
+    }
+
+    // Try to get from Paystack customer record
+    try {
+      const response = await paystackFetch(`/customer/${customerId}`);
+      if (response.data?.email) return response.data.email;
+    } catch {
+      // Fall through
+    }
+
+    // Last resort fallback
+    logger.warn(`[Paystack] Could not resolve email for customer ${customerId}, using fallback`);
+    return `billing@thetapm.site`;
   }
 
   private async resolvePaystackPlanCode(planKey: string, interval: string): Promise<string> {

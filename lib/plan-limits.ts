@@ -24,6 +24,7 @@ export interface PlanLimits {
     // AI & Automation
     hasNovaAI: boolean;
     maxNovaRequests: number;         // per month
+    maxMemoryItems: number;          // AI memory items per user per workspace (-1 = unlimited)
     hasCustomAutomation: boolean;
     maxAutomations: number;
 
@@ -40,108 +41,162 @@ export interface PlanLimits {
     // History & Retention
     activityHistoryDays: number;      // -1 = lifetime
     maxChatMessages: number;          // -1 = unlimited
+
+    // Export
+    hasExport: boolean;               // CSV/JSON export
+    hasPDFExport: boolean;            // PDF export
+
+    // Sprints & Goals
+    canCreateSprints: boolean;        // false = view only
+    canCreateGoals: boolean;          // false = view only
+
+    // Documents
+    maxDocumentPages: number;         // -1 = unlimited
+
+    // Time Tracking
+    canUseTimer: boolean;             // false = log only
+    hasTimeReports: boolean;          // false = no reports
+
+    // Support
+    supportResponseHours: number;     // -1 = no priority support, 0 = 24/7
 }
 
 export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
     free: {
-        maxWorkspaces: 3,
-        maxProjects: 3,
-        maxTasks: 25,
-        maxTeams: 1,
-        maxMembers: 3,
-        maxBoards: 2,
-        maxCalendarEvents: 20,
-        maxStorage: 100, // 100MB
-        maxFileSize: 5, // 5MB
+        maxWorkspaces: 1,
+        maxProjects: -1,            // UNLIMITED
+        maxTasks: -1,               // UNLIMITED
+        maxTeams: 1,                // 1 team
+        maxMembers: 5,              // 5 members
+        maxBoards: 3,               // 3 boards
+        maxCalendarEvents: 10,      // 10 events
+        maxStorage: 256,            // 256MB
+        maxFileSize: 5,             // 5MB per file
         hasNovaAI: true,
-        maxNovaRequests: 10,
+        maxNovaRequests: 20,        // 20/month
+        maxMemoryItems: 50,         // 50 memory items
         hasCustomAutomation: false,
-        maxAutomations: 0,
-        hasIntegrations: false,
-        maxIntegrations: 0,
+        maxAutomations: 0,          // NONE
+        hasIntegrations: true,
+        maxIntegrations: 1,         // 1 integration
         hasAdvancedAnalytics: false,
         hasPrioritySupport: false,
         hasCustomFields: false,
         hasWhiteLabel: false,
         hasAPIAccess: false,
         maxAPIRequests: 0,
-        activityHistoryDays: 30,
-        maxChatMessages: 100,
+        activityHistoryDays: 7,     // 7 days
+        maxChatMessages: 100,       // 100 messages
+        hasExport: false,           // No exports on free
+        hasPDFExport: false,
+        canCreateSprints: false,    // View only
+        canCreateGoals: false,      // View only
+        maxDocumentPages: 5,        // 5 pages
+        canUseTimer: false,         // Log only
+        hasTimeReports: false,
+        supportResponseHours: -1,   // No priority support
     },
     growth: {
         maxWorkspaces: -1,
-        maxProjects: 15,
-        maxTasks: 150,
+        maxProjects: -1,
+        maxTasks: -1,
         maxTeams: 5,
         maxMembers: 15,
-        maxBoards: 10,
-        maxCalendarEvents: 100,
-        maxStorage: 5 * 1024, // 5GB
-        maxFileSize: 25, // 25MB
+        maxBoards: -1,              // UNLIMITED
+        maxCalendarEvents: -1,      // UNLIMITED
+        maxStorage: 5 * 1024,       // 5GB
+        maxFileSize: 25,            // 25MB
         hasNovaAI: true,
-        maxNovaRequests: 100,
+        maxNovaRequests: 100,       // 100/month
+        maxMemoryItems: 200,        // 200 memory items
         hasCustomAutomation: false,
-        maxAutomations: 0,
+        maxAutomations: 10,         // 10/month
         hasIntegrations: true,
-        maxIntegrations: 2,
+        maxIntegrations: 3,         // 3 integrations
         hasAdvancedAnalytics: false,
         hasPrioritySupport: false,
-        hasCustomFields: false,
+        hasCustomFields: true,
         hasWhiteLabel: false,
         hasAPIAccess: false,
         maxAPIRequests: 0,
-        activityHistoryDays: 90,
-        maxChatMessages: 1000,
+        activityHistoryDays: 30,    // 30 days
+        maxChatMessages: -1,        // UNLIMITED
+        hasExport: true,            // CSV export
+        hasPDFExport: false,
+        canCreateSprints: true,     // Create + manage
+        canCreateGoals: true,       // Create + manage
+        maxDocumentPages: -1,       // UNLIMITED
+        canUseTimer: true,          // Timer + log
+        hasTimeReports: false,
+        supportResponseHours: 48,   // Email (48h)
     },
     pro: {
         maxWorkspaces: -1,
-        maxProjects: 100,
-        maxTasks: -1, // unlimited
+        maxProjects: -1,
+        maxTasks: -1,
         maxTeams: -1,
         maxMembers: 50,
         maxBoards: -1,
         maxCalendarEvents: -1,
-        maxStorage: 50 * 1024, // 50GB
-        maxFileSize: 100, // 100MB
+        maxStorage: 50 * 1024,      // 50GB
+        maxFileSize: 100,           // 100MB
         hasNovaAI: true,
-        maxNovaRequests: 500,
+        maxNovaRequests: 500,       // 500/month
+        maxMemoryItems: 1000,       // 1000 memory items
         hasCustomAutomation: true,
-        maxAutomations: 5,
+        maxAutomations: -1,         // UNLIMITED
         hasIntegrations: true,
-        maxIntegrations: -1,
+        maxIntegrations: -1,        // UNLIMITED
         hasAdvancedAnalytics: true,
         hasPrioritySupport: false,
         hasCustomFields: true,
         hasWhiteLabel: false,
         hasAPIAccess: true,
-        maxAPIRequests: 10000,
-        activityHistoryDays: 365,
+        maxAPIRequests: 10000,      // 10k/mo
+        activityHistoryDays: 365,   // 365 days
         maxChatMessages: -1,
+        hasExport: true,            // CSV + PDF
+        hasPDFExport: true,
+        canCreateSprints: true,     // Full
+        canCreateGoals: true,       // Full
+        maxDocumentPages: -1,
+        canUseTimer: true,          // Full reports
+        hasTimeReports: true,
+        supportResponseHours: 12,   // Email + Chat (12h)
     },
     theta_plus: {
         maxWorkspaces: -1,
         maxProjects: -1,
         maxTasks: -1,
         maxTeams: -1,
-        maxMembers: -1,
+        maxMembers: -1,             // UNLIMITED
         maxBoards: -1,
         maxCalendarEvents: -1,
-        maxStorage: 500 * 1024, // 500GB
-        maxFileSize: 500, // 500MB
+        maxStorage: 500 * 1024,     // 500GB
+        maxFileSize: 500,           // 500MB
         hasNovaAI: true,
-        maxNovaRequests: 2000,
+        maxNovaRequests: 2000,      // 2,000/month
+        maxMemoryItems: -1,         // UNLIMITED
         hasCustomAutomation: true,
-        maxAutomations: -1,
+        maxAutomations: -1,         // UNLIMITED
         hasIntegrations: true,
-        maxIntegrations: -1,
+        maxIntegrations: -1,        // UNLIMITED
         hasAdvancedAnalytics: true,
         hasPrioritySupport: true,
         hasCustomFields: true,
         hasWhiteLabel: true,
         hasAPIAccess: true,
-        maxAPIRequests: 100000,
-        activityHistoryDays: -1, // lifetime
+        maxAPIRequests: 100000,     // 100k/mo
+        activityHistoryDays: -1,    // LIFETIME
         maxChatMessages: -1,
+        hasExport: true,
+        hasPDFExport: true,
+        canCreateSprints: true,
+        canCreateGoals: true,
+        maxDocumentPages: -1,
+        canUseTimer: true,
+        hasTimeReports: true,
+        supportResponseHours: 0,    // 24/7 Priority
     },
 };
 
@@ -299,6 +354,16 @@ export function getPlanLimitMessage(plan: PlanName, feature: string): string {
             return "Integration limit reached. Upgrade your plan to unlock more integrations.";
         case "analytics":
             return "Advanced analytics are available on upgraded plans.";
+        case "automations":
+            return "Automation limit reached. Upgrade your plan for more automations.";
+        case "sprints":
+            return "Sprint creation is available on Growth plan and above. Upgrade to create and manage sprints.";
+        case "goals":
+            return "Goal creation is available on Growth plan and above. Upgrade to create and manage goals.";
+        case "documents":
+            return "Document page limit reached. Upgrade your plan for unlimited documents.";
+        case "exports":
+            return "Export is available on Growth plan and above. Upgrade to export your data.";
         default:
             return "This feature is not available on your current plan. Upgrade to unlock it.";
     }
@@ -314,11 +379,52 @@ export function getUsagePercentage(current: number, max: number): number {
 
 /**
  * Get warning level based on usage
+ * Updated to trigger at 75% as per the pain funnel design
  */
 export function getWarningLevel(percentage: number): "ok" | "warning" | "critical" {
     if (percentage >= 100) return "critical";
-    if (percentage >= 80) return "warning";
+    if (percentage >= 75) return "warning";
     return "ok";
+}
+
+/**
+ * Get warning message for a specific limit
+ * Used by the 75% warning system
+ */
+export function getUsageWarningMessage(
+    plan: PlanName,
+    feature: string,
+    current: number,
+    max: number
+): string | null {
+    if (max === -1) return null; // unlimited
+    const percentage = getUsagePercentage(current, max);
+    if (percentage < 75) return null;
+
+    const planLimits = PLAN_LIMITS[plan];
+    const nextPlan = plan === "free" ? "growth" : plan === "growth" ? "pro" : "theta_plus";
+    const nextLimits = PLAN_LIMITS[nextPlan];
+
+    switch (feature) {
+        case "members":
+            return `${current} of ${max} members used. Upgrade for ${nextLimits.maxMembers === -1 ? "unlimited" : nextLimits.maxMembers} seats at $5 + $2/user`;
+        case "boards":
+            return `${current} of ${max} boards used. Upgrade for unlimited boards`;
+        case "storage":
+            return `${current}MB of ${max}MB storage used. Upgrade for ${nextLimits.maxStorage / 1024}GB`;
+        case "nova_ai":
+            return `${current} of ${max} Nova requests used this month. Upgrade for ${nextLimits.maxNovaRequests}`;
+        case "integrations":
+            return `${current} of ${max} integrations used. Upgrade for ${nextLimits.maxIntegrations === -1 ? "unlimited" : nextLimits.maxIntegrations}`;
+        case "automations":
+            return `${current} of ${max} automations used this month. Upgrade for ${nextLimits.maxAutomations === -1 ? "unlimited" : nextLimits.maxAutomations}`;
+        case "chat":
+            return `${current} of ${max} chat messages used. Upgrade for unlimited messaging`;
+        case "calendar_events":
+            return `${current} of ${max} calendar events used. Upgrade for unlimited events`;
+        default:
+            return `${feature} limit nearly reached. Upgrade your plan for more.`;
+    }
 }
 
 /**
@@ -385,7 +491,10 @@ export async function enforcePlanLimit(
         case "analytics": isAllowed = limits.hasAdvancedAnalytics; break;
         case "automations": isAllowed = limits.hasCustomAutomation && (limits.maxAutomations === -1 || currentCount < limits.maxAutomations); break;
         case "api_access": isAllowed = limits.hasAPIAccess; break;
-        case "documents":
+        case "sprints": isAllowed = limits.canCreateSprints; break;
+        case "goals": isAllowed = limits.canCreateGoals; break;
+        case "documents": isAllowed = limits.maxDocumentPages === -1 || currentCount < limits.maxDocumentPages; break;
+        case "exports": isAllowed = limits.hasExport; break;
         case "forms":
         case "groups":
         case "columns": isAllowed = true; break; // Tracked by separate limits, minimum enforce deactivated check

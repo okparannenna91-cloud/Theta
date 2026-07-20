@@ -182,82 +182,6 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
         return { success: true, message: `Updated board layout for **${boardId}**.` };
       }
     },
-    generate_standup: {
-      description: 'Generate a daily standup report.',
-      inputSchema: z.object({ userId: z.string() }),
-      execute: async ({ userId: targetUserId }: Record<string, unknown>) => {
-        await enforce(ctx, "read", "workspace");
-        await auditToolExecution(workspaceId, user.id, "generate_standup", { userId: targetUserId });
-        const { getAccessibleProjectIds } = await import("../project-permissions");
-        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
-        const [activity, tasks, blockedTasks] = await Promise.all([
-          prisma.activity.findMany({ where: { userId: targetUserId as string, workspaceId, projectId: { in: accessibleProjectIds } }, take: 5, orderBy: { createdAt: 'desc' } }),
-          prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, status: "in_progress" } }),
-          prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, status: "blocked" }, take: 5 })
-        ]);
-        return {
-          yesterday: activity.map((a: { action: string }) => a.action),
-          today: tasks.map((t: { title: string }) => t.title),
-          blockers: blockedTasks.length > 0
-            ? blockedTasks.map((t: { title: string }) => t.title)
-            : ["No blockers reported"]
-        };
-      }
-    },
-    get_suggestions: {
-      description: 'Get AI suggestions for workflow improvements.',
-      inputSchema: z.object({ projectId: z.string().optional() }),
-      execute: async ({ projectId: pId }: Record<string, unknown>) => {
-        await enforce(ctx, "read", "task");
-        const { getAccessibleProjectIds } = await import("../project-permissions");
-        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
-        const targetProjectIds = pId
-          ? (accessibleProjectIds.includes(pId as string) ? [pId as string] : [])
-          : accessibleProjectIds;
-        if (targetProjectIds.length === 0) {
-          return { suggestions: ["No accessible projects found."] };
-        }
-        const [overdue, stalled] = await Promise.all([
-          prisma.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, dueDate: { lt: new Date() }, status: { not: "done" } }, take: 3 }),
-          prisma.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, status: "in_progress", updatedAt: { lt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000) } }, take: 3 })
-        ]);
-        return { suggestions: [
-          overdue.length > 0 ? `You have **${overdue.length}** overdue tasks.` : "No overdue tasks.",
-          stalled.length > 0 ? `**${stalled[0].title}** has been stalled for 3 days.` : "Team is moving fast!"
-        ]};
-      }
-    },
-    generate_daily_brief: {
-      description: 'Generate a personalized daily brief.',
-      inputSchema: z.object({}),
-      execute: async () => {
-        await enforce(ctx, "read", "workspace");
-        await auditToolExecution(workspaceId, user.id, "generate_daily_brief", {});
-        const { getAccessibleProjectIds } = await import("../project-permissions");
-        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
-        const [overdue, upcoming, activities] = await Promise.all([
-          prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, userId: user.id, dueDate: { lt: new Date() }, status: { not: "done" } }, take: 5 }),
-          prisma.task.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds }, userId: user.id, dueDate: { gte: new Date() } }, orderBy: { dueDate: 'asc' }, take: 5 }),
-          prisma.activity.findMany({ where: { workspaceId, projectId: { in: accessibleProjectIds } }, take: 5, orderBy: { createdAt: 'desc' } })
-        ]);
-        return { brief: { critical: overdue.map((t: { title: string }) => t.title), onDeck: upcoming.map((t: { title: string }) => t.title), teamPulse: activities.map((a: { action: string; entityType: string }) => `${a.action} ${a.entityType}`) }, recommendation: overdue.length > 0 ? "Focus on clearing blockers." : "Schedule looks clear." };
-      }
-    },
-    generate_meeting_prep: {
-      description: 'Prepare a meeting agenda and context.',
-      inputSchema: z.object({ topic: z.string(), projectId: z.string().optional() }),
-      execute: async ({ topic, projectId: pId }: Record<string, unknown>) => {
-        await enforce(ctx, "read", "project", { projectId: pId as string | undefined });
-        await auditToolExecution(workspaceId, user.id, "generate_meeting_prep", { topic, projectId: pId });
-        const { getAccessibleProjectIds } = await import("../project-permissions");
-        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
-        const targetProjectIds = pId
-          ? (accessibleProjectIds.includes(pId as string) ? [pId as string] : [])
-          : accessibleProjectIds;
-        const tasks = await prisma.task.findMany({ where: { workspaceId, projectId: { in: targetProjectIds }, status: "in_progress" }, take: 5 });
-        return { agenda: ["Status update", "Blockers review", "Resource allocation", "Action items"], context: tasks.map((t: { title: string }) => t.title) };
-      }
-    },
     save_conversation: {
       description: 'Save the current AI conversation.',
       inputSchema: z.object({ title: z.string(), messages: z.array(z.object({ role: z.string(), content: z.string() })) }),
@@ -286,14 +210,69 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
         if (!/^[a-zA-Z0-9_\-.\s]+$/.test(key as string)) {
           return { success: false, message: "Invalid key: only letters, numbers, spaces, hyphens, underscores, and periods allowed." };
         }
-        // TENANT ISOLATION: Count and store memories scoped to workspace
+        // Plan-aware memory limit
+        const { getPlanLimits, isValidPlan } = await import("@/lib/plan-limits");
+        const workspace = await prisma.workspace.findUnique({ where: { id: workspaceId }, select: { plan: true } });
+        const planName = isValidPlan(workspace?.plan ?? "") ? (workspace?.plan as "free" | "growth" | "pro" | "theta_plus") : "free";
+        const limits = getPlanLimits(planName);
+        const maxMemory = limits.maxMemoryItems;
         const existingCount = await prisma.aiMemory.count({ where: { userId: user.id, workspaceId } });
-        if (existingCount >= 100) {
-          return { success: false, message: "Memory limit reached (max 100 preferences). Clear some before saving more." };
+        if (maxMemory !== -1 && existingCount >= maxMemory) {
+          return { success: false, message: `Memory limit reached (max ${maxMemory} items on ${planName} plan). Clear some before saving more.` };
         }
         const scopedKey = `${workspaceId}:${key}`;
         await prisma.aiMemory.upsert({ where: { userId_key: { userId: user.id, key: scopedKey } }, update: { content: value as string, workspaceId }, create: { userId: user.id, workspaceId, key: scopedKey, content: value as string } });
         return { success: true, message: `Remembered: **${key}**` };
+      }
+    },
+    predict_project_risk: {
+      description: 'Analyze and predict risk for a project.',
+      inputSchema: z.object({ projectId: z.string() }),
+      execute: async ({ projectId: pId }: Record<string, unknown>) => {
+        await enforce(ctx, "read", "project");
+        const { RiskPredictionEngine } = await import("@/lib/nova/risk-prediction");
+        const result = await RiskPredictionEngine.predictProjectRisk(workspaceId, pId as string);
+        return result;
+      }
+    },
+    generate_sprint_plan: {
+      description: 'Generate an AI-powered sprint plan based on team velocity and backlog.',
+      inputSchema: z.object({ projectId: z.string(), sprintDurationDays: z.number().optional() }),
+      execute: async ({ projectId: pId, sprintDurationDays }: Record<string, unknown>) => {
+        await enforce(ctx, "read", "project");
+        const { SprintPlanning } = await import("@/lib/nova/sprint-planning");
+        const result = await SprintPlanning.generateSprintPlan(workspaceId, pId as string, (sprintDurationDays as number) || 14);
+        return result;
+      }
+    },
+    generate_smart_notifications: {
+      description: 'Generate AI-powered contextual notifications for the user.',
+      inputSchema: z.object({}),
+      execute: async () => {
+        await enforce(ctx, "read", "workspace");
+        const { SmartNotifications } = await import("@/lib/nova/smart-notifications");
+        const result = await SmartNotifications.generateContextualNotifications(workspaceId, user.id);
+        return result;
+      }
+    },
+    parse_automation_rule: {
+      description: 'Parse a natural language command into a structured automation rule.',
+      inputSchema: z.object({ command: z.string() }),
+      execute: async ({ command }: Record<string, unknown>) => {
+        await enforce(ctx, "write", "workspace");
+        const { SmartAutomation } = await import("@/lib/nova/smart-automation");
+        const result = await SmartAutomation.parseNLToRule(command as string);
+        return result;
+      }
+    },
+    generate_ai_standup: {
+      description: 'Generate an AI-powered daily standup report.',
+      inputSchema: z.object({}),
+      execute: async () => {
+        await enforce(ctx, "read", "workspace");
+        const { StandupReports } = await import("@/lib/nova/standup-reports");
+        const result = await StandupReports.generateStandup(user.id, workspaceId);
+        return result;
       }
     },
   };

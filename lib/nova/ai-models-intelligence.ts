@@ -1,14 +1,25 @@
 import { prisma } from "../prisma";
-import { MODEL_STACK, MODEL_SELECTION_STRATEGIES, MODEL_SELECTION_RULES, getModelForComplexity, type ModelProvider, type TaskComplexity } from "./constitution/ai-models";
 
-export {
-  MODEL_STACK,
-  MODEL_SELECTION_STRATEGIES,
-  MODEL_SELECTION_RULES,
-  getModelForComplexity,
-  type ModelProvider,
-  type TaskComplexity as AiTaskComplexity,
-} from "./constitution/ai-models";
+export type TaskComplexity = "SIMPLE" | "REASONING" | "CRITICAL";
+export type ModelProvider = "OPENROUTER" | "COHERE" | "OPENAI" | "GEMINI";
+
+export const MODEL_STACK: Array<{ provider: ModelProvider; layer: string; purpose: string; defaultModel?: string }> = [
+  { provider: "OPENROUTER", layer: "primary", purpose: "Default entry point", defaultModel: "openrouter/free" },
+  { provider: "GEMINI", layer: "secondary", purpose: "Fallback execution", defaultModel: "gemini-2.5-flash" },
+  { provider: "COHERE", layer: "emergency", purpose: "Third layer fallback", defaultModel: "command-a-03-2025" },
+  { provider: "OPENAI", layer: "ultimate", purpose: "Last resort fallback", defaultModel: "gpt-4o-mini" },
+];
+
+export const MODEL_SELECTION_STRATEGIES: Array<{ complexity: TaskComplexity; description: string; recommendedModels: string[] }> = [
+  { complexity: "SIMPLE", description: "Summaries, Rewrites", recommendedModels: ["openrouter/free"] },
+  { complexity: "REASONING", description: "Sprint planning, Dependency analysis", recommendedModels: ["openrouter/free", "gemini-2.5-flash"] },
+  { complexity: "CRITICAL", description: "Executive reports, Risk assessments", recommendedModels: ["openrouter/free", "gpt-4o-mini"] },
+];
+
+export function getModelForComplexity(complexity: TaskComplexity): string {
+  const strategy = MODEL_SELECTION_STRATEGIES.find(s => s.complexity === complexity);
+  return strategy?.recommendedModels[0] ?? "openrouter/free";
+}
 
 export interface ActiveModelConfig {
   id: string;
@@ -93,6 +104,6 @@ export class AiModelsIntelligence {
   }
 
   public static getRules() {
-    return MODEL_SELECTION_RULES;
+    return MODEL_SELECTION_STRATEGIES;
   }
 }

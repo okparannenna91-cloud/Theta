@@ -28,10 +28,12 @@ export default clerkMiddleware(async (auth, req) => {
 
   // ── Canonical domain enforcement ────────────────────────────────────────
   const host = req.headers.get('host') ?? '';
-  if (host === 'thetapm.site' || host === 'thetapm.site:3000') {
+  const baseDomain = process.env.BASE_DOMAIN || 'thetapm.site';
+  const wwwDomain = process.env.WWW_DOMAIN || `www.${baseDomain}`;
+  if (host === baseDomain || host === `${baseDomain}:3000`) {
     const url = req.nextUrl.clone();
     url.protocol = 'https:';
-    url.host = 'www.thetapm.site';
+    url.host = wwwDomain;
     return NextResponse.redirect(url, { status: 308 });
   }
   // ────────────────────────────────────────────────────────────────────────
