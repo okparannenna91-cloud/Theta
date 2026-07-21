@@ -33,7 +33,7 @@ export async function GET(req: Request) {
             // Grant access to the workspace-level channel
             capabilities[`workspace:${workspaceId}`] = ["subscribe", "history"];
             capabilities[`workspace:${workspaceId}:chat`] = ["subscribe", "publish", "history"];
-            capabilities[`workspace:${workspaceId}:board:*`] = ["subscribe", "history"];
+            capabilities[`workspace:${workspaceId}:board:*`] = ["subscribe", "history", "presence"];
             capabilities[`workspace:${workspaceId}:gantt:*`] = ["subscribe", "publish", "history"];
             capabilities[`workspace:${workspaceId}:task:*`] = ["subscribe", "history"];
 
@@ -68,7 +68,7 @@ export async function GET(req: Request) {
                 capabilities[`team:${teamId}:chat`] = ["subscribe", "publish", "history"];
                 capabilities[`workspace:${wsId}`] = ["subscribe", "history"];
                 capabilities[`workspace:${wsId}:chat`] = ["subscribe", "publish", "history"];
-                capabilities[`workspace:${wsId}:board:*`] = ["subscribe", "history"];
+                capabilities[`workspace:${wsId}:board:*`] = ["subscribe", "history", "presence"];
                 capabilities[`workspace:${wsId}:gantt:*`] = ["subscribe", "publish", "history"];
                 capabilities[`workspace:${wsId}:task:*`] = ["subscribe", "history"];
             } else {
@@ -81,7 +81,7 @@ export async function GET(req: Request) {
             });
             for (const m of memberships) {
                 capabilities[`workspace:${m.workspaceId}`] = ["subscribe", "history"];
-                capabilities[`workspace:${m.workspaceId}:board:*`] = ["subscribe", "history"];
+                capabilities[`workspace:${m.workspaceId}:board:*`] = ["subscribe", "history", "presence"];
                 capabilities[`workspace:${m.workspaceId}:gantt:*`] = ["subscribe", "publish", "history"];
                 capabilities[`workspace:${m.workspaceId}:task:*`] = ["subscribe", "history"];
             }
