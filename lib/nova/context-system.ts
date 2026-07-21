@@ -101,6 +101,36 @@ function truncateToBudget(text: string, budget: number): string {
   return chars.slice(0, Math.floor(chars.length * ratio)).join("") + "\n[context truncated to fit token budget]";
 }
 
+/**
+ * Sanitize user-controlled content before injecting into LLM prompts.
+ * Strips common prompt injection patterns and wraps content in delimiters.
+ */
+function sanitizeUserContent(content: string): string {
+  if (!content) return "";
+  // Strip known injection patterns
+  const INJECTION_PATTERNS = [
+    /ignore\s+(all\s+)?(previous|prior|above)\s+(instructions?|commands?|directions?|prompts?)/gi,
+    /forget\s+(all\s+)?(previous|prior|above)\s+(instructions?|commands?|directions?|prompts?)/gi,
+    /disregard\s+(all\s+)?(previous|prior|above)\s+(instructions?|commands?|directions?|prompts?)/gi,
+    /you\s+are\s+(now|no\s+longer)\s+/gi,
+    /system\s+prompt/gi,
+    /new\s+instructions?:\s*/gi,
+    /override\s+(mode|protocol|instructions)/gi,
+    /act\s+as\s+(if\s+you\s+are|though\s+you\s+are)\s+/gi,
+    /your\s+(new|updated|revised)\s+(instructions?|role|persona)/gi,
+    /output\s+(only|just|exclusively)\s+/gi,
+    /do\s+not\s+(output|print|include|display)\s+/gi,
+    /\[INST\]|\[\/INST\]|<\|im_start\|>|<\|im_end\|>/gi,
+    /<\|system\|>|<\|user\|>|<\|assistant\|>/gi,
+  ];
+  let sanitized = content;
+  for (const pattern of INJECTION_PATTERNS) {
+    sanitized = sanitized.replace(pattern, "[FILTERED]");
+  }
+  // Wrap in delimiters to prevent breakout
+  return `<<<USER_CONTENT_START>>>\n${sanitized}\n<<<USER_CONTENT_END>>>`;
+}
+
 export interface ContextOptions {
   workspaceId: string;
   userId?: string;
@@ -228,17 +258,17 @@ export class ContextSystem {
       switch (sourceDef.source) {
         case "CURRENT_TASK":
           if (resolvedContext.task) {
-            contextText = `[PRIMARY] ACTIVE TASK (Priority 1):\n- Title: ${resolvedContext.task.title}\n- Description: ${resolvedContext.task.description || "N/A"}\n- Status: ${resolvedContext.task.status}\n- Priority: ${resolvedContext.task.priority}\n- Subtasks: ${resolvedContext.task.subtasks.join(", ") || "None"}\n\n`;
+            contextText = `[PRIMARY] ACTIVE TASK (Priority 1):\n- Title: ${sanitizeUserContent(resolvedContext.task.title)}\n- Description: ${sanitizeUserContent(resolvedContext.task.description || "N/A")}\n- Status: ${resolvedContext.task.status}\n- Priority: ${resolvedContext.task.priority}\n- Subtasks: ${resolvedContext.task.subtasks.map(s => sanitizeUserContent(s)).join(", ") || "None"}\n\n`;
           }
           break;
         case "CURRENT_DOCUMENT":
           if (resolvedContext.document) {
-            contextText = `[SECONDARY] ACTIVE DOCUMENT (Priority 2):\n- Title: ${resolvedContext.document.title}\n- Snippet: ${resolvedContext.document.content || "N/A"}\n\n`;
+            contextText = `[SECONDARY] ACTIVE DOCUMENT (Priority 2):\n- Title: ${sanitizeUserContent(resolvedContext.document.title)}\n- Snippet: ${sanitizeUserContent(resolvedContext.document.content || "N/A")}\n\n`;
           }
           break;
         case "CURRENT_PROJECT":
           if (resolvedContext.project) {
-            contextText = `[TERTIARY] ACTIVE PROJECT (Priority 3):\n- Name: ${resolvedContext.project.name}\n- Description: ${resolvedContext.project.description || "N/A"}\n\n`;
+            contextText = `[TERTIARY] ACTIVE PROJECT (Priority 3):\n- Name: ${sanitizeUserContent(resolvedContext.project.name)}\n- Description: ${sanitizeUserContent(resolvedContext.project.description || "N/A")}\n\n`;
           }
           break;
         case "CURRENT_SPRINT":
@@ -248,7 +278,7 @@ export class ContextSystem {
           break;
         case "WORKSPACE":
           if (resolvedContext.workspace) {
-            contextText = `[BASE] ACTIVE WORKSPACE (Priority 5):\n- Name: ${resolvedContext.workspace.name}\n- Plan Tier: ${resolvedContext.workspace.plan}\n\n`;
+            contextText = `[BASE] ACTIVE WORKSPACE (Priority 5):\n- Name: ${sanitizeUserContent(resolvedContext.workspace.name)}\n- Plan Tier: ${resolvedContext.workspace.plan}\n\n`;
           }
           break;
         default:
@@ -269,7 +299,7 @@ export class ContextSystem {
 
     // Add cross-project summary
     if (resolvedContext.crossProjectSummary) {
-      promptString += `[CROSS-PROJECT] Other projects in workspace: ${resolvedContext.crossProjectSummary}\n`;
+      promptString += `[CROSS-PROJECT] Other projects in workspace: ${sanitizeUserContent(resolvedContext.crossProjectSummary)}\n`;
     }
 
     return { structured: resolvedContext, promptString };

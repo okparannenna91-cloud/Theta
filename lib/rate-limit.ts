@@ -1,5 +1,6 @@
 
 import { redis } from "@/lib/redis/client";
+import { logger } from "./logger";
 
 export interface RateLimitOptions {
     interval: number;
@@ -48,8 +49,9 @@ export function rateLimit(options: RateLimitOptions) {
                 if (error.message === 'Rate limit exceeded') {
                     return Promise.reject(error);
                 }
-                // Fail open: Redis errors should not block app functionality
-                return Promise.resolve();
+                // Fail closed: Block requests when Redis is unavailable to prevent abuse
+                logger.error("[RateLimit] Redis unavailable, blocking request:", error);
+                return Promise.reject(new Error('Rate limit service unavailable'));
             }
         },
     };

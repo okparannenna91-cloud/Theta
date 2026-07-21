@@ -57,7 +57,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
     }
 
-    const workspace = await verifyWorkspaceAccess(existing.projectId, user.id);
+    const workspace = await verifyWorkspaceAccess(user.id, existing.workspaceId);
     if (!workspace) {
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     }
@@ -119,7 +119,7 @@ export async function DELETE(
       return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
     }
 
-    const workspace = await verifyWorkspaceAccess(existing.projectId, user.id);
+    const workspace = await verifyWorkspaceAccess(user.id, existing.workspaceId);
     if (!workspace) {
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     }

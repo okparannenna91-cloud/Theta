@@ -1,13 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { Bot, Activity, AlertTriangle, CheckCircle2, Clock, Zap, Settings, Play, Pause } from "lucide-react";
+import { Bot, Activity, AlertTriangle, CheckCircle2, Clock, Zap, Settings, Play, Pause, Plus } from "lucide-react";
 
 interface Agent {
   id: string;
@@ -29,7 +33,11 @@ interface AgentAction {
 
 export default function AgentsPage() {
   const { activeWorkspaceId } = useWorkspace();
+  const queryClient = useQueryClient();
   const [filter, setFilter] = useState<"all" | "active" | "paused">("all");
+  const [createOpen, setCreateOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [newAgent, setNewAgent] = useState({ name: "", type: "background", description: "" });
 
   const { data: agents, isLoading: agentsLoading } = useQuery({
     queryKey: ["agents", activeWorkspaceId],
@@ -65,6 +73,34 @@ export default function AgentsPage() {
     }).length || 0,
   };
 
+  async function handleCreateAgent() {
+    if (!newAgent.name.trim() || !activeWorkspaceId) return;
+    setCreating(true);
+    try {
+      const res = await fetch("/api/agents", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspaceId: activeWorkspaceId,
+          name: newAgent.name.trim(),
+          type: newAgent.type,
+          config: { description: newAgent.description.trim() || undefined },
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to create agent");
+      }
+      setCreateOpen(false);
+      setNewAgent({ name: "", type: "background", description: "" });
+      queryClient.invalidateQueries({ queryKey: ["agents", activeWorkspaceId] });
+    } catch (err: any) {
+      alert(err.message || "Failed to create agent");
+    } finally {
+      setCreating(false);
+    }
+  }
+
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-8">
       <div className="flex items-center justify-between">
@@ -77,9 +113,15 @@ export default function AgentsPage() {
             Autonomous AI agents working in the background for your workspace
           </p>
         </div>
-        <Badge variant="outline" className="text-xs">
-          {stats.active} active
-        </Badge>
+        <div className="flex items-center gap-3">
+          <Badge variant="outline" className="text-xs">
+            {stats.active} active
+          </Badge>
+          <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4 mr-1" />
+            New Agent
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -214,6 +256,54 @@ export default function AgentsPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Create Agent Dialog */}
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Agent</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="agent-name">Name</Label>
+              <Input
+                id="agent-name"
+                placeholder="e.g. Sprint Monitor"
+                value={newAgent.name}
+                onChange={(e) => setNewAgent({ ...newAgent, name: e.target.value })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-type">Type</Label>
+              <Select value={newAgent.type} onValueChange={(v) => setNewAgent({ ...newAgent, type: v })}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="background">Background Monitor</SelectItem>
+                  <SelectItem value="automation">Automation Agent</SelectItem>
+                  <SelectItem value="insight">Insight Agent</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="agent-desc">Description (optional)</Label>
+              <Input
+                id="agent-desc"
+                placeholder="What should this agent do?"
+                value={newAgent.description}
+                onChange={(e) => setNewAgent({ ...newAgent, description: e.target.value })}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreateOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreateAgent} disabled={!newAgent.name.trim() || creating}>
+              {creating ? "Creating..." : "Create Agent"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

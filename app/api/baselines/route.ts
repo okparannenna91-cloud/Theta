@@ -17,7 +17,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "workspaceId required" }, { status: 400 });
     }
 
-    const access = await verifyWorkspaceAccess(workspaceId, user.id);
+    const access = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!access) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -48,7 +48,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "workspaceId, label, and tasks required" }, { status: 400 });
     }
 
-    const access = await verifyWorkspaceAccess(workspaceId, user.id);
+    const access = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!access) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -84,7 +84,7 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "id and workspaceId required" }, { status: 400 });
     }
 
-    const access = await verifyWorkspaceAccess(workspaceId, user.id);
+    const access = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!access) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

@@ -1,6 +1,8 @@
 export type ConfirmationLevel = "LOW" | "MEDIUM" | "HIGH";
 export type NovaIntent = "CREATE" | "READ" | "UPDATE" | "DELETE" | "ANALYZE" | "SEARCH" | "AUTOMATE" | "REPORT" | "IMPORT" | "EXPORT" | "PLAN" | "ORCHESTRATE" | "CONSULT";
 export type ActionPriority = "EXECUTE" | "AUTOMATE" | "ORGANIZE" | "RECOMMEND" | "EXPLAIN";
+import type { NovaStage } from "./identity";
+export type { NovaStage } from "./identity";
 
 export interface ExecutionPrinciple {
   name: string;
@@ -65,4 +67,58 @@ export function getConfidenceLevel(input: string, context: { hasWorkspace: boole
   if (explicitCount >= 1 && contextCount >= 1) return "MEDIUM";
   if (contextCount >= 2) return "MEDIUM";
   return "LOW";
+}
+
+/**
+ * Stage-gated capabilities: which intents each evolution stage is allowed to execute.
+ * Stages that are not listed for a given intent mean the stage cannot perform that action.
+ */
+const STAGE_INTENT_CAPABILITIES: Record<NovaStage, NovaIntent[]> = {
+  ASSISTANT: ["READ", "SEARCH", "REPORT", "CONSULT"],
+  OPERATOR: ["READ", "SEARCH", "REPORT", "CONSULT", "CREATE", "UPDATE", "DELETE", "IMPORT", "EXPORT"],
+  MANAGER: ["READ", "SEARCH", "REPORT", "CONSULT", "CREATE", "UPDATE", "DELETE", "IMPORT", "EXPORT", "ANALYZE", "PLAN"],
+  COORDINATOR: ["READ", "SEARCH", "REPORT", "CONSULT", "CREATE", "UPDATE", "DELETE", "IMPORT", "EXPORT", "ANALYZE", "PLAN", "ORCHESTRATE"],
+  WORKFORCE: ["READ", "SEARCH", "REPORT", "CONSULT", "CREATE", "UPDATE", "DELETE", "IMPORT", "EXPORT", "ANALYZE", "PLAN", "ORCHESTRATE", "AUTOMATE"],
+};
+
+/**
+ * Stage-gated tool categories: which tool namespaces each stage can use.
+ */
+const STAGE_TOOL_CAPABILITIES: Record<NovaStage, string[]> = {
+  ASSISTANT: [],
+  OPERATOR: ["task", "project", "document"],
+  MANAGER: ["task", "project", "document", "sprint", "analytics", "team"],
+  COORDINATOR: ["task", "project", "document", "sprint", "analytics", "team", "automation", "integration"],
+  WORKFORCE: ["task", "project", "document", "sprint", "analytics", "team", "automation", "integration", "billing", "settings"],
+};
+
+/**
+ * Check if a given intent is allowed at the specified evolution stage.
+ */
+export function isIntentAllowedAtStage(intent: NovaIntent, stage: NovaStage): boolean {
+  const allowed = STAGE_INTENT_CAPABILITIES[stage];
+  return allowed.includes(intent);
+}
+
+/**
+ * Check if a tool namespace is allowed at the specified evolution stage.
+ */
+export function isToolAllowedAtStage(toolNamespace: string, stage: NovaStage): boolean {
+  const allowed = STAGE_TOOL_CAPABILITIES[stage];
+  return allowed.some(ns => toolNamespace.startsWith(ns));
+}
+
+/**
+ * Get the maximum allowed action priority for a stage.
+ * ASSISTANT can only explain/recommend, OPERATOR can execute, MANAGER+ can automate.
+ */
+export function getMaxActionPriority(stage: NovaStage): ActionPriority {
+  switch (stage) {
+    case "ASSISTANT": return "EXPLAIN";
+    case "OPERATOR": return "EXECUTE";
+    case "MANAGER": return "ORGANIZE";
+    case "COORDINATOR": return "AUTOMATE";
+    case "WORKFORCE": return "EXECUTE";
+    default: return "EXPLAIN";
+  }
 }

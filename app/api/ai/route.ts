@@ -11,7 +11,6 @@ import { telemetry } from "@/lib/nova/telemetry";
 import { buildSystemPromptForIntent } from "@/lib/nova/config";
 import { checkForHallucination } from "@/lib/nova/hallucination-checker";
 import { shouldBlockWriteTool } from "@/lib/nova/execution-guard";
-import { llmClassifyIntent } from "@/lib/nova/llm-intent-classifier";
 import { validateAndSanitize, optimizeResponse, runQualityGate } from "@/lib/langraph/nodes/output-validator";
 import { ResponseFormatter } from "@/lib/nova/response-formatter";
 import { ProactiveIntelligenceEngine } from "@/lib/nova/proactive-intelligence";
@@ -101,23 +100,11 @@ export async function POST(req: Request) {
             }
         }
 
-        decision = DecisionFramework.evaluate(sanitizedPrompt);
+        decision = await DecisionFramework.evaluateAsync(sanitizedPrompt, {
+          hasWorkspace: !!workspaceId,
+          hasProject: !!projectId,
+        });
         route = routeRequest(sanitizedPrompt, decision.intent);
-
-        // Fallback: use LLM intent classifier if regex confidence is low
-        try {
-          const llmIntent = await llmClassifyIntent(sanitizedPrompt, decision.intent, {
-            hasWorkspace: !!workspaceId,
-            hasProject: !!projectId,
-          });
-          if (llmIntent && llmIntent !== decision.intent) {
-            logger.info("[Nova] LLM overrode regex intent", { regex: decision.intent, llm: llmIntent });
-            decision = { ...decision, intent: llmIntent };
-            route = routeRequest(sanitizedPrompt, llmIntent);
-          }
-        } catch {
-          // LLM classification is best-effort fallback
-        }
 
         logger.info("[Nova] Intent classified", {
           intent: decision.intent,
@@ -157,6 +144,21 @@ export async function POST(req: Request) {
 
               const routerConfig = await routeModel(sanitizedPrompt, workspaceId);
               const systemPrompt = getSystemPromptForIntent(decision!.intent);
+
+              // Load workspace context for quality gate and response formatting
+              let workspaceContextForQG = "";
+              if (workspaceId) {
+                try {
+                  const { ContextSystem } = await import("@/lib/nova/context-system");
+                  const { promptString } = await ContextSystem.getActiveContext({
+                    workspaceId,
+                    userId: user!.id,
+                    projectId: projectId || undefined,
+                    contextDepth: route?.contextDepth || "standard",
+                  });
+                  workspaceContextForQG = promptString;
+                } catch { /* context loading is best-effort */ }
+              }
 
               sendSSE(controller, encoder, "thinking", JSON.stringify({
                 message: `Analyzing your request (${decision!.intent})...`,
@@ -290,7 +292,7 @@ export async function POST(req: Request) {
 
               const qgResult = runQualityGate(fullResponse, {
                 route: route!.path,
-                workspaceContext: "",
+                workspaceContext: workspaceContextForQG,
                 userPrompt: sanitizedPrompt,
               });
               if (qgResult.passed) {

@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
 
     const { workspaceId, projectId, status } = parsed.data;
 
-    const workspace = await verifyWorkspaceAccess(workspaceId, user.id);
+    const workspace = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!workspace) {
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     }
@@ -83,7 +83,7 @@ export async function POST(request: NextRequest) {
 
     const { name, projectId, workspaceId, startDate, endDate, goal } = parsed.data;
 
-    const workspace = await verifyWorkspaceAccess(workspaceId, user.id);
+    const workspace = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!workspace) {
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     }

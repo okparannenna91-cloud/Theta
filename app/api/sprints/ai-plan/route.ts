@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "workspaceId and projectId are required" }, { status: 400 });
     }
 
-    const workspace = await verifyWorkspaceAccess(workspaceId, user.id);
+    const workspace = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!workspace) {
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     }

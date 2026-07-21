@@ -6,6 +6,7 @@ export interface PlanStep {
   description: string;
   toolHint: string;
   params: Record<string, string>;
+  dependsOn?: number[];
 }
 
 export interface ExecutionPlan {
@@ -82,6 +83,9 @@ For each step, provide:
 - description: what to do (natural language)
 - toolHint: which tool to use (must be one of the available tools, or "llm" if no tool needed)
 - params: key-value pairs for the tool
+- dependsOn: array of step IDs this step depends on (empty array if independent). A step depends on another if it needs the output/result of that step.
+
+IMPORTANT: Steps that create items (like create_project) should be listed BEFORE steps that reference those items (like create_task with a projectId). Mark the dependent steps with dependsOn pointing to the step that produces the data they need.
 
 User request: "${prompt}"${contextSnippet}
 
@@ -89,8 +93,8 @@ Respond with ONLY a JSON object:
 {
   "needsPlan": true,
   "steps": [
-    {"id": 1, "description": "...", "toolHint": "tool_name", "params": {"key": "value"}},
-    {"id": 2, "description": "...", "toolHint": "llm", "params": {}}
+    {"id": 1, "description": "...", "toolHint": "tool_name", "params": {"key": "value"}, "dependsOn": []},
+    {"id": 2, "description": "...", "toolHint": "tool_name", "params": {"key": "value"}, "dependsOn": [1]}
   ],
   "reasoning": "brief explanation of the plan"
 }`;
@@ -123,8 +127,64 @@ export function summarizePlan(plan: ExecutionPlan): string {
   }
 
   const lines = plan.steps.map(
-    (s) => `${s.id}. ${s.description}${s.toolHint !== "llm" ? ` [${s.toolHint}]` : ""}`,
+    (s) => `${s.id}. ${s.description}${s.toolHint !== "llm" ? ` [${s.toolHint}]` : ""}${
+      s.dependsOn && s.dependsOn.length > 0 ? ` (depends on: ${s.dependsOn.join(", ")})` : ""
+    }`,
   );
 
   return `Plan (${plan.steps.length} steps):\n${lines.join("\n")}`;
+}
+
+/**
+ * Topologically sort plan steps based on dependencies.
+ * Returns steps in execution order, or throws if circular dependency detected.
+ */
+export function sortPlanByDependencies(steps: PlanStep[]): PlanStep[] {
+  const stepMap = new Map(steps.map(s => [s.id, s]));
+  const visited = new Set<number>();
+  const visiting = new Set<number>();
+  const sorted: PlanStep[] = [];
+
+  function dfs(id: number) {
+    if (visited.has(id)) return;
+    if (visiting.has(id)) {
+      throw new Error(`Circular dependency detected involving step ${id}`);
+    }
+    visiting.add(id);
+    const step = stepMap.get(id);
+    if (step?.dependsOn) {
+      for (const depId of step.dependsOn) {
+        if (stepMap.has(depId)) {
+          dfs(depId);
+        }
+      }
+    }
+    visiting.delete(id);
+    visited.add(id);
+    sorted.push(stepMap.get(id)!);
+  }
+
+  for (const step of steps) {
+    dfs(step.id);
+  }
+
+  return sorted;
+}
+
+/**
+ * Validate that all dependencies reference existing steps.
+ */
+export function validatePlanDependencies(steps: PlanStep[]): string[] {
+  const errors: string[] = [];
+  const ids = new Set(steps.map(s => s.id));
+  for (const step of steps) {
+    if (step.dependsOn) {
+      for (const depId of step.dependsOn) {
+        if (!ids.has(depId)) {
+          errors.push(`Step ${step.id} depends on non-existent step ${depId}`);
+        }
+      }
+    }
+  }
+  return errors;
 }

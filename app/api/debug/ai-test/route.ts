@@ -3,10 +3,15 @@ import { generateWithOpenAI } from "@/lib/openai";
 import { generateWithOpenRouter } from "@/lib/openrouter";
 import { generateWithCohere } from "@/lib/cohere";
 import { getCurrentUser } from "@/lib/auth";
+import { isSuperAdmin } from "@/lib/super-admin";
 
 export async function GET() {
     const user = await getCurrentUser();
     if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    if (!await isSuperAdmin(user.id)) {
+        return NextResponse.json({ error: "Forbidden: Super admin access required" }, { status: 403 });
+    }
 
     const results: any = {
         openai: { status: "pending" },

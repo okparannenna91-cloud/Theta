@@ -59,8 +59,30 @@ export async function enforce(ctx: ToolContext, action: PermissionCheckAction, r
 
 export async function requireToolApproval(toolName: string, params: Record<string, unknown>): Promise<void> {
   const { DecisionFramework } = await import("@/lib/nova/decision-framework");
+  const { CURRENT_STAGE } = await import("@/lib/nova/constitution/identity");
+  const { isIntentAllowedAtStage, isToolAllowedAtStage } = await import("@/lib/nova/constitution/execution");
+
   const syntheticPrompt = `${toolName} ${Object.values(params).filter(Boolean).join(" ")}`;
   const decision = DecisionFramework.evaluate(syntheticPrompt);
+
+  // Stage gating: block actions not allowed at current evolution stage
+  if (!isIntentAllowedAtStage(decision.intent, CURRENT_STAGE)) {
+    throw new Error(
+      `**STAGE RESTRICTION**\n\n` +
+      `The "${toolName}" tool requires the ${decision.intent} intent, which is not available at the ${CURRENT_STAGE} stage. ` +
+      `Current stage: ${CURRENT_STAGE}. Required capabilities are not yet unlocked.`
+    );
+  }
+
+  // Stage gating: block tool namespaces not allowed at current stage
+  const toolNamespace = toolName.split("_")[0];
+  if (!isToolAllowedAtStage(toolNamespace, CURRENT_STAGE)) {
+    throw new Error(
+      `**STAGE RESTRICTION**\n\n` +
+      `The "${toolName}" tool operates in the "${toolNamespace}" namespace, which is not available at the ${CURRENT_STAGE} stage.`
+    );
+  }
+
   if (decision.requiresApproval) {
     throw new Error(
       `**ACTION BLOCKED — CONFIRMATION REQUIRED**\n\n` +
