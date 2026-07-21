@@ -21,7 +21,7 @@ export async function GET(req: Request) {
         const teamId = searchParams.get("teamId");
 
         // Build capabilities based on user's access
-        const capabilities: Record<string, ("subscribe" | "publish" | "history")[]> = {};
+        const capabilities: Record<string, ("subscribe" | "publish" | "history" | "presence")[]> = {};
 
         if (workspaceId) {
             // Verify workspace access
