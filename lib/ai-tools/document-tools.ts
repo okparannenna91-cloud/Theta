@@ -15,7 +15,9 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
         await enforce(ctx, "read", "workspace");
         await auditToolExecution(workspaceId, user.id, "semantic_search", { query });
         const { RAGPipeline } = await import("@/lib/nova/rag-pipeline");
-        const results = await RAGPipeline.search(workspaceId, query as string, { maxResults: (maxResults as number) || 5 });
+        const { getAccessibleProjectIds } = await import("../project-permissions");
+        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+        const results = await RAGPipeline.search(workspaceId, query as string, { maxResults: (maxResults as number) || 5, projectId: projectId || undefined, accessibleProjectIds });
         return {
           results: results.map((r: any) => ({
             title: r.chunk.metadata.title,
@@ -54,12 +56,17 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
         const analysis = await DocumentIntelligence.analyze(title as string, content as string);
         let targetProjectId: string | null = null;
         if (analysis.actionItems.length > 0) {
-          const { getAccessibleProjectIds } = await import("../project-permissions");
+          const { getAccessibleProjectIds, canAccessProjectResource } = await import("../project-permissions");
           const accessibleIds = await getAccessibleProjectIds(user.id, workspaceId);
           const targetProject = accessibleIds.length > 0
             ? await prisma.project.findFirst({ where: { id: { in: accessibleIds } }, select: { id: true } })
             : null;
-          targetProjectId = targetProject?.id ?? null;
+          if (targetProject) {
+            const hasWriteAccess = await canAccessProjectResource(user.id, workspaceId, targetProject.id);
+            if (hasWriteAccess) {
+              targetProjectId = targetProject.id;
+            }
+          }
         }
         const result = await prisma.$transaction(async (tx) => {
           const doc = await tx.document.create({ data: { title: title as string, content: content as string, workspaceId, userId: user.id, tags: analysis.relatedDocumentIds } });

@@ -106,6 +106,7 @@ interface WorkspaceProject {
 
 interface GoalDashboardProps {
   workspaceId: string;
+  projectId?: string;
 }
 
 type GoalType = "okr" | "milestone" | "target";
@@ -971,7 +972,7 @@ function AddKeyResultDialog({
 
 // ─── Main Component ─────────────────────────────────────────────────────────
 
-export default function GoalDashboard({ workspaceId }: GoalDashboardProps) {
+export default function GoalDashboard({ workspaceId, projectId }: GoalDashboardProps) {
   const { activeWorkspaceId } = useWorkspace();
 
   const [dashboard, setDashboard] = useState<DashboardData | null>(null);
@@ -999,7 +1000,7 @@ export default function GoalDashboard({ workspaceId }: GoalDashboardProps) {
       setError(null);
 
       const [dashRes, membersRes, projectsRes] = await Promise.all([
-        fetch(`/api/goals/dashboard?workspaceId=${workspaceId}`),
+        fetch(`/api/goals/dashboard?workspaceId=${workspaceId}${projectId ? `&projectId=${projectId}` : ""}`),
         fetch(`/api/workspaces/${workspaceId}/members`),
         fetch(`/api/projects?workspaceId=${workspaceId}`),
       ]);
@@ -1025,13 +1026,13 @@ export default function GoalDashboard({ workspaceId }: GoalDashboardProps) {
     } finally {
       setLoading(false);
     }
-  }, [workspaceId]);
+  }, [workspaceId, projectId]);
 
   useEffect(() => {
     if (workspaceId) {
       fetchDashboard();
     }
-  }, [workspaceId, fetchDashboard]);
+  }, [workspaceId, projectId, fetchDashboard]);
 
   // ── CRUD handlers ──────────────────────────────────────────────────────
 

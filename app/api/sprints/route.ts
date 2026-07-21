@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { requireProjectAccess, requireProjectWriteAccess } from "@/lib/project-permissions";
 import { createSprint } from "@/lib/services/sprint-service";
 
 const listSprintsSchema = z.object({
@@ -36,9 +36,9 @@ export async function GET(request: NextRequest) {
 
     const { workspaceId, projectId, status } = parsed.data;
 
-    const workspace = await verifyWorkspaceAccess(user.id, workspaceId);
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+    const accessCheck = await requireProjectAccess(user.id, projectId, workspaceId);
+    if (!accessCheck.allowed) {
+      return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
     }
 
     const { prisma } = await import("@/lib/prisma");
@@ -83,9 +83,9 @@ export async function POST(request: NextRequest) {
 
     const { name, projectId, workspaceId, startDate, endDate, goal } = parsed.data;
 
-    const workspace = await verifyWorkspaceAccess(user.id, workspaceId);
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+    const accessCheck = await requireProjectWriteAccess(user.id, projectId, workspaceId);
+    if (!accessCheck.allowed) {
+      return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
     }
 
     const { prisma } = await import("@/lib/prisma");

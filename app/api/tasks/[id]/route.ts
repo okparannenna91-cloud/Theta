@@ -201,7 +201,7 @@ export async function PATCH(
 
     // Notify members if status changed
     if (data.status && data.status !== task.status) {
-      const { notifyWorkspaceMembers } = await import("@/lib/notifications");
+      const { notifyWorkspaceMembers } = await import("@/lib/notification-engine");
       await notifyWorkspaceMembers(
         task.workspaceId,
         user.id,
@@ -214,12 +214,12 @@ export async function PATCH(
 
     // Notify assignees if assignee list changed
     if (data.assigneeIds && JSON.stringify(data.assigneeIds.sort()) !== JSON.stringify((task.assigneeIds || []).sort())) {
-      const { notifyWorkspaceMembers } = await import("@/lib/notifications");
+      const { notifyWorkspaceMembers } = await import("@/lib/notification-engine");
       const addedIds = (data.assigneeIds || []).filter((id: string) => !(task.assigneeIds || []).includes(id));
       const removedIds = (task.assigneeIds || []).filter((id: string) => !(data.assigneeIds || []).includes(id));
       if (addedIds.length > 0) {
         for (const assigneeId of addedIds) {
-          const { createNotification } = await import("@/lib/notifications");
+          const { createNotification } = await import("@/lib/notification-engine");
           await createNotification(
             assigneeId,
             task.workspaceId,
@@ -232,7 +232,7 @@ export async function PATCH(
       }
       if (removedIds.length > 0) {
         for (const assigneeId of removedIds) {
-          const { createNotification } = await import("@/lib/notifications");
+          const { createNotification } = await import("@/lib/notification-engine");
           await createNotification(
             assigneeId,
             task.workspaceId,
@@ -335,7 +335,7 @@ export async function PATCH(
                     where: { predecessorId: params.id },
                     include: { task: { select: { id: true, title: true, assigneeIds: true } } },
                 });
-                const { createNotification } = await import("@/lib/notifications");
+                const { createNotification } = await import("@/lib/notification-engine");
                 for (const dep of blockedDeps) {
                     const blockedTask = dep.task;
                     if (!blockedTask?.assigneeIds?.length) continue;

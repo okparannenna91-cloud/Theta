@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
-import { verifyWorkspaceAccess } from "@/lib/workspace";
-import { getSprint } from "@/lib/services/sprint-service";
+import { prisma } from "@/lib/prisma";
+import { requireProjectAccess, requireProjectWriteAccess } from "@/lib/project-permissions";
 
 const updateSprintSchema = z.object({
   name: z.string().min(1).optional(),
@@ -22,9 +22,14 @@ export async function GET(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const sprint = await getSprint(params.id);
+    const sprint = await prisma.sprint.findUnique({ where: { id: params.id } });
     if (!sprint) {
       return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
+    }
+
+    const accessCheck = await requireProjectAccess(user.id, sprint.projectId, sprint.workspaceId);
+    if (!accessCheck.allowed) {
+      return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
     }
 
     return NextResponse.json(sprint);
@@ -50,16 +55,14 @@ export async function PATCH(
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { prisma } = await import("@/lib/prisma");
-
     const existing = await prisma.sprint.findUnique({ where: { id: params.id } });
     if (!existing) {
       return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
     }
 
-    const workspace = await verifyWorkspaceAccess(user.id, existing.workspaceId);
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+    const accessCheck = await requireProjectWriteAccess(user.id, existing.projectId, existing.workspaceId);
+    if (!accessCheck.allowed) {
+      return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
     }
 
     const updateData: Record<string, unknown> = { ...parsed.data };
@@ -74,6 +77,21 @@ export async function PATCH(
       where: { id: params.id },
       data: updateData,
     });
+
+    try {
+      const { logActivity, buildActivityMetadata } = await import("@/lib/activity");
+      await logActivity({
+        userId: user.id,
+        workspaceId: existing.workspaceId,
+        action: "updated",
+        entityType: "sprint",
+        entityId: sprint.id,
+        metadata: buildActivityMetadata({ entityName: sprint.name }),
+        projectId: existing.projectId,
+      });
+    } catch (e) {
+      console.error("Activity logging failed:", e);
+    }
 
     // Trigger Automations for sprint status transitions
     if (parsed.data.status && parsed.data.status !== existing.status) {
@@ -112,16 +130,29 @@ export async function DELETE(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { prisma } = await import("@/lib/prisma");
-
     const existing = await prisma.sprint.findUnique({ where: { id: params.id } });
     if (!existing) {
       return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
     }
 
-    const workspace = await verifyWorkspaceAccess(user.id, existing.workspaceId);
-    if (!workspace) {
-      return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+    const accessCheck = await requireProjectWriteAccess(user.id, existing.projectId, existing.workspaceId);
+    if (!accessCheck.allowed) {
+      return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
+    }
+
+    try {
+      const { logActivity, buildActivityMetadata } = await import("@/lib/activity");
+      await logActivity({
+        userId: user.id,
+        workspaceId: existing.workspaceId,
+        action: "deleted",
+        entityType: "sprint",
+        entityId: existing.id,
+        metadata: buildActivityMetadata({ entityName: existing.name }),
+        projectId: existing.projectId,
+      });
+    } catch (e) {
+      console.error("Activity logging failed:", e);
     }
 
     await prisma.sprint.delete({ where: { id: params.id } });

@@ -49,6 +49,15 @@ export async function PATCH(
           return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
+        if (data.projectId !== undefined && data.projectId !== event.projectId) {
+            if (data.projectId) {
+                const targetAccess = await canAccessProjectResource(user.id, event.workspaceId, data.projectId);
+                if (!targetAccess) {
+                    return NextResponse.json({ error: "Access denied to target project" }, { status: 403 });
+                }
+            }
+        }
+
         if (event.userId !== user.id) {
             if (event.teamId) {
                 const teamMember = await prisma.teamMember.findUnique({

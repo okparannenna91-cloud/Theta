@@ -143,9 +143,9 @@ export class RAGPipeline {
   static async search(
     workspaceId: string,
     query: string,
-    options: { maxResults?: number; type?: string } = {}
+    options: { maxResults?: number; type?: string; projectId?: string; accessibleProjectIds?: string[] } = {}
   ): Promise<SearchResult[]> {
-    const { maxResults = MAX_RESULTS, type } = options;
+    const { maxResults = MAX_RESULTS, type, projectId, accessibleProjectIds } = options;
 
     const queryEmbedding = await generateEmbedding(query);
     if (!queryEmbedding) return [];
@@ -159,7 +159,28 @@ export class RAGPipeline {
       take: 200,
     });
 
-    const scored = chunks
+    let filteredChunks = chunks;
+    if (projectId) {
+      const docIds = await prisma.document.findMany({
+        where: { workspaceId, projectId },
+        select: { id: true },
+      }).then(docs => docs.map(d => d.id));
+      filteredChunks = chunks.filter(c => docIds.includes(c.documentId));
+    } else if (accessibleProjectIds?.length) {
+      const docIds = await prisma.document.findMany({
+        where: {
+          workspaceId,
+          OR: [
+            { projectId: null },
+            { projectId: { in: accessibleProjectIds } },
+          ],
+        },
+        select: { id: true },
+      }).then(docs => docs.map(d => d.id));
+      filteredChunks = chunks.filter(c => docIds.includes(c.documentId));
+    }
+
+    const scored = filteredChunks
       .map(chunk => {
         const embedding = JSON.parse(chunk.embedding) as number[];
         const score = cosineSimilarity(queryEmbedding, embedding);

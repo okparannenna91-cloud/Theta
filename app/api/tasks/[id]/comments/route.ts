@@ -177,7 +177,7 @@ export async function POST(
         });
 
         // Notify workspace members
-        const { notifyWorkspaceMembers } = await import("@/lib/notifications");
+        const { notifyWorkspaceMembers } = await import("@/lib/notification-engine");
         await notifyWorkspaceMembers(
             task.workspaceId,
             user.id,
@@ -189,7 +189,7 @@ export async function POST(
 
         // Notify parent comment author on reply
         if (data.parentId && parentComment && parentComment.userId !== user.id) {
-            const { createNotification } = await import("@/lib/notifications");
+            const { createNotification } = await import("@/lib/notification-engine");
             await createNotification(
                 parentComment.userId,
                 task.workspaceId,
@@ -202,7 +202,7 @@ export async function POST(
 
         // Send mention notifications
         if (data.mentionIds && data.mentionIds.length > 0) {
-            const { createNotification } = await import("@/lib/notifications");
+            const { createNotification } = await import("@/lib/notification-engine");
             for (const mentionedId of data.mentionIds) {
                 if (mentionedId === user.id) continue; // Don't notify self
                 await createNotification(

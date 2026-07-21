@@ -114,6 +114,15 @@ export async function PATCH(
     const body = await req.json();
     const data = updateSchema.parse(body);
 
+    if (data.projectId !== undefined && data.projectId !== existing.projectId) {
+      if (data.projectId) {
+        const targetAccess = await canAccessProjectResource(user.id, existing.workspaceId, data.projectId);
+        if (!targetAccess) {
+          return NextResponse.json({ error: "Access denied to target project" }, { status: 403 });
+        }
+      }
+    }
+
     const updateData: Record<string, unknown> = { lastEditedById: user.id };
     if (data.title !== undefined) updateData.title = data.title;
     if (data.content !== undefined) updateData.content = data.content;

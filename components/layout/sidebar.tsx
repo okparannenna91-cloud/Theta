@@ -8,27 +8,17 @@ import {
   LayoutDashboard,
   FolderKanban,
   CheckSquare,
-  Columns,
   Users,
   Bell,
-  CreditCard,
   Settings,
   User,
   Menu,
   X,
-  Calendar,
-  TrendingUp,
-  Building2,
   LayoutList,
-  Puzzle,
   ChevronDown,
   Check,
   Plus,
-  Target,
-  FileText,
-  Clock,
   Bot,
-  Zap,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
@@ -53,16 +43,11 @@ export const Sidebar = memo(function Sidebar() {
 
   const navigation = [
     { name: t("dashboard"), href: "/dashboard", icon: LayoutDashboard },
-    { name: t("workspaces"), href: "/workspaces", icon: Building2 },
+    { name: t("notifications"), href: "/notifications", icon: Bell },
+    { name: "My Tasks", href: "/my-tasks", icon: CheckSquare },
     { name: t("portfolio"), href: "/portfolio", icon: FolderKanban },
     { name: t("projects"), href: "/projects", icon: LayoutList },
-    { name: t("goals"), href: "/goals", icon: Target },
     { name: "Teams", href: "/teams", icon: Users },
-    { name: t("notifications"), href: "/notifications", icon: Bell },
-    { name: t("analytics"), href: "/analytics", icon: TrendingUp },
-    { name: "Reports", href: "/reports", icon: FileText },
-    { name: t("apps"), href: "/apps", icon: Puzzle },
-    { name: t("billing"), href: "/billing", icon: CreditCard },
     { name: t("settings"), href: "/settings", icon: Settings },
   ];
 
@@ -177,6 +162,16 @@ export const Sidebar = memo(function Sidebar() {
             })}
           </div>
         </nav>
+
+        <div className="border-t border-sidebar-border pt-2 px-2">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "" } }))}
+            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-white/5"
+          >
+            <Bot className="h-4 w-4 flex-shrink-0 text-sidebar-muted" />
+            <span>Ask Nova</span>
+          </button>
+        </div>
 
         <div className="p-3 border-t border-sidebar-border">
           <Link

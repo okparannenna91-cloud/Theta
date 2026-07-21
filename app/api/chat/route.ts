@@ -229,6 +229,9 @@ export async function PATCH(req: Request) {
         if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
         if (message.userId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
+        const hasAccess = await verifyWorkspaceAccess(user.id, message.workspaceId);
+        if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
         const updated = await prisma.chatMessage.update({
             where: { id: messageId },
             data: { isPinned: isPinned !== undefined ? isPinned : !message.isPinned },
@@ -265,6 +268,9 @@ export async function DELETE(req: Request) {
 
         if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
         if (message.userId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+        const hasAccess = await verifyWorkspaceAccess(user.id, message.workspaceId);
+        if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
         const deleted = await prisma.chatMessage.update({
             where: { id: messageId },

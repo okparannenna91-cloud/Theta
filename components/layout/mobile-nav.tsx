@@ -4,15 +4,15 @@ import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard, FolderKanban, CheckSquare, MessageSquare,
-  MoreHorizontal, Calendar, Bell
+  LayoutDashboard, FolderKanban, Users,
+  MoreHorizontal, Bell
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Projects", icon: FolderKanban, href: "/projects" },
-  { label: "Tasks", icon: CheckSquare, href: "/tasks" },
-  { label: "Chat", icon: MessageSquare, href: "/chat" },
+  { label: "Teams", icon: Users, href: "/teams" },
+  { label: "Notifications", icon: Bell, href: "/notifications" },
   { label: "More", icon: MoreHorizontal, href: "/more" },
 ];
 

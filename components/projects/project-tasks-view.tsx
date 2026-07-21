@@ -3,8 +3,10 @@
 import { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
-import { Circle, CheckCircle2, MoreVertical } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Circle, CheckCircle2, MoreVertical, Plus } from "lucide-react";
 import { TaskDialog } from "@/components/tasks/task-dialog";
+import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 import { cn } from "@/lib/utils";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +19,7 @@ interface ProjectTasksViewProps {
 export function ProjectTasksView({ project }: ProjectTasksViewProps) {
     const queryClient = useQueryClient();
     const [selectedTask, setSelectedTask] = useState<any | null>(null);
+    const [showCreateTask, setShowCreateTask] = useState(false);
     const safeTasks = Array.isArray(project?.tasks) ? project.tasks : [];
 
     const updateMutation = useMutation({
@@ -46,6 +49,10 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
         <div className="space-y-4 h-full overflow-y-auto pr-2">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-semibold text-slate-500">Project Tasks ({safeTasks.length})</h3>
+                <Button size="sm" onClick={() => setShowCreateTask(true)}>
+                    <Plus className="h-4 w-4 mr-1.5" />
+                    New Task
+                </Button>
             </div>
 
             <div className="grid gap-3">
@@ -112,6 +119,12 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                     workspaceId={project.workspaceId}
                 />
             )}
+
+            <CreateTaskDialog
+                isOpen={showCreateTask}
+                onOpenChange={setShowCreateTask}
+                defaultProjectId={project.id}
+            />
         </div>
     );
 }

@@ -13,6 +13,7 @@ export function buildWorkspaceTools(ctx: ToolContext): ToolModule {
       description: 'List all workspaces the user has access to. Use this when user asks "show workspaces" or "list workspaces".',
       inputSchema: z.object({}),
       execute: async () => {
+        await enforce(ctx, "read", "workspace");
         const memberships = await prisma.workspaceMember.findMany({
           where: { userId: user.id },
           select: { workspace: { select: { id: true, name: true } } },

@@ -439,7 +439,7 @@ export async function recalculateGoalProgress(goalId: string): Promise<number> {
   return progress;
 }
 
-export async function getGoalDashboard(workspaceId: string): Promise<{
+export async function getGoalDashboard(workspaceId: string, projectId?: string): Promise<{
   goals: GoalWithKeyResults[];
   totalGoals: number;
   averageProgress: number;
@@ -449,7 +449,11 @@ export async function getGoalDashboard(workspaceId: string): Promise<{
   byType: { type: string; count: number; averageProgress: number }[];
 }> {
   const goals = await prisma.goal.findMany({
-    where: { workspaceId, status: { not: "cancelled" } },
+    where: {
+      workspaceId,
+      status: { not: "cancelled" },
+      ...(projectId ? { projectId } : {}),
+    },
     include: {
       owner: { select: { name: true } },
       project: { select: { name: true } },

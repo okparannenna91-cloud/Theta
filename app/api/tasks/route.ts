@@ -86,20 +86,31 @@ export async function GET(req: Request) {
     };
 
     // Search/filter params
+    const conditions: any[] = [];
     if (search) {
-      taskWhere.OR = [
-        { title: { contains: search, mode: 'insensitive' } },
-        { description: { contains: search, mode: 'insensitive' } },
-      ];
+      conditions.push({
+        OR: [
+          { title: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+    if (assigneeId) {
+      conditions.push({
+        OR: [
+          { userId: assigneeId },
+          { assigneeIds: { has: assigneeId } },
+        ],
+      });
+    }
+    if (conditions.length > 0) {
+      taskWhere.AND = conditions;
     }
     if (status) {
       taskWhere.status = { equals: status, mode: 'insensitive' };
     }
     if (priority) {
       taskWhere.priority = priority;
-    }
-    if (assigneeId) {
-      taskWhere.userId = assigneeId;
     }
 
     const [tasks, totalCount] = await Promise.all([
@@ -305,7 +316,7 @@ export async function POST(req: Request) {
     );
 
     // Notify workspace members
-    const { notifyWorkspaceMembers } = await import("@/lib/notifications");
+    const { notifyWorkspaceMembers } = await import("@/lib/notification-engine");
     await notifyWorkspaceMembers(
       data.workspaceId,
       user.id,
@@ -313,14 +324,6 @@ export async function POST(req: Request) {
       "New Task Created",
       `${user.name || "A member"} created a new task: ${task.title}${(task as any).project?.name ? ` in ${(task as any).project.name}` : ""}`,
       { taskId: task.id, projectId: task.projectId }
-    );
-
-    // Slack Notification
-    const { notifyWorkspace } = await import("@/lib/integrations/slack");
-    await notifyWorkspace(
-      data.workspaceId,
-      `New task created: *${task.title}*${(task as any).project?.name ? ` in project *${(task as any).project.name}*` : ""}`,
-      "Task Created"
     );
 
     return NextResponse.json(task);

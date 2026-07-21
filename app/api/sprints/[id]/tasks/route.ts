@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { requireProjectWriteAccess } from "@/lib/project-permissions";
 import {
   assignTaskToSprint,
   removeTaskFromSprint,
@@ -28,6 +30,16 @@ export async function POST(
     const parsed = assignTaskSchema.safeParse(body);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+
+    const sprint = await prisma.sprint.findUnique({ where: { id: params.id } });
+    if (!sprint) {
+      return NextResponse.json({ error: "Sprint not found" }, { status: 404 });
+    }
+
+    const accessCheck = await requireProjectWriteAccess(user.id, sprint.projectId, sprint.workspaceId);
+    if (!accessCheck.allowed) {
+      return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
     }
 
     const result = await assignTaskToSprint(params.id, parsed.data.taskId);

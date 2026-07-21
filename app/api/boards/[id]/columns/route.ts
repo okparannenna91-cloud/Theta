@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { Board } from "@prisma/client";
 import { z } from "zod";
+import { requireProjectWriteAccess } from "@/lib/project-permissions";
 import { publishToChannel, getBoardChannel } from "@/lib/ably";
 
 const columnSchema = z.object({
@@ -33,17 +33,9 @@ export async function POST(
             return NextResponse.json({ error: "Board not found" }, { status: 404 });
         }
 
-        const membership = await prisma.workspaceMember.findUnique({
-            where: {
-                workspaceId_userId: {
-                    workspaceId: board.workspaceId,
-                    userId: user.id
-                }
-            }
-        });
-
-        if (!membership) {
-            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        const accessCheck = await requireProjectWriteAccess(user.id, board.projectId, board.workspaceId);
+        if (!accessCheck.allowed) {
+            return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
         }
 
         const { enforcePlanLimit } = await import("@/lib/plan-limits");

@@ -48,7 +48,18 @@ export async function GET(request: NextRequest) {
       status,
     });
 
-    return NextResponse.json(goals);
+    const { getPlanLimits, isValidPlan } = await import("@/lib/plan-limits");
+    const planWorkspace = await import("@/lib/prisma").then(m => m.prisma.workspace.findUnique({ where: { id: workspaceId }, select: { plan: true } }));
+    const planName = isValidPlan(planWorkspace?.plan ?? "") ? (planWorkspace?.plan as "free" | "growth" | "pro" | "theta_plus") : "free";
+    const limits = getPlanLimits(planName);
+
+    return NextResponse.json({
+      goals,
+      limits: {
+        max: (limits as any).maxGoals ?? -1,
+        current: goals.length,
+      },
+    });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.flatten() }, { status: 400 });

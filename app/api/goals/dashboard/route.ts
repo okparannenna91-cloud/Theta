@@ -6,6 +6,7 @@ import { getGoalDashboard } from "@/lib/services/goals-service";
 
 const dashboardSchema = z.object({
   workspaceId: z.string().min(1, "workspaceId is required"),
+  projectId: z.string().optional(),
 });
 
 export async function GET(request: NextRequest) {
@@ -23,14 +24,14 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
     }
 
-    const { workspaceId } = parsed.data;
+    const { workspaceId, projectId } = parsed.data;
 
     const workspace = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!workspace) {
       return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
     }
 
-    const dashboard = await getGoalDashboard(workspaceId);
+    const dashboard = await getGoalDashboard(workspaceId, projectId);
 
     return NextResponse.json(dashboard);
   } catch (error) {

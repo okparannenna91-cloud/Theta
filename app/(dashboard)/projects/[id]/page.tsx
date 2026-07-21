@@ -30,6 +30,10 @@ import {
     Sliders,
     Plus,
     CalendarCheck,
+    Target,
+    Clock,
+    ClipboardList,
+    BarChart3,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -46,9 +50,13 @@ const KanbanBoard = dynamic(() => import("@/components/boards/kanban-board"), { 
 const TimelineView = dynamic(() => import("@/components/projects/timeline-view").then(m => ({ default: m.TimelineView })), { ssr: false });
 const GanttChart = dynamic(() => import("@/components/projects/gantt-chart").then(m => ({ default: m.GanttChart })), { ssr: false });
 const CalendarView = dynamic(() => import("@/components/projects/calendar-view").then(m => ({ default: m.CalendarView })), { ssr: false });
+const SprintBoard = dynamic(() => import("@/components/sprints/sprint-board"), { ssr: false });
+const CustomFieldsEditor = dynamic(() => import("@/components/boards/custom-fields-editor"), { ssr: false });
 import { InviteMemberDialog } from "@/components/projects/invite-member-dialog";
 import { ProjectTeamsTab } from "@/components/projects/project-teams-tab";
-import { User } from "lucide-react";
+import { ReportsTab } from "@/components/projects/project-reports-tab";
+import GoalDashboard from "@/components/goals/goal-dashboard";
+import FormBuilder from "@/components/forms/form-builder";
 import {
     Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
@@ -68,14 +76,9 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
     const [showNewDoc, setShowNewDoc] = useState(false);
     const [newDocTitle, setNewDocTitle] = useState("");
-    const [showNewSprint, setShowNewSprint] = useState(false);
-    const [sprintName, setSprintName] = useState("");
-    const [sprintGoal, setSprintGoal] = useState("");
-    const [sprintStartDate, setSprintStartDate] = useState("");
-    const [sprintEndDate, setSprintEndDate] = useState("");
-    const [showNewField, setShowNewField] = useState(false);
-    const [fieldName, setFieldName] = useState("");
-    const [fieldType, setFieldType] = useState("text");
+    const [showNewBoard, setShowNewBoard] = useState(false);
+    const [newBoardName, setNewBoardName] = useState("");
+    const [newBoardDescription, setNewBoardDescription] = useState("");
     const queryClient = useQueryClient();
 
     const { data: project, isLoading } = useQuery({
@@ -108,60 +111,28 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         onError: () => toast.error("Failed to create document"),
     });
 
-    const createSprintMutation = useMutation({
+    const createBoardMutation = useMutation({
         mutationFn: async () => {
-            const res = await fetch("/api/sprints", {
+            const res = await fetch("/api/boards", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    name: sprintName,
+                    name: newBoardName,
+                    description: newBoardDescription,
                     projectId: params.id,
                     workspaceId: activeWorkspaceId,
-                    startDate: sprintStartDate || new Date().toISOString(),
-                    endDate: sprintEndDate || new Date(Date.now() + 14 * 86400000).toISOString(),
-                    goal: sprintGoal || undefined,
                 }),
             });
-            if (!res.ok) {
-                const err = await res.json();
-                throw new Error(err.error || "Failed to create sprint");
-            }
+            if (!res.ok) throw new Error("Failed to create board");
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["sprints", params.id] });
-            setShowNewSprint(false);
-            setSprintName("");
-            setSprintGoal("");
-            setSprintStartDate("");
-            setSprintEndDate("");
-            toast.success("Sprint created");
-        },
-        onError: (err: any) => toast.error(err.message),
-    });
-
-    const createFieldMutation = useMutation({
-        mutationFn: async () => {
-            const boardId = project?.boards?.[0]?.id;
-            if (!boardId) throw new Error("No board found. Create a board first.");
-            const res = await fetch("/api/custom-fields", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: fieldName,
-                    type: fieldType,
-                    boardId,
-                }),
-            });
-            if (!res.ok) throw new Error("Failed to create field");
-            return res.json();
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["custom-fields", activeWorkspaceId] });
-            setShowNewField(false);
-            setFieldName("");
-            setFieldType("text");
-            toast.success("Field created");
+            queryClient.invalidateQueries({ queryKey: ["project", params.id, activeWorkspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["boards", activeWorkspaceId] });
+            setShowNewBoard(false);
+            setNewBoardName("");
+            setNewBoardDescription("");
+            toast.success("Board created");
         },
         onError: (err: any) => toast.error(err.message),
     });
@@ -199,19 +170,22 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     const tabs = [
         { id: "overview", label: "Overview", icon: Info },
         { id: "tasks", label: "Tasks", icon: LayoutList },
-        { id: "boards", label: "Boards", icon: Columns },
-        { id: "sprints", label: "Sprints", icon: Zap },
-        { id: "documents", label: "Documents", icon: FileText },
-        { id: "meetings", label: "Meetings", icon: CalendarCheck },
-        { id: "custom-fields", label: "Fields", icon: Sliders },
-        { id: "teams", label: "Teams", icon: UsersIcon },
-        { id: "members", label: "Members", icon: User },
+        { id: "board", label: "Board", icon: Columns },
         { id: "calendar", label: "Calendar", icon: CalendarDays },
         { id: "timeline", label: "Timeline", icon: Calendar },
         { id: "gantt", label: "Gantt", icon: GanttIcon },
-        { id: "activity", label: "Activity", icon: ActivityIcon },
-        { id: "analytics", label: "Insights", icon: TrendingUp },
+        { id: "sprints", label: "Sprints", icon: Zap },
+        { id: "goals", label: "Goals", icon: Target },
+        { id: "team", label: "Team", icon: UsersIcon },
+        { id: "time", label: "Time", icon: Clock },
+        { id: "documents", label: "Documents", icon: FileText },
+        { id: "meetings", label: "Meetings", icon: CalendarCheck },
+        { id: "forms", label: "Forms", icon: ClipboardList },
         { id: "automations", label: "Automations", icon: Zap },
+        { id: "reports", label: "Reports", icon: BarChart3 },
+        { id: "analytics", label: "Analytics", icon: TrendingUp },
+        { id: "activity", label: "Activity", icon: ActivityIcon },
+        { id: "custom-fields", label: "Fields", icon: Sliders },
         { id: "settings", label: "Settings", icon: Settings },
     ];
 
@@ -279,16 +253,62 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     <ProjectTasksView project={project} />
                 )}
                 
-                {view === "boards" && (
+                {view === "board" && (
                     <div className="space-y-6">
                         <div className="flex items-center justify-between">
                             <div>
                                 <h2 className="text-lg font-semibold">Boards</h2>
                                 <p className="text-sm text-muted-foreground">Visual task management boards for this project</p>
                             </div>
-                            <Badge variant="secondary" className="text-xs rounded-md px-3 py-1">
-                                {project.boards?.length || 0} boards
-                            </Badge>
+                            <div className="flex items-center gap-3">
+                                <Badge variant="secondary" className="text-xs rounded-md px-3 py-1">
+                                    {project.boards?.length || 0} boards
+                                </Badge>
+                                <Dialog open={showNewBoard} onOpenChange={setShowNewBoard}>
+                                    <DialogTrigger asChild>
+                                        <Button size="sm">
+                                            <Columns className="h-4 w-4 mr-2" />
+                                            New Board
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Create Board</DialogTitle>
+                                            <DialogDescription>Create a visual board for managing tasks in this project.</DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-4 py-2">
+                                            <div>
+                                                <label className="text-sm font-medium">Board Name</label>
+                                                <Input
+                                                    value={newBoardName}
+                                                    onChange={e => setNewBoardName(e.target.value)}
+                                                    placeholder="e.g. Product Roadmap"
+                                                    className="mt-1"
+                                                    autoFocus
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-sm font-medium">Description (optional)</label>
+                                                <Input
+                                                    value={newBoardDescription}
+                                                    onChange={e => setNewBoardDescription(e.target.value)}
+                                                    placeholder="What is this board for?"
+                                                    className="mt-1"
+                                                />
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button variant="outline" onClick={() => setShowNewBoard(false)}>Cancel</Button>
+                                            <Button
+                                                onClick={() => createBoardMutation.mutate()}
+                                                disabled={!newBoardName.trim() || createBoardMutation.isPending}
+                                            >
+                                                {createBoardMutation.isPending ? "Creating..." : "Create Board"}
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
+                            </div>
                         </div>
 
                         {project.boards?.length > 0 ? (
@@ -326,9 +346,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                                     <p className="text-sm text-muted-foreground mb-6 max-w-sm">
                                         Create a board to visually manage your project tasks.
                                     </p>
-                                    <Link href={`/projects/${project.id}/boards`}>
-                                        <Button variant="outline">Create Board</Button>
-                                    </Link>
+                                    <Button variant="outline" onClick={() => setShowNewBoard(true)}>Create Board</Button>
                                 </CardContent>
                             </Card>
                         )}
@@ -342,59 +360,10 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                                 <h2 className="text-lg font-semibold">Sprints</h2>
                                 <p className="text-sm text-muted-foreground">Manage iterative work cycles for this project</p>
                             </div>
-                            <Dialog open={showNewSprint} onOpenChange={setShowNewSprint}>
-                                <DialogTrigger asChild>
-                                    <Button size="sm">
-                                        <Zap className="h-4 w-4 mr-2" />
-                                        New Sprint
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Create Sprint</DialogTitle>
-                                        <DialogDescription>Organize work into a time-boxed iteration.</DialogDescription>
-                                    </DialogHeader>
-                                    <div className="space-y-4 py-2">
-                                        <div>
-                                            <label className="text-sm font-medium">Name</label>
-                                            <Input value={sprintName} onChange={e => setSprintName(e.target.value)} placeholder="Sprint 1" className="mt-1" />
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium">Goal (optional)</label>
-                                            <Input value={sprintGoal} onChange={e => setSprintGoal(e.target.value)} placeholder="What should this sprint accomplish?" className="mt-1" />
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="text-sm font-medium">Start Date</label>
-                                                <Input type="date" value={sprintStartDate} onChange={e => setSprintStartDate(e.target.value)} className="mt-1" />
-                                            </div>
-                                            <div>
-                                                <label className="text-sm font-medium">End Date</label>
-                                                <Input type="date" value={sprintEndDate} onChange={e => setSprintEndDate(e.target.value)} className="mt-1" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <Button variant="outline" onClick={() => setShowNewSprint(false)}>Cancel</Button>
-                                        <Button onClick={() => createSprintMutation.mutate()} disabled={!sprintName || createSprintMutation.isPending}>
-                                            {createSprintMutation.isPending ? "Creating..." : "Create Sprint"}
-                                        </Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
                         </div>
-                        <Card className="border-2 border-dashed border-border">
-                            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                                    <Zap className="h-6 h-6 text-primary" />
-                                </div>
-                                <h3 className="text-sm font-semibold mb-1">No active sprints</h3>
-                                <p className="text-sm text-muted-foreground mb-6 max-w-sm">
-                                    Create a sprint to organize work into time-boxed iterations with burndown tracking.
-                                </p>
-                                <Button variant="outline" onClick={() => setShowNewSprint(true)}>Create Sprint</Button>
-                            </CardContent>
-                        </Card>
+                        {activeWorkspaceId && (
+                            <SprintBoard projectId={params.id} workspaceId={activeWorkspaceId} />
+                        )}
                     </div>
                 )}
 
@@ -471,73 +440,38 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
 
                 {view === "custom-fields" && (
                     <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-lg font-semibold">Custom Fields</h2>
-                                <p className="text-sm text-muted-foreground">Define custom data fields for tasks in this project</p>
-                            </div>
-                            <Dialog open={showNewField} onOpenChange={setShowNewField}>
-                                <DialogTrigger asChild>
-                                    <Button size="sm">
-                                        <Sliders className="h-4 w-4 mr-2" />
-                                        Add Field
-                                    </Button>
-                                </DialogTrigger>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Create Custom Field</DialogTitle>
-                                        <DialogDescription>Add a custom field to track additional task data.</DialogDescription>
-                                    </DialogHeader>
-                                    <div className="space-y-4 py-2">
-                                        <div>
-                                            <label className="text-sm font-medium">Field Name</label>
-                                            <Input value={fieldName} onChange={e => setFieldName(e.target.value)} placeholder="e.g. Story Points" className="mt-1" />
-                                        </div>
-                                        <div>
-                                            <label className="text-sm font-medium">Field Type</label>
-                                            <select value={fieldType} onChange={e => setFieldType(e.target.value)} className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
-                                                <option value="text">Text</option>
-                                                <option value="number">Number</option>
-                                                <option value="select">Dropdown</option>
-                                                <option value="date">Date</option>
-                                                <option value="checkbox">Checkbox</option>
-                                                <option value="url">URL</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    <DialogFooter>
-                                        <Button variant="outline" onClick={() => setShowNewField(false)}>Cancel</Button>
-                                        <Button onClick={() => createFieldMutation.mutate()} disabled={!fieldName || createFieldMutation.isPending}>
-                                            {createFieldMutation.isPending ? "Creating..." : "Create Field"}
-                                        </Button>
-                                    </DialogFooter>
-                                </DialogContent>
-                            </Dialog>
+                        <div>
+                            <h2 className="text-lg font-semibold">Custom Fields</h2>
+                            <p className="text-sm text-muted-foreground">Define custom data fields for tasks in this project</p>
                         </div>
-                        <Card className="border-2 border-dashed border-border">
-                            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                                <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
-                                    <Sliders className="h-6 w-6 text-muted-foreground" />
-                                </div>
-                                <h3 className="text-sm font-semibold mb-1">No custom fields</h3>
-                                <p className="text-sm text-muted-foreground mb-6 max-w-sm">
-                                    Add custom fields to track additional data like story points, sprint, or any custom attribute.
-                                </p>
-                                <Button variant="outline" onClick={() => setShowNewField(true)}>Create Custom Field</Button>
-                            </CardContent>
-                        </Card>
+                        {project.boards?.[0] ? (
+                            <CustomFieldsEditor boardId={project.boards[0].id} workspaceId={project.workspaceId} />
+                        ) : (
+                            <Card className="border-2 border-dashed border-border">
+                                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                                    <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
+                                        <Sliders className="h-6 w-6 text-muted-foreground" />
+                                    </div>
+                                    <h3 className="text-sm font-semibold mb-1">Create a board first</h3>
+                                    <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+                                        Custom fields are tied to boards. Create a board to start adding custom fields.
+                                    </p>
+                                    <Button variant="outline" onClick={() => setView("board")}>Go to Boards</Button>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
                 )}
 
                 {view === "kanban" && (
                     <div className="h-full">
                         {project.boards?.[0] ? (
-                            <KanbanBoard boardId={project.boards[0].id} onBack={() => setView("boards")} />
+                            <KanbanBoard boardId={project.boards[0].id} onBack={() => setView("board")} />
                         ) : (
                             <div className="h-full flex flex-col items-center justify-center text-center p-12">
                                 <Columns className="h-12 w-12 text-muted-foreground mb-6" />
                                 <h3 className="text-base font-semibold mb-2">No board selected</h3>
-                                <Button variant="outline" onClick={() => setView("boards")}>Back to Boards</Button>
+                                <Button variant="outline" onClick={() => setView("board")}>Back to Board</Button>
                             </div>
                         )}
                     </div>
@@ -559,51 +493,53 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     <ProjectActivity projectId={project.id} workspaceId={project.workspaceId} />
                 )}
 
-                {view === "teams" && (
+                {view === "team" && (
                     <ProjectTeamsTab projectId={project.id} workspaceId={project.workspaceId} />
                 )}
                 
-                {view === "members" && (
+                {view === "goals" && (
                     <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-lg font-semibold">Members</h2>
-                                <p className="text-sm text-muted-foreground">People with access to this project</p>
-                            </div>
-                            <Button onClick={() => setIsInviteOpen(true)}>
-                                <UsersIcon className="h-4 w-4 mr-2" />
-                                Invite Member
-                            </Button>
+                        <div>
+                            <h2 className="text-lg font-semibold">Goals</h2>
+                            <p className="text-sm text-muted-foreground">OKRs, milestones, and targets for this project</p>
                         </div>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-                            {project.team?.members?.map((member: any) => (
-                                <Card key={member.id} className="border shadow-sm hover:border-primary/30 transition-colors">
-                                    <CardHeader className="pb-3 flex flex-col items-center text-center">
-                                        <Avatar className="h-14 w-14 mb-2">
-                                            <AvatarImage src={member.user?.imageUrl} />
-                                            <AvatarFallback className="text-lg font-semibold bg-primary/10 text-primary">
-                                                {member.user?.name?.[0] || "?"}
-                                            </AvatarFallback>
-                                        </Avatar>
-                                        <CardTitle className="text-sm font-semibold truncate w-full">
-                                            {member.user?.name || "Unknown"}
-                                        </CardTitle>
-                                        <Badge variant="outline" className="text-xs rounded-md px-2 py-0 h-5 capitalize">
-                                            {member.role}
-                                        </Badge>
-                                    </CardHeader>
-                                    <CardContent className="pt-0 flex justify-center gap-3">
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                                            <MessageSquare className="h-3.5 w-3.5" />
-                                        </Button>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg">
-                                            <Calendar className="h-3.5 w-3.5" />
-                                        </Button>
-                                    </CardContent>
-                                </Card>
-                            ))}
-                        </div>
+                        <GoalDashboard workspaceId={project.workspaceId} projectId={project.id} />
                     </div>
+                )}
+
+                {view === "time" && (
+                    <div className="space-y-6">
+                        <div>
+                            <h2 className="text-lg font-semibold">Time Tracking</h2>
+                            <p className="text-sm text-muted-foreground">Track time, manage logs, and generate reports</p>
+                        </div>
+                        <Card>
+                            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
+                                    <Clock className="h-6 w-6 text-primary" />
+                                </div>
+                                <h3 className="text-sm font-semibold mb-1">Time tracking coming soon</h3>
+                                <p className="text-sm text-muted-foreground mb-6 max-w-sm">
+                                    Track time against tasks in this project, generate reports, and manage billable hours.
+                                </p>
+                                <Button variant="outline" disabled>Time Tracking</Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                )}
+
+                {view === "forms" && (
+                    <div className="space-y-6">
+                        <div>
+                            <h2 className="text-lg font-semibold">Forms</h2>
+                            <p className="text-sm text-muted-foreground">Build and manage forms for this project</p>
+                        </div>
+                        <FormBuilder workspaceId={project.workspaceId} />
+                    </div>
+                )}
+
+                {view === "reports" && (
+                    <ReportsTab projectId={project.id} workspaceId={project.workspaceId} projectName={project.name} />
                 )}
 
                 {view === "analytics" && (

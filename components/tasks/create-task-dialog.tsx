@@ -81,6 +81,7 @@ export function CreateTaskDialog({
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceId] });
       queryClient.invalidateQueries({ queryKey: ["timeline-tasks", activeWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["projects"] });
       onOpenChange(false);
       setTitle("");
       setDescription("");

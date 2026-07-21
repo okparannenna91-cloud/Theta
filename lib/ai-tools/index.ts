@@ -183,6 +183,12 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
       description: 'Dispatch a direct UI action to the client.',
       inputSchema: z.object({ action: z.enum(['NAVIGATE', 'OPEN_MODAL', 'SWITCH_TAB', 'REFRESH_DATA']), payload: z.record(z.unknown()) }),
       execute: async ({ action, payload }: Record<string, unknown>) => {
+        await enforce(ctx, "write", "workspace");
+        const { verifyWorkspaceAccess } = await import("@/lib/workspace");
+        const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+        if (!hasAccess) {
+          return { error: "Access denied to workspace." };
+        }
         const channel = getAblyChannel(`workspace:${workspaceId}`);
         await channel.publish('UI_ACTION', { action, payload, userId: user.id });
         return { success: true, message: `Dispatched UI action: **${action}**` };

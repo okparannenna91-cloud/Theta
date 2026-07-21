@@ -40,15 +40,24 @@ export async function GET(req: Request) {
     }
 
     const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
+    const projectId = searchParams.get("projectId");
+
+    const where: any = {
+      workspaceId,
+      archived: false,
+      OR: [
+        { projectId: null },
+        { projectId: { in: accessibleProjectIds } },
+      ],
+    };
+
+    if (projectId) {
+      where.projectId = projectId;
+      delete where.OR;
+    }
+
     const documents = await prisma.document.findMany({
-      where: {
-        workspaceId,
-        archived: false,
-        OR: [
-          { projectId: null },
-          { projectId: { in: accessibleProjectIds } },
-        ],
-      },
+      where,
       orderBy: { updatedAt: "desc" },
     });
 
