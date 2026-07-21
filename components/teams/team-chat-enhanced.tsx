@@ -190,7 +190,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
       if (ablyRef.current) { ablyRef.current.close(); }
 
       const Ably = (await import("ably")).default;
-      const ably = new Ably.Realtime({ authUrl: "/api/ably/token", clientId: user.id });
+      const ably = new Ably.Realtime({ authUrl: `/api/ably/token?workspaceId=${workspaceId}&teamId=${teamId}`, clientId: user.id });
       const channelName = `team:${teamId}:chat`;
       const channel = ably.channels.get(channelName);
 

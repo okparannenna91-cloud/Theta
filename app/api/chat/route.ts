@@ -48,7 +48,7 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "workspaceId or teamId is required" }, { status: 400 });
         }
 
-        const accessibleProjectIds = await getAccessibleProjectIds(user.id, effectiveWorkspaceId);
+        const accessibleProjectIds = teamId ? [] : await getAccessibleProjectIds(user.id, effectiveWorkspaceId);
 
         const TAKE = 50;
         const messagesRaw = await prisma.chatMessage.findMany({

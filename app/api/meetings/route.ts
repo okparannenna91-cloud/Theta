@@ -24,7 +24,6 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const workspaceId = searchParams.get("workspaceId");
-    const projectId = searchParams.get("projectId");
     const status = searchParams.get("status");
 
     if (!workspaceId) {
@@ -37,7 +36,6 @@ export async function GET(req: Request) {
     }
 
     const where: Record<string, unknown> = { workspaceId };
-    if (projectId) where.projectId = projectId;
     if (status) where.status = status;
 
     const meetings = await prisma.meeting.findMany({
@@ -90,7 +88,7 @@ export async function POST(req: Request) {
         userId: user.id,
         participants: data.participants || [user.email || user.id],
         agendaItems,
-        status: data.scheduledAt ? "scheduled" : "scheduled",
+        status: data.scheduledAt ? "scheduled" : "draft",
         phase: "PRE_MEETING",
       },
     });

@@ -315,12 +315,16 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
   const { user } = useUser();
   const boardChannel = getBoardChannel(activeWorkspaceId || "", boardId);
+  const reorderRef = useRef(0);
+  const ablyTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const handleAblyUpdate = useCallback(() => {
-    // Cancel in-flight optimistic updates before refetching to prevent race conditions
-    queryClient.cancelQueries({ queryKey: ["board", boardId] }).then(() => {
+    // Skip refetch if a reorder just finished — handleDragEnd's finally block handles it
+    if (reorderRef.current > 0) return;
+    if (ablyTimerRef.current) clearTimeout(ablyTimerRef.current);
+    ablyTimerRef.current = setTimeout(() => {
       queryClient.invalidateQueries({ queryKey: ["board", boardId] });
-    });
+    }, 500);
   }, [queryClient, boardId]);
 
   const ablyClient = useAbly(boardChannel, "task:created", handleAblyUpdate);
@@ -742,6 +746,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       toast.error("Failed to save task position");
     } finally {
       dragStartBoardRef.current = null;
+      reorderRef.current += 1;
       queryClient.invalidateQueries({ queryKey: ["board", boardId] });
     }
   }, [queryClient, boardId]);
