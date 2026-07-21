@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
   FolderKanban,
+  CheckSquare,
+  Columns,
   Users,
   Bell,
   CreditCard,
@@ -14,6 +16,7 @@ import {
   User,
   Menu,
   X,
+  Calendar,
   TrendingUp,
   Building2,
   LayoutList,
@@ -25,6 +28,7 @@ import {
   FileText,
   Clock,
   Bot,
+  Zap,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
@@ -53,10 +57,7 @@ export const Sidebar = memo(function Sidebar() {
     { name: t("portfolio"), href: "/portfolio", icon: FolderKanban },
     { name: t("projects"), href: "/projects", icon: LayoutList },
     { name: t("goals"), href: "/goals", icon: Target },
-    { name: t("teams"), href: "/teams", icon: Users },
-    { name: t("time_tracking"), href: "/time", icon: Clock },
-    { name: t("forms"), href: "/forms", icon: FileText },
-    { name: "Agents", href: "/agents", icon: Bot },
+    { name: "Teams", href: "/teams", icon: Users },
     { name: t("notifications"), href: "/notifications", icon: Bell },
     { name: t("analytics"), href: "/analytics", icon: TrendingUp },
     { name: "Reports", href: "/reports", icon: FileText },
