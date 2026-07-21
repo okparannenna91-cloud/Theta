@@ -43,7 +43,7 @@ self.addEventListener("fetch", (event) => {
   if (request.method !== "GET") return;
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
-      fetch(request)
+      fetch(request, { redirect: "follow" })
         .then((response) => {
           if (response.ok) {
             const clone = response.clone();
@@ -61,27 +61,28 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-
-      return fetch(request)
-        .then((response) => {
-          if (!response || response.status !== 200 || response.type !== "basic") {
-            return response;
-          }
+    fetch(request, { redirect: "follow" })
+      .then((response) => {
+        if (!response || response.status !== 200) {
+          return response;
+        }
+        if (response.type === "basic") {
           const clone = response.clone();
           caches.open(DYNAMIC_CACHE).then((cache) => {
             cache.put(request, clone);
           });
-          return response;
-        })
-        .catch(() => {
+        }
+        return response;
+      })
+      .catch(() => {
+        return caches.match(request).then((cached) => {
+          if (cached) return cached;
           if (request.destination === "document") {
             return caches.match("/dashboard");
           }
           return new Response("Offline", { status: 503 });
         });
-    })
+      })
   );
 });
 
