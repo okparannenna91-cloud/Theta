@@ -207,6 +207,50 @@ export async function POST(req: Request) {
         }
     });
 
+    // Auto-assign board + column from status if not provided (Kanban ↔ Tasks sync)
+    let autoBoardId = data.boardId || null;
+    let autoColumnId = data.columnId || null;
+
+    if (data.projectId && !autoBoardId) {
+        const board = await prisma.board.findFirst({
+            where: { projectId: data.projectId },
+            orderBy: { createdAt: 'asc' },
+        });
+        if (board) {
+            autoBoardId = board.id;
+            // Find the column matching the task's status name
+            const statusName = (data.status || 'todo').replace(/_/g, ' ');
+            const matchingColumn = await prisma.column.findFirst({
+                where: {
+                    boardId: board.id,
+                    name: { equals: statusName, mode: 'insensitive' },
+                },
+            });
+            if (matchingColumn) {
+                autoColumnId = matchingColumn.id;
+            } else {
+                // Fallback to first column
+                const firstCol = await prisma.column.findFirst({
+                    where: { boardId: board.id },
+                    orderBy: { order: 'asc' },
+                });
+                if (firstCol) autoColumnId = firstCol.id;
+            }
+        }
+    } else if (autoBoardId && !autoColumnId) {
+        // Have board but no column — resolve from status
+        const statusName = (data.status || 'todo').replace(/_/g, ' ');
+        const matchingColumn = await prisma.column.findFirst({
+            where: {
+                boardId: autoBoardId,
+                name: { equals: statusName, mode: 'insensitive' },
+            },
+        });
+        if (matchingColumn) {
+            autoColumnId = matchingColumn.id;
+        }
+    }
+
     // Verify project belongs to workspace if provided
     if (data.projectId) {
       const project = await prisma.project.findFirst({
@@ -261,8 +305,8 @@ export async function POST(req: Request) {
         projectId: data.projectId as string,
         userId: user.id as string,
         assigneeIds: data.assigneeIds || [user.id],
-        boardId: data.boardId,
-        columnId: data.columnId,
+        boardId: autoBoardId,
+        columnId: autoColumnId,
         dueDate: data.dueDate ? new Date(data.dueDate) : null,
         startDate: data.startDate ? new Date(data.startDate) : null,
         isMilestone: data.isMilestone || false,

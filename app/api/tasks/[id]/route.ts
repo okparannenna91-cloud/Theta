@@ -156,6 +156,30 @@ export async function PATCH(
                 updateData.columnId = matchingColumn.id;
             }
         }
+
+        // Auto-assign boardId if task doesn't have one (Tasks Page → Kanban sync)
+        if (!task.boardId && !data.boardId && task.projectId) {
+            const board = await prisma.board.findFirst({
+                where: { projectId: task.projectId },
+                orderBy: { createdAt: 'asc' },
+            });
+            if (board) {
+                updateData.boardId = board.id;
+                // If we didn't find a column yet, try again with this board
+                if (!updateData.columnId) {
+                    const statusName = data.status.replace(/_/g, ' ');
+                    const matchingColumn = await prisma.column.findFirst({
+                        where: {
+                            boardId: board.id,
+                            name: { equals: statusName, mode: 'insensitive' },
+                        },
+                    });
+                    if (matchingColumn) {
+                        updateData.columnId = matchingColumn.id;
+                    }
+                }
+            }
+        }
     }
 
     // Reverse guard: columnId changed but status didn't → sync status from column name
