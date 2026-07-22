@@ -102,7 +102,7 @@ export function TagSelector({ taskId, workspaceId, currentTagIds }: TagSelectorP
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
-            queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["board"] });
         },
     });
 

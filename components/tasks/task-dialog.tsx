@@ -164,7 +164,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["board"] });
             queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
             setLastSaved(new Date());
         },
@@ -191,7 +191,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["board"] });
             queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
             toast.success("Task deleted");
             onClose();

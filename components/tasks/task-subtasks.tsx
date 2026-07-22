@@ -28,7 +28,7 @@ export function TaskSubtasks({ taskId, workspaceId }: TaskSubtasksProps) {
         queryClient.invalidateQueries({ queryKey: ["subtasks", taskId] });
         if (workspaceId) {
             queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
-            queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["board"] });
         }
     };
 

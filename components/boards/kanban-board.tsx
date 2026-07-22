@@ -905,15 +905,10 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive"
-                              onSelect={(e) => {
-                                e.preventDefault();
-                                showConfirm({
-                                  title: "Delete Column",
-                                  description: `Delete "${column.name}"? Tasks will be moved to the first remaining column.`,
-                                  actionLabel: "Delete",
-                                  destructive: true,
-                                  onAction: () => deleteColumnMutation.mutate(column.id),
-                                });
+                              onClick={() => {
+                                if (window.confirm(`Delete "${column.name}"? Tasks will be moved to the first remaining column.`)) {
+                                  deleteColumnMutation.mutate(column.id);
+                                }
                               }}
                             >
                               <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete

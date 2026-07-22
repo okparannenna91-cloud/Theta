@@ -29,7 +29,7 @@ export function TaskChecklist({ taskId, workspaceId }: TaskChecklistProps) {
     const invalidateRelated = () => {
         queryClient.invalidateQueries({ queryKey: ["checklist", taskId] });
         queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
-        queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
+        queryClient.invalidateQueries({ queryKey: ["board"] });
     };
 
     const { data: items, isLoading, error: itemsError } = useQuery<ChecklistItem[]>({

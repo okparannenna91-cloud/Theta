@@ -42,7 +42,7 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["board", workspaceId] });
+            queryClient.invalidateQueries({ queryKey: ["board"] });
             queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
             toast.success("Attachments updated");
         },
