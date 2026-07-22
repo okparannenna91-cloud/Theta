@@ -906,7 +906,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                               onClick={() => {
                                 showConfirm({
                                   title: "Delete Column",
-                                  description: `Delete "${column.name}" and all its tasks?`,
+                                  description: `Delete "${column.name}"? Tasks will be moved to the first remaining column.`,
                                   actionLabel: "Delete",
                                   destructive: true,
                                   onAction: () => deleteColumnMutation.mutate(column.id),
