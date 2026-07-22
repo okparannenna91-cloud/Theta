@@ -54,6 +54,30 @@ export async function POST(
             },
         });
 
+        // Also create a matching workflow status if one doesn't exist with this name
+        const existingStatus = await prisma.status.findFirst({
+            where: {
+                workspaceId: board.workspaceId,
+                name: { equals: data.name, mode: "insensitive" },
+            },
+        });
+
+        if (!existingStatus) {
+            const lastStatus = await prisma.status.findFirst({
+                where: { workspaceId: board.workspaceId },
+                orderBy: { order: "desc" },
+            });
+
+            await prisma.status.create({
+                data: {
+                    name: data.name,
+                    color: data.color || "#4f46e5",
+                    order: (lastStatus?.order ?? -1) + 1,
+                    workspaceId: board.workspaceId,
+                },
+            });
+        }
+
         // Notify via Ably
         const boardChannel = getBoardChannel(board.workspaceId, params.id);
         await publishToChannel(boardChannel, "column:created", column);

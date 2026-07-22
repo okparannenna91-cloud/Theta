@@ -64,6 +64,45 @@ export async function PATCH(
                 ...(data.pinned !== undefined && { pinned: data.pinned }),
             },
         });
+
+        // If column name changed, rename the matching Status and update all tasks
+        if (data.name && data.name !== column.name) {
+            const matchingStatus = await prisma.status.findFirst({
+                where: {
+                    workspaceId: board.workspaceId,
+                    name: { equals: column.name, mode: "insensitive" },
+                },
+            });
+
+            if (matchingStatus) {
+                // Check uniqueness before renaming
+                const conflict = await prisma.status.findFirst({
+                    where: {
+                        workspaceId: board.workspaceId,
+                        name: { equals: data.name, mode: "insensitive" },
+                        id: { not: matchingStatus.id },
+                    },
+                });
+
+                if (!conflict) {
+                    const slug = data.name.toLowerCase().replace(/\s+/g, "_");
+
+                    await prisma.status.update({
+                        where: { id: matchingStatus.id },
+                        data: {
+                            name: data.name,
+                            ...(data.color !== undefined && { color: data.color }),
+                        },
+                    });
+
+                    // Update all tasks referencing this status
+                    await prisma.task.updateMany({
+                        where: { statusId: matchingStatus.id },
+                        data: { status: slug },
+                    });
+                }
+            }
+        }
         
         // Notify via Ably
         const boardChannel = getBoardChannel(board.workspaceId, updatedColumn.boardId);
@@ -115,16 +154,58 @@ export async function DELETE(
         // Move orphaned tasks to another column if available
         const remainingColumns = await prisma.column.findMany({
             where: { boardId: column.boardId, id: { not: params.id } },
-            select: { id: true },
+            select: { id: true, name: true },
             orderBy: { order: "asc" },
         });
 
         const fallbackColumnId = remainingColumns.length > 0 ? remainingColumns[0].id : null;
 
+        // Find the Status for the deleted column and the target column
+        const deletedColumnStatus = await prisma.status.findFirst({
+            where: {
+                workspaceId: board.workspaceId,
+                name: { equals: column.name, mode: "insensitive" },
+            },
+        });
+
+        let targetStatusSlug = "todo";
+        if (fallbackColumnId && remainingColumns.length > 0) {
+            const targetStatus = await prisma.status.findFirst({
+                where: {
+                    workspaceId: board.workspaceId,
+                    name: { equals: remainingColumns[0].name, mode: "insensitive" },
+                },
+            });
+            if (targetStatus) {
+                targetStatusSlug = targetStatus.name.toLowerCase().replace(/\s+/g, "_");
+            }
+        }
+
+        // Migrate tasks: update columnId AND status
         await prisma.task.updateMany({
             where: { columnId: params.id },
-            data: { columnId: fallbackColumnId },
+            data: {
+                columnId: fallbackColumnId,
+                ...(deletedColumnStatus && {
+                    statusId: deletedColumnStatus.id,
+                    status: targetStatusSlug,
+                }),
+            },
         });
+
+        // Delete the orphaned Status record
+        if (deletedColumnStatus) {
+            await prisma.status.delete({
+                where: { id: deletedColumnStatus.id },
+            });
+
+            // Publish status update via Ably
+            await publishToChannel(
+                getBoardChannel(board.workspaceId, column.boardId),
+                "status:deleted",
+                { id: deletedColumnStatus.id, workspaceId: board.workspaceId }
+            );
+        }
 
         await prisma.column.delete({
             where: { id: params.id },

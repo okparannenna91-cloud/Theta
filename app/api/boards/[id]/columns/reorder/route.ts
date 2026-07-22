@@ -51,6 +51,28 @@ export async function PATCH(
       )
     );
 
+    // Also update matching Status records order
+    for (const col of data.columnOrders) {
+      const column = await prisma.column.findUnique({
+        where: { id: col.id },
+        select: { name: true },
+      });
+      if (column) {
+        const matchingStatus = await prisma.status.findFirst({
+          where: {
+            workspaceId: board.workspaceId,
+            name: { equals: column.name, mode: "insensitive" },
+          },
+        });
+        if (matchingStatus) {
+          await prisma.status.update({
+            where: { id: matchingStatus.id },
+            data: { order: col.order },
+          });
+        }
+      }
+    }
+
     // Verify all columns were found (ownership check)
     const updatedCount = data.columnOrders.length;
     const affectedCount = await prisma.column.count({

@@ -180,7 +180,29 @@ export async function POST(req: Request) {
     });
 
     const defaultColumns = ["Todo", "In Progress", "Done"];
+
+    // Get existing workspace statuses to avoid duplicates
+    const existingStatuses = await prisma.status.findMany({
+      where: { workspaceId: project.workspaceId },
+      orderBy: { order: "asc" },
+    });
+
     for (let i = 0; i < defaultColumns.length; i++) {
+      // If a status with this name already exists, use it; otherwise create it
+      let status = existingStatuses.find(
+        (s) => s.name.toLowerCase() === defaultColumns[i].toLowerCase()
+      );
+
+      if (!status) {
+        status = await prisma.status.create({
+          data: {
+            name: defaultColumns[i],
+            order: i,
+            workspaceId: project.workspaceId,
+          },
+        });
+      }
+
       await prisma.column.create({
         data: {
           name: defaultColumns[i],
