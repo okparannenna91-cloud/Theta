@@ -126,7 +126,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
         }
     });
 
-    const { data: dbStatuses } = useStatuses(task?.projectId);
+    const { data: dbStatuses } = useStatuses(workspaceId, task?.projectId);
     const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
         id: getStatusValue(s.name),
         name: s.name,

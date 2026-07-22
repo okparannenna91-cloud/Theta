@@ -11,8 +11,8 @@ export interface Status {
     workspaceId: string;
 }
 
-async function fetchStatuses(projectId: string): Promise<Status[]> {
-    const res = await fetch(`/api/workspaces/dummy/statuses?projectId=${projectId}`);
+async function fetchStatuses(workspaceId: string, projectId: string): Promise<Status[]> {
+    const res = await fetch(`/api/workspaces/${workspaceId}/statuses?projectId=${projectId}`);
     if (!res.ok) throw new Error("Failed to fetch statuses");
     return res.json();
 }
@@ -23,11 +23,11 @@ async function fetchWorkspaceStatuses(workspaceId: string): Promise<Status[]> {
     return res.json();
 }
 
-export function useStatuses(projectId: string | null | undefined) {
+export function useStatuses(workspaceId: string | null | undefined, projectId: string | null | undefined) {
     return useQuery({
-        queryKey: ["statuses", projectId],
-        queryFn: () => fetchStatuses(projectId!),
-        enabled: !!projectId,
+        queryKey: ["statuses", workspaceId, projectId],
+        queryFn: () => fetchStatuses(workspaceId!, projectId!),
+        enabled: !!workspaceId && !!projectId,
         staleTime: 30_000,
     });
 }

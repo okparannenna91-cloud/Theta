@@ -40,7 +40,7 @@ export function CreateTaskDialog({
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
   const { showUpgradePrompt } = usePopups();
-  const { data: dbStatuses } = useStatuses(defaultProjectId);
+  const { data: dbStatuses } = useStatuses(activeWorkspaceId, defaultProjectId);
   const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
       id: getStatusValue(s.name),
       name: s.name,

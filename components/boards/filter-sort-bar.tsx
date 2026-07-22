@@ -92,7 +92,7 @@ export default function FilterSortBar({
   const [savedViewName, setSavedViewName] = useState("");
 
   const { activeWorkspaceId } = useWorkspace();
-  const { data: dbStatuses } = useStatuses(projectId);
+  const { data: dbStatuses } = useStatuses(activeWorkspaceId, projectId);
   const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
       id: getStatusValue(s.name),
       name: s.name,
