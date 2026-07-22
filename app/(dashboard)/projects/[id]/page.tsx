@@ -31,11 +31,8 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import Link from "next/link";
 import { ProjectTasksView } from "@/components/projects/project-tasks-view";
 import dynamic from "next/dynamic";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
-const KanbanBoard = dynamic(() => import("@/components/boards/kanban-board"), { ssr: false });
 const TimelineView = dynamic(() => import("@/components/projects/timeline-view").then(m => ({ default: m.TimelineView })), { ssr: false });
 const GanttChart = dynamic(() => import("@/components/projects/gantt-chart").then(m => ({ default: m.GanttChart })), { ssr: false });
 const CalendarView = dynamic(() => import("@/components/projects/calendar-view").then(m => ({ default: m.CalendarView })), { ssr: false });
@@ -43,10 +40,7 @@ const CustomFieldsEditor = dynamic(() => import("@/components/boards/custom-fiel
 import { InviteMemberDialog } from "@/components/projects/invite-member-dialog";
 import { ProjectTeamsTab } from "@/components/projects/project-teams-tab";
 import { ReportsTab } from "@/components/projects/project-reports-tab";
-import {
-    Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
+import BoardsPage from "@/components/boards/boards-page";
 
 async function fetchProject(id: string, workspaceId?: string | null) {
     const url = workspaceId ? `/api/projects/${id}?workspaceId=${workspaceId}` : `/api/projects/${id}`;
@@ -59,42 +53,11 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     const { activeWorkspaceId } = useWorkspace();
     const [view, setView] = useState("overview");
     const [isInviteOpen, setIsInviteOpen] = useState(false);
-    const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null);
-    const [showNewBoard, setShowNewBoard] = useState(false);
-    const [newBoardName, setNewBoardName] = useState("");
-    const [newBoardDescription, setNewBoardDescription] = useState("");
-    const queryClient = useQueryClient();
 
     const { data: project, isLoading } = useQuery({
         queryKey: ["project", params.id, activeWorkspaceId],
         queryFn: () => fetchProject(params.id, activeWorkspaceId),
         enabled: !!params.id,
-    });
-
-    const createBoardMutation = useMutation({
-        mutationFn: async () => {
-            const res = await fetch("/api/boards", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    name: newBoardName,
-                    description: newBoardDescription,
-                    projectId: params.id,
-                    workspaceId: activeWorkspaceId,
-                }),
-            });
-            if (!res.ok) throw new Error("Failed to create board");
-            return res.json();
-        },
-        onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["project", params.id, activeWorkspaceId] });
-            queryClient.invalidateQueries({ queryKey: ["boards", activeWorkspaceId] });
-            setShowNewBoard(false);
-            setNewBoardName("");
-            setNewBoardDescription("");
-            toast.success("Board created");
-        },
-        onError: (err: any) => toast.error(err.message),
     });
 
     if (isLoading) {
@@ -183,7 +146,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
-                            onClick={() => { setView(tab.id); setSelectedBoardId(null); }}
+                            onClick={() => setView(tab.id)}
                             className={cn(
                                 "flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-t-md transition-colors whitespace-nowrap border-b-2",
                                 view === tab.id
@@ -208,116 +171,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 )}
                 
                 {view === "board" && (
-                    <div className="space-y-6">
-                        {selectedBoardId ? (
-                            <KanbanBoard
-                                boardId={selectedBoardId}
-                                onBack={() => setSelectedBoardId(null)}
-                            />
-                        ) : (
-                            <>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h2 className="text-lg font-semibold">Boards</h2>
-                                        <p className="text-sm text-muted-foreground">Visual task management boards for this project</p>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <Badge variant="secondary" className="text-xs rounded-md px-3 py-1">
-                                            {project.boards?.length || 0} boards
-                                        </Badge>
-                                        <Dialog open={showNewBoard} onOpenChange={setShowNewBoard}>
-                                            <DialogTrigger asChild>
-                                                <Button size="sm">
-                                                    <Columns className="h-4 w-4 mr-2" />
-                                                    New Board
-                                                </Button>
-                                            </DialogTrigger>
-                                            <DialogContent>
-                                                <DialogHeader>
-                                                    <DialogTitle>Create Board</DialogTitle>
-                                                    <DialogDescription>Create a visual board for managing tasks in this project.</DialogDescription>
-                                                </DialogHeader>
-                                                <div className="space-y-4 py-2">
-                                                    <div>
-                                                        <label className="text-sm font-medium">Board Name</label>
-                                                        <Input
-                                                            value={newBoardName}
-                                                            onChange={e => setNewBoardName(e.target.value)}
-                                                            placeholder="e.g. Product Roadmap"
-                                                            className="mt-1"
-                                                            autoFocus
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-sm font-medium">Description (optional)</label>
-                                                        <Input
-                                                            value={newBoardDescription}
-                                                            onChange={e => setNewBoardDescription(e.target.value)}
-                                                            placeholder="What is this board for?"
-                                                            className="mt-1"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <DialogFooter>
-                                                    <Button variant="outline" onClick={() => setShowNewBoard(false)}>Cancel</Button>
-                                                    <Button
-                                                        onClick={() => createBoardMutation.mutate()}
-                                                        disabled={!newBoardName.trim() || createBoardMutation.isPending}
-                                                    >
-                                                        {createBoardMutation.isPending ? "Creating..." : "Create Board"}
-                                                    </Button>
-                                                </DialogFooter>
-                                            </DialogContent>
-                                        </Dialog>
-                                    </div>
-                                </div>
-
-                                {project.boards?.length > 0 ? (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                        {project.boards.map((board: any) => (
-                                            <div
-                                                key={board.id}
-                                                onClick={() => setSelectedBoardId(board.id)}
-                                                className="cursor-pointer"
-                                            >
-                                                <Card className="border shadow-sm hover:border-primary/30 hover:shadow-md transition-all">
-                                                    <CardHeader className="pb-3">
-                                                        <div className="flex items-center justify-between">
-                                                            <div className="flex items-center gap-3">
-                                                                <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                                                                    <Columns className="h-4 w-4 text-primary" />
-                                                                </div>
-                                                                <CardTitle className="text-sm font-semibold">{board.name}</CardTitle>
-                                                            </div>
-                                                            <div className="h-2 w-2 rounded-full bg-emerald-500" />
-                                                        </div>
-                                                    </CardHeader>
-                                                    <CardContent>
-                                                        <p className="text-xs text-muted-foreground">
-                                                            {board._count?.tasks || 0} tasks
-                                                        </p>
-                                                    </CardContent>
-                                                </Card>
-                                            </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <Card className="border-2 border-dashed border-border">
-                                        <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                                            <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
-                                                <Columns className="h-6 w-6 text-muted-foreground" />
-                                            </div>
-                                            <h3 className="text-sm font-semibold mb-1">No boards yet</h3>
-                                            <p className="text-sm text-muted-foreground mb-6 max-w-sm">
-                                                Create a board to visually manage your project tasks.
-                                            </p>
-                                            <Button variant="outline" onClick={() => setShowNewBoard(true)}>Create Board</Button>
-                                        </CardContent>
-                                    </Card>
-                                )}
-                            </>
-                        )}
-                    </div>
+                    <BoardsPage projectId={params.id} />
                 )}
 
                 {view === "custom-fields" && (
