@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 
 interface Subtask {
     id: string;
@@ -26,10 +27,7 @@ export function TaskSubtasks({ taskId, workspaceId }: TaskSubtasksProps) {
 
     const invalidateRelated = () => {
         queryClient.invalidateQueries({ queryKey: ["subtasks", taskId] });
-        if (workspaceId) {
-            queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
-            queryClient.invalidateQueries({ queryKey: ["board"] });
-        }
+        invalidateTaskCaches({ queryClient, workspaceId });
     };
 
     const { data: subtasks, isLoading, error: subtasksError } = useQuery<Subtask[]>({

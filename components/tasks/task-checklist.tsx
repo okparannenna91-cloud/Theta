@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 
 interface ChecklistItem {
     id: string;
@@ -28,8 +29,7 @@ export function TaskChecklist({ taskId, workspaceId }: TaskChecklistProps) {
 
     const invalidateRelated = () => {
         queryClient.invalidateQueries({ queryKey: ["checklist", taskId] });
-        queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
-        queryClient.invalidateQueries({ queryKey: ["board"] });
+        invalidateTaskCaches({ queryClient, workspaceId });
     };
 
     const { data: items, isLoading, error: itemsError } = useQuery<ChecklistItem[]>({

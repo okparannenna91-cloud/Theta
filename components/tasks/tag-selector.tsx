@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 
 interface Tag {
     id: string;
@@ -101,8 +102,7 @@ export function TagSelector({ taskId, workspaceId, currentTagIds }: TagSelectorP
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
-            queryClient.invalidateQueries({ queryKey: ["board"] });
+            invalidateTaskCaches({ queryClient, workspaceId });
         },
     });
 

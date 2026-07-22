@@ -18,6 +18,7 @@ import { AiGenerator } from "@/components/ai/ai-generator";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
 import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
+import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { TaskDialog } from "./task-dialog";
 import { toast } from "sonner";
 
@@ -96,7 +97,7 @@ export default function TasksPage() {
   const createMutation = useMutation({
     mutationFn: (data: any) => createTask({ ...data, workspaceId: activeWorkspaceIdRef.current! }),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceIdRef.current] });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceIdRef.current });
       setIsOpen(false);
       setTitle(""); setDescription(""); setStatus("todo"); setPriority("medium"); setProjectId(""); setCoverImage("");
       toast.success("Task created successfully");
@@ -106,13 +107,13 @@ export default function TasksPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: any }) => updateTask(id, data),
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceIdRef.current] }); },
+    onSuccess: () => { invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceIdRef.current }); },
     onError: (error: any) => { toast.error(error.message || "Failed to update task"); },
   });
 
   const deleteMutation = useMutation({
     mutationFn: deleteTask,
-    onSuccess: () => { queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceIdRef.current] }); },
+    onSuccess: () => { invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceIdRef.current }); },
     onError: (error: any) => { toast.error(error.message || "Failed to delete task"); },
   });
 

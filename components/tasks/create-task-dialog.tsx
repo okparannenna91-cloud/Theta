@@ -14,6 +14,7 @@ import { Sparkles } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
 import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
+import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { toast } from "sonner";
 
 interface CreateTaskDialogProps {
@@ -85,8 +86,7 @@ export function CreateTaskDialog({
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["timeline-tasks", activeWorkspaceId] });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       onOpenChange(false);
       setTitle("");

@@ -31,6 +31,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
+import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { TaskSubtasks } from "./task-subtasks";
 import { TaskComments } from "./task-comments";
 import { TagSelector } from "./tag-selector";
@@ -165,8 +166,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["board"] });
-            queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
+            invalidateTaskCaches({ queryClient, workspaceId });
             setLastSaved(new Date());
         },
         onError: (error: any) => {
@@ -192,8 +192,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["board"] });
-            queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
+            invalidateTaskCaches({ queryClient, workspaceId });
             toast.success("Task deleted");
             onClose();
         },

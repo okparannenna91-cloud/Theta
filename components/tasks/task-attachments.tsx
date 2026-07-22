@@ -8,6 +8,7 @@ import { FileUpload } from "@/components/common/file-upload";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
+import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 
 interface Attachment {
     url: string;
@@ -42,8 +43,7 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["board"] });
-            queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
+            invalidateTaskCaches({ queryClient, workspaceId });
             toast.success("Attachments updated");
         },
     });

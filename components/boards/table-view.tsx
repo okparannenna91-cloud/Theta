@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 
 import { cn } from "@/lib/utils";
+import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -110,7 +111,7 @@ export default function TableView({
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      invalidateTaskCaches({ queryClient, workspaceId })
       toast.success("Cell updated");
     },
     onError: () => toast.error("Failed to update cell"),
@@ -323,7 +324,7 @@ export default function TableView({
                   priority: "medium",
                   status: "todo",
                 }),
-              }).then(() => queryClient.invalidateQueries({ queryKey: ["board", boardId] }));
+              }).then(() => invalidateTaskCaches({ queryClient, workspaceId }));
             }}
           >
             <Plus className="h-3 w-3" /> Add Item
@@ -407,7 +408,7 @@ export default function TableView({
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ width: parseInt(e.target.value) || 200 }),
-                  }).then(() => queryClient.invalidateQueries({ queryKey: ["board", boardId] }));
+                  }).then(() => invalidateTaskCaches({ queryClient, workspaceId }));
                 }}
               />
             </div>
@@ -421,7 +422,7 @@ export default function TableView({
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ visible: false }),
-                  }).then(() => queryClient.invalidateQueries({ queryKey: ["board", boardId] }));
+                  }).then(() => invalidateTaskCaches({ queryClient, workspaceId }));
                 }}
               >
                 <EyeOff className="h-3 w-3" /> Hide
@@ -435,7 +436,7 @@ export default function TableView({
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ pinned: !col.pinned }),
-                  }).then(() => queryClient.invalidateQueries({ queryKey: ["board", boardId] }));
+                  }).then(() => invalidateTaskCaches({ queryClient, workspaceId }));
                 }}
               >
                 <Pin className="h-3 w-3" /> Pin
@@ -446,7 +447,7 @@ export default function TableView({
                   const col = columnSettings;
                   if (!col) return;
                   fetch(`/api/columns/${col.id}`, { method: "DELETE" })
-                    .then(() => { queryClient.invalidateQueries({ queryKey: ["board", boardId] }); setColumnSettings(null); });
+                    .then(() => { invalidateTaskCaches({ queryClient, workspaceId }); setColumnSettings(null); });
                 }}
               >
                 <Trash2 className="h-3 w-3" /> Delete

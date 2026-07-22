@@ -76,6 +76,7 @@ import { TaskDialog } from "@/components/tasks/task-dialog";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useAbly } from "@/hooks/use-ably";
 import { usePopups } from "@/components/popups/popup-manager";
+import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { getBoardChannel } from "@/lib/ably";
 
 async function fetchBoard(id: string) {
@@ -323,7 +324,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     if (reorderRef.current > 0) return;
     if (ablyTimerRef.current) clearTimeout(ablyTimerRef.current);
     ablyTimerRef.current = setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
     }, 500);
   }, [queryClient, boardId]);
 
@@ -404,7 +405,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
       setIsEditingHeader(false);
       toast.success("Board updated");
     },
@@ -429,7 +430,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const createColumnMutation = useMutation({
     mutationFn: (name: string) => createColumn(boardId, name),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
       setIsColumnDialogOpen(false);
       setNewColumnName("");
       toast.success("Column created");
@@ -439,7 +440,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const deleteColumnMutation = useMutation({
     mutationFn: (columnId: string) => deleteColumn(columnId),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
       toast.success("Column deleted");
     },
     onError: (err: any) => toast.error(err.message || "Failed to delete column"),
@@ -479,7 +480,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
       setIsTaskDialogOpen(false);
       setNewTaskTitle("");
       setTargetColumnId(null);
@@ -529,7 +530,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       toast.error("Failed to update column");
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
       setEditingColumn(null);
       toast.success("Column updated");
     },
@@ -546,7 +547,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       return res.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
       setSelectedTaskIds([]);
       toast.success("Tasks deleted successfully");
     },
@@ -748,7 +749,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     } finally {
       dragStartBoardRef.current = null;
       reorderRef.current += 1;
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
     }
   }, [queryClient, boardId]);
 
@@ -1090,7 +1091,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
         isOpen={!!selectedTask}
         onClose={() => {
           setSelectedTask(null);
-          queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+          invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
         }}
         workspaceId={activeWorkspaceId || ""}
       />

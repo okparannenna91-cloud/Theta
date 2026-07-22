@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2 } from "lucide-react";
 import { AiGenerator } from "@/components/ai/ai-generator";
 import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
+import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { toast } from "sonner";
 
@@ -67,8 +68,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["tasks", project.workspaceId, "project", project.id] });
-            queryClient.invalidateQueries({ queryKey: ["board"] });
+            invalidateTaskCaches({ queryClient, workspaceId: project.workspaceId, projectId: project.id });
             setShowCreate(false);
             setTitle(""); setDescription(""); setStatus("todo"); setPriority("medium");
             toast.success("Task created");
@@ -87,8 +87,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["tasks", project.workspaceId, "project", project.id] });
-            queryClient.invalidateQueries({ queryKey: ["board"] });
+            invalidateTaskCaches({ queryClient, workspaceId: project.workspaceId, projectId: project.id });
         },
     });
 
@@ -99,8 +98,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
             return res.json();
         },
         onSuccess: () => {
-            queryClient.invalidateQueries({ queryKey: ["tasks", project.workspaceId, "project", project.id] });
-            queryClient.invalidateQueries({ queryKey: ["board"] });
+            invalidateTaskCaches({ queryClient, workspaceId: project.workspaceId, projectId: project.id });
             toast.success("Task deleted");
         },
         onError: (error: any) => { toast.error(error.message); },
