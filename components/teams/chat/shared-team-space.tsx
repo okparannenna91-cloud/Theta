@@ -19,7 +19,6 @@ interface TeamOverview {
   completedTasks: number;
   upcomingDeadlines: { title: string; dueDate: string }[];
   memberCount: number;
-  sprintProgress?: number;
 }
 
 export default function SharedTeamSpace({ workspaceId, teamId }: { workspaceId: string; teamId: string }) {
@@ -39,7 +38,6 @@ export default function SharedTeamSpace({ workspaceId, teamId }: { workspaceId: 
         const projList = Array.isArray(projects) ? projects : projects?.projects ?? [];
         const taskList = Array.isArray(tasks) ? tasks : tasks?.tasks ?? [];
         const memberList = Array.isArray(members) ? members : members?.members ?? [];
-        const allTasks = Array.isArray(tasks) ? tasks : [];
 
         setOverview({
           projects: projList.length,
@@ -50,9 +48,6 @@ export default function SharedTeamSpace({ workspaceId, teamId }: { workspaceId: 
             .slice(0, 3)
             .map((t: any) => ({ title: t.title, dueDate: t.dueDate })),
           memberCount: memberList.length,
-          sprintProgress: allTasks.length > 0
-            ? Math.round((taskList.filter((t: any) => t.status === "done" || t.status === "completed").length / allTasks.length) * 100)
-            : 0,
         });
       })
       .catch(() => {})
@@ -117,23 +112,6 @@ export default function SharedTeamSpace({ workspaceId, teamId }: { workspaceId: 
                       <span className="text-lg font-bold text-foreground">{overview.memberCount}</span>
                     </div>
                   </div>
-
-                  {overview.sprintProgress != null && overview.sprintProgress > 0 && (
-                    <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-xs text-muted-foreground">Sprint Progress</span>
-                        <span className="text-xs font-semibold text-foreground">{overview.sprintProgress}%</span>
-                      </div>
-                      <div className="h-2 rounded-full bg-muted overflow-hidden">
-                        <motion.div
-                          initial={{ width: 0 }}
-                          animate={{ width: `${overview.sprintProgress}%` }}
-                          transition={{ duration: 0.8, ease: "easeOut" }}
-                          className="h-full rounded-full bg-gradient-to-r from-primary to-emerald-500"
-                        />
-                      </div>
-                    </div>
-                  )}
 
                   {overview.upcomingDeadlines.length > 0 && (
                     <div>

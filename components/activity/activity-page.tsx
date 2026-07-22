@@ -499,7 +499,6 @@ export default function ActivityPage() {
         { value: "members", label: "Members" },
         { value: "ai", label: "AI" },
         { value: "integrations", label: "Integrations" },
-        { value: "documents", label: "Documents" },
         { value: "files", label: "Files" },
     ];
 

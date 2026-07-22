@@ -95,12 +95,6 @@
       "short_name": "Tasks",
       "url": "/tasks",
       "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Documents",
-      "short_name": "Docs",
-      "url": "/documents",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
     }
   ],
   "prefer_related_applications": false

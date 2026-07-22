@@ -3,14 +3,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ProjectOverview } from "@/components/projects/project-overview";
 import { ProjectActivity } from "@/components/projects/project-activity";
 import { ProjectSettings } from "@/components/projects/project-settings";
 import { ProjectAnalytics } from "@/components/projects/project-analytics";
-import { DocumentList } from "@/components/documents/document-list";
-import { DocumentEditor } from "@/components/documents/document-editor";
-import { MeetingList } from "@/components/meetings/meeting-list";
 import { AutomationList } from "@/components/automations/automation-list";
 import { 
     ArrowLeft, 
@@ -23,16 +19,9 @@ import {
     Activity as ActivityIcon,
     Settings,
     Users as UsersIcon,
-    MessageSquare,
     Calendar,
     Zap,
-    FileText,
     Sliders,
-    Plus,
-    CalendarCheck,
-    Target,
-    Clock,
-    ClipboardList,
     BarChart3,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -50,13 +39,10 @@ const KanbanBoard = dynamic(() => import("@/components/boards/kanban-board"), { 
 const TimelineView = dynamic(() => import("@/components/projects/timeline-view").then(m => ({ default: m.TimelineView })), { ssr: false });
 const GanttChart = dynamic(() => import("@/components/projects/gantt-chart").then(m => ({ default: m.GanttChart })), { ssr: false });
 const CalendarView = dynamic(() => import("@/components/projects/calendar-view").then(m => ({ default: m.CalendarView })), { ssr: false });
-const SprintBoard = dynamic(() => import("@/components/sprints/sprint-board"), { ssr: false });
 const CustomFieldsEditor = dynamic(() => import("@/components/boards/custom-fields-editor"), { ssr: false });
 import { InviteMemberDialog } from "@/components/projects/invite-member-dialog";
 import { ProjectTeamsTab } from "@/components/projects/project-teams-tab";
 import { ReportsTab } from "@/components/projects/project-reports-tab";
-import GoalDashboard from "@/components/goals/goal-dashboard";
-import FormBuilder from "@/components/forms/form-builder";
 import {
     Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from "@/components/ui/dialog";
@@ -73,9 +59,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
     const { activeWorkspaceId } = useWorkspace();
     const [view, setView] = useState("overview");
     const [isInviteOpen, setIsInviteOpen] = useState(false);
-    const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
-    const [showNewDoc, setShowNewDoc] = useState(false);
-    const [newDocTitle, setNewDocTitle] = useState("");
     const [showNewBoard, setShowNewBoard] = useState(false);
     const [newBoardName, setNewBoardName] = useState("");
     const [newBoardDescription, setNewBoardDescription] = useState("");
@@ -85,30 +68,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         queryKey: ["project", params.id, activeWorkspaceId],
         queryFn: () => fetchProject(params.id, activeWorkspaceId),
         enabled: !!params.id,
-    });
-
-    const createDocMutation = useMutation({
-        mutationFn: async () => {
-            const res = await fetch("/api/documents", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    title: newDocTitle,
-                    workspaceId: activeWorkspaceId,
-                    projectId: params.id,
-                }),
-            });
-            if (!res.ok) throw new Error("Failed to create document");
-            return res.json();
-        },
-        onSuccess: (doc) => {
-            queryClient.invalidateQueries({ queryKey: ["documents"] });
-            setSelectedDocId(doc.id);
-            setShowNewDoc(false);
-            setNewDocTitle("");
-            toast.success("Document created");
-        },
-        onError: () => toast.error("Failed to create document"),
     });
 
     const createBoardMutation = useMutation({
@@ -174,13 +133,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
         { id: "calendar", label: "Calendar", icon: CalendarDays },
         { id: "timeline", label: "Timeline", icon: Calendar },
         { id: "gantt", label: "Gantt", icon: GanttIcon },
-        { id: "sprints", label: "Sprints", icon: Zap },
-        { id: "goals", label: "Goals", icon: Target },
         { id: "team", label: "Team", icon: UsersIcon },
-        { id: "time", label: "Time", icon: Clock },
-        { id: "documents", label: "Documents", icon: FileText },
-        { id: "meetings", label: "Meetings", icon: CalendarCheck },
-        { id: "forms", label: "Forms", icon: ClipboardList },
         { id: "automations", label: "Automations", icon: Zap },
         { id: "reports", label: "Reports", icon: BarChart3 },
         { id: "analytics", label: "Analytics", icon: TrendingUp },
@@ -229,7 +182,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     {tabs.map((tab) => (
                         <button
                             key={tab.id}
-                            onClick={() => { setView(tab.id); if (tab.id !== "documents") setSelectedDocId(null); }}
+                            onClick={() => setView(tab.id)}
                             className={cn(
                                 "flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-t-md transition-colors whitespace-nowrap border-b-2",
                                 view === tab.id
@@ -353,91 +306,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     </div>
                 )}
 
-                {view === "sprints" && (
-                    <div className="space-y-6">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h2 className="text-lg font-semibold">Sprints</h2>
-                                <p className="text-sm text-muted-foreground">Manage iterative work cycles for this project</p>
-                            </div>
-                        </div>
-                        {activeWorkspaceId && (
-                            <SprintBoard projectId={params.id} workspaceId={activeWorkspaceId} />
-                        )}
-                    </div>
-                )}
-
-                {view === "documents" && (
-                    <div className="space-y-6">
-                        {selectedDocId ? (
-                            <DocumentEditor
-                                documentId={selectedDocId}
-                                onBack={() => setSelectedDocId(null)}
-                            />
-                        ) : (
-                            <>
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <h2 className="text-lg font-semibold">Documents</h2>
-                                        <p className="text-sm text-muted-foreground">Project wiki, specs, and documentation</p>
-                                    </div>
-                                    <Dialog open={showNewDoc} onOpenChange={setShowNewDoc}>
-                                        <DialogTrigger asChild>
-                                            <Button size="sm">
-                                                <Plus className="h-4 w-4 mr-2" />
-                                                New Document
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader>
-                                                <DialogTitle>New Document</DialogTitle>
-                                                <DialogDescription>Create a new document for this project</DialogDescription>
-                                            </DialogHeader>
-                                            <div className="py-4">
-                                                <Input
-                                                    placeholder="Document title"
-                                                    value={newDocTitle}
-                                                    onChange={(e) => setNewDocTitle(e.target.value)}
-                                                    onKeyDown={(e) => {
-                                                        if (e.key === "Enter" && newDocTitle.trim()) {
-                                                            createDocMutation.mutate();
-                                                        }
-                                                    }}
-                                                    autoFocus
-                                                />
-                                            </div>
-                                            <DialogFooter>
-                                                <Button variant="outline" size="sm" onClick={() => setShowNewDoc(false)}>Cancel</Button>
-                                                <Button
-                                                    size="sm"
-                                                    onClick={() => createDocMutation.mutate()}
-                                                    disabled={!newDocTitle.trim() || createDocMutation.isPending}
-                                                >
-                                                    {createDocMutation.isPending ? "Creating..." : "Create"}
-                                                </Button>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
-                                </div>
-                                <DocumentList
-                                    projectId={params.id}
-                                    onSelectDocument={setSelectedDocId}
-                                />
-                            </>
-                        )}
-                    </div>
-                )}
-
-                {view === "meetings" && (
-                    <div className="space-y-6">
-                        <div>
-                            <h2 className="text-lg font-semibold">Meetings</h2>
-                            <p className="text-sm text-muted-foreground">AI-powered meeting intelligence with agenda generation and post-briefs</p>
-                        </div>
-                        <MeetingList projectId={params.id} />
-                    </div>
-                )}
-
                 {view === "custom-fields" && (
                     <div className="space-y-6">
                         <div>
@@ -497,47 +365,6 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                     <ProjectTeamsTab projectId={project.id} workspaceId={project.workspaceId} />
                 )}
                 
-                {view === "goals" && (
-                    <div className="space-y-6">
-                        <div>
-                            <h2 className="text-lg font-semibold">Goals</h2>
-                            <p className="text-sm text-muted-foreground">OKRs, milestones, and targets for this project</p>
-                        </div>
-                        <GoalDashboard workspaceId={project.workspaceId} projectId={project.id} />
-                    </div>
-                )}
-
-                {view === "time" && (
-                    <div className="space-y-6">
-                        <div>
-                            <h2 className="text-lg font-semibold">Time Tracking</h2>
-                            <p className="text-sm text-muted-foreground">Track time, manage logs, and generate reports</p>
-                        </div>
-                        <Card>
-                            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                                <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center mb-4">
-                                    <Clock className="h-6 w-6 text-primary" />
-                                </div>
-                                <h3 className="text-sm font-semibold mb-1">Time tracking coming soon</h3>
-                                <p className="text-sm text-muted-foreground mb-6 max-w-sm">
-                                    Track time against tasks in this project, generate reports, and manage billable hours.
-                                </p>
-                                <Button variant="outline" disabled>Time Tracking</Button>
-                            </CardContent>
-                        </Card>
-                    </div>
-                )}
-
-                {view === "forms" && (
-                    <div className="space-y-6">
-                        <div>
-                            <h2 className="text-lg font-semibold">Forms</h2>
-                            <p className="text-sm text-muted-foreground">Build and manage forms for this project</p>
-                        </div>
-                        <FormBuilder workspaceId={project.workspaceId} />
-                    </div>
-                )}
-
                 {view === "reports" && (
                     <ReportsTab projectId={project.id} workspaceId={project.workspaceId} projectName={project.name} />
                 )}

@@ -7,8 +7,6 @@ const STATIC_ASSETS = [
   "/dashboard",
   "/projects",
   "/tasks",
-  "/documents",
-  "/meetings",
   "/calendar",
   "/boards",
   "/manifest.json",
