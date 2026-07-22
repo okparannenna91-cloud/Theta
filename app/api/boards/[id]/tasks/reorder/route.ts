@@ -56,13 +56,31 @@ export async function PATCH(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    // Resolve the status for each target column
+    const columnIds = [...new Set(updates.map((u) => u.columnId))];
+    const columns = await prisma.column.findMany({
+      where: { id: { in: columnIds } },
+      select: { id: true, name: true },
+    });
+    const statusMap: Record<string, { slug: string; statusId: string | null }> = {};
+    for (const col of columns) {
+      const slug = col.name.toLowerCase().replace(/\s+/g, "_");
+      const status = await prisma.status.findFirst({
+        where: { workspaceId: board.workspaceId, name: { equals: col.name, mode: "insensitive" } },
+      });
+      statusMap[col.id] = { slug, statusId: status?.id ?? null };
+    }
+
     const results = await prisma.$transaction(
-      updates.map((update) =>
-        prisma.task.update({
+      updates.map((update) => {
+        const resolved = statusMap[update.columnId] ?? { slug: "todo", statusId: null };
+        return prisma.task.update({
           where: { id: update.id },
           data: {
             columnId: update.columnId,
             order: update.order,
+            status: resolved.slug,
+            ...(resolved.statusId && { statusId: resolved.statusId }),
           },
           include: {
             project: { select: { id: true, name: true } },
@@ -70,8 +88,8 @@ export async function PATCH(
             tags: true,
             _count: { select: { comments: true } },
           },
-        })
-      )
+        });
+      })
     );
 
     const workspaceChannel = getWorkspaceChannel(board.workspaceId);

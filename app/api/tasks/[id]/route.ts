@@ -143,6 +143,32 @@ export async function PATCH(
                 updateData.completedAt = null;
             }
         }
+
+        // Auto-set columnId: find the Kanban column whose name matches the new status
+        if (task.boardId && !data.columnId) {
+            const matchingColumn = await prisma.column.findFirst({
+                where: {
+                    boardId: task.boardId,
+                    name: { equals: data.status.replace(/_/g, " "), mode: "insensitive" },
+                },
+            });
+            if (matchingColumn) {
+                updateData.columnId = matchingColumn.id;
+            }
+        }
+    }
+
+    // Reverse guard: columnId changed but status didn't → sync status from column name
+    if (data.columnId && !data.status && data.columnId !== task.columnId) {
+        const column = await prisma.column.findUnique({ where: { id: data.columnId }, select: { name: true } });
+        if (column) {
+            const slug = column.name.toLowerCase().replace(/\s+/g, "_");
+            const statusRecord = await prisma.status.findFirst({
+                where: { workspaceId: task.workspaceId, name: { equals: column.name, mode: "insensitive" } },
+            });
+            updateData.status = slug;
+            if (statusRecord) updateData.statusId = statusRecord.id;
+        }
     }
 
     const updated = await prisma.task.update({
