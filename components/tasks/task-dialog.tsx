@@ -126,7 +126,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
         }
     });
 
-    const { data: dbStatuses } = useStatuses(workspaceId);
+    const { data: dbStatuses } = useStatuses(task?.projectId);
     const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
         id: getStatusValue(s.name),
         name: s.name,
@@ -166,7 +166,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             return res.json();
         },
         onSuccess: () => {
-            invalidateTaskCaches({ queryClient, workspaceId });
+            invalidateTaskCaches({ queryClient, workspaceId, projectId: task?.projectId });
             setLastSaved(new Date());
         },
         onError: (error: any) => {
@@ -192,7 +192,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             return res.json();
         },
         onSuccess: () => {
-            invalidateTaskCaches({ queryClient, workspaceId });
+            invalidateTaskCaches({ queryClient, workspaceId, projectId: task?.projectId });
             toast.success("Task deleted");
             onClose();
         },

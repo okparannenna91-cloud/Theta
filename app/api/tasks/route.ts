@@ -197,12 +197,12 @@ export async function POST(req: Request) {
     // Find the correct statusId (Relationship Consistency Fix)
     const statusRecord = await prisma.status.findFirst({
         where: { 
-            workspaceId: data.workspaceId,
+            projectId: data.projectId,
             name: { equals: data.status, mode: 'insensitive' }
         }
     }) || await prisma.status.findFirst({
         where: { 
-            workspaceId: data.workspaceId,
+            projectId: data.projectId,
             name: { equals: 'Todo', mode: 'insensitive' }
         }
     });

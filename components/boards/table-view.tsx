@@ -27,6 +27,7 @@ interface TableViewProps {
   groups: any[];
   onSelectTask: (task: any) => void;
   workspaceId: string;
+  projectId?: string | null;
 }
 
 export default function TableView({
@@ -35,7 +36,8 @@ export default function TableView({
   columns,
   groups,
   onSelectTask,
-  workspaceId
+  workspaceId,
+  projectId
 }: TableViewProps) {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -111,7 +113,7 @@ export default function TableView({
       return res.json();
     },
     onSuccess: () => {
-      invalidateTaskCaches({ queryClient, workspaceId })
+      invalidateTaskCaches({ queryClient, workspaceId, projectId })
       toast.success("Cell updated");
     },
     onError: () => toast.error("Failed to update cell"),
@@ -324,7 +326,7 @@ export default function TableView({
                   priority: "medium",
                   status: "todo",
                 }),
-              }).then(() => invalidateTaskCaches({ queryClient, workspaceId }));
+              }).then(() => invalidateTaskCaches({ queryClient, workspaceId, projectId }));
             }}
           >
             <Plus className="h-3 w-3" /> Add Item
@@ -408,7 +410,7 @@ export default function TableView({
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ width: parseInt(e.target.value) || 200 }),
-                  }).then(() => invalidateTaskCaches({ queryClient, workspaceId }));
+                  }).then(() => invalidateTaskCaches({ queryClient, workspaceId, projectId }));
                 }}
               />
             </div>
@@ -422,7 +424,7 @@ export default function TableView({
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ visible: false }),
-                  }).then(() => invalidateTaskCaches({ queryClient, workspaceId }));
+                  }).then(() => invalidateTaskCaches({ queryClient, workspaceId, projectId }));
                 }}
               >
                 <EyeOff className="h-3 w-3" /> Hide
@@ -436,7 +438,7 @@ export default function TableView({
                     method: "PATCH",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ pinned: !col.pinned }),
-                  }).then(() => invalidateTaskCaches({ queryClient, workspaceId }));
+                  }).then(() => invalidateTaskCaches({ queryClient, workspaceId, projectId }));
                 }}
               >
                 <Pin className="h-3 w-3" /> Pin
@@ -447,7 +449,7 @@ export default function TableView({
                   const col = columnSettings;
                   if (!col) return;
                   fetch(`/api/columns/${col.id}`, { method: "DELETE" })
-                    .then(() => { invalidateTaskCaches({ queryClient, workspaceId }); setColumnSettings(null); });
+                    .then(() => { invalidateTaskCaches({ queryClient, workspaceId, projectId }); setColumnSettings(null); });
                 }}
               >
                 <Trash2 className="h-3 w-3" /> Delete

@@ -20,7 +20,12 @@ export function invalidateTaskCaches({
         // Invalidate workspace-scoped task queries
         queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
         queryClient.invalidateQueries({ queryKey: ["timeline-tasks", workspaceId] });
-        queryClient.invalidateQueries({ queryKey: ["statuses", workspaceId] });
+        queryClient.invalidateQueries({ queryKey: ["workspace-statuses", workspaceId] });
+    }
+
+    if (projectId) {
+        // Invalidate project-scoped status queries
+        queryClient.invalidateQueries({ queryKey: ["statuses", projectId] });
     }
 
     if (workspaceId && projectId) {

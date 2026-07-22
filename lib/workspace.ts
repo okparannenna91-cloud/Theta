@@ -233,30 +233,10 @@ export async function createWorkspace(
     );
   }
 
-  // Step 3: Create default statuses
-  try {
-    await prisma.status.createMany({
-      data: [
-        { workspaceId: workspace.id, name: "Todo", color: "#64748b", order: 0 },
-        { workspaceId: workspace.id, name: "In Progress", color: "#3b82f6", order: 1 },
-        { workspaceId: workspace.id, name: "Done", color: "#22c55e", order: 2 },
-      ]
-    });
-    logger.info(`[createWorkspace] Default statuses created for workspace "${workspace.id}"`);
-  } catch (statusError: any) {
-    logger.error(`[createWorkspace] Step 3 FAILED - default statuses for workspace "${workspace.id}": code=${statusError.code}, message=${statusError.message}`, statusError);
-    // Rollback: delete workspace and membership if status creation fails
-    try {
-      await prisma.workspaceMember.deleteMany({ where: { workspaceId: workspace.id } });
-      await prisma.workspace.delete({ where: { id: workspace.id } });
-    } catch (rollbackError: any) {
-      logger.error(`[createWorkspace] Rollback after status failure also failed for workspace "${workspace.id}": code=${rollbackError.code}, message=${rollbackError.message}`, rollbackError);
-    }
-    throw new Error(
-      `Failed to create default statuses for workspace. Prisma error code: ${statusError.code || "unknown"}. ` +
-      `Message: ${statusError.message || statusError}`
-    );
-  }
+  // Step 3: Default statuses are now created per-project when a board is created.
+  // No workspace-level status seeding needed.
+
+  logger.info(`[createWorkspace] Workspace "${workspace.id}" created successfully`);
 
   // Step 4: Fetch final workspace with members included for the response
   let result: any;

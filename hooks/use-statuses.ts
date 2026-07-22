@@ -7,19 +7,35 @@ export interface Status {
     name: string;
     color: string | null;
     order: number;
+    projectId: string;
     workspaceId: string;
 }
 
-async function fetchStatuses(workspaceId: string): Promise<Status[]> {
-    const res = await fetch(`/api/workspaces/${workspaceId}/statuses`);
+async function fetchStatuses(projectId: string): Promise<Status[]> {
+    const res = await fetch(`/api/workspaces/dummy/statuses?projectId=${projectId}`);
     if (!res.ok) throw new Error("Failed to fetch statuses");
     return res.json();
 }
 
-export function useStatuses(workspaceId: string | null | undefined) {
+async function fetchWorkspaceStatuses(workspaceId: string): Promise<Status[]> {
+    const res = await fetch(`/api/workspaces/${workspaceId}/statuses-all`);
+    if (!res.ok) throw new Error("Failed to fetch statuses");
+    return res.json();
+}
+
+export function useStatuses(projectId: string | null | undefined) {
     return useQuery({
-        queryKey: ["statuses", workspaceId],
-        queryFn: () => fetchStatuses(workspaceId!),
+        queryKey: ["statuses", projectId],
+        queryFn: () => fetchStatuses(projectId!),
+        enabled: !!projectId,
+        staleTime: 30_000,
+    });
+}
+
+export function useWorkspaceStatuses(workspaceId: string | null | undefined) {
+    return useQuery({
+        queryKey: ["workspace-statuses", workspaceId],
+        queryFn: () => fetchWorkspaceStatuses(workspaceId!),
         enabled: !!workspaceId,
         staleTime: 30_000,
     });

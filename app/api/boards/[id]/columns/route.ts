@@ -57,14 +57,14 @@ export async function POST(
         // Also create a matching workflow status if one doesn't exist with this name
         const existingStatus = await prisma.status.findFirst({
             where: {
-                workspaceId: board.workspaceId,
+                projectId: board.projectId,
                 name: { equals: data.name, mode: "insensitive" },
             },
         });
 
         if (!existingStatus) {
             const lastStatus = await prisma.status.findFirst({
-                where: { workspaceId: board.workspaceId },
+                where: { projectId: board.projectId },
                 orderBy: { order: "desc" },
             });
 
@@ -73,6 +73,7 @@ export async function POST(
                     name: data.name,
                     color: data.color || "#4f46e5",
                     order: (lastStatus?.order ?? -1) + 1,
+                    projectId: board.projectId,
                     workspaceId: board.workspaceId,
                 },
             });

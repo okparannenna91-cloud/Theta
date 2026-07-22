@@ -40,7 +40,7 @@ export function CreateTaskDialog({
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
   const { showUpgradePrompt } = usePopups();
-  const { data: dbStatuses } = useStatuses(activeWorkspaceId);
+  const { data: dbStatuses } = useStatuses(defaultProjectId);
   const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
       id: getStatusValue(s.name),
       name: s.name,
@@ -86,7 +86,7 @@ export function CreateTaskDialog({
       return res.json();
     },
     onSuccess: () => {
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: defaultProjectId });
       queryClient.invalidateQueries({ queryKey: ["projects"] });
       onOpenChange(false);
       setTitle("");

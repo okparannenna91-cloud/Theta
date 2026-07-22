@@ -17,7 +17,7 @@ import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
-import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
+import { useStatuses, useWorkspaceStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { TaskDialog } from "./task-dialog";
 import { toast } from "sonner";
@@ -64,7 +64,7 @@ export default function TasksPage() {
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
   const { showUpgradePrompt } = usePopups();
-  const { data: dbStatuses } = useStatuses(activeWorkspaceId);
+  const { data: dbStatuses } = useWorkspaceStatuses(activeWorkspaceId);
   const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
       id: getStatusValue(s.name),
       name: s.name,

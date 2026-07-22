@@ -69,7 +69,7 @@ export async function PATCH(
         if (data.name && data.name !== column.name) {
             const matchingStatus = await prisma.status.findFirst({
                 where: {
-                    workspaceId: board.workspaceId,
+                    projectId: board.projectId,
                     name: { equals: column.name, mode: "insensitive" },
                 },
             });
@@ -78,7 +78,7 @@ export async function PATCH(
                 // Check uniqueness before renaming
                 const conflict = await prisma.status.findFirst({
                     where: {
-                        workspaceId: board.workspaceId,
+                        projectId: board.projectId,
                         name: { equals: data.name, mode: "insensitive" },
                         id: { not: matchingStatus.id },
                     },
@@ -163,7 +163,7 @@ export async function DELETE(
         // Find the Status for the deleted column and the target column
         const deletedColumnStatus = await prisma.status.findFirst({
             where: {
-                workspaceId: board.workspaceId,
+                projectId: board.projectId,
                 name: { equals: column.name, mode: "insensitive" },
             },
         });
@@ -172,7 +172,7 @@ export async function DELETE(
         if (fallbackColumnId && remainingColumns.length > 0) {
             const targetStatus = await prisma.status.findFirst({
                 where: {
-                    workspaceId: board.workspaceId,
+                    projectId: board.projectId,
                     name: { equals: remainingColumns[0].name, mode: "insensitive" },
                 },
             });

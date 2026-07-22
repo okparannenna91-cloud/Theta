@@ -328,7 +328,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     if (reorderRef.current > 0) return;
     if (ablyTimerRef.current) clearTimeout(ablyTimerRef.current);
     ablyTimerRef.current = setTimeout(() => {
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
     }, 500);
   }, [queryClient, boardId]);
 
@@ -409,7 +409,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       return res.json();
     },
     onSuccess: () => {
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
       setIsEditingHeader(false);
       toast.success("Board updated");
     },
@@ -434,7 +434,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const createColumnMutation = useMutation({
     mutationFn: (name: string) => createColumn(boardId, name),
     onSuccess: () => {
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
       setIsColumnDialogOpen(false);
       setNewColumnName("");
       toast.success("Column created");
@@ -445,7 +445,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     mutationFn: ({ columnId, migrateToStatusId }: { columnId: string; migrateToStatusId?: string }) =>
       deleteColumn(columnId, migrateToStatusId),
     onSuccess: () => {
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
       setDeletingColumn(null);
       setDeleteTargetColumnId(null);
       toast.success("Column deleted");
@@ -487,7 +487,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       return res.json();
     },
     onSuccess: () => {
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
       setIsTaskDialogOpen(false);
       setNewTaskTitle("");
       setTargetColumnId(null);
@@ -540,7 +540,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       toast.error("Failed to update column");
     },
     onSuccess: () => {
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
       setEditingColumn(null);
       toast.success("Column updated");
     },
@@ -557,7 +557,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       return res.json();
     },
     onSuccess: () => {
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
       setSelectedTaskIds([]);
       toast.success("Tasks deleted successfully");
     },
@@ -759,7 +759,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     } finally {
       dragStartBoardRef.current = null;
       reorderRef.current += 1;
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
     }
   }, [queryClient, boardId]);
 
@@ -808,6 +808,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               onColumnVisibilityChange={setColumnVisibility}
               allTags={allTags}
               savedViews={savedViews}
+              projectId={board?.projectId}
               onSaveView={(name) => {
                 const newView: SavedView = {
                   id: crypto.randomUUID(),
@@ -998,6 +999,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               groups={[]}
               onSelectTask={setSelectedTask}
               workspaceId={activeWorkspaceId || ""}
+              projectId={board?.projectId}
             />
           </div>
         )}
@@ -1157,7 +1159,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
         isOpen={!!selectedTask}
         onClose={() => {
           setSelectedTask(null);
-          invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
+          invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
         }}
         workspaceId={activeWorkspaceId || ""}
       />

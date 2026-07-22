@@ -101,7 +101,7 @@ export async function GET(req: Request) {
           OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }]
         }
       }),
-      prisma.status.findMany({ where: { workspaceId }, orderBy: { order: "asc" } }),
+      prisma.status.findMany({ where: { projectId: { in: accessibleProjectIds } }, orderBy: { order: "asc" } }),
       // Individual counts instead of groupBy (Prisma MongoDB crashes on nullable fields in groupBy)
       prisma.task.count({ where: whereTask }),
       prisma.task.count({ where: { ...whereTask, status: { in: ["done", "completed"] } } }),

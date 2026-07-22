@@ -60,7 +60,7 @@ export async function PATCH(
       if (column) {
         const matchingStatus = await prisma.status.findFirst({
           where: {
-            workspaceId: board.workspaceId,
+            projectId: board.projectId,
             name: { equals: column.name, mode: "insensitive" },
           },
         });

@@ -49,10 +49,10 @@ export async function PATCH(
 
         // If renaming, update all tasks that reference this status
         if (data.name && data.name !== existing.name) {
-            // Check uniqueness
+            // Check uniqueness within the project
             const conflict = await prisma.status.findFirst({
                 where: {
-                    workspaceId: existing.workspaceId,
+                    projectId: existing.projectId,
                     name: { equals: data.name, mode: "insensitive" },
                     id: { not: params.id },
                 },
@@ -151,12 +151,12 @@ export async function DELETE(
                 );
             }
 
-            // Verify target status exists in same workspace
+            // Verify target status exists in same project
             const targetStatus = await prisma.status.findUnique({
                 where: { id: migrateToStatusId },
             });
 
-            if (!targetStatus || targetStatus.workspaceId !== existing.workspaceId) {
+            if (!targetStatus || targetStatus.projectId !== existing.projectId) {
                 return NextResponse.json({ error: "Invalid target status" }, { status: 400 });
             }
 

@@ -21,7 +21,7 @@ import {
   Plus, SlidersHorizontal, Columns3, ChevronDown
 } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
+import { useStatuses, useWorkspaceStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 
 export type SortConfig = {
   field: string;
@@ -64,6 +64,7 @@ interface FilterSortBarProps {
   onDeleteView: (id: string) => void;
   totalTasks: number;
   filteredCount: number;
+  projectId?: string | null;
 }
 
 const SORT_FIELDS = [
@@ -81,7 +82,7 @@ export default function FilterSortBar({
   sortConfig, onSortChange,
   columns, columnVisibility, onColumnVisibilityChange,
   allTags, savedViews, onSaveView, onLoadView, onDeleteView,
-  totalTasks, filteredCount,
+  totalTasks, filteredCount, projectId,
 }: FilterSortBarProps) {
   const [showFilters, setShowFilters] = useState(false);
   const [showColumns, setShowColumns] = useState(false);
@@ -91,7 +92,7 @@ export default function FilterSortBar({
   const [savedViewName, setSavedViewName] = useState("");
 
   const { activeWorkspaceId } = useWorkspace();
-  const { data: dbStatuses } = useStatuses(activeWorkspaceId);
+  const { data: dbStatuses } = useStatuses(projectId);
   const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
       id: getStatusValue(s.name),
       name: s.name,

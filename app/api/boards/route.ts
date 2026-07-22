@@ -181,9 +181,9 @@ export async function POST(req: Request) {
 
     const defaultColumns = ["Todo", "In Progress", "Done"];
 
-    // Get existing workspace statuses to avoid duplicates
+    // Get existing project statuses to avoid duplicates
     const existingStatuses = await prisma.status.findMany({
-      where: { workspaceId: project.workspaceId },
+      where: { projectId: data.projectId },
       orderBy: { order: "asc" },
     });
 
@@ -198,6 +198,7 @@ export async function POST(req: Request) {
           data: {
             name: defaultColumns[i],
             order: i,
+            projectId: data.projectId,
             workspaceId: project.workspaceId,
           },
         });

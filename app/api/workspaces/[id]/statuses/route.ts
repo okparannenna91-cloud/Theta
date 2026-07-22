@@ -9,6 +9,7 @@ const statusSchema = z.object({
     name: z.string().min(1).max(50),
     color: z.string().optional(),
     order: z.number().int().optional(),
+    projectId: z.string(),
 });
 
 export async function GET(
@@ -19,6 +20,13 @@ export async function GET(
         const user = await getCurrentUser();
         if (!user) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const { searchParams } = new URL(req.url);
+        const projectId = searchParams.get("projectId");
+
+        if (!projectId) {
+            return NextResponse.json({ error: "projectId is required" }, { status: 400 });
         }
 
         const membership = await prisma.workspaceMember.findUnique({
@@ -35,7 +43,7 @@ export async function GET(
         }
 
         const statuses = await prisma.status.findMany({
-            where: { workspaceId: params.id },
+            where: { projectId },
             orderBy: { order: "asc" },
         });
 
@@ -79,7 +87,7 @@ export async function POST(
         let order = data.order;
         if (order === undefined) {
             const lastStatus = await prisma.status.findFirst({
-                where: { workspaceId: params.id },
+                where: { projectId: data.projectId },
                 orderBy: { order: "desc" },
             });
             order = (lastStatus?.order ?? -1) + 1;
@@ -90,6 +98,7 @@ export async function POST(
                 name: data.name,
                 color: data.color || "#4f46e5",
                 order,
+                projectId: data.projectId,
                 workspaceId: params.id,
             },
         });
@@ -107,7 +116,7 @@ export async function POST(
             return NextResponse.json({ error: error.errors }, { status: 400 });
         }
         if ((error as any).code === "P2002") {
-            return NextResponse.json({ error: "Status name already exists in this workspace" }, { status: 400 });
+            return NextResponse.json({ error: "Status name already exists in this project" }, { status: 400 });
         }
         logger.error("Create status error:", error);
         return NextResponse.json(

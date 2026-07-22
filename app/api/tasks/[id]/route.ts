@@ -122,7 +122,7 @@ export async function PATCH(
     if (data.status) {
         const statusRecord = await prisma.status.findFirst({
             where: { 
-                workspaceId: task.workspaceId,
+                projectId: task.projectId,
                 name: { equals: data.status, mode: 'insensitive' }
             }
         });
@@ -164,7 +164,7 @@ export async function PATCH(
         if (column) {
             const slug = column.name.toLowerCase().replace(/\s+/g, "_");
             const statusRecord = await prisma.status.findFirst({
-                where: { workspaceId: task.workspaceId, name: { equals: column.name, mode: "insensitive" } },
+                where: { projectId: task.projectId, name: { equals: column.name, mode: "insensitive" } },
             });
             updateData.status = slug;
             if (statusRecord) updateData.statusId = statusRecord.id;

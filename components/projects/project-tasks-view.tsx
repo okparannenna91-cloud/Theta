@@ -40,7 +40,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
     const [status, setStatus] = useState("todo");
     const [priority, setPriority] = useState("medium");
 
-    const { data: dbStatuses } = useStatuses(project.workspaceId);
+    const { data: dbStatuses } = useStatuses(project.id);
     const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
         id: getStatusValue(s.name),
         name: s.name,

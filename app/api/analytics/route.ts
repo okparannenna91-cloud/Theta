@@ -62,7 +62,7 @@ export async function GET(req: Request) {
                 include: { project: true }
             }),
             prisma.status.findMany({
-                where: { workspaceId },
+                where: { projectId: { in: accessibleProjectIds } },
                 orderBy: { order: 'asc' }
             })
         ]);

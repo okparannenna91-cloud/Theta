@@ -66,7 +66,7 @@ export async function PATCH(
     for (const col of columns) {
       const slug = col.name.toLowerCase().replace(/\s+/g, "_");
       const status = await prisma.status.findFirst({
-        where: { workspaceId: board.workspaceId, name: { equals: col.name, mode: "insensitive" } },
+        where: { projectId: board.projectId, name: { equals: col.name, mode: "insensitive" } },
       });
       statusMap[col.id] = { slug, statusId: status?.id ?? null };
     }
