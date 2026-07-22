@@ -41,6 +41,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const workspaceId = searchParams.get("workspaceId");
     const teamId = searchParams.get("teamId");
+    const projectId = searchParams.get("projectId");
     const search = searchParams.get("search");
     const status = searchParams.get("status");
     const priority = searchParams.get("priority");
@@ -78,6 +79,14 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "Access denied" }, { status: 403 });
       }
       projectWhere.teamId = teamId;
+    }
+
+    // If projectId is provided, scope tasks to that project
+    if (projectId) {
+      if (!accessibleProjectIds.includes(projectId)) {
+        return NextResponse.json({ error: "Access denied to project" }, { status: 403 });
+      }
+      projectWhere.id = projectId;
     }
 
     const taskWhere: any = {
