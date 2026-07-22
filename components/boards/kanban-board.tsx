@@ -442,6 +442,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       queryClient.invalidateQueries({ queryKey: ["board", boardId] });
       toast.success("Column deleted");
     },
+    onError: (err: any) => toast.error(err.message || "Failed to delete column"),
   });
 
   const deleteBoardMutation = useMutation({
@@ -892,10 +893,11 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleOpenColumnSettings(column)}>
+                            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleOpenColumnSettings(column); }}>
                               <Edit2 className="h-3.5 w-3.5 mr-2" /> Edit
                             </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => {
+                            <DropdownMenuItem onSelect={(e) => {
+                              e.preventDefault();
                               setTargetColumnId(column.id);
                               setIsTaskDialogOpen(true);
                             }}>
@@ -903,7 +905,8 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive"
-                              onClick={() => {
+                              onSelect={(e) => {
+                                e.preventDefault();
                                 showConfirm({
                                   title: "Delete Column",
                                   description: `Delete "${column.name}"? Tasks will be moved to the first remaining column.`,
