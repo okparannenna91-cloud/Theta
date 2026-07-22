@@ -105,11 +105,15 @@ async function updateColumn(columnId: string, name: string) {
   return res.json();
 }
 
-async function deleteColumn(columnId: string) {
-  const res = await fetch(`/api/columns/${columnId}`, {
+async function deleteColumn(columnId: string, migrateToStatusId?: string) {
+  const params = migrateToStatusId ? `?migrateToStatusId=${migrateToStatusId}` : "";
+  const res = await fetch(`/api/columns/${columnId}${params}`, {
     method: "DELETE",
   });
-  if (!res.ok) throw new Error("Failed to delete column");
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || "Failed to delete column");
+  }
   return res.json();
 }
 
@@ -438,9 +442,12 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   });
 
   const deleteColumnMutation = useMutation({
-    mutationFn: (columnId: string) => deleteColumn(columnId),
+    mutationFn: ({ columnId, migrateToStatusId }: { columnId: string; migrateToStatusId?: string }) =>
+      deleteColumn(columnId, migrateToStatusId),
     onSuccess: () => {
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
+      setDeletingColumn(null);
+      setDeleteTargetColumnId(null);
       toast.success("Column deleted");
     },
     onError: (err: any) => toast.error(err.message || "Failed to delete column"),
@@ -499,6 +506,9 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const [colName, setColName] = useState("");
   const [colWip, setColWip] = useState<number | null>(null);
   const [colColor, setColColor] = useState("#4f46e5");
+
+  const [deletingColumn, setDeletingColumn] = useState<any>(null);
+  const [deleteTargetColumnId, setDeleteTargetColumnId] = useState<string | null>(null);
 
   const updateColumnMutation = useMutation({
     mutationFn: async ({ id, ...data }: any) => {
@@ -906,10 +916,11 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="text-destructive"
-                              onClick={() => {
-                                if (window.confirm(`Delete "${column.name}"? Tasks will be moved to the first remaining column.`)) {
-                                  deleteColumnMutation.mutate(column.id);
-                                }
+                              onSelect={(e) => {
+                                e.preventDefault();
+                                const remainingCols = columns.filter((c: any) => c.id !== column.id);
+                                setDeleteTargetColumnId(remainingCols.length > 0 ? remainingCols[0].id : null);
+                                setDeletingColumn(column);
                               }}
                             >
                               <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete
@@ -1042,6 +1053,61 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
             <Button variant="outline" onClick={() => setEditingColumn(null)}>Cancel</Button>
             <Button onClick={() => updateColumnMutation.mutate({ id: editingColumn.id, name: colName, wipLimit: colWip, color: colColor })} disabled={!colName}>
               Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Column Confirmation Dialog */}
+      <Dialog open={!!deletingColumn} onOpenChange={(open) => { if (!open) { setDeletingColumn(null); setDeleteTargetColumnId(null); } }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Column</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Delete <span className="font-medium text-foreground">&quot;{deletingColumn?.name}&quot;</span>?
+              {deletingColumn && (() => {
+                const taskCount = tasks.filter((t: any) => t.columnId === deletingColumn.id).length;
+                if (taskCount > 0) {
+                  return <> <span className="font-medium text-foreground">{taskCount} task{taskCount !== 1 ? "s" : ""}</span> will be moved to another column.</>;
+                }
+                return <> This column has no tasks.</>;
+              })()}
+            </p>
+            {deletingColumn && tasks.filter((t: any) => t.columnId === deletingColumn.id).length > 0 && (
+              <div className="space-y-2">
+                <Label>Move tasks to</Label>
+                <Select value={deleteTargetColumnId || ""} onValueChange={setDeleteTargetColumnId}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a column" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {columns
+                      .filter((c: any) => c.id !== deletingColumn.id)
+                      .map((c: any) => (
+                        <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeletingColumn(null); setDeleteTargetColumnId(null); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              disabled={tasks.filter((t: any) => t.columnId === deletingColumn?.id).length > 0 && !deleteTargetColumnId}
+              onClick={() => {
+                if (deletingColumn) {
+                  deleteColumnMutation.mutate({
+                    columnId: deletingColumn.id,
+                    migrateToStatusId: deleteTargetColumnId || undefined,
+                  });
+                }
+              }}
+            >
+              Delete Column
             </Button>
           </DialogFooter>
         </DialogContent>
