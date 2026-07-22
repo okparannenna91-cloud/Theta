@@ -13,6 +13,7 @@ import { AiGenerator } from "@/components/ai/ai-generator";
 import { Sparkles } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
+import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 import { toast } from "sonner";
 
 interface CreateTaskDialogProps {
@@ -38,6 +39,11 @@ export function CreateTaskDialog({
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
   const { showUpgradePrompt } = usePopups();
+  const { data: dbStatuses } = useStatuses(activeWorkspaceId);
+  const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
+      id: getStatusValue(s.name),
+      name: s.name,
+  }));
 
   const { data: tasksData } = useQuery({
     queryKey: ["tasks", activeWorkspaceId],
@@ -212,9 +218,9 @@ export function CreateTaskDialog({
                   <SelectValue placeholder="Status" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todo">Todo</SelectItem>
-                  <SelectItem value="in_progress">In Progress</SelectItem>
-                  <SelectItem value="done">Completed</SelectItem>
+                  {statuses.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

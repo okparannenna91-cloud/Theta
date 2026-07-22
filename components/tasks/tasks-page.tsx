@@ -17,6 +17,7 @@ import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
+import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 import { TaskDialog } from "./task-dialog";
 import { toast } from "sonner";
 
@@ -62,6 +63,11 @@ export default function TasksPage() {
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
   const { showUpgradePrompt } = usePopups();
+  const { data: dbStatuses } = useStatuses(activeWorkspaceId);
+  const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
+      id: getStatusValue(s.name),
+      name: s.name,
+  }));
   const activeWorkspaceIdRef = useRef(activeWorkspaceId);
   useEffect(() => { activeWorkspaceIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
 
@@ -333,9 +339,9 @@ export default function TasksPage() {
                 <Select value={status} onValueChange={(val) => setStatus(val)}>
                   <SelectTrigger id="status"><SelectValue placeholder="Status" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="todo">Todo</SelectItem>
-                    <SelectItem value="in_progress">In Progress</SelectItem>
-                    <SelectItem value="done">Completed</SelectItem>
+                    {statuses.map((s) => (
+                      <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>

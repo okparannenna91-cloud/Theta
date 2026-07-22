@@ -15,6 +15,12 @@ export interface WorkspaceWithCounts {
         members: number;
         projects: number;
     };
+    statuses?: {
+        id: string;
+        name: string;
+        color: string | null;
+        order: number;
+    }[];
 }
 
 export interface WorkspaceMemberResponse {
@@ -286,6 +292,15 @@ export async function getUserWorkspaces(userId: string) {
                 members: true,
               },
             },
+            statuses: {
+              orderBy: { order: "asc" },
+              select: {
+                id: true,
+                name: true,
+                color: true,
+                order: true,
+              },
+            },
           },
         },
       },
@@ -326,6 +341,7 @@ export async function getUserWorkspaces(userId: string) {
           members: m.workspace._count?.members || 0,
           projects: projectCountMap.get(m.workspaceId) || 0,
         },
+        statuses: (m.workspace as any).statuses || [],
       };
     }).filter(Boolean);
   } catch (error) {

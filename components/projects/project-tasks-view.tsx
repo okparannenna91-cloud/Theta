@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2 } from "lucide-react";
 import { AiGenerator } from "@/components/ai/ai-generator";
+import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { toast } from "sonner";
 
@@ -37,6 +38,12 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
     const [description, setDescription] = useState("");
     const [status, setStatus] = useState("todo");
     const [priority, setPriority] = useState("medium");
+
+    const { data: dbStatuses } = useStatuses(project.workspaceId);
+    const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
+        id: getStatusValue(s.name),
+        name: s.name,
+    }));
 
     const { data: tasksData, isLoading } = useQuery({
         queryKey: ["tasks", project.workspaceId, "project", project.id],
@@ -279,9 +286,9 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                                 <Select value={status} onValueChange={setStatus}>
                                     <SelectTrigger><SelectValue /></SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="todo">Todo</SelectItem>
-                                        <SelectItem value="in_progress">In Progress</SelectItem>
-                                        <SelectItem value="done">Done</SelectItem>
+                                        {statuses.map((s) => (
+                                            <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                                        ))}
                                     </SelectContent>
                                 </Select>
                             </div>

@@ -20,6 +20,8 @@ import {
   ArrowUpDown, Tag, Flag, Calendar, User, Clock,
   Plus, SlidersHorizontal, Columns3, ChevronDown
 } from "lucide-react";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 
 export type SortConfig = {
   field: string;
@@ -87,6 +89,13 @@ export default function FilterSortBar({
   const [showSaveView, setShowSaveView] = useState(false);
   const [showLoadView, setShowLoadView] = useState(false);
   const [savedViewName, setSavedViewName] = useState("");
+
+  const { activeWorkspaceId } = useWorkspace();
+  const { data: dbStatuses } = useStatuses(activeWorkspaceId);
+  const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
+      id: getStatusValue(s.name),
+      name: s.name,
+  }));
 
   const activeFilterCount = useMemo(() => {
     let count = 0;
@@ -205,9 +214,9 @@ export default function FilterSortBar({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all" className="text-xs">All Statuses</SelectItem>
-                  <SelectItem value="todo" className="text-xs">Todo</SelectItem>
-                  <SelectItem value="in_progress" className="text-xs">In Progress</SelectItem>
-                  <SelectItem value="done" className="text-xs">Done</SelectItem>
+                  {statuses.map((s) => (
+                    <SelectItem key={s.id} value={s.id} className="text-xs">{s.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

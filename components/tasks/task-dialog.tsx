@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 import { TaskSubtasks } from "./task-subtasks";
 import { TaskComments } from "./task-comments";
 import { TagSelector } from "./tag-selector";
@@ -124,12 +125,12 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
         }
     });
 
-    const activeWorkspace = queryClient.getQueryData<any[]>(["workspaces"])?.find(w => w.id === workspaceId);
-    const statuses = activeWorkspace?.statuses || [
-        { id: "todo", name: "To Do" },
-        { id: "in_progress", name: "In Progress" },
-        { id: "done", name: "Done" },
-    ];
+    const { data: dbStatuses } = useStatuses(workspaceId);
+    const statuses = (dbStatuses && dbStatuses.length > 0 ? dbStatuses : FALLBACK_STATUSES).map(s => ({
+        id: getStatusValue(s.name),
+        name: s.name,
+        color: s.color,
+    }));
 
     useEffect(() => {
         if (task) {
