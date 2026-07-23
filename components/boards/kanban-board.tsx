@@ -22,7 +22,6 @@ import {
   LayoutGrid,
   List as ListIcon,
   Users as UsersIcon,
-  MapPin,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -61,6 +60,18 @@ import {
   useDroppable,
   DragOverlay,
 } from "@dnd-kit/core";
+class NoDndPointerSensor extends PointerSensor {
+  static activators = [
+    {
+      eventName: "onPointerDown" as const,
+      handler: ({ nativeEvent: event }: { nativeEvent: PointerEvent }) => {
+        const target = event.target as HTMLElement;
+        if (target.closest("[data-no-dnd]")) return false;
+        return true;
+      },
+    },
+  ];
+}
 import {
   SortableContext,
   sortableKeyboardCoordinates,
@@ -457,7 +468,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   };
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
+    useSensor(NoDndPointerSensor, {
       activationConstraint: { distance: 5 },
     }),
     useSensor(TouchSensor, {
@@ -895,8 +906,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
           <div className="flex items-center gap-1 bg-muted rounded-lg p-1 shrink-0">
             {[
               { id: "kanban", icon: LayoutGrid, label: "Board" },
-              { id: "table", icon: ListIcon, label: "Table" },
-              { id: "map", icon: MapPin, label: "Map" },
             ].map(view => (
               <Button
                 key={view.id}
@@ -981,7 +990,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" data-no-dnd>
                               <MoreVertical className="h-3.5 w-3.5" />
                             </Button>
                           </DropdownMenuTrigger>
