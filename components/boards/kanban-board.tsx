@@ -311,6 +311,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
   const boardRef = useRef<any>(null);
   const dragStartBoardRef = useRef<any>(null);
+  const dragStartTaskRef = useRef<any>(null);
 
   // Filter & Sort state
   const [filterConfig, setFilterConfig] = useState<FilterConfig>({});
@@ -624,6 +625,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     if (type === "Task") {
       setActiveTask(active.data.current.task);
       dragStartBoardRef.current = queryClient.getQueryData(["board", boardId]);
+      dragStartTaskRef.current = active.data.current.task;
     }
   };
 
@@ -689,11 +691,9 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     if (!latestBoard) return;
     const latestColumns = latestBoard.columns || [];
 
-    // Use the ORIGINAL board state (before handleDragOver optimistic updates)
-    // to correctly detect column changes
-    const startTasks = (startBoard?.tasks || latestBoard.tasks || []);
-
-    const activeTaskData = startTasks.find((t: any) => t.id === activeId);
+    // Use the original task data from drag start to correctly detect column changes
+    // This avoids the issue where handleDragOver's optimistic updates make it look like no change occurred
+    const activeTaskData = dragStartTaskRef.current;
     if (!activeTaskData) return;
 
     let targetColumnId: string;
@@ -702,15 +702,16 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     const overColumn = latestColumns.find((c: any) => c.id === overId);
     if (overColumn) {
       targetColumnId = overId;
-      const columnTasks = startTasks
+      const columnTasks = (startBoard?.tasks || latestBoard.tasks || [])
         .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
         .sort((a: any, b: any) => a.order - b.order);
       targetIndex = columnTasks.length;
     } else {
-      const overTask = startTasks.find((t: any) => t.id === overId);
+      const overTask = (startBoard?.tasks || latestBoard.tasks || [])
+        .find((t: any) => t.id === overId);
       if (!overTask) return;
       targetColumnId = overTask.columnId;
-      const columnTasks = startTasks
+      const columnTasks = (startBoard?.tasks || latestBoard.tasks || [])
         .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
         .sort((a: any, b: any) => a.order - b.order);
       targetIndex = columnTasks.findIndex((t: any) => t.id === overId);
@@ -718,14 +719,14 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     }
 
     if (activeTaskData.columnId === targetColumnId) {
-      const origColTasks = startTasks
+      const origColTasks = (startBoard?.tasks || latestBoard.tasks || [])
         .filter((t: any) => t.columnId === targetColumnId)
         .sort((a: any, b: any) => a.order - b.order);
       const origIndex = origColTasks.findIndex((t: any) => t.id === activeId);
       if (origIndex === targetIndex) return;
     }
 
-    const columnTasks = startTasks
+    const columnTasks = (startBoard?.tasks || latestBoard.tasks || [])
       .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
       .sort((a: any, b: any) => a.order - b.order);
 
@@ -783,6 +784,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       toast.error("Failed to save task position");
     } finally {
       dragStartBoardRef.current = null;
+      dragStartTaskRef.current = null;
       reorderRef.current += 1;
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
     }
