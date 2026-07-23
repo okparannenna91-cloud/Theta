@@ -740,6 +740,11 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     await queryClient.cancelQueries({ queryKey: ["board", boardId] });
     const previousBoard = queryClient.getQueryData(["board", boardId]);
 
+    const columnNameMap: Record<string, string> = {};
+    for (const col of latestColumns) {
+      columnNameMap[col.id] = col.name;
+    }
+
     queryClient.setQueryData(["board", boardId], (old: any) => {
       if (!old) return old;
       const updateMap = new Map(updates.map((u) => [u.id, u]));
@@ -748,7 +753,9 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
         tasks: old.tasks.map((t: any) => {
           const update = updateMap.get(t.id);
           if (update) {
-            return { ...t, columnId: update.columnId, order: update.order };
+            const colName = columnNameMap[update.columnId];
+            const status = colName ? colName.toLowerCase().replace(/\s+/g, "_") : t.status;
+            return { ...t, columnId: update.columnId, order: update.order, status };
           }
           return t;
         }),
