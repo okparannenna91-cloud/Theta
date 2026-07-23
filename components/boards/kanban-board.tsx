@@ -655,12 +655,19 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
     if (activeTask.columnId === targetColumnId) return;
 
+    const targetCol = latestColumns.find((c: any) => c.id === targetColumnId);
+    const derivedStatus = targetCol
+      ? targetCol.name.toLowerCase().replace(/\s+/g, "_")
+      : undefined;
+
     queryClient.setQueryData(["board", boardId], (old: any) => {
       if (!old) return old;
       return {
         ...old,
         tasks: old.tasks.map((t: any) =>
-          t.id === activeId ? { ...t, columnId: targetColumnId } : t
+          t.id === activeId
+            ? { ...t, columnId: targetColumnId, ...(derivedStatus && { status: derivedStatus }) }
+            : t
         ),
       };
     });
