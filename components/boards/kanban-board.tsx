@@ -676,28 +676,23 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   }, [queryClient, boardId]);
 
   const handleDragEnd = useCallback(async (event: any) => {
-    console.log("dragEnd: CALLED", event?.active?.id, "->", event?.over?.id);
     const { active, over } = event;
     setActiveTask(null);
 
-    if (!over) { console.log("dragEnd: early return - no over"); return; }
+    if (!over) return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    if (active.data.current?.type !== "Task") { console.log("dragEnd: early return - not a task, type=", active.data.current?.type); return; }
+    if (active.data.current?.type !== "Task") return;
 
     const startBoard = dragStartBoardRef.current;
     const latestBoard = queryClient.getQueryData(["board", boardId]) as any;
-    if (!latestBoard) { console.log("dragEnd: early return - no latestBoard"); return; }
+    if (!latestBoard) return;
     const latestColumns = latestBoard.columns || [];
-    console.log("dragEnd: startBoard exists=", !!startBoard, "tasks count=", (startBoard?.tasks || latestBoard.tasks || []).length);
 
-    // Use the original task data from drag start to correctly detect column changes
-    // This avoids the issue where handleDragOver's optimistic updates make it look like no change occurred
     const activeTaskData = dragStartTaskRef.current;
-    if (!activeTaskData) { console.log("dragEnd: early return - no activeTaskData"); return; }
-    console.log("dragEnd: activeTaskData.columnId=", activeTaskData.columnId, "target overId=", overId);
+    if (!activeTaskData) return;
 
     let targetColumnId: string;
     let targetIndex: number;
@@ -712,7 +707,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     } else {
       const overTask = (startBoard?.tasks || latestBoard.tasks || [])
         .find((t: any) => t.id === overId);
-      if (!overTask) { console.log("dragEnd: early return - overTask not found"); return; }
+      if (!overTask) return;
       targetColumnId = overTask.columnId;
       const columnTasks = (startBoard?.tasks || latestBoard.tasks || [])
         .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
@@ -730,7 +725,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
           .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
           .sort((a: any, b: any) => a.order - b.order);
         targetIndex = colTasks.length;
-        console.log("dragEnd: overridden target from cache to column", targetColumnId);
       }
     }
 
@@ -739,10 +733,8 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
         .filter((t: any) => t.columnId === targetColumnId)
         .sort((a: any, b: any) => a.order - b.order);
       const origIndex = origColTasks.findIndex((t: any) => t.id === activeId);
-      if (origIndex === targetIndex) { console.log("dragEnd: early return - same position in same column"); return; }
+      if (origIndex === targetIndex) return;
     }
-
-    console.log("dragEnd: targetColId=", targetColumnId, "activeTaskColId=", activeTaskData.columnId);
     const columnTasks = (startBoard?.tasks || latestBoard.tasks || [])
       .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
       .sort((a: any, b: any) => a.order - b.order);
@@ -760,7 +752,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       }
     }
 
-    if (updates.length === 0) { console.log("dragEnd: early return - no updates needed", "targetColId=", targetColumnId, "activeTaskColId=", activeTaskData.columnId); return; }
+    if (updates.length === 0) return;
 
     await queryClient.cancelQueries({ queryKey: ["board", boardId] });
     const snapshotBoard = startBoard || queryClient.getQueryData(["board", boardId]);
@@ -787,24 +779,17 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       };
     });
 
-    console.log("dragEnd: calling reorder API with updates:", JSON.stringify(updates));
     try {
       const res = await fetch(`/api/boards/${boardId}/tasks/reorder`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ updates }),
       });
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        console.error("Reorder API error:", res.status, errBody);
-        throw new Error(errBody.error || "Failed to save task position");
-      }
-      console.log("dragEnd: reorder API succeeded");
-    } catch (err) {
+      if (!res.ok) throw new Error("Failed to save task position");
+    } catch {
       if (snapshotBoard) {
         queryClient.setQueryData(["board", boardId], snapshotBoard);
       }
-      console.error("Reorder failed:", err);
       toast.error("Failed to save task position");
     } finally {
       dragStartBoardRef.current = null;
