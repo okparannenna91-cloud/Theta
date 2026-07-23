@@ -458,13 +458,21 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       const res = await fetch(`/api/boards/${boardId}`, {
         method: "DELETE",
       });
-      if (!res.ok) throw new Error("Failed to delete board");
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to delete board");
+      }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["boards", activeWorkspaceId] });
+      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
+      setShowDeleteBoardConfirm(false);
       toast.success("Board deleted");
       onBack();
+    },
+    onError: (err: any) => {
+      toast.error(err.message || "Failed to delete board");
     },
   });
 
@@ -509,6 +517,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
   const [deletingColumn, setDeletingColumn] = useState<any>(null);
   const [deleteTargetColumnId, setDeleteTargetColumnId] = useState<string | null>(null);
+  const [showDeleteBoardConfirm, setShowDeleteBoardConfirm] = useState(false);
 
   const updateColumnMutation = useMutation({
     mutationFn: async ({ id, ...data }: any) => {
@@ -847,6 +856,24 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               </Button>
             ))}
           </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg shrink-0">
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                className="text-destructive"
+                onSelect={(e) => {
+                  e.preventDefault();
+                  setShowDeleteBoardConfirm(true);
+                }}
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete Board
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -1110,6 +1137,38 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               }}
             >
               Delete Column
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Board Confirmation Dialog */}
+      <Dialog open={showDeleteBoardConfirm} onOpenChange={setShowDeleteBoardConfirm}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Board</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <p className="text-sm text-muted-foreground">
+              Delete <span className="font-medium text-foreground">&quot;{board?.name}&quot;</span>?
+              {tasks.length > 0 ? (
+                <> <span className="font-medium text-foreground">{tasks.length} task{tasks.length !== 1 ? "s" : ""}</span> will be removed from this board but kept in the project.</>
+              ) : (
+                <> This board has no tasks.</>
+              )}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              Columns will be deleted. Statuses will be kept for other boards in this project.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowDeleteBoardConfirm(false)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => deleteBoardMutation.mutate()}
+              disabled={deleteBoardMutation.isPending}
+            >
+              {deleteBoardMutation.isPending ? "Deleting..." : "Delete Board"}
             </Button>
           </DialogFooter>
         </DialogContent>

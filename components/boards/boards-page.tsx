@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Columns, Star } from "lucide-react";
+import { Plus, Columns, Star, Trash2 } from "lucide-react";
 import KanbanBoard from "@/components/boards/kanban-board";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
@@ -39,6 +39,7 @@ export default function BoardsPage({ projectId: initialProjectId }: { projectId?
   const [description, setDescription] = useState("");
   const [projectId, setProjectId] = useState(initialProjectId || "");
   const [selectedBoard, setSelectedBoard] = useState<string | null>(null);
+  const [boardToDelete, setBoardToDelete] = useState<any>(null);
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
   const { showUpgradePrompt } = usePopups();
@@ -79,6 +80,25 @@ export default function BoardsPage({ projectId: initialProjectId }: { projectId?
     },
     onError: (error: any) => {
       import("sonner").then(({ toast }) => toast.error(error.message || "Failed to create board"));
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (boardId: string) => {
+      const res = await fetch(`/api/boards/${boardId}`, { method: "DELETE" });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.error || "Failed to delete board");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["boards", activeWorkspaceId] });
+      setBoardToDelete(null);
+      import("sonner").then(({ toast }) => toast.success("Board deleted"));
+    },
+    onError: (error: any) => {
+      import("sonner").then(({ toast }) => toast.error(error.message || "Failed to delete board"));
     },
   });
 
@@ -145,7 +165,7 @@ export default function BoardsPage({ projectId: initialProjectId }: { projectId?
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {favoriteBoards.map((board: any, i: number) => (
-              <BoardCard key={board.id} board={board} onClick={() => setSelectedBoard(board.id)} />
+              <BoardCard key={board.id} board={board} onClick={() => setSelectedBoard(board.id)} onDelete={() => setBoardToDelete(board)} />
             ))}
           </div>
         </div>
@@ -157,7 +177,7 @@ export default function BoardsPage({ projectId: initialProjectId }: { projectId?
         )}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {otherBoards.map((board: any) => (
-            <BoardCard key={board.id} board={board} onClick={() => setSelectedBoard(board.id)} />
+            <BoardCard key={board.id} board={board} onClick={() => setSelectedBoard(board.id)} onDelete={() => setBoardToDelete(board)} />
           ))}
           <button onClick={() => setIsOpen(true)}
             className="h-full min-h-[160px] border-2 border-dashed border-border rounded-lg flex flex-col items-center justify-center gap-2 hover:border-primary/50 hover:bg-muted/30 transition-colors text-muted-foreground hover:text-primary">
@@ -201,13 +221,36 @@ export default function BoardsPage({ projectId: initialProjectId }: { projectId?
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Board Confirmation Dialog */}
+      <Dialog open={!!boardToDelete} onOpenChange={(open) => { if (!open) setBoardToDelete(null); }}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Delete Board</DialogTitle>
+          </DialogHeader>
+          <p className="text-sm text-muted-foreground">
+            Delete <span className="font-medium text-foreground">&quot;{boardToDelete?.name}&quot;</span>?
+            Tasks will be kept in the project but removed from this board.
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBoardToDelete(null)}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={() => boardToDelete && deleteMutation.mutate(boardToDelete.id)}
+              disabled={deleteMutation.isPending}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete Board"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
-function BoardCard({ board, onClick }: { board: any; onClick: () => void }) {
+function BoardCard({ board, onClick, onDelete }: { board: any; onClick: () => void; onDelete?: () => void }) {
   return (
-    <Card className="border shadow-sm hover:border-primary/30 transition-colors cursor-pointer"
+    <Card className="border shadow-sm hover:border-primary/30 transition-colors cursor-pointer group"
       onClick={onClick}>
       <CardHeader className="pb-3 border-b">
         <div className="flex items-start justify-between gap-3">
@@ -217,7 +260,17 @@ function BoardCard({ board, onClick }: { board: any; onClick: () => void }) {
             </div>
             <CardTitle className="text-sm font-semibold truncate">{board.name}</CardTitle>
           </div>
-          {board.isFavorite && <Star className="h-4 w-4 text-amber-400 fill-current shrink-0" />}
+          <div className="flex items-center gap-1 shrink-0">
+            {board.isFavorite && <Star className="h-4 w-4 text-amber-400 fill-current" />}
+            {onDelete && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
         </div>
       </CardHeader>
       <CardContent className="pt-4">
