@@ -194,19 +194,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Find the correct statusId (Relationship Consistency Fix)
-    const statusRecord = await prisma.status.findFirst({
-        where: { 
-            projectId: data.projectId,
-            name: { equals: data.status, mode: 'insensitive' }
-        }
-    }) || await prisma.status.findFirst({
-        where: { 
-            projectId: data.projectId,
-            name: { equals: 'Todo', mode: 'insensitive' }
-        }
-    });
-
     // Auto-assign board + column from status if not provided (Kanban ↔ Tasks sync)
     let autoBoardId = data.boardId || null;
     let autoColumnId = data.columnId || null;
@@ -249,7 +236,30 @@ export async function POST(req: Request) {
         if (matchingColumn) {
             autoColumnId = matchingColumn.id;
         }
+    } else if (autoBoardId && autoColumnId) {
+        // Have both board and column — resolve status from column name
+        const column = await prisma.column.findUnique({
+            where: { id: autoColumnId },
+            select: { name: true },
+        });
+        if (column) {
+            const slug = column.name.toLowerCase().replace(/\s+/g, '_');
+            data.status = slug;
+        }
     }
+
+    // Find the correct statusId after auto-resolution
+    const statusRecord = await prisma.status.findFirst({
+        where: { 
+            projectId: data.projectId,
+            name: { equals: data.status, mode: 'insensitive' }
+        }
+    }) || await prisma.status.findFirst({
+        where: { 
+            projectId: data.projectId,
+            name: { equals: 'Todo', mode: 'insensitive' }
+        }
+    });
 
     // Verify project belongs to workspace if provided
     if (data.projectId) {

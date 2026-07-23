@@ -478,6 +478,8 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
   const createTaskMutation = useMutation({
     mutationFn: async (columnId: string) => {
+      const column = columns.find((c: any) => c.id === columnId);
+      const status = column ? column.name.toLowerCase().replace(/\s+/g, "_") : "todo";
       const res = await fetch("/api/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -488,7 +490,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
           boardId,
           columnId,
           priority: "medium",
-          status: "todo",
+          status,
         }),
       });
       if (!res.ok) throw new Error("Failed to create task");
