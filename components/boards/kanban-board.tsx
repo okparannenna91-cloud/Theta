@@ -746,7 +746,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     if (updates.length === 0) return;
 
     await queryClient.cancelQueries({ queryKey: ["board", boardId] });
-    const previousBoard = queryClient.getQueryData(["board", boardId]);
+    const snapshotBoard = startBoard || queryClient.getQueryData(["board", boardId]);
 
     const columnNameMap: Record<string, string> = {};
     for (const col of latestColumns) {
@@ -776,17 +776,22 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ updates }),
       });
-      if (!res.ok) throw new Error("Failed to save task position");
-    } catch {
-      if (previousBoard) {
-        queryClient.setQueryData(["board", boardId], previousBoard);
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        console.error("Reorder API error:", res.status, errBody);
+        throw new Error(errBody.error || "Failed to save task position");
       }
+    } catch (err) {
+      if (snapshotBoard) {
+        queryClient.setQueryData(["board", boardId], snapshotBoard);
+      }
+      console.error("Reorder failed:", err);
       toast.error("Failed to save task position");
     } finally {
       dragStartBoardRef.current = null;
       dragStartTaskRef.current = null;
-      reorderRef.current += 1;
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
+      setTimeout(() => { reorderRef.current -= 1; }, 1000);
     }
   }, [queryClient, boardId]);
 
