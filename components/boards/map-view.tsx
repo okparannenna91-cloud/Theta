@@ -1,13 +1,10 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { useState, useMemo, useEffect, useRef } from "react";
+import dynamic from "next/dynamic";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import {
-  MapPin, Globe, Navigation, ZoomIn, ZoomOut, Crosshair
-} from "lucide-react";
 
 interface MapViewProps {
   tasks: any[];
@@ -15,7 +12,7 @@ interface MapViewProps {
   onSelectTask?: (task: any) => void;
 }
 
-const COORDINATES: Record<string, { lat: number; lng: number }> = {
+const KNOWN_COORDINATES: Record<string, { lat: number; lng: number }> = {
   "new york": { lat: 40.7128, lng: -74.006 },
   "london": { lat: 51.5074, lng: -0.1278 },
   "tokyo": { lat: 35.6762, lng: 139.6503 },
@@ -55,9 +52,44 @@ const MARKER_COLORS = [
   "#14b8a6", "#84cc16", "#d946ef", "#0ea5e9",
 ];
 
+const dynamicCoordsRef: Record<string, { lat: number; lng: number }> = {};
+
+const LeafletMap = dynamic(
+  () => import("@/components/boards/leaflet-map"),
+  { ssr: false }
+);
+
 export default function MapView({ tasks, columns, onSelectTask }: MapViewProps) {
-  const [zoom, setZoom] = useState(1);
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
+  const [geocoding, setGeocoding] = useState(false);
+  const fetchedRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    const unknown = tasks
+      .filter((t: any) => t.location && t.location.trim())
+      .map((t: any) => t.location.trim().toLowerCase())
+      .filter((key: string) => {
+        const base = key.split(",")[0]?.trim();
+        return !KNOWN_COORDINATES[key] && !KNOWN_COORDINATES[base] && !dynamicCoordsRef[key] && !fetchedRef.current.has(key);
+      });
+
+    if (unknown.length === 0) return;
+
+    setGeocoding(true);
+    const uniqueKeys = [...new Set(unknown)];
+
+    Promise.allSettled(
+      uniqueKeys.map(async (key: string) => {
+        fetchedRef.current.add(key);
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(key)}`);
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.lat && data.lng) {
+          dynamicCoordsRef[key] = { lat: data.lat, lng: data.lng };
+        }
+      })
+    ).finally(() => setGeocoding(false));
+  }, [tasks]);
 
   const locations = useMemo(() => {
     const grouped = new Map<string, any[]>();
@@ -72,7 +104,7 @@ export default function MapView({ tasks, columns, onSelectTask }: MapViewProps) 
     let colorIdx = 0;
     return Array.from(grouped.entries())
       .map(([key, taskList]) => {
-        const coord = COORDINATES[key] || COORDINATES[key.split(",")[0]?.trim()];
+        const coord = KNOWN_COORDINATES[key] || KNOWN_COORDINATES[key.split(",")[0]?.trim()] || dynamicCoordsRef[key];
         if (!coord) return null;
         const color = MARKER_COLORS[colorIdx++ % MARKER_COLORS.length];
         return {
@@ -92,7 +124,7 @@ export default function MapView({ tasks, columns, onSelectTask }: MapViewProps) 
         count: number;
         color: string;
       }>;
-  }, [tasks]);
+  }, [tasks, geocoding]);
 
   const unlocatedCount = tasks.filter((t: any) => !t.location || !t.location.trim()).length;
   const totalLocated = locations.reduce((sum, l) => sum + l.count, 0);
@@ -111,90 +143,15 @@ export default function MapView({ tasks, columns, onSelectTask }: MapViewProps) 
             {unlocatedCount > 0 && ` (${unlocatedCount} unlocated)`}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="flex bg-muted rounded-lg p-0.5">
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded" onClick={() => setZoom((z) => Math.min(z + 0.25, 3))}>
-              <ZoomIn className="h-3 w-3" />
-            </Button>
-            <span className="flex items-center text-[10px] font-bold px-1">{Math.round(zoom * 100)}%</span>
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded" onClick={() => setZoom((z) => Math.max(z - 0.25, 0.5))}>
-              <ZoomOut className="h-3 w-3" />
-            </Button>
-          </div>
-          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setZoom(1)}>
-            <Crosshair className="h-3 w-3" />
-          </Button>
-        </div>
       </div>
 
       <div className="flex-1 flex gap-6 min-h-0">
-        <div className="flex-1 relative rounded-2xl border bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-900 dark:to-slate-950 overflow-hidden">
-          <div
-            className="absolute inset-0 transition-transform duration-300"
-            style={{ transform: `scale(${zoom})` }}
-          >
-            <div className="absolute inset-0 opacity-[0.03]"
-              style={{
-                backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cdefs%3E%3Cpattern id='grid' width='60' height='60' patternUnits='userSpaceOnUse'%3E%3Cpath d='M 60 0 L 0 0 0 60' fill='none' stroke='%236366f1' stroke-width='0.5'/%3E%3C/pattern%3E%3C/defs%3E%3Crect width='100%25' height='100%25' fill='url(%23grid)'/%3E%3C/svg%3E")`,
-              }}
-            />
-
-            {locations.length === 0 && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <Globe className="h-12 w-12 mx-auto text-muted-foreground/40 mb-3" />
-                  <p className="text-sm text-muted-foreground">No tasks with locations</p>
-                  <p className="text-xs text-muted-foreground/60 mt-1">Add a location to a task to see it on the map</p>
-                </div>
-              </div>
-            )}
-
-            {locations.map((loc, i) => {
-              const x = ((loc.lng + 180) / 360) * 100;
-              const y = ((90 - loc.lat) / 180) * 100;
-              const isSelected = selectedLocation === loc.name;
-
-              return (
-                <div
-                  key={i}
-                  className="absolute cursor-pointer transition-all group"
-                  style={{ left: `${x}%`, top: `${y}%`, transform: "translate(-50%, -50%)" }}
-                  onClick={() => setSelectedLocation(isSelected ? null : loc.name)}
-                >
-                  <div className={cn(
-                    "relative flex items-center justify-center transition-all duration-300",
-                    isSelected ? "scale-150 z-10" : "hover:scale-125"
-                  )}>
-                    <div
-                      className={cn(
-                        "h-8 w-8 rounded-full flex items-center justify-center shadow-lg border-2 border-white dark:border-slate-900",
-                        isSelected ? "ring-4 ring-primary/40" : ""
-                      )}
-                      style={{ backgroundColor: loc.color + "20" }}
-                    >
-                      <MapPin className="h-4 w-4" style={{ color: loc.color }} />
-                    </div>
-                    <div className="absolute -bottom-6 left-1/2 -translate-x-1/2 whitespace-nowrap">
-                      <span className="text-[9px] font-bold bg-card px-2 py-0.5 rounded-full shadow-sm border">
-                        {loc.name} · {loc.count}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground bg-card/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border shadow-sm">
-              <Globe className="h-3 w-3" />
-              Global View
-            </div>
-            <div className="flex items-center gap-2 text-[10px] text-muted-foreground bg-card/80 backdrop-blur-sm px-3 py-1.5 rounded-lg border shadow-sm">
-              <MapPin className="h-3 w-3" />
-              {totalLocated} located
-            </div>
-          </div>
+        <div className="flex-1 relative rounded-2xl border overflow-hidden">
+          <LeafletMap
+            locations={locations}
+            selectedLocation={selectedLocation}
+            onSelectLocation={setSelectedLocation}
+          />
         </div>
 
         <div className="w-72 flex-shrink-0 space-y-3 overflow-y-auto">

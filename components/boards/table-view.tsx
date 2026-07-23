@@ -14,10 +14,13 @@ import {
   Settings, ArrowUpDown, Pin, EyeOff, Copy, Archive,
   MessageSquare, Paperclip, Clock, Link2, ListChecks,
   AlertTriangle, User, CalendarDays, Hash, FileText,
-  CheckCircle2, Flag, Tag, Star, Edit3
+  CheckCircle2, XCircle, Flag, Tag, Star, Edit3
 } from "lucide-react";
 import { ColumnValue, type ColumnDef, type ColumnType } from "./column-types";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
 import { toast } from "sonner";
 
 interface TableViewProps {
@@ -100,14 +103,25 @@ export default function TableView({
   };
 
   const updateFieldMutation = useMutation({
-    mutationFn: async ({ taskId, field, value }: { taskId: string; field: string; value: any }) => {
+    mutationFn: async ({ taskId, field, value, existingFieldValues, columnId }: {
+      taskId: string; field: string | null; value: any;
+      existingFieldValues?: Record<string, any>; columnId?: string;
+    }) => {
+      const merged = { ...(existingFieldValues || {}) };
+      const body: any = { fieldValues: merged };
+      if (field && columnId) {
+        body[field] = value;
+        merged[columnId] = value;
+      } else if (field) {
+        body[field] = value;
+        merged[field] = value;
+      } else if (columnId) {
+        merged[columnId] = value;
+      }
       const res = await fetch(`/api/tasks/${taskId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          [field]: value,
-          fieldValues: { [field]: value }
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error("Failed to update");
       return res.json();
@@ -126,8 +140,13 @@ export default function TableView({
       column.columnType === "status" ? "status" :
       column.columnType === "priority" ? "priority" : null;
 
-    if (field) {
-      updateFieldMutation.mutate({ taskId, field, value });
+    const task = tasks.find(t => t.id === taskId);
+    const existingFieldValues = task?.fieldValues || {};
+
+    if (field && field !== column.id) {
+      updateFieldMutation.mutate({ taskId, field, value, existingFieldValues, columnId: column.id });
+    } else {
+      updateFieldMutation.mutate({ taskId, field: null, value, existingFieldValues, columnId: column.id });
     }
     setEditingCell(null);
   };
@@ -167,10 +186,98 @@ export default function TableView({
 
     const isEditing = editingCell?.taskId === task.id && editingCell?.columnId === col.id;
 
+    const editableTypes = new Set(["text", "number", "date", "email", "phone", "link", "location", "country"]);
+
     if (isEditing) {
+      if (col.columnType === "date") {
+        return (
+          <Input
+            ref={inputRef}
+            type="date"
+            value={editValue ? editValue.split("T")[0] : ""}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={() => handleCellEdit(task.id, col, editValue)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleCellEdit(task.id, col, editValue);
+              if (e.key === "Escape") setEditingCell(null);
+            }}
+            className="h-7 text-xs border-primary focus-visible:ring-0 rounded"
+          />
+        );
+      }
+
+      if (col.columnType === "status") {
+        return (
+          <Select
+            value={editValue || "todo"}
+            onValueChange={(v) => {
+              handleCellEdit(task.id, col, v);
+            }}
+            open={true}
+            onOpenChange={(open) => { if (!open) setEditingCell(null); }}
+          >
+            <SelectTrigger className="h-7 text-xs rounded">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="todo" className="text-xs">Todo</SelectItem>
+              <SelectItem value="in_progress" className="text-xs">In Progress</SelectItem>
+              <SelectItem value="done" className="text-xs">Done</SelectItem>
+            </SelectContent>
+          </Select>
+        );
+      }
+
+      if (col.columnType === "priority") {
+        return (
+          <Select
+            value={editValue || "medium"}
+            onValueChange={(v) => {
+              handleCellEdit(task.id, col, v);
+            }}
+            open={true}
+            onOpenChange={(open) => { if (!open) setEditingCell(null); }}
+          >
+            <SelectTrigger className="h-7 text-xs rounded">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="none" className="text-xs">None</SelectItem>
+              <SelectItem value="low" className="text-xs">Low</SelectItem>
+              <SelectItem value="medium" className="text-xs">Medium</SelectItem>
+              <SelectItem value="high" className="text-xs">High</SelectItem>
+              <SelectItem value="urgent" className="text-xs">Urgent</SelectItem>
+            </SelectContent>
+          </Select>
+        );
+      }
+
+      if (col.columnType === "dropdown" && col.settings?.options) {
+        return (
+          <Select
+            value={editValue || ""}
+            onValueChange={(v) => {
+              handleCellEdit(task.id, col, v);
+            }}
+            open={true}
+            onOpenChange={(open) => { if (!open) setEditingCell(null); }}
+          >
+            <SelectTrigger className="h-7 text-xs rounded">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(col.settings.options as string[]).map((opt) => (
+                <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        );
+      }
+
       return (
         <Input
           ref={inputRef}
+          type={col.columnType === "number" ? "number" : "text"}
           value={editValue}
           onChange={(e) => setEditValue(e.target.value)}
           onBlur={() => handleCellEdit(task.id, col, editValue)}
@@ -180,6 +287,62 @@ export default function TableView({
           }}
           className="h-7 text-xs border-primary focus-visible:ring-0 rounded"
         />
+      );
+    }
+
+    if (col.columnType === "checkbox") {
+      return (
+        <div className="min-h-[28px] flex items-center">
+          <button
+            onClick={() => handleCellEdit(task.id, col, value ? "" : "true")}
+            className="focus:outline-none"
+          >
+            {value ? (
+              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+            ) : (
+              <XCircle className="h-4 w-4 text-slate-300 dark:text-slate-600" />
+            )}
+          </button>
+        </div>
+      );
+    }
+
+    if (col.columnType === "rating") {
+      return (
+        <div className="min-h-[28px] flex items-center gap-0.5">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              onClick={() => handleCellEdit(task.id, col, String(star === value ? 0 : star))}
+              className="focus:outline-none"
+            >
+              <Star className={cn(
+                "h-3 w-3",
+                star <= (value || 0) ? "text-amber-400 fill-amber-400" : "text-slate-300 dark:text-slate-600"
+              )} />
+            </button>
+          ))}
+        </div>
+      );
+    }
+
+    if (col.columnType === "vote") {
+      return (
+        <div className="min-h-[28px] flex items-center gap-1">
+          <button
+            onClick={() => handleCellEdit(task.id, col, String(Math.max(0, (value || 0) - 1)))}
+            className="text-slate-400 hover:text-red-500 focus:outline-none text-xs font-bold px-1"
+          >
+            −
+          </button>
+          <span className="text-xs font-bold min-w-[20px] text-center">{value || 0}</span>
+          <button
+            onClick={() => handleCellEdit(task.id, col, String((value || 0) + 1))}
+            className="text-slate-400 hover:text-emerald-500 focus:outline-none text-xs font-bold px-1"
+          >
+            +
+          </button>
+        </div>
       );
     }
 
@@ -216,7 +379,11 @@ export default function TableView({
       <div
         className="min-h-[28px] flex items-center cursor-default"
         onDoubleClick={() => {
-          if (col.columnType === "text" || col.columnType === "number") {
+          if (editableTypes.has(col.columnType)) {
+            setEditingCell({ taskId: task.id, columnId: col.id });
+            setEditValue(value ?? "");
+          }
+          if (col.columnType === "status" || col.columnType === "priority" || col.columnType === "dropdown") {
             setEditingCell({ taskId: task.id, columnId: col.id });
             setEditValue(value ?? "");
           }

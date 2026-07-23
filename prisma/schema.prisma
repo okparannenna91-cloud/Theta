@@ -309,6 +309,7 @@ model User {
   savedSearches   SavedSearch[]
   meetings        Meeting[]
   goals           Goal[]
+  boardViews      BoardView[]
 
   @@map("users")
 }
@@ -612,10 +613,29 @@ model Board {
   columns   Column[]
   tasks     Task[]
   groups    Groups[]
+  views     BoardView[]
 
   @@index([workspaceId])
   @@index([projectId])
   @@map("boards")
+}
+
+model BoardView {
+  id                String   @id @default(auto()) @map("_id") @db.ObjectId
+  boardId           String   @db.ObjectId
+  name              String
+  filterConfig      Json?    @db.Json
+  sortConfig        Json?    @db.Json
+  columnVisibility  Json?    @db.Json
+  userId            String   @db.ObjectId
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([boardId])
+  @@map("board_views")
 }
 
 model Column {

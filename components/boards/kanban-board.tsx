@@ -317,7 +317,43 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const [filterConfig, setFilterConfig] = useState<FilterConfig>({});
   const [sortConfig, setSortConfig] = useState<SortConfig | null>(null);
   const [columnVisibility, setColumnVisibility] = useState<ColumnVisibility>({});
-  const [savedViews, setSavedViews] = useState<SavedView[]>([]);
+  const { data: savedViews = [] } = useQuery({
+    queryKey: ["board-views", boardId],
+    queryFn: async () => {
+      const res = await fetch(`/api/boards/${boardId}/views`);
+      if (!res.ok) throw new Error("Failed to fetch views");
+      return res.json();
+    },
+  });
+
+  const saveViewMutation = useMutation({
+    mutationFn: async (name: string) => {
+      const res = await fetch(`/api/boards/${boardId}/views`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, filterConfig, sortConfig, columnVisibility }),
+      });
+      if (!res.ok) throw new Error("Failed to save view");
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["board-views", boardId] });
+      toast.success("View saved");
+    },
+    onError: () => toast.error("Failed to save view"),
+  });
+
+  const deleteViewMutation = useMutation({
+    mutationFn: async (viewId: string) => {
+      const res = await fetch(`/api/boards/${boardId}/views/${viewId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete view");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["board-views", boardId] });
+      toast.success("View deleted");
+    },
+    onError: () => toast.error("Failed to delete view"),
+  });
 
   const { user } = useUser();
   const boardChannel = getBoardChannel(activeWorkspaceId || "", boardId);
@@ -845,22 +881,13 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               allTags={allTags}
               savedViews={savedViews}
               projectId={board?.projectId}
-              onSaveView={(name) => {
-                const newView: SavedView = {
-                  id: crypto.randomUUID(),
-                  name,
-                  filterConfig,
-                  sortConfig,
-                  columnVisibility,
-                };
-                setSavedViews(prev => [...prev, newView]);
-              }}
+              onSaveView={(name) => saveViewMutation.mutate(name)}
               onLoadView={(view) => {
-                setFilterConfig(view.filterConfig);
-                setSortConfig(view.sortConfig);
-                setColumnVisibility(view.columnVisibility);
+                setFilterConfig(view.filterConfig ?? {});
+                setSortConfig(view.sortConfig ?? null);
+                setColumnVisibility(view.columnVisibility ?? {});
               }}
-              onDeleteView={(id) => setSavedViews(prev => prev.filter(v => v.id !== id))}
+              onDeleteView={(id) => deleteViewMutation.mutate(id)}
               totalTasks={tasks.length}
               filteredCount={filteredTasks.length}
             />
