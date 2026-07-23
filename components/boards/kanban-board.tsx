@@ -721,6 +721,19 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       if (targetIndex === -1) targetIndex = columnTasks.length;
     }
 
+    // If dropped on the task itself, use the cache columnId from handleDragOver
+    if (overId === activeId) {
+      const cachedActive = latestBoard?.tasks?.find((t: any) => t.id === activeId);
+      if (cachedActive && cachedActive.columnId !== activeTaskData.columnId) {
+        targetColumnId = cachedActive.columnId;
+        const colTasks = (latestBoard.tasks || [])
+          .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
+          .sort((a: any, b: any) => a.order - b.order);
+        targetIndex = colTasks.length;
+        console.log("dragEnd: overridden target from cache to column", targetColumnId);
+      }
+    }
+
     if (activeTaskData.columnId === targetColumnId) {
       const origColTasks = (startBoard?.tasks || latestBoard.tasks || [])
         .filter((t: any) => t.columnId === targetColumnId)
@@ -729,6 +742,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       if (origIndex === targetIndex) { console.log("dragEnd: early return - same position in same column"); return; }
     }
 
+    console.log("dragEnd: targetColId=", targetColumnId, "activeTaskColId=", activeTaskData.columnId);
     const columnTasks = (startBoard?.tasks || latestBoard.tasks || [])
       .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
       .sort((a: any, b: any) => a.order - b.order);
