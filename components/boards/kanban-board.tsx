@@ -676,6 +676,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   }, [queryClient, boardId]);
 
   const handleDragEnd = useCallback(async (event: any) => {
+    console.log("dragEnd: CALLED", event?.active?.id, "->", event?.over?.id);
     const { active, over } = event;
     setActiveTask(null);
 
