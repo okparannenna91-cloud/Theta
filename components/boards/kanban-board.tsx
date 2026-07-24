@@ -17,11 +17,11 @@ import {
   Edit2,
   Calendar,
   User as UserIcon,
-
-
   LayoutGrid,
   List as ListIcon,
   Users as UsersIcon,
+  ListChecks,
+  MessageSquare,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -129,77 +129,140 @@ async function deleteColumn(columnId: string, migrateToStatusId?: string) {
 }
 
 function TaskCardContent({ task }: { task: any }) {
-  const getPriorityInfo = (priority: string) => {
-    switch (priority) {
+  const priorityInfo = useMemo(() => {
+    switch (task.priority) {
+      case "urgent":
+      case "critical":
+        return { label: "Critical", bg: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-200/50" };
       case "high":
-        return { color: "bg-red-500/10 text-red-600 dark:text-red-400 border-red-200/50" };
+        return { label: "High", bg: "bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-200/50" };
       case "medium":
-        return { color: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200/50" };
+        return { label: "Medium", bg: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-200/50" };
       default:
-        return { color: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200/50" };
+        return { label: "Low", bg: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200/50" };
     }
-  };
+  }, [task.priority]);
 
-  const priorityInfo = getPriorityInfo(task.priority);
-  const isOverdue = task.dueDate && new Date(task.dueDate) < new Date() && !isSameDay(new Date(task.dueDate), new Date());
+  const isOverdue = useMemo(() =>
+    task.dueDate && new Date(task.dueDate) < new Date() && !isSameDay(new Date(task.dueDate), new Date()),
+    [task.dueDate]
+  );
+
+  const dueDateLabel = useMemo(() => {
+    if (!task.dueDate) return null;
+    const date = new Date(task.dueDate);
+    const today = new Date();
+    if (isSameDay(date, today)) return "Today";
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    if (isSameDay(date, tomorrow)) return "Tomorrow";
+    return format(date, "MMM d");
+  }, [task.dueDate]);
+
+  const subtaskProgress = useMemo(() => {
+    if (!task.subtasks?.length) return null;
+    const done = task.subtasks.filter((s: any) => s.completed).length;
+    return { done, total: task.subtasks.length };
+  }, [task.subtasks]);
+
+  const visibleTags = useMemo(() => {
+    if (!task.tags?.length) return null;
+    return {
+      shown: task.tags.slice(0, 2),
+      overflow: task.tags.length - 2,
+    };
+  }, [task.tags]);
+
+  const avatarColors = ["bg-blue-500", "bg-emerald-500", "bg-violet-500", "bg-rose-500", "bg-amber-500", "bg-cyan-500"];
 
   return (
-    <div className="space-y-3">
-      <div className="flex items-start justify-between gap-2">
-        <h4 className="font-semibold text-sm leading-tight text-foreground">{task.title}</h4>
-        {task.assigneeId && (
-          <div className="h-6 w-6 rounded-full bg-muted flex items-center justify-center flex-shrink-0 border" title="Assignee">
-             <UserIcon className="h-3 w-3 text-muted-foreground" />
-          </div>
-        )}
-        {!task.assigneeId && (
-          <div className="h-6 w-6 rounded-full border border-dashed border-border flex items-center justify-center flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer hover:bg-muted" title="Unassigned">
-            <UserIcon className="h-3 w-3 text-muted-foreground" />
-          </div>
-        )}
-      </div>
+    <div className="space-y-1.5">
+      {/* Title */}
+      <h4 className="text-sm font-semibold leading-snug line-clamp-2 text-foreground">
+        {task.title}
+      </h4>
 
-      {task.description && (
-        <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
-          {task.description}
-        </p>
-      )}
-
-      {task.tags && task.tags.length > 0 && (
-         <div className="flex flex-wrap gap-1">
-           {task.tags.map((tag: any) => (
-             <Badge key={tag.id} variant="outline" className="text-[9px] px-1.5 py-0 font-semibold" style={{ borderColor: tag.color, color: tag.color, backgroundColor: `${tag.color}10` }}>
-               {tag.name}
-             </Badge>
-           ))}
-         </div>
-      )}
-
-      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border/50">
-        <Badge
-          variant="outline"
-          className={`text-[9px] font-semibold px-1.5 py-0 border ${priorityInfo.color}`}
-        >
-          {task.priority}
-        </Badge>
-
-        <div className="flex items-center gap-3">
-          {task.subtasks && task.subtasks.length > 0 && (
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground font-medium">
-              <ListIcon className="h-3 w-3" />
-              <span>
-                {task.subtasks.filter((s: any) => s.completed).length}/{task.subtasks.length}
-              </span>
-            </div>
-          )}
-
-          {task.dueDate && (
-            <div className={cn("flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded", isOverdue ? "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400" : "text-muted-foreground")}>
-              <Calendar className="h-3 w-3" />
-              <span>{format(new Date(task.dueDate), "MMM d")}</span>
-            </div>
+      {/* Tags - max 2 pills, +N overflow */}
+      {visibleTags && (
+        <div className="flex flex-wrap items-center gap-1">
+          {visibleTags.shown.map((tag: any) => (
+            <span
+              key={tag.id}
+              className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium leading-tight"
+              style={{ backgroundColor: `${tag.color}18`, color: tag.color }}
+            >
+              {tag.name}
+            </span>
+          ))}
+          {visibleTags.overflow > 0 && (
+            <span className="text-[10px] text-muted-foreground font-semibold px-0.5">
+              +{visibleTags.overflow}
+            </span>
           )}
         </div>
+      )}
+
+      {/* Metadata row - compact icons */}
+      {(subtaskProgress || (task._count?.comments ?? 0) > 0) && (
+        <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground">
+          {subtaskProgress && (
+            <span className="flex items-center gap-1">
+              <ListChecks className="h-3 w-3" />
+              <span>{subtaskProgress.done}/{subtaskProgress.total}</span>
+            </span>
+          )}
+          {(task._count?.comments ?? 0) > 0 && (
+            <span className="flex items-center gap-1">
+              <MessageSquare className="h-3 w-3" />
+              <span>{task._count.comments}</span>
+            </span>
+          )}
+        </div>
+      )}
+
+      {/* Bottom row */}
+      <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-border/40">
+        {/* Left: Assignee avatars */}
+        {task.assigneeIds?.length > 0 && (
+          <div className="flex items-center">
+            <div className="flex -space-x-1">
+              {task.assigneeIds.slice(0, 3).map((id: string, i: number) => (
+                <div
+                  key={id}
+                  className={`h-5 w-5 rounded-full ${avatarColors[i % avatarColors.length]} ring-1 ring-background flex items-center justify-center text-[9px] font-medium text-white`}
+                >
+                  {id.charAt(0).toUpperCase()}
+                </div>
+              ))}
+              {task.assigneeIds.length > 3 && (
+                <div className="h-5 w-5 rounded-full bg-muted ring-1 ring-background flex items-center justify-center text-[9px] font-medium text-muted-foreground">
+                  +{task.assigneeIds.length - 3}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Center: Due date */}
+        {dueDateLabel && (
+          <div className={cn(
+            "flex items-center gap-1 text-[11px] font-medium",
+            isOverdue ? "text-red-600 dark:text-red-400" : "text-muted-foreground"
+          )}>
+            <Calendar className="h-3 w-3" />
+            <span>{dueDateLabel}</span>
+          </div>
+        )}
+
+        {/* Right: Priority badge */}
+        {task.priority && (
+          <span className={cn(
+            "inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold leading-tight border",
+            priorityInfo.bg
+          )}>
+            {priorityInfo.label}
+          </span>
+        )}
       </div>
     </div>
   );
@@ -225,17 +288,18 @@ function SortableTask({
     isDragging,
   } = useSortable({ id: task.id, data: { type: "Task", task } });
 
-  const style = {
+  const cardStyle = useMemo(() => ({
     transform: CSS.Translate.toString(transform),
     transition,
-  };
+    ...(task.color ? { borderLeftColor: task.color, borderLeftWidth: "3px" } : {}),
+  }), [transform, transition, task.color]);
 
   if (isDragging) {
     return (
       <div 
         ref={setNodeRef} 
-        style={style} 
-        className="rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 h-[100px] w-full" 
+        style={{ transform: CSS.Translate.toString(transform), transition }} 
+        className="rounded-lg border-2 border-dashed border-primary/30 bg-primary/5 min-h-[90px] w-full" 
       />
     );
   }
@@ -243,7 +307,7 @@ function SortableTask({
   return (
     <Card
       ref={setNodeRef}
-      style={style}
+      style={cardStyle}
       {...attributes}
       {...listeners}
       onClick={(e) => {
@@ -251,18 +315,20 @@ function SortableTask({
         onClick();
       }}
       className={cn(
-        "p-4 cursor-grab active:cursor-grabbing hover:ring-2 hover:ring-primary/20 transition-all group relative bg-card border shadow-sm hover:shadow-md rounded-lg",
+        "p-3 cursor-grab active:cursor-grabbing transition-all duration-200 group relative bg-card border shadow-sm rounded-lg",
+        "hover:shadow-md hover:-translate-y-0.5",
+        "active:scale-[1.02] active:rotate-[0.5deg] active:shadow-lg",
         isSelected && "ring-2 ring-primary bg-primary/5"
       )}
     >
       <div 
-        className="absolute top-3 right-3 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
+        className="absolute top-2 right-2 z-20 opacity-0 group-hover:opacity-100 transition-opacity"
         onClick={(e) => e.stopPropagation()}
       >
         <Checkbox 
           checked={isSelected} 
           onCheckedChange={(checked) => onSelect(!!checked)}
-          className="h-4 w-4 rounded-md border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
+          className="h-3.5 w-3.5 rounded border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
         />
       </div>
       <TaskCardContent task={task} />
@@ -1074,9 +1140,12 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
             </div>
             <DragOverlay>
               {activeTask && (
-                <Card className="p-4 w-[320px] shadow-xl bg-card border-primary/30 rotate-3">
+                <div
+                  className="p-3 w-[320px] bg-card border shadow-2xl rounded-lg rotate-[1deg] scale-[1.02]"
+                  style={activeTask.color ? { borderLeftColor: activeTask.color, borderLeftWidth: "3px" } : {}}
+                >
                   <TaskCardContent task={activeTask} />
-                </Card>
+                </div>
               )}
             </DragOverlay>
           </DndContext>
