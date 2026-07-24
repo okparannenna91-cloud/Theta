@@ -42,12 +42,21 @@ export async function GET(
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        const statuses = await prisma.status.findMany({
+        const [allStatuses, projectColumns] = await Promise.all([
+          prisma.status.findMany({
             where: { projectId },
             orderBy: { order: "asc" },
-        });
+          }),
+          prisma.column.findMany({
+            where: { board: { projectId } },
+            select: { name: true },
+          }),
+        ]);
 
-        return NextResponse.json(statuses);
+        const columnNames = new Set(projectColumns.map(c => c.name.toLowerCase()));
+        const filtered = allStatuses.filter(s => columnNames.has(s.name.toLowerCase()));
+
+        return NextResponse.json(filtered);
     } catch (error) {
         logger.error("Fetch statuses error:", error);
         return NextResponse.json(
