@@ -41,6 +41,13 @@ export async function GET(
               orderBy: { order: "asc" },
             },
             tags: true,
+            predecessors: {
+              include: {
+                predecessor: {
+                  select: { id: true, columnId: true, status: true, title: true },
+                },
+              },
+            },
             _count: {
               select: { comments: true },
             },

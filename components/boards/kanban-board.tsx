@@ -391,6 +391,53 @@ interface KanbanBoardProps {
   onBack: () => void;
 }
 
+function isTodoColumn(name: string) {
+  const lower = name.toLowerCase();
+  return lower === "todo" || lower === "to-do" || lower === "backlog" || lower === "not started";
+}
+
+function isDoneColumn(name: string) {
+  const lower = name.toLowerCase();
+  return lower === "done" || lower.includes("done") || lower === "completed" || lower === "complete";
+}
+
+function getMoveViolation(task: any, targetColName: string, allTasks: any[], columns: any[]): string | null {
+  if (!task.predecessors?.length) return null;
+
+  for (const dep of task.predecessors) {
+    const pred = dep.predecessor;
+    if (!pred) continue;
+    const type = dep.type || "FS";
+    const predTitle = pred.title || "Predecessor";
+    const predCol = columns.find((c: any) => c.id === pred.columnId);
+    const predColName = predCol?.name || "";
+
+    switch (type) {
+      case "FS":
+        if (!isDoneColumn(predColName)) {
+          return `"${predTitle}" must be done first (Finish-to-Start)`;
+        }
+        break;
+      case "SS":
+        if (isTodoColumn(predColName)) {
+          return `"${predTitle}" must be started first (Start-to-Start)`;
+        }
+        break;
+      case "FF":
+        if (isDoneColumn(targetColName) && !isDoneColumn(predColName)) {
+          return `"${predTitle}" must be done first (Finish-to-Finish)`;
+        }
+        break;
+      case "SF":
+        if (isDoneColumn(targetColName) && isTodoColumn(predColName)) {
+          return `"${predTitle}" must be started first (Start-to-Finish)`;
+        }
+        break;
+    }
+  }
+  return null;
+}
+
 export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const { activeWorkspaceId } = useWorkspace();
   const { showConfirm, showUpgradePrompt } = usePopups();
@@ -874,6 +921,19 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       const origIndex = origColTasks.findIndex((t: any) => t.id === activeId);
       if (origIndex === targetIndex) return;
     }
+
+    // Enforce dependency rules on cross-column moves
+    if (activeTaskData.columnId !== targetColumnId) {
+      const targetCol = latestColumns.find((c: any) => c.id === targetColumnId);
+      const targetColName = targetCol?.name || "";
+      const violation = getMoveViolation(activeTaskData, targetColName, latestBoard.tasks, latestColumns);
+      if (violation) {
+        toast.error(violation);
+        dragStartBoardRef.current = null;
+        return;
+      }
+    }
+
     const columnTasks = (startBoard?.tasks || latestBoard.tasks || [])
       .filter((t: any) => t.columnId === targetColumnId && t.id !== activeId)
       .sort((a: any, b: any) => a.order - b.order);
