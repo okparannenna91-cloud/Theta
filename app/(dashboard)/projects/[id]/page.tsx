@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { ProjectOverview } from "@/components/projects/project-overview";
@@ -40,13 +40,52 @@ const CustomFieldsEditor = dynamic(() => import("@/components/boards/custom-fiel
 import { InviteMemberDialog } from "@/components/projects/invite-member-dialog";
 import { ProjectTeamsTab } from "@/components/projects/project-teams-tab";
 import { ReportsTab } from "@/components/projects/project-reports-tab";
-import BoardsPage from "@/components/boards/boards-page";
+import KanbanBoard from "@/components/boards/kanban-board";
 
 async function fetchProject(id: string, workspaceId?: string | null) {
     const url = workspaceId ? `/api/projects/${id}?workspaceId=${workspaceId}` : `/api/projects/${id}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error("Failed to fetch project");
     return res.json();
+}
+
+async function fetchProjectBoard(projectId: string) {
+    const res = await fetch(`/api/projects/${projectId}/board`);
+    if (!res.ok) throw new Error("Failed to fetch project board");
+    return res.json();
+}
+
+function DefaultBoardView({ projectId, children }: { projectId: string; children?: (boardId: string) => ReactNode }) {
+    const { data: board, isLoading } = useQuery({
+        queryKey: ["project-board", projectId],
+        queryFn: () => fetchProjectBoard(projectId),
+        enabled: !!projectId,
+    });
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <div className="text-center text-sm text-muted-foreground">Loading board...</div>
+            </div>
+        );
+    }
+
+    if (!board) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <div className="text-center">
+                    <h3 className="text-lg font-semibold text-muted-foreground mb-2">Could not load board</h3>
+                    <p className="text-sm text-muted-foreground">Please try again later.</p>
+                </div>
+            </div>
+        );
+    }
+
+    if (children) {
+        return <>{children(board.id)}</>;
+    }
+
+    return <KanbanBoard boardId={board.id} onBack={() => {}} />;
 }
 
 export default function ProjectPage({ params }: { params: { id: string } }) {
@@ -171,7 +210,7 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                 )}
                 
                 {view === "board" && (
-                    <BoardsPage projectId={params.id} />
+                    <DefaultBoardView projectId={params.id} />
                 )}
 
                 {view === "custom-fields" && (
@@ -180,22 +219,11 @@ export default function ProjectPage({ params }: { params: { id: string } }) {
                             <h2 className="text-lg font-semibold">Custom Fields</h2>
                             <p className="text-sm text-muted-foreground">Define custom data fields for tasks in this project</p>
                         </div>
-                        {project.boards?.[0] ? (
-                            <CustomFieldsEditor boardId={project.boards[0].id} workspaceId={project.workspaceId} />
-                        ) : (
-                            <Card className="border-2 border-dashed border-border">
-                                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                                    <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center mb-4">
-                                        <Sliders className="h-6 w-6 text-muted-foreground" />
-                                    </div>
-                                    <h3 className="text-sm font-semibold mb-1">Create a board first</h3>
-                                    <p className="text-sm text-muted-foreground mb-6 max-w-sm">
-                                        Custom fields are tied to boards. Create a board to start adding custom fields.
-                                    </p>
-                                    <Button variant="outline" onClick={() => setView("board")}>Go to Boards</Button>
-                                </CardContent>
-                            </Card>
-                        )}
+                        <DefaultBoardView projectId={params.id}>
+                            {(boardId: string) => (
+                                <CustomFieldsEditor boardId={boardId} workspaceId={project.workspaceId} />
+                            )}
+                        </DefaultBoardView>
                     </div>
                 )}
 

@@ -248,6 +248,43 @@ export async function POST(req: Request) {
       },
     });
 
+    // Auto-create default board for the project
+    const defaultColumns = ["Todo", "In Progress", "Done"];
+    const board = await prisma.board.create({
+      data: {
+        name: project.name,
+        projectId: project.id,
+        workspaceId: project.workspaceId,
+        description: "",
+      },
+    });
+
+    for (let i = 0; i < defaultColumns.length; i++) {
+      const existingStatus = await prisma.status.findFirst({
+        where: {
+          projectId: project.id,
+          name: { equals: defaultColumns[i], mode: "insensitive" },
+        },
+      });
+
+      const status = existingStatus || await prisma.status.create({
+        data: {
+          name: defaultColumns[i],
+          order: i,
+          projectId: project.id,
+          workspaceId: project.workspaceId,
+        },
+      });
+
+      await prisma.column.create({
+        data: {
+          name: defaultColumns[i],
+          boardId: board.id,
+          order: i,
+        },
+      });
+    }
+
     // Log activity
     await createActivity(
       user.id,
