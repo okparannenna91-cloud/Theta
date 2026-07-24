@@ -514,6 +514,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["boards", activeWorkspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["statuses", activeWorkspaceId, board?.projectId] });
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
       setShowDeleteBoardConfirm(false);
       toast.success("Board deleted");

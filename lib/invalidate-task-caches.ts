@@ -29,6 +29,11 @@ export function invalidateTaskCaches({
     }
 
     if (workspaceId && projectId) {
+        // Match the exact queryKey used by useStatuses hook: ["statuses", workspaceId, projectId]
+        queryClient.invalidateQueries({ queryKey: ["statuses", workspaceId, projectId] });
+    }
+
+    if (workspaceId && projectId) {
         // Invalidate project-scoped task queries
         queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId, "project", projectId] });
     }
