@@ -922,9 +922,9 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg shrink-0">
+              <button className="h-8 w-8 rounded-lg shrink-0 inline-flex items-center justify-center text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
                 <MoreVertical className="h-4 w-4" />
-              </Button>
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
@@ -991,9 +991,9 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                         </div>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg" data-no-dnd>
+                            <button className="h-7 w-7 rounded-lg inline-flex items-center justify-center text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground" data-no-dnd>
                               <MoreVertical className="h-3.5 w-3.5" />
-                            </Button>
+                            </button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
                             <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleOpenColumnSettings(column); }}>
