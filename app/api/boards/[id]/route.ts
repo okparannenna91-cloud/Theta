@@ -183,6 +183,11 @@ export async function DELETE(
       return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
     }
 
+    const columnNames = (await prisma.column.findMany({
+      where: { boardId: params.id },
+      select: { name: true },
+    })).map(c => c.name);
+
     await prisma.task.updateMany({
         where: { boardId: params.id },
         data: { boardId: null, columnId: null }
@@ -191,6 +196,26 @@ export async function DELETE(
     await prisma.board.delete({
       where: { id: params.id },
     });
+
+    for (const name of columnNames) {
+      const otherBoardWithSameColumn = await prisma.column.findFirst({
+        where: {
+          name: { equals: name, mode: "insensitive" },
+          board: { projectId: board.projectId, id: { not: params.id } },
+        },
+      });
+      if (!otherBoardWithSameColumn) {
+        const status = await prisma.status.findFirst({
+          where: {
+            projectId: board.projectId,
+            name: { equals: name, mode: "insensitive" },
+          },
+        });
+        if (status) {
+          await prisma.status.delete({ where: { id: status.id } });
+        }
+      }
+    }
 
     // Log Activity
     const { logActivity } = await import("@/lib/activity");
