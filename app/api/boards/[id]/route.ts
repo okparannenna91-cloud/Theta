@@ -183,11 +183,6 @@ export async function DELETE(
       return NextResponse.json({ error: accessCheck.error!.message }, { status: accessCheck.error!.status });
     }
 
-    const columnNames = (await prisma.column.findMany({
-      where: { boardId: params.id },
-      select: { name: true },
-    })).map(c => c.name);
-
     await prisma.task.updateMany({
         where: { boardId: params.id },
         data: { boardId: null, columnId: null }
@@ -197,23 +192,26 @@ export async function DELETE(
       where: { id: params.id },
     });
 
-    for (const name of columnNames) {
-      const otherBoardWithSameColumn = await prisma.column.findFirst({
-        where: {
-          name: { equals: name, mode: "insensitive" },
-          board: { projectId: board.projectId, id: { not: params.id } },
-        },
-      });
-      if (!otherBoardWithSameColumn) {
-        const status = await prisma.status.findFirst({
-          where: {
-            projectId: board.projectId,
-            name: { equals: name, mode: "insensitive" },
-          },
+    const remainingCols = await prisma.column.findMany({
+      where: { board: { projectId: board.projectId } },
+      select: { name: true },
+    });
+    const remainingNames = new Set(remainingCols.map((c: { name: string }) => c.name.toLowerCase()));
+
+    const orphanedStatuses = await prisma.status.findMany({
+      where: { projectId: board.projectId },
+    });
+
+    for (const st of orphanedStatuses) {
+      if (remainingNames.has(st.name.toLowerCase())) continue;
+      try {
+        await prisma.task.updateMany({
+          where: { statusId: st.id },
+          data: { statusId: null },
         });
-        if (status) {
-          await prisma.status.delete({ where: { id: status.id } });
-        }
+        await prisma.status.delete({ where: { id: st.id } });
+      } catch {
+        // status may already be deleted or referenced — skip
       }
     }
 
