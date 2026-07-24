@@ -22,6 +22,8 @@ import {
   Users as UsersIcon,
   ListChecks,
   MessageSquare,
+  Paperclip,
+  GitBranch,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -165,6 +167,17 @@ function TaskCardContent({ task }: { task: any }) {
     return { done, total: task.subtasks.length };
   }, [task.subtasks]);
 
+  const commentCount = useMemo(() => task._count?.comments ?? 0, [task._count?.comments]);
+
+  const attachmentCount = useMemo(() => task._count?.attachments ?? 0, [task._count?.attachments]);
+
+  const dependencyCount = useMemo(() =>
+    (task.predecessors?.length ?? 0) + (task.successors?.length ?? 0),
+    [task.predecessors, task.successors]
+  );
+
+  const hasMetadata = subtaskProgress || commentCount > 0 || attachmentCount > 0 || dependencyCount > 0;
+
   const visibleTags = useMemo(() => {
     if (!task.tags?.length) return null;
     return {
@@ -177,12 +190,12 @@ function TaskCardContent({ task }: { task: any }) {
 
   return (
     <div className="space-y-1.5">
-      {/* Title */}
+      {/* Title — font-semibold, max 2 lines */}
       <h4 className="text-sm font-semibold leading-snug line-clamp-2 text-foreground">
         {task.title}
       </h4>
 
-      {/* Tags - max 2 pills, +N overflow */}
+      {/* Tags — max 2 pills, +N overflow, hidden when empty */}
       {visibleTags && (
         <div className="flex flex-wrap items-center gap-1">
           {visibleTags.shown.map((tag: any) => (
@@ -202,8 +215,8 @@ function TaskCardContent({ task }: { task: any }) {
         </div>
       )}
 
-      {/* Metadata row - compact icons */}
-      {(subtaskProgress || (task._count?.comments ?? 0) > 0) && (
+      {/* Metadata row — only renders when at least one item exists */}
+      {hasMetadata && (
         <div className="flex items-center gap-2.5 text-[11px] text-muted-foreground">
           {subtaskProgress && (
             <span className="flex items-center gap-1">
@@ -211,18 +224,30 @@ function TaskCardContent({ task }: { task: any }) {
               <span>{subtaskProgress.done}/{subtaskProgress.total}</span>
             </span>
           )}
-          {(task._count?.comments ?? 0) > 0 && (
+          {commentCount > 0 && (
             <span className="flex items-center gap-1">
               <MessageSquare className="h-3 w-3" />
-              <span>{task._count.comments}</span>
+              <span>{commentCount}</span>
+            </span>
+          )}
+          {attachmentCount > 0 && (
+            <span className="flex items-center gap-1">
+              <Paperclip className="h-3 w-3" />
+              <span>{attachmentCount}</span>
+            </span>
+          )}
+          {dependencyCount > 0 && (
+            <span className="flex items-center gap-1">
+              <GitBranch className="h-3 w-3" />
+              <span>{dependencyCount}</span>
             </span>
           )}
         </div>
       )}
 
-      {/* Bottom row */}
+      {/* Footer — three-aligned layout */}
       <div className="flex items-center justify-between gap-2 pt-1.5 border-t border-border/40">
-        {/* Left: Assignee avatars */}
+        {/* Left: Assignee avatars — max 3, +N overflow */}
         {task.assigneeIds?.length > 0 && (
           <div className="flex items-center">
             <div className="flex -space-x-1">
@@ -243,7 +268,7 @@ function TaskCardContent({ task }: { task: any }) {
           </div>
         )}
 
-        {/* Center: Due date */}
+        {/* Center: Due date — Today/Tomorrow/MMM d, overdue in red */}
         {dueDateLabel && (
           <div className={cn(
             "flex items-center gap-1 text-[11px] font-medium",
