@@ -254,9 +254,9 @@ function TaskCardContent({ task }: { task: any }) {
               {task.assigneeIds.slice(0, 3).map((id: string, i: number) => (
                 <div
                   key={id}
-                  className={`h-5 w-5 rounded-full ${avatarColors[i % avatarColors.length]} ring-1 ring-background flex items-center justify-center text-[9px] font-medium text-white`}
+                  className={`h-5 w-5 rounded-full ${avatarColors[i % avatarColors.length]} ring-1 ring-background flex items-center justify-center`}
                 >
-                  {id.charAt(0).toUpperCase()}
+                  <UserIcon className="h-2.5 w-2.5 text-white" />
                 </div>
               ))}
               {task.assigneeIds.length > 3 && (
