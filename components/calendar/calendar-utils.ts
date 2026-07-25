@@ -4,10 +4,10 @@ import {
   eachDayOfInterval, eachWeekOfInterval,
   differenceInDays, differenceInCalendarDays,
   isSameDay, isSameMonth, isToday, isWeekend, isBefore, isAfter,
-  format, parseISO
+  format, parseISO, max, min,
 } from "date-fns";
 import { getStatusColor, getPriorityColor } from "@/components/timeline/timeline-utils";
-import type { CalendarEvent, CalendarViewType } from "./calendar-types";
+import type { CalendarEvent, CalendarViewType, EventPlacement } from "./calendar-types";
 
 export const DAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const DAY_HEADERS_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
@@ -165,3 +165,61 @@ export function getTaskColor(task: any): string {
 }
 
 export { getStatusColor, getPriorityColor };
+
+export function eventOverlapsWeek(event: CalendarEvent, weekStart: Date, weekEnd: Date): boolean {
+  const eStart = event.startDate ? parseISO(event.startDate) : null;
+  const eEnd = event.dueDate ? parseISO(event.dueDate) : null;
+  if (!eStart && !eEnd) return false;
+  const s = eStart || eEnd!;
+  const e = eEnd || s;
+  return !isBefore(e, weekStart) && !isAfter(s, weekEnd);
+}
+
+export function placeEventsInWeek(events: CalendarEvent[], weekDays: Date[]): EventPlacement[] {
+  const weekStart = weekDays[0];
+  const weekEnd = endOfDay(weekDays[weekDays.length - 1]);
+
+  const overlapping = events.filter(e => eventOverlapsWeek(e, weekStart, weekEnd));
+  const sorted = [...overlapping].sort((a, b) => {
+    const aStart = a.startDate ? parseISO(a.startDate).getTime() : 0;
+    const bStart = b.startDate ? parseISO(b.startDate).getTime() : 0;
+    return aStart - bStart;
+  });
+
+  const lanes: { end: Date }[] = [];
+  const placements: EventPlacement[] = [];
+
+  for (const event of sorted) {
+    const eStart = event.startDate ? parseISO(event.startDate) : weekStart;
+    const eEnd = event.dueDate ? parseISO(event.dueDate) : weekStart;
+
+    const effectiveStart = max([eStart, weekStart]);
+    const effectiveEnd = min([eEnd, weekEnd]);
+
+    const colStart = effectiveStart.getDay() + 1;
+    const colEnd = effectiveEnd.getDay() + 1;
+    const span = colEnd - colStart + 1;
+
+    let lane = 0;
+    for (let i = 0; i < lanes.length; i++) {
+      if (isAfter(lanes[i].end, effectiveStart)) {
+        lane = i + 1;
+      }
+    }
+    while (lane >= lanes.length) {
+      lanes.push({ end: weekStart });
+    }
+    lanes[lane] = { end: effectiveEnd };
+
+    placements.push({
+      event,
+      columnStart: colStart,
+      columnSpan: span,
+      laneIndex: lane,
+      continuesFromPrev: isBefore(eStart, weekStart),
+      continuesToNext: isAfter(eEnd, weekEnd),
+    });
+  }
+
+  return placements;
+}

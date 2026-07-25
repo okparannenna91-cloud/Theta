@@ -266,9 +266,6 @@ export function CalendarView({
                 onEventClick={handleEventClick}
                 onDayClick={handleDayClick}
                 onEventDrop={handleEventDrop}
-                onCreateTask={onCreateTask}
-                onLogActivity={onLogActivity}
-                showWeekends={showWeekends}
               />
             )}
             {viewType === "week" && (
@@ -310,18 +307,15 @@ export function CalendarView({
                   </span>
                   <span className="text-[10px] text-muted-foreground">({group.events.length})</span>
                 </div>
-                {viewType === "month" && (
-                  <MonthView
-                    currentDate={currentDate}
-                    events={group.events}
-                    onEventClick={handleEventClick}
-                    onDayClick={handleDayClick}
-                    onEventDrop={handleEventDrop}
-                    onCreateTask={onCreateTask}
-                    onLogActivity={onLogActivity}
-                    showWeekends={showWeekends}
-                  />
-                )}
+            {viewType === "month" && (
+              <MonthView
+                currentDate={currentDate}
+                events={group.events}
+                onEventClick={handleEventClick}
+                onDayClick={handleDayClick}
+                onEventDrop={handleEventDrop}
+              />
+            )}
                 {viewType === "week" && (
                   <WeekView
                     currentDate={currentDate}

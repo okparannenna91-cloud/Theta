@@ -23,6 +23,15 @@ export interface CalendarEvent {
   originalTask: any;
 }
 
+export interface EventPlacement {
+  event: CalendarEvent;
+  columnStart: number;
+  columnSpan: number;
+  laneIndex: number;
+  continuesFromPrev: boolean;
+  continuesToNext: boolean;
+}
+
 export type CalendarGroupByKey = "project" | "assignee" | "none";
 
 export const CALENDAR_VIEW_OPTIONS: { value: CalendarViewType; label: string }[] = [
@@ -39,12 +48,14 @@ export const CALENDAR_GROUP_OPTIONS: { value: CalendarGroupByKey | "none"; label
 ];
 
 export const CALENDAR_COLORS = [
-  "#4f46e5",
-  "#f59e0b",
-  "#10b981",
-  "#ef4444",
-  "#8b5cf6",
-  "#06b6d4",
-  "#ec4899",
-  "#84cc16",
+  "#4f46e5", "#f59e0b", "#10b981", "#ef4444",
+  "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16",
 ];
+
+export const PRIORITY_CONFIG: Record<string, { color: string; label: string }> = {
+  critical: { color: "#dc2626", label: "Critical" },
+  high: { color: "#ea580c", label: "High" },
+  medium: { color: "#ca8a04", label: "Medium" },
+  low: { color: "#2563eb", label: "Low" },
+  none: { color: "#9ca3af", label: "None" },
+};
