@@ -31,7 +31,7 @@ async function fetchProjectTasks(projectId: string, workspaceId: string) {
 
 export function ProjectTasksView({ project }: ProjectTasksViewProps) {
     const queryClient = useQueryClient();
-    const [view, setView] = useState<"list" | "table">("list");
+    const [view, setView] = useState<"list" | "table" | "board">("list");
     const [selectedTask, setSelectedTask] = useState<any>(null);
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [showCreate, setShowCreate] = useState(false);
@@ -146,6 +146,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                 <div className="flex items-center gap-2">
                     <div className="border rounded-md p-0.5 flex items-center">
                         <Button variant={view === "list" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-sm px-3" onClick={() => setView("list")}>List</Button>
+                        <Button variant={view === "board" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-sm px-3" onClick={() => setView("board")}>Board</Button>
                         <Button variant={view === "table" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-sm px-3" onClick={() => setView("table")}>Table</Button>
                     </div>
                     <Button size="sm" onClick={() => setShowCreate(true)}>
@@ -206,6 +207,51 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                             </CardHeader>
                         </Card>
                     ))}
+                </div>
+            ) : view === "board" ? (
+                <div className="flex gap-4 overflow-x-auto pb-4 min-h-[400px]">
+                    {statuses.map((col) => {
+                        const columnTasks = tasks.filter((t: any) => getStatusValue(t.status) === col.id);
+                        return (
+                            <div key={col.id} className="flex-shrink-0 w-72">
+                                <div className="flex items-center gap-2 mb-3 px-1">
+                                    <div className={cn("h-2 w-2 rounded-full",
+                                        col.id === "done" ? "bg-emerald-500" :
+                                        col.id === "in_progress" || col.id === "in-progress" ? "bg-blue-500" : "bg-muted-foreground"
+                                    )} />
+                                    <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{col.name}</span>
+                                    <span className="text-xs text-muted-foreground/60 ml-auto">{columnTasks.length}</span>
+                                </div>
+                                <div className="space-y-2">
+                                    {columnTasks.map((task: any) => (
+                                        <Card key={task.id} className="border shadow-sm hover:border-primary/30 transition-colors cursor-pointer group"
+                                            onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
+                                            <CardHeader className="p-3">
+                                                <div className="flex items-start justify-between gap-2">
+                                                    <span className={cn("text-sm font-medium leading-snug", task.status === "done" && "line-through text-muted-foreground")}>
+                                                        {task.title}
+                                                    </span>
+                                                    <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
+                                                        onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(task.id); }}>
+                                                        <Trash2 className="h-3 w-3" />
+                                                    </Button>
+                                                </div>
+                                                {task.description && <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>}
+                                                <div className="flex items-center gap-2 mt-2">
+                                                    <Badge className={cn("text-[10px] rounded-md px-1.5 py-0 h-4 font-medium", getPriorityColor(task.priority))}>
+                                                        {task.priority}
+                                                    </Badge>
+                                                    {task.dueDate && (
+                                                        <span className="text-[10px] text-muted-foreground">Due {new Date(task.dueDate).toLocaleDateString()}</span>
+                                                    )}
+                                                </div>
+                                            </CardHeader>
+                                        </Card>
+                                    ))}
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             ) : (
                 <div className="border-subtle rounded-lg overflow-hidden shadow-sm">
