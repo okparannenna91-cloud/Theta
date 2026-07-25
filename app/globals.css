@@ -92,7 +92,7 @@
 
 @layer base {
   * {
-    @apply border-border selection:bg-primary/20 selection:text-primary;
+    @apply border-border-subtle selection:bg-primary/20 selection:text-primary;
   }
 
   body {
@@ -118,13 +118,13 @@
     @apply bg-sidebar text-sidebar-foreground border-sidebar-border;
   }
   .glass {
-    @apply bg-background/80 backdrop-blur-sm border-subtle;
+    @apply bg-background/80 backdrop-blur-sm border border-subtle;
   }
   .glass-card {
-    @apply border-subtle bg-card text-card-foreground shadow-sm rounded-lg;
+    @apply border border-subtle bg-card text-card-foreground shadow-sm rounded-lg;
   }
   .glass-panel {
-    @apply border-subtle bg-card/80 backdrop-blur-sm rounded-lg;
+    @apply border border-subtle bg-card/80 backdrop-blur-sm rounded-lg;
   }
 }
 

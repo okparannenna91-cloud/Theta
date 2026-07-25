@@ -59,6 +59,9 @@ const config = {
           border: "hsl(var(--sidebar-border))",
         },
       },
+      borderColor: {
+        subtle: "hsl(var(--border-subtle))",
+      },
       borderRadius: {
         sm: "var(--radius-sm)",
         DEFAULT: "var(--radius-md)",
