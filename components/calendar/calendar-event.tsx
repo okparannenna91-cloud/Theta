@@ -5,6 +5,7 @@ import {
   CalendarDays, User, Flag, Tag, CheckCircle2, Target, Clock, AlertCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { PRIORITY_CONFIG } from "./calendar-types";
 import { getPriorityColor, getStatusColor } from "./calendar-utils";
 import type { CalendarEvent } from "./calendar-types";
 
@@ -16,6 +17,60 @@ const statusLabels: Record<string, string> = {
   backlog: "Backlog",
   review: "Review",
 };
+
+interface CalendarEventBarProps {
+  event: CalendarEvent;
+  onClick: (event: CalendarEvent) => void;
+  onMouseEnter?: (event: CalendarEvent, rect: DOMRect) => void;
+  onMouseLeave?: () => void;
+  compact?: boolean;
+}
+
+export function CalendarEventBar({ event, onClick, onMouseEnter, onMouseLeave, compact }: CalendarEventBarProps) {
+  const priorityColor = PRIORITY_CONFIG[event.priority]?.color || PRIORITY_CONFIG.none.color;
+
+  return (
+    <div
+      className={cn(
+        "relative flex items-center gap-1 px-1.5 py-0.5 select-none cursor-pointer group",
+        "transition-all duration-150 ease-out rounded-md",
+        "hover:shadow-md hover:z-10",
+        event.isCompleted && "opacity-50",
+        event.isOverdue && "ring-1 ring-destructive/30",
+      )}
+      style={{
+        backgroundColor: `${event.color}18`,
+      }}
+      onClick={(e) => { e.stopPropagation(); onClick(event); }}
+      onMouseEnter={(e) => {
+        const rect = e.currentTarget.getBoundingClientRect();
+        onMouseEnter?.(event, rect);
+      }}
+      onMouseLeave={onMouseLeave}
+    >
+      <div
+        className="absolute left-0 top-0.5 bottom-0.5 w-0.5 rounded-full transition-all duration-200"
+        style={{ backgroundColor: priorityColor }}
+      />
+
+      {compact ? (
+        <div className="h-1.5 w-full rounded-full ml-1" style={{ backgroundColor: event.color }} />
+      ) : (
+        <>
+          <span className="text-[11px] font-medium truncate flex-1 text-foreground/70 group-hover:text-foreground transition-colors duration-200 ml-1">
+            {event.title}
+          </span>
+          <div className="flex items-center gap-1 flex-shrink-0 mr-0.5">
+            <div
+              className="w-1.5 h-1.5 rounded-full flex-shrink-0 ring-1 ring-background"
+              style={{ backgroundColor: getStatusColor(event.status) }}
+            />
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
 
 interface CalendarEventHoverCardProps {
   event: CalendarEvent;
@@ -34,7 +89,7 @@ export function CalendarEventHoverCard({ event }: CalendarEventHoverCardProps) {
   })();
 
   return (
-    <div className="w-72 rounded-xl border-subtle bg-popover/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+    <div className="w-72 rounded-xl border bg-popover/95 backdrop-blur-xl shadow-2xl overflow-hidden">
       <div className="p-3.5 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -112,44 +167,6 @@ export function CalendarEventHoverCard({ event }: CalendarEventHoverCardProps) {
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-interface CalendarEventBarProps {
-  event: CalendarEvent;
-  onClick: (event: CalendarEvent) => void;
-  onMouseEnter?: (event: CalendarEvent, rect: DOMRect) => void;
-  onMouseLeave?: () => void;
-  compact?: boolean;
-}
-
-export function CalendarEventBar({ event, onClick, onMouseEnter, onMouseLeave, compact }: CalendarEventBarProps) {
-  return (
-    <div
-      className={cn(
-        "rounded-md px-1.5 py-0.5 text-[11px] font-medium truncate cursor-pointer select-none",
-        "hover:brightness-110 active:brightness-90 transition-all",
-        "border-l-2",
-        event.isCompleted && "opacity-60 line-through",
-        event.isOverdue && "ring-1 ring-destructive/30",
-      )}
-      style={{
-        backgroundColor: `${event.color}20`,
-        borderLeftColor: event.color,
-      }}
-      onClick={(e) => { e.stopPropagation(); onClick(event); }}
-      onMouseEnter={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        onMouseEnter?.(event, rect);
-      }}
-      onMouseLeave={onMouseLeave}
-    >
-      {compact ? (
-        <div className="h-1.5 w-full rounded-full" style={{ backgroundColor: event.color }} />
-      ) : (
-        <span>{event.title}</span>
-      )}
     </div>
   );
 }
