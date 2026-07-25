@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { cn } from "@/lib/utils";
 import { PRIORITY_CONFIG } from "./calendar-types";
 import type { CalendarEvent, EventPlacement } from "./calendar-types";
@@ -11,12 +11,15 @@ interface TaskBarProps {
   weekDays: Date[];
   maxLanes: number;
   onEventClick?: (event: CalendarEvent) => void;
+  onDragStart?: (event: CalendarEvent, e: React.MouseEvent) => void;
+  onResizeStart?: (event: CalendarEvent, edge: "left" | "right", e: React.MouseEvent) => void;
 }
 
-const PRIORITY_ORDER = ["critical", "high", "medium", "low", "none"];
+export type { TaskBarProps };
 
-export function TaskBar({ placement, weekDays, maxLanes, onEventClick }: TaskBarProps) {
-  const { event, columnStart, columnSpan, laneIndex, continuesFromPrev, continuesToNext } = placement;
+export function TaskBar({ placement, weekDays, maxLanes, onEventClick, onDragStart, onResizeStart }: TaskBarProps) {
+  const { event, columnSpan, laneIndex, continuesFromPrev, continuesToNext } = placement;
+  const columnStart = continuesFromPrev ? 1 : placement.columnStart;
   const [isHovered, setIsHovered] = useState(false);
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
   const barRef = useRef<HTMLDivElement>(null);
@@ -37,11 +40,26 @@ export function TaskBar({ placement, weekDays, maxLanes, onEventClick }: TaskBar
   const leftRounded = isSingleDay || (!continuesFromPrev && columnSpan > 0);
   const rightRounded = isSingleDay || !continuesToNext;
 
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0) return;
+    onDragStart?.(event, e);
+  }, [event, onDragStart]);
+
+  const handleResizeLeft = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onResizeStart?.(event, "left", e);
+  }, [event, onResizeStart]);
+
+  const handleResizeRight = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    onResizeStart?.(event, "right", e);
+  }, [event, onResizeStart]);
+
   if (isMilestone) {
     return (
       <div
         className="flex items-center gap-1.5 px-1 cursor-pointer group"
-        style={{ gridColumn: `${columnStart} / span ${columnSpan}` }}
+        style={{ gridColumn: `${columnStart} / span ${columnSpan}`, gridRow: laneIndex + 2 }}
         onClick={() => onEventClick?.(event)}
         onMouseEnter={(e) => { setIsHovered(true); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
         onMouseLeave={() => setIsHovered(false)}
@@ -60,7 +78,7 @@ export function TaskBar({ placement, weekDays, maxLanes, onEventClick }: TaskBar
     <div
       ref={barRef}
       className={cn(
-        "relative flex items-center gap-1 px-1.5 py-0.5 cursor-pointer select-none transition-shadow group",
+        "relative flex items-center gap-1 px-1.5 py-0.5 select-none transition-shadow group",
         "hover:shadow-md hover:z-10",
         event.isCompleted && "opacity-50",
       )}
@@ -71,6 +89,7 @@ export function TaskBar({ placement, weekDays, maxLanes, onEventClick }: TaskBar
         ...(rightRounded ? { borderRadius: leftRounded ? "6px" : "0 6px 6px 0" } : {}),
       }}
       onClick={() => onEventClick?.(event)}
+      onMouseDown={handleMouseDown}
       onMouseEnter={(e) => { setIsHovered(true); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
       onMouseLeave={() => setIsHovered(false)}
       onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
@@ -80,8 +99,15 @@ export function TaskBar({ placement, weekDays, maxLanes, onEventClick }: TaskBar
         style={{ backgroundColor: priorityColor }}
       />
 
+      {!continuesFromPrev && !isSingleDay && (
+        <div
+          className="absolute left-0 top-0 bottom-0 w-2 cursor-col-resize z-20 hover:bg-primary/20 rounded-l-[6px] transition-colors"
+          onMouseDown={handleResizeLeft}
+        />
+      )}
+
       {continuesFromPrev && (
-        <span className="text-[9px] text-muted-foreground/50 flex-shrink-0">▸</span>
+        <span className="text-[9px] text-muted-foreground/50 flex-shrink-0 ml-1">◀</span>
       )}
 
       <span className="text-[11px] font-medium truncate flex-1 text-foreground/80 group-hover:text-foreground transition-colors">
@@ -98,10 +124,19 @@ export function TaskBar({ placement, weekDays, maxLanes, onEventClick }: TaskBar
       </div>
 
       {continuesToNext && (
-        <span className="text-[9px] text-muted-foreground/50 flex-shrink-0">▸</span>
+        <span className="text-[9px] text-muted-foreground/50 flex-shrink-0 mr-1">▶</span>
+      )}
+
+      {!continuesToNext && !isSingleDay && (
+        <div
+          className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize z-20 hover:bg-primary/20 rounded-r-[6px] transition-colors"
+          onMouseDown={handleResizeRight}
+        />
       )}
 
       {isHovered && <CalendarTooltip event={event} x={tooltipPos.x} y={tooltipPos.y} />}
     </div>
   );
 }
+
+export default TaskBar;

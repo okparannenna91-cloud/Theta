@@ -160,6 +160,15 @@ export function CalendarView({
     });
   }, [onTaskUpdate, onLogActivity]);
 
+  const handleEventResize = useCallback((event: CalendarEvent, newStart: string, newEnd: string) => {
+    onTaskUpdate(event.id, { startDate: newStart, dueDate: newEnd });
+    onLogActivity("task_rescheduled", event.id, {
+      taskTitle: event.title,
+      from: `${event.startDate} → ${event.dueDate}`,
+      to: `${newStart} → ${newEnd}`,
+    });
+  }, [onTaskUpdate, onLogActivity]);
+
   const title = getViewTitle(currentDate, viewType);
 
   return (
@@ -266,6 +275,7 @@ export function CalendarView({
                 onEventClick={handleEventClick}
                 onDayClick={handleDayClick}
                 onEventDrop={handleEventDrop}
+                onEventResize={handleEventResize}
               />
             )}
             {viewType === "week" && (
@@ -314,6 +324,7 @@ export function CalendarView({
                 onEventClick={handleEventClick}
                 onDayClick={handleDayClick}
                 onEventDrop={handleEventDrop}
+                onEventResize={handleEventResize}
               />
             )}
                 {viewType === "week" && (

@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { isSameDay, isToday, isWeekend, format, startOfDay, parseISO } from "date-fns";
+import { isSameDay, isToday, isWeekend, format, startOfDay, parseISO, isAfter, isBefore } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getWeekDays, getEventsForDay } from "./calendar-utils";
 import { CalendarEventBar, CalendarEventHoverCard } from "./calendar-event";
 import type { CalendarEvent } from "./calendar-types";
+import { TaskBar } from "./calendar-task-bar";
+import { placeEventsInWeek } from "./calendar-utils";
 
 interface WeekViewProps {
   currentDate: Date;
@@ -30,6 +32,29 @@ export function WeekView({
   const [dragOverDay, setDragOverDay] = useState<Date | null>(null);
 
   const days = useMemo(() => getWeekDays(currentDate), [currentDate]);
+
+  const multiDayEvents = useMemo(() => {
+    const weekStart = days[0];
+    const weekEnd = startOfDay(days[days.length - 1]);
+    return events.filter(ev => {
+      if (!ev.isMultiDay) return false;
+      const eStart = ev.startDate ? parseISO(ev.startDate) : null;
+      const eEnd = ev.dueDate ? parseISO(ev.dueDate) : null;
+      if (!eStart && !eEnd) return false;
+      const s = eStart || eEnd!;
+      const end = eEnd || s;
+      return !isBefore(end, weekStart) && !isAfter(s, weekEnd);
+    });
+  }, [events, days]);
+
+  const allDayPlacements = useMemo(() => {
+    if (multiDayEvents.length === 0) return [];
+    return placeEventsInWeek(multiDayEvents, days);
+  }, [multiDayEvents, days]);
+
+  const timedEvents = useMemo(() => {
+    return events.filter(e => !e.isMultiDay);
+  }, [events]);
 
   return (
     <div className="border-subtle rounded-xl bg-card overflow-hidden shadow-sm">
@@ -60,18 +85,37 @@ export function WeekView({
         })}
       </div>
 
+      {allDayPlacements.length > 0 && (
+        <div
+          className="grid grid-cols-[60px_repeat(7,1fr)] border-b bg-muted/10"
+          style={{ gridTemplateRows: "auto" }}
+        >
+          <div className="text-[9px] text-muted-foreground px-1 py-1 text-right flex items-center justify-end">
+            All day
+          </div>
+          <div className="col-span-7 relative p-1 space-y-0.5">
+            {allDayPlacements.map((placement) => (
+              <TaskBar
+                key={placement.event.id}
+                placement={placement}
+                weekDays={days}
+                maxLanes={allDayPlacements.length}
+                onEventClick={onEventClick}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="grid grid-cols-[60px_repeat(7,1fr)]">
         {Array.from({ length: 24 }, (_, hour) => (
-          <>
-            <div
-              key={`time-${hour}`}
-              className="border-b border-r text-[10px] text-muted-foreground pr-2 text-right py-3"
-            >
+          <div key={`row-${hour}`} className="contents">
+            <div className="border-b border-r text-[10px] text-muted-foreground pr-2 text-right py-3">
               {hour === 0 ? "" : format(new Date().setHours(hour, 0, 0, 0), "ha")}
             </div>
             {days.map((day, i) => {
               if (!showWeekends && (i === 0 || i === 6)) return null;
-              const dayEvents = getEventsForDay(events, day);
+              const dayEvents = getEventsForDay(timedEvents, day);
               const hourlyEvents = dayEvents.filter((e) => {
                 if (!e.startDate) return false;
                 const h = parseISO(e.startDate).getHours();
@@ -117,7 +161,7 @@ export function WeekView({
                 </div>
               );
             })}
-          </>
+          </div>
         ))}
       </div>
 
