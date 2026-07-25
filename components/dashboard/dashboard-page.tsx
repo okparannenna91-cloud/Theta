@@ -103,20 +103,20 @@ export default function DashboardPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="border rounded-lg p-5 space-y-3">
+            <div key={i} className="border-subtle rounded-lg p-5 space-y-3">
               <Skeleton className="h-4 w-20" />
               <Skeleton className="h-8 w-16" />
               <Skeleton className="h-3 w-28" />
             </div>
           ))}
         </div>
-        <div className="border rounded-lg p-6 space-y-4">
+        <div className="border-subtle rounded-lg p-6 space-y-4">
           <Skeleton className="h-5 w-40" />
           <Skeleton className="h-[300px] w-full rounded-lg" />
         </div>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="border rounded-lg p-6 space-y-4">
+            <div key={i} className="border-subtle rounded-lg p-6 space-y-4">
               <Skeleton className="h-5 w-36" />
               {Array.from({ length: 3 }).map((_, j) => (
                 <div key={j} className="flex items-center gap-4 p-3 rounded-lg bg-muted/30">
@@ -189,12 +189,12 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {stats.map((stat, i) => (
-          <Card key={i} className="border shadow-sm">
+          <Card key={i} className="border-subtle">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm text-muted-foreground">{stat.title}</span>
-                <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", stat.bg, stat.color)}>
-                  <stat.icon className="h-4 w-4" />
+                <div className="w-7 h-7 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
+                  <stat.icon className="h-3.5 w-3.5" />
                 </div>
               </div>
               <div className="text-2xl font-bold text-foreground">{stat.value}</div>
@@ -207,12 +207,12 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      <Card className="border shadow-sm mb-8">
+      <Card className="border-subtle mb-8">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Activity className="h-4 w-4 text-primary" />
+              <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
+                <Activity className="h-4 w-4" />
               </div>
               <div>
                 <CardTitle className="text-base font-semibold">Activity Overview</CardTitle>
@@ -287,7 +287,7 @@ export default function DashboardPage() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-        <Card className="border shadow-sm">
+        <Card className="border-subtle">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -308,7 +308,7 @@ export default function DashboardPage() {
                   className="flex items-center justify-between p-4 rounded-lg border hover:border-primary/30 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-sm font-semibold text-primary">
+                    <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center text-sm font-medium text-muted-foreground">
                       {project.name.charAt(0)}
                     </div>
                     <div>
@@ -330,7 +330,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border shadow-sm">
+        <Card className="border-subtle">
           <CardHeader className="pb-4">
             <div className="flex items-center justify-between">
               <div>
@@ -385,11 +385,11 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
-        <Card className="border shadow-sm lg:col-span-2">
+        <Card className="border-subtle lg:col-span-2">
           <CardHeader className="pb-6">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Activity className="h-4 w-4 text-primary" />
+              <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
+                <Activity className="h-4 w-4" />
               </div>
               <div>
                 <CardTitle className="text-base font-semibold">Recent Activity</CardTitle>
@@ -405,11 +405,11 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        <Card className="border shadow-sm bg-gradient-to-br from-primary/5 to-transparent">
+        <Card className="border-subtle">
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                <Brain className="h-4 w-4 text-primary" />
+              <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
+                <Brain className="h-4 w-4" />
               </div>
               <div>
                 <CardTitle className="text-base font-semibold">Nova Brief</CardTitle>

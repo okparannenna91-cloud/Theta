@@ -86,7 +86,7 @@ export function NotificationBell() {
                     )}
                 </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 sm:w-96 p-0 border shadow-xl rounded-xl overflow-hidden" sideOffset={8}>
+            <DropdownMenuContent align="end" className="w-80 sm:w-96 p-0 border-subtle shadow-xl rounded-xl overflow-hidden" sideOffset={8}>
                 <NotificationPanel
                     workspaceId={activeWorkspaceId || ""}
                     onClose={() => setIsOpen(false)}

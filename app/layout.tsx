@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Figtree, Poppins } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import "@vibe/core/tokens";
 import "leaflet/dist/leaflet.css";
@@ -12,8 +12,7 @@ import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { ApiDebugProvider } from "@/components/providers/api-debug-provider";
 import { Toaster } from "sonner";
 
-const figtree = Figtree({ subsets: ["latin"], variable: "--font-family" });
-const poppins = Poppins({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"], variable: "--title-font-family" });
+const inter = Inter({ subsets: ["latin"], variable: "--font-family" });
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://thetapm.site"),
@@ -117,7 +116,7 @@ export default function RootLayout({
           <meta name="apple-mobile-web-app-title" content="Theta" />
           <link rel="apple-touch-icon" href="/icons/icon-192x192.png" />
         </head>
-        <body className={`${figtree.variable} ${poppins.variable}`}>
+        <body className={`${inter.variable}`}>
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"

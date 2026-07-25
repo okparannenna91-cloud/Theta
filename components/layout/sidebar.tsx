@@ -6,15 +6,14 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
-  FolderKanban,
   CheckSquare,
-  Users,
   Bell,
+  FolderKanban,
+  LayoutList,
+  Users,
   Settings,
-  User,
   Menu,
   X,
-  LayoutList,
   ChevronDown,
   Check,
   Plus,
@@ -25,6 +24,7 @@ import { useUser } from "@clerk/nextjs";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useI18n } from "@/lib/i18n";
 import { Logo } from "@/components/ui/logo";
+import { useQuery } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuTrigger,
@@ -32,6 +32,42 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
+
+function NavItem({ href, icon: Icon, label, active, onClick }: { href: string; icon?: any; label: string; active?: boolean; onClick?: () => void }) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors relative group",
+        active
+          ? "bg-accent/50 text-sidebar-foreground font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-4 before:w-0.5 before:rounded-full before:bg-primary"
+          : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-accent/30"
+      )}
+    >
+      {Icon && <Icon className={cn("h-4 w-4 flex-shrink-0", active ? "text-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground/80")} />}
+      <span>{label}</span>
+    </Link>
+  );
+}
+
+function ProjectSubItem({ href, label, active, onClick }: { href: string; label: string; active?: boolean; onClick?: () => void }) {
+  return (
+    <Link
+      href={href}
+      onClick={onClick}
+      className={cn(
+        "flex items-center gap-3 px-3 py-1 rounded-md text-sm transition-colors",
+        active
+          ? "text-sidebar-foreground font-medium bg-accent/40"
+          : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-accent/20"
+      )}
+    >
+      <span className="h-1 w-1 rounded-full bg-sidebar-muted flex-shrink-0" />
+      <span>{label}</span>
+    </Link>
+  );
+}
 
 export const Sidebar = memo(function Sidebar() {
   const pathname = usePathname();
@@ -41,21 +77,63 @@ export const Sidebar = memo(function Sidebar() {
   const { workspaces, activeWorkspaceId, switchWorkspace } = useWorkspace();
   const { user } = useUser();
 
-  const navigation = [
-    { name: t("dashboard"), href: "/dashboard", icon: LayoutDashboard },
-    { name: t("notifications"), href: "/notifications", icon: Bell },
-    { name: "My Tasks", href: "/my-tasks", icon: CheckSquare },
-    { name: t("portfolio"), href: "/portfolio", icon: FolderKanban },
-    { name: t("projects"), href: "/projects", icon: LayoutList },
-    { name: "Teams", href: "/teams", icon: Users },
-    { name: t("settings"), href: "/settings", icon: Settings },
-  ];
-
   const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId);
+
+  const projectIdMatch = pathname.match(/^\/projects\/([a-zA-Z0-9-]+)/);
+  const currentProjectId = projectIdMatch?.[1] || null;
+  const isProjectPage = !!currentProjectId;
+
+  const { data: projects } = useQuery({
+    queryKey: ["sidebar-projects", activeWorkspaceId],
+    queryFn: async () => {
+      if (!activeWorkspaceId) return [];
+      const res = await fetch(`/api/projects?workspaceId=${activeWorkspaceId}&limit=50`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!activeWorkspaceId,
+    staleTime: 60000,
+  });
+
+  const { data: currentProject } = useQuery({
+    queryKey: ["sidebar-project", currentProjectId, activeWorkspaceId],
+    queryFn: async () => {
+      if (!currentProjectId) return null;
+      const url = activeWorkspaceId ? `/api/projects/${currentProjectId}?workspaceId=${activeWorkspaceId}` : `/api/projects/${currentProjectId}`;
+      const res = await fetch(url);
+      if (!res.ok) return null;
+      return res.json();
+    },
+    enabled: !!currentProjectId && !!activeWorkspaceId,
+    staleTime: 60000,
+  });
+
+  const closeMobile = () => setIsMobileOpen(false);
+
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return pathname === href;
+    return pathname === href || pathname.startsWith(href + "/");
+  };
+
+  const projectSubNav = currentProjectId ? [
+    { label: "Overview", href: `/projects/${currentProjectId}/overview` },
+    { label: "Tasks", href: `/projects/${currentProjectId}/tasks` },
+    { label: "Board", href: `/projects/${currentProjectId}/boards` },
+    { label: "Timeline", href: `/projects/${currentProjectId}/timeline` },
+    { label: "Gantt", href: `/projects/${currentProjectId}/gantt` },
+    { label: "Calendar", href: `/projects/${currentProjectId}/calendar` },
+    { label: "Team", href: `/projects/${currentProjectId}/team` },
+    { label: "Automations", href: `/projects/${currentProjectId}/automations` },
+    { label: "Reports", href: `/projects/${currentProjectId}/reports` },
+    { label: "Analytics", href: `/projects/${currentProjectId}/analytics` },
+    { label: "Activity", href: `/projects/${currentProjectId}/activity` },
+    { label: "Fields", href: `/projects/${currentProjectId}/fields` },
+    { label: "Settings", href: `/projects/${currentProjectId}/settings` },
+  ] : [];
 
   return (
     <>
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b h-14 flex items-center justify-between px-4">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-background border-b border-subtle h-14 flex items-center justify-between px-4">
         <Logo size="sm" href="/dashboard" priority />
         <div className="flex items-center gap-2">
           <UserButton />
@@ -78,23 +156,19 @@ export const Sidebar = memo(function Sidebar() {
 
       <div
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 flex h-screen w-64 flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out",
+          "fixed lg:static inset-y-0 left-0 z-50 flex h-screen w-60 flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out border-r border-sidebar-border",
           "lg:translate-x-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-14 items-center px-5 border-b border-sidebar-border">
-          <Logo size="sm" href="/dashboard" container priority linkClassName="gap-2.5" wordmarkClassName="text-sidebar-foreground" />
-        </div>
-
-        <div className="px-3 py-3 border-b border-sidebar-border">
+        <div className="flex h-12 items-center px-3 border-b border-sidebar-border">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className="flex items-center justify-between w-full px-3 py-2 rounded-md hover:bg-white/5 transition-colors text-sm text-sidebar-foreground">
-                <span className="truncate font-medium">
-                  {activeWorkspace?.name || "Select workspace"}
-                </span>
-                <ChevronDown className="h-4 w-4 text-sidebar-muted flex-shrink-0" />
+              <button className="flex items-center gap-2 w-full text-left group text-sm font-medium text-sidebar-foreground">
+                <Logo size={16} href="/dashboard" priority linkClassName="gap-1.5" wordmarkClassName="text-sidebar-foreground text-sm font-semibold" />
+                <span className="text-sidebar-muted mx-0.5">/</span>
+                <span className="truncate">{activeWorkspace?.name || "Workspace"}</span>
+                <ChevronDown className="h-3 w-3 text-sidebar-muted flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" side="right" sideOffset={8} className="w-56">
@@ -116,7 +190,7 @@ export const Sidebar = memo(function Sidebar() {
                       ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground"
                   )}>
-                    {ws.name.charAt(0).toUpperCase()}
+                    {ws.name?.charAt(0).toUpperCase() || "W"}
                   </div>
                   <span className="flex-1 truncate">{ws.name}</span>
                   {ws.id === activeWorkspaceId && (
@@ -136,56 +210,73 @@ export const Sidebar = memo(function Sidebar() {
           </DropdownMenu>
         </div>
 
-        <nav className="flex-1 overflow-y-auto py-2 px-2">
-          <div className="space-y-0.5">
-            {navigation.map((item) => {
-              const isActive = pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href + "/"));
-              return (
+        <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
+          <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={isActive("/dashboard")} onClick={closeMobile} />
+          <NavItem href="/my-tasks" icon={CheckSquare} label="My Tasks" active={isActive("/my-tasks")} onClick={closeMobile} />
+          <NavItem href="/notifications" icon={Bell} label="Notifications" active={isActive("/notifications")} onClick={closeMobile} />
+
+          <NavItem href="/projects" icon={LayoutList} label="Projects" active={isActive("/projects")} onClick={closeMobile} />
+          <NavItem href="/portfolio" icon={FolderKanban} label="Portfolio" active={isActive("/portfolio")} onClick={closeMobile} />
+          <NavItem href="/teams" icon={Users} label="Teams" active={isActive("/teams")} onClick={closeMobile} />
+
+          {projects && projects.length > 0 && (
+            <>
+              {projects.slice(0, 8).map((p: any) => (
+                <NavItem key={p.id} href={`/projects/${p.id}`} label={p.name} active={pathname === `/projects/${p.id}` || pathname.startsWith(`/projects/${p.id}/`)} onClick={closeMobile} />
+              ))}
+              {projects.length > 8 && (
                 <Link
-                  key={item.name}
-                  href={item.href}
-                  onClick={() => setIsMobileOpen(false)}
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors",
-                    isActive
-                      ? "bg-primary/20 text-primary-foreground font-medium"
-                      : "text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-white/5"
-                  )}
+                  href="/projects"
+                  onClick={closeMobile}
+                  className="flex items-center gap-3 px-3 py-1 text-xs text-sidebar-muted hover:text-sidebar-foreground transition-colors"
                 >
-                  <item.icon className={cn(
-                    "h-4 w-4 flex-shrink-0",
-                    isActive ? "text-primary-foreground" : "text-sidebar-muted"
-                  )} />
-                  <span>{item.name}</span>
+                  View all {projects.length} projects
                 </Link>
-              );
-            })}
-          </div>
+              )}
+            </>
+          )}
+
+          {isProjectPage && currentProject && (
+            <>
+              {projectSubNav.map((item) => (
+                <ProjectSubItem key={item.href} href={item.href} label={item.label} active={pathname === item.href} onClick={closeMobile} />
+              ))}
+            </>
+          )}
         </nav>
 
-        <div className="border-t border-sidebar-border pt-2 px-2">
+        <div className="px-2 py-2 border-t border-sidebar-border space-y-0.5">
+          <Link
+            href="/settings"
+            onClick={closeMobile}
+            className={cn(
+              "flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors group",
+              isActive("/settings") ? "bg-accent/50 text-sidebar-foreground font-medium" : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-accent/30"
+            )}
+          >
+            <Settings className="h-4 w-4 flex-shrink-0 text-sidebar-muted group-hover:text-sidebar-foreground/80 transition-colors" />
+            <span>Settings</span>
+          </Link>
+
           <button
             onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "" } }))}
-            className="flex items-center gap-3 px-3 py-2 rounded-md text-sm transition-colors w-full text-sidebar-foreground/70 hover:text-sidebar-foreground hover:bg-white/5"
+            className="flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors w-full text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-accent/30 group"
           >
-            <Bot className="h-4 w-4 flex-shrink-0 text-sidebar-muted" />
+            <Bot className="h-4 w-4 flex-shrink-0 text-sidebar-muted group-hover:text-sidebar-foreground/80 transition-colors" />
             <span>Ask Nova</span>
           </button>
-        </div>
 
-        <div className="p-3 border-t border-sidebar-border">
           <Link
             href="/profile"
-            className="flex items-center gap-3 px-3 py-2 rounded-md hover:bg-white/5 transition-colors"
+            onClick={closeMobile}
+            className="flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors hover:bg-accent/30"
           >
             <UserButton afterSignOutUrl="/" />
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-medium text-sidebar-foreground truncate">
+              <span className="text-sm font-medium text-sidebar-foreground truncate leading-tight">
                 {user?.fullName || "Profile"}
               </span>
-              <span className="text-xs text-sidebar-muted truncate">
-                {t("profile")}
-              </span>
+              <span className="text-xs text-sidebar-muted truncate leading-tight">Profile</span>
             </div>
           </Link>
         </div>

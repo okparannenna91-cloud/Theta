@@ -124,9 +124,9 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
 
     const getPriorityColor = (p: string) => {
         switch (p) {
-            case "high": return "bg-red-500/10 text-red-600 border border-red-500/20";
-            case "medium": return "bg-amber-500/10 text-amber-600 border border-amber-500/20";
-            case "low": return "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20";
+            case "high": return "bg-muted text-foreground border border-border";
+            case "medium": return "bg-muted text-muted-foreground border border-border";
+            case "low": return "bg-muted text-muted-foreground/60 border border-border";
             default: return "bg-muted text-muted-foreground";
         }
     };
@@ -208,10 +208,10 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                     ))}
                 </div>
             ) : (
-                <div className="border rounded-lg overflow-hidden shadow-sm">
+                <div className="border-subtle rounded-lg overflow-hidden shadow-sm">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-muted/50 border-b">
+                            <tr className="bg-muted/50 border-b border-subtle">
                                 <th className="p-3 text-xs font-medium text-muted-foreground w-12 text-center">Done</th>
                                 <th className="p-3 text-xs font-medium text-muted-foreground">Task Name</th>
                                 <th className="p-3 text-xs font-medium text-muted-foreground">Status</th>
@@ -221,7 +221,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                         </thead>
                         <tbody>
                             {tasks.map((task: any) => (
-                                <tr key={task.id} className="border-b border-border hover:bg-muted/20 transition-colors group cursor-pointer"
+                                <tr key={task.id} className="border-b border-subtle hover:bg-muted/20 transition-colors group cursor-pointer"
                                     onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
                                     <td className="p-3 text-center">
                                         <button onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: task.id, data: { status: task.status === "done" ? "todo" : "done" } }); }}

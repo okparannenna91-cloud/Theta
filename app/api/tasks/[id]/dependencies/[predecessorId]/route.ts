@@ -32,8 +32,8 @@ export async function DELETE(
     }
 
     const [taskInfo, predecessor] = await Promise.all([
-      prisma.task.findUnique({ where: { id: taskId }, select: { projectId: true } }),
-      prisma.task.findUnique({ where: { id: predecessorId }, select: { projectId: true } }),
+      prisma.task.findUnique({ where: { id: taskId }, select: { projectId: true, title: true } }),
+      prisma.task.findUnique({ where: { id: predecessorId }, select: { projectId: true, title: true } }),
     ]);
 
     if (!taskInfo || !predecessor) {
@@ -57,6 +57,20 @@ export async function DELETE(
 
     const workspaceChannel = getWorkspaceChannel(workspaceId);
     await publishToChannel(workspaceChannel, "task:dependency:deleted", { taskId, predecessorId });
+
+    const { createActivity } = await import("@/lib/activity");
+    await createActivity(
+      user.id,
+      workspaceId,
+      "unlinked",
+      "task",
+      taskId,
+      {
+        predecessorId,
+        taskTitle: taskInfo.title || undefined,
+        entityName: taskInfo.title || undefined,
+      }
+    );
 
     return NextResponse.json({ success: true });
   } catch (error) {

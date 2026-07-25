@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { Milestone, AlertCircle, CheckCircle2, GripVertical } from "lucide-react";
+import { GanttTooltip } from "@/components/gantt/gantt-tooltip";
 
 interface TaskBarProps {
     task: any;
@@ -17,6 +18,7 @@ interface TaskBarProps {
     onUpdate?: (updates: any) => void;
     onDragStart?: () => void;
     onDragEnd?: () => void;
+    onClick?: (task: any) => void;
 }
 
 export default function TaskBar({
@@ -29,9 +31,12 @@ export default function TaskBar({
     onUpdate,
     onDragStart,
     onDragEnd,
+onClick,
 }: TaskBarProps) {
     const [resizeDrag, setResizeDrag] = useState<{ direction: "left" | "right"; deltaX: number } | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
+    const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { left, width, isMilestone, isSummary, baselineLeft, baselineWidth, hasVariance } = useMemo(() => {
@@ -149,28 +154,45 @@ export default function TaskBar({
 
     if (isMilestone) {
         return (
-            <motion.div
-                initial={{ opacity: 0, scale: 0.5, rotate: 45 }}
-                animate={{ opacity: 1, scale: 1, rotate: 45 }}
-                drag="x"
-                dragMomentum={false}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                style={{ left, zIndex: isDragging ? 50 : 10 }}
-                className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing group"
-            >
-                <div className={cn(
-                    "w-6 h-6 border-2 border-white dark:border-slate-800 shadow-xl group-hover:scale-125 transition-all overflow-hidden",
-                    task.isCritical ? "bg-red-500" : "bg-amber-500"
-                )}>
-                    <div className="-rotate-45 flex items-center justify-center h-full relative">
-                        <Milestone className="w-2.5 h-2.5 text-white relative z-10" />
-                        {task.progress > 0 && (
-                            <div className="absolute inset-0 bg-white/20" style={{ clipPath: `inset(${100 - Math.min(100, Math.max(0, task.progress))}% 0 0 0)` }} />
-                        )}
+            <>
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.5, rotate: 45 }}
+                    animate={{ opacity: 1, scale: 1, rotate: 45 }}
+                    drag="x"
+                    dragMomentum={false}
+                    onDragStart={handleDragStart}
+                    onDragEnd={handleDragEnd}
+                    onClick={() => onClick?.(task)}
+                    onMouseEnter={(e) => {
+                        setIsHovered(true);
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        setTooltipPos({ x: Math.min(rect.right + 8, window.innerWidth - 300), y: rect.top });
+                    }}
+                    onMouseLeave={() => setIsHovered(false)}
+                    style={{ left, zIndex: isDragging ? 50 : 10 }}
+                    className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing group"
+                >
+                    <div className={cn(
+                        "w-6 h-6 border-2 border-white dark:border-slate-800 shadow-xl group-hover:scale-125 transition-all overflow-hidden",
+                        task.isCritical ? "bg-red-500" : "bg-amber-500"
+                    )}>
+                        <div className="-rotate-45 flex items-center justify-center h-full relative">
+                            <Milestone className="w-2.5 h-2.5 text-white relative z-10" />
+                            {task.progress > 0 && (
+                                <div className="absolute inset-0 bg-white/20" style={{ clipPath: `inset(${100 - Math.min(100, Math.max(0, task.progress))}% 0 0 0)` }} />
+                            )}
+                        </div>
                     </div>
-                </div>
-            </motion.div>
+                </motion.div>
+                {isHovered && !isDragging && (
+                    <div
+                        className="fixed z-[100] pointer-events-none"
+                        style={{ left: tooltipPos.x, top: tooltipPos.y }}
+                    >
+                        <GanttTooltip task={task} />
+                    </div>
+                )}
+            </>
         );
     }
 
@@ -238,6 +260,13 @@ export default function TaskBar({
                 dragMomentum={false}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                onClick={() => onClick?.(task)}
+                onMouseEnter={(e) => {
+                    setIsHovered(true);
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    setTooltipPos({ x: Math.min(rect.right + 8, window.innerWidth - 300), y: rect.top });
+                }}
+                onMouseLeave={() => setIsHovered(false)}
                 style={{
                     left: visualLeft,
                     width: visualWidth,
@@ -295,6 +324,15 @@ export default function TaskBar({
                     className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30 rounded-r-lg z-20 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity"
                 />
             </motion.div>
+
+            {isHovered && !isDragging && !resizeDrag && (
+                <div
+                    className="fixed z-[100] pointer-events-none"
+                    style={{ left: tooltipPos.x, top: tooltipPos.y }}
+                >
+                    <GanttTooltip task={task} />
+                </div>
+            )}
         </div>
     );
 }

@@ -134,9 +134,9 @@ export default function TasksPage() {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case "high": return "bg-red-500/10 text-red-600 border border-red-500/20";
-      case "medium": return "bg-amber-500/10 text-amber-600 border border-amber-500/20";
-      case "low": return "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20";
+      case "high": return "bg-muted text-foreground border border-border";
+      case "medium": return "bg-muted text-muted-foreground border border-border";
+      case "low": return "bg-muted text-muted-foreground/60 border border-border";
       default: return "bg-muted text-muted-foreground";
     }
   };
@@ -179,7 +179,7 @@ export default function TasksPage() {
       {view === "list" ? (
         <div className="space-y-2">
           {tasks?.map((task: any) => (
-              <Card key={task.id} className="border shadow-sm hover:border-primary/30 transition-colors cursor-pointer"
+              <Card key={task.id} className="border-subtle hover:border-primary/30 transition-colors cursor-pointer"
                 onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
               <CardHeader className="p-4">
                 <div className="flex items-start justify-between gap-4">
@@ -206,7 +206,7 @@ export default function TasksPage() {
                           {task.priority}
                         </Badge>
                         {task.project && (
-                          <Badge variant="outline" className="text-xs rounded-md px-2 py-0 h-5 bg-primary/5 text-primary border-primary/20">
+                          <Badge variant="outline" className="text-xs rounded-md px-2 py-0 h-5">
                             {task.project.name}
                           </Badge>
                         )}
@@ -223,11 +223,11 @@ export default function TasksPage() {
           ))}
         </div>
       ) : (
-        <div className="border rounded-lg overflow-hidden shadow-sm">
+        <div className="border-subtle rounded-lg overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-muted/50 border-b">
+                <tr className="bg-muted/50 border-b border-subtle">
                   <th className="p-3 text-xs font-medium text-muted-foreground w-12 text-center">Done</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground">Task Name</th>
                   <th className="p-3 text-xs font-medium text-muted-foreground">Project</th>
@@ -238,7 +238,7 @@ export default function TasksPage() {
               </thead>
               <tbody>
                 {tasks?.map((task: any) => (
-                  <tr key={task.id} className="border-b border-border hover:bg-muted/20 transition-colors group cursor-pointer"
+                  <tr key={task.id} className="border-b border-subtle hover:bg-muted/20 transition-colors group cursor-pointer"
                     onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
                     <td className="p-3 text-center">
                       <button onClick={() => updateMutation.mutate({ id: task.id, data: { status: task.status === "done" ? "todo" : "done" } })}
@@ -286,13 +286,13 @@ export default function TasksPage() {
       )}
 
       {!activeWorkspaceId && (
-        <div className="text-center py-12 border rounded-lg">
+        <div className="text-center py-12 border-subtle rounded-lg">
           <p className="text-sm text-muted-foreground">Select a workspace to view tasks.</p>
         </div>
       )}
 
       {activeWorkspaceId && tasks?.length === 0 && (
-        <div className="text-center py-12 border rounded-lg">
+        <div className="text-center py-12 border-subtle rounded-lg">
           <p className="text-sm text-muted-foreground mb-4">No tasks yet. Create your first task!</p>
           <Button onClick={() => setIsOpen(true)} variant="outline">
             <Plus className="h-4 w-4 mr-2" /> Create Task

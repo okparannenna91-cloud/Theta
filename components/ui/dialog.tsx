@@ -78,7 +78,7 @@ const Dialog = ({ open, onOpenChange, children }: DialogProps) => {
       aria-modal="true"
     >
       <div
-        className="fixed inset-0 bg-[var(--backdrop-color)]"
+        className="fixed inset-0 bg-black/40"
         onClick={() => onOpenChange?.(false)}
       />
       <div
@@ -100,7 +100,7 @@ const DialogContent = React.forwardRef<
     ref={ref}
     role="document"
     className={cn(
-      "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border border-[var(--ui-border-color)] bg-[var(--primary-background-color)] p-6 shadow-[var(--box-shadow-large)] duration-200 rounded-[var(--border-radius-medium)] mx-4 max-h-[90vh] overflow-y-auto",
+      "fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-4 border bg-background p-6 shadow-xl duration-normal ease-out rounded-lg mx-4 max-h-[90vh] overflow-y-auto",
       className
     )}
     {...props}
@@ -109,7 +109,7 @@ const DialogContent = React.forwardRef<
     {onClose && (
       <button
         onClick={onClose}
-        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-[var(--primary-color)] focus:ring-offset-2 disabled:pointer-events-none"
+        className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
       >
         <X className="h-4 w-4" />
         <span className="sr-only">Close</span>
@@ -154,7 +154,7 @@ const DialogDescription = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <p
     ref={ref}
-    className={cn("text-sm text-[var(--secondary-text-color)]", className)}
+    className={cn("text-sm text-muted-foreground", className)}
     {...props}
   />
 ))

@@ -20,6 +20,10 @@ interface TimelineCanvasProps {
     onUndoPush?: (cmd: UndoCommand) => void;
     workingDays?: Record<string, boolean>;
     holidays?: { name: string; date: string }[];
+    groupBy?: "none" | "project" | "assignee" | "status" | "priority";
+    onTaskClick?: (task: any) => void;
+    showWeekends?: boolean;
+    enableRollup?: boolean;
 }
 
 export default function TimelineCanvas({
@@ -32,6 +36,10 @@ export default function TimelineCanvas({
     onUndoPush,
     workingDays,
     holidays,
+    groupBy = "none",
+    onTaskClick,
+    showWeekends = true,
+    enableRollup = false,
 }: TimelineCanvasProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
@@ -99,24 +107,111 @@ export default function TimelineCanvas({
                 roots.push(task);
             }
         });
+        if (enableRollup) {
+            function rollup(node: any) {
+                if (node.children.length === 0) return;
+                node.children.forEach(rollup);
+                const total = node.children.reduce((sum: number, c: any) => sum + (c.progress || 0), 0);
+                node.progress = Math.round(total / node.children.length);
+                if (node.isSummary) {
+                    node.isSummary = true;
+                }
+                const earliestStart = node.children.reduce((min: Date | null, c: any) => {
+                    const d = c.startDate ? new Date(c.startDate) : null;
+                    return d && (!min || d < min) ? d : min;
+                }, null);
+                const latestDue = node.children.reduce((max: Date | null, c: any) => {
+                    const d = c.dueDate ? new Date(c.dueDate) : null;
+                    return d && (!max || d > max) ? d : max;
+                }, null);
+                if (earliestStart) node.startDate = earliestStart.toISOString();
+                if (latestDue) node.dueDate = latestDue.toISOString();
+            }
+            roots.forEach(rollup);
+        }
         return roots;
-    }, [tasks]);
+    }, [tasks, enableRollup]);
 
     const allFlattenedTasks = useMemo(() => {
         const flattened: any[] = [];
+
         function flatten(nodes: any[], depth = 0) {
             nodes.forEach(node => {
+                if (node._isGroupHeader) {
+                    flattened.push(node);
+                    return;
+                }
                 flattened.push({ ...node, depth });
                 if (!collapsedIds.has(node.id) && node.children.length > 0) {
                     flatten(node.children, depth + 1);
                 }
             });
         }
-        flatten(taskTree);
+
+        if (groupBy !== "none") {
+            const groups = new Map<string, { label: string; tasks: any[]; icon?: string }>();
+            const flatTasks: any[] = [];
+            function collectAll(nodes: any[]) {
+                nodes.forEach(n => {
+                    flatTasks.push(n);
+                    if (n.children?.length) collectAll(n.children);
+                });
+            }
+            collectAll(taskTree);
+
+            flatTasks.forEach(t => {
+                let groupKey = "unassigned";
+                let groupLabel = "Unassigned";
+                if (groupBy === "project") {
+                    groupKey = t.project?.id || "unassigned";
+                    groupLabel = t.project?.name || "No Project";
+                } else if (groupBy === "assignee") {
+                    groupKey = t.assigneeIds?.join(",") || "unassigned";
+                    groupLabel = t.assigneeIds?.length > 0 ? `${t.assigneeIds.length} assignees` : "Unassigned";
+                } else if (groupBy === "status") {
+                    groupKey = t.status || "unassigned";
+                    groupLabel = (t.status || "unassigned").replace("_", " ");
+                } else if (groupBy === "priority") {
+                    groupKey = t.priority || "unassigned";
+                    groupLabel = t.priority || "unassigned";
+                }
+                if (!groups.has(groupKey)) {
+                    groups.set(groupKey, { label: groupLabel, tasks: [] });
+                }
+                groups.get(groupKey)!.tasks.push(t);
+            });
+
+            const groupColors: Record<string, string> = {
+                urgent: "text-red-500", high: "text-rose-500", medium: "text-amber-500", low: "text-emerald-500",
+                todo: "text-muted-foreground", in_progress: "text-blue-500", done: "text-emerald-500",
+                blocked: "text-red-500", backlog: "text-muted-foreground",
+            };
+
+            groups.forEach((group, key) => {
+                const isCollapsed = collapsedIds.has(`group-${key}`);
+                flattened.push({
+                    id: `group-${key}`,
+                    title: group.label,
+                    _isGroupHeader: true,
+                    _groupKey: key,
+                    _groupCount: group.tasks.length,
+                    _isCollapsed: isCollapsed,
+                    _groupColor: groupColors[group.label.toLowerCase()] || "",
+                });
+                if (!isCollapsed) {
+                    group.tasks.forEach(t => {
+                        flattened.push({ ...t, depth: 1 });
+                    });
+                }
+            });
+        } else {
+            flatten(taskTree);
+        }
+
         return flattened.filter(t =>
-            !searchQuery || t.title.toLowerCase().includes(searchQuery.toLowerCase())
+            !searchQuery || t.title?.toLowerCase().includes(searchQuery.toLowerCase()) || t._isGroupHeader
         );
-    }, [taskTree, collapsedIds, searchQuery]);
+    }, [taskTree, collapsedIds, searchQuery, groupBy, enableRollup]);
 
     const visibleRange = useMemo(() => {
         const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - VISIBLE_BUFFER);
@@ -134,6 +229,19 @@ export default function TimelineCanvas({
             return next;
         });
     }, []);
+
+    const groupedCollapsedIds = useMemo(() => {
+        if (groupBy === "none") return collapsedIds;
+        const result = new Set(collapsedIds);
+        allFlattenedTasks.forEach(t => {
+            if (t._isGroupHeader) {
+                if (!collapsedIds.has(t.id)) {
+                    result.delete(t.id);
+                }
+            }
+        });
+        return result;
+    }, [collapsedIds, groupBy, allFlattenedTasks]);
 
     const { startDate, endDate, timeUnits, headerLevels } = useMemo(() => {
         const now = new Date();
@@ -327,6 +435,29 @@ export default function TimelineCanvas({
                     >
                         <div style={{ height: totalContentHeight, position: "relative" }}>
                             {visibleTasks.map((task, index) => (
+                                task._isGroupHeader ? (
+                                    <div
+                                        key={task.id}
+                                        style={{
+                                            position: "absolute",
+                                            top: (visibleRange.start + index) * ROW_HEIGHT,
+                                            width: "100%",
+                                            height: ROW_HEIGHT,
+                                        }}
+                                        className="flex items-center px-4 border-b bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors"
+                                        onClick={() => toggleCollapse(task.id)}
+                                    >
+                                        <div className="flex items-center gap-2 w-full">
+                                            {task._isCollapsed ? <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
+                                            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                                {task.title}
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground/50 ml-auto">
+                                                {task._groupCount} tasks
+                                            </span>
+                                        </div>
+                                    </div>
+                                ) : (
                                 <div
                                     key={task.id}
                                     style={{
@@ -337,7 +468,12 @@ export default function TimelineCanvas({
                                         height: ROW_HEIGHT,
                                     }}
                                     className="flex items-center pr-3 border-b hover:bg-primary/5 transition-all group cursor-pointer"
-                                    onClick={() => task.children.length > 0 && toggleCollapse(task.id)}
+                                    onClick={() => {
+                                        if (task.children.length > 0) {
+                                            toggleCollapse(task.id);
+                                        }
+                                        onTaskClick?.(task);
+                                    }}
                                 >
                                     <div className="flex items-center gap-2 w-full min-w-0">
                                         {task.children.length > 0 ? (
@@ -365,6 +501,7 @@ export default function TimelineCanvas({
                                         )}
                                     </div>
                                 </div>
+                                )
                             ))}
                         </div>
                     </div>
@@ -411,7 +548,7 @@ export default function TimelineCanvas({
                                         className={cn(
                                             "h-full border-r relative",
                                             isToday(unit.date) && "bg-primary/5 border-r-primary/40",
-                                            unit.isWeekend && "bg-muted/10"
+                                            unit.isWeekend && showWeekends && "bg-muted/10"
                                         )}
                                     />
                                 ))}
@@ -430,6 +567,27 @@ export default function TimelineCanvas({
                             {/* Task bars */}
                             <div className="relative z-10">
                                 {visibleTasks.map((task, index) => {
+                                    if (task._isGroupHeader) {
+                                        return (
+                                            <div
+                                                key={task.id}
+                                                style={{
+                                                    position: "absolute",
+                                                    top: (visibleRange.start + index) * ROW_HEIGHT,
+                                                    width: totalTimelineWidth,
+                                                    height: ROW_HEIGHT,
+                                                }}
+                                                className="flex items-center relative border-b bg-muted/20 cursor-pointer"
+                                                onClick={() => toggleCollapse(task.id)}
+                                            >
+                                                <div className="flex items-center gap-2 px-3 w-full">
+                                                    <span className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                                                        {task.title} · {task._groupCount} tasks
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        );
+                                    }
                                     const prevState = task.startDate || task.dueDate
                                         ? { startDate: task.startDate, dueDate: task.dueDate }
                                         : undefined;
@@ -457,6 +615,7 @@ export default function TimelineCanvas({
                                                 onUpdate={(updates) => handleTaskUpdate(task.id, updates, prevState)}
                                                 onDragStart={() => setIsDragging(true)}
                                                 onDragEnd={() => setIsDragging(false)}
+                                                onClick={(t) => onTaskClick?.(t)}
                                             />
                                             <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 -z-10 transition-colors pointer-events-none" />
                                         </div>
