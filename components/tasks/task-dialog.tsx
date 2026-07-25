@@ -87,6 +87,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     const [assigneeIds, setAssigneeIds] = useState<string[]>(task?.assigneeIds || []);
 
     const titleRef = useRef<HTMLInputElement>(null);
+    const hasAutoFocusedRef = useRef(false);
     const taskChannel = task?.id ? getTaskChannel(workspaceId, task.id) : null;
 
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
@@ -98,12 +99,19 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     useEffect(() => {
         if (isOpen) {
             document.addEventListener("keydown", handleKeyDown);
-            // Auto-focus title after a brief delay to let the sheet animate in
-            const timer = setTimeout(() => titleRef.current?.focus(), 300);
+            if (!hasAutoFocusedRef.current) {
+                hasAutoFocusedRef.current = true;
+                const timer = setTimeout(() => titleRef.current?.focus(), 300);
+                return () => {
+                    document.removeEventListener("keydown", handleKeyDown);
+                    clearTimeout(timer);
+                };
+            }
             return () => {
                 document.removeEventListener("keydown", handleKeyDown);
-                clearTimeout(timer);
             };
+        } else {
+            hasAutoFocusedRef.current = false;
         }
     }, [isOpen, handleKeyDown]);
 
