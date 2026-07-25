@@ -1,16 +1,17 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@clerk/nextjs";
 import { useWorkspace } from "@/hooks/use-workspace";
 import {
   CalendarDays, Filter, Plus, Search, ChevronLeft, ChevronRight,
-  LayoutList, Flag, Tag as TagIcon, Users,
+  LayoutList, Flag, Tag as TagIcon, Users, Maximize2, Minimize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -53,6 +54,8 @@ export default function CalendarPage({ projectId }: { projectId?: string }) {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [createDialogDefaults, setCreateDialogDefaults] = useState<{ startDate?: string; dueDate?: string }>({});
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   // Saved views
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
@@ -194,6 +197,22 @@ export default function CalendarPage({ projectId }: { projectId?: string }) {
   const hasActiveFilters = filterStatus !== "all" || filterPriority !== "all" || filterAssignee !== "all" || filterProject !== "all";
   const scheduleCount = filteredTasks.filter((t: any) => t.startDate || t.dueDate).length;
 
+  const toggleFullScreen = () => {
+    if (!document.fullscreenElement) {
+      containerRef.current?.requestFullscreen();
+      setIsFullScreen(true);
+    } else {
+      document.exitFullscreen();
+      setIsFullScreen(false);
+    }
+  };
+
+  useEffect(() => {
+    const onFSChange = () => setIsFullScreen(!!document.fullscreenElement);
+    document.addEventListener("fullscreenchange", onFSChange);
+    return () => document.removeEventListener("fullscreenchange", onFSChange);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="space-y-6">
@@ -226,7 +245,7 @@ export default function CalendarPage({ projectId }: { projectId?: string }) {
   }
 
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col overflow-hidden">
+    <div ref={containerRef} className={cn("flex flex-col overflow-hidden", isFullScreen ? "h-screen bg-background" : "h-[calc(100vh-100px)]")}>
       <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-8 py-3">
         <div className="flex items-center gap-3">
           <div className="p-1.5 bg-primary/10 rounded-lg">
@@ -394,6 +413,17 @@ export default function CalendarPage({ projectId }: { projectId?: string }) {
                 </div>
               </PopoverContent>
             </Popover>
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-md p-0" onClick={toggleFullScreen}>
+                    {isFullScreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>{isFullScreen ? "Exit Full Screen" : "Full Screen"}</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
 
             <Button className="h-8 text-xs rounded-md px-3" onClick={() => { setCreateDialogDefaults({}); setIsCreateDialogOpen(true); }}>
               <Plus className="h-3.5 w-3.5 mr-1" /> New Task
