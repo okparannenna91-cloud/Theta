@@ -10,7 +10,6 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 
 export default function ProjectLayout({ children, params }: { children: React.ReactNode; params: { id: string } }) {
-  const pathname = usePathname();
   const { activeWorkspaceId } = useWorkspace();
 
   const { data: project, isLoading } = useQuery({
