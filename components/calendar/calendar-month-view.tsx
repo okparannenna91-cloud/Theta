@@ -11,7 +11,6 @@ import { TaskBar } from "./calendar-task-bar";
 interface CalendarMonthViewProps {
   events: CalendarEvent[];
   currentDate: Date;
-  onEventClick?: (event: CalendarEvent) => void;
   onDayClick?: (day: Date) => void;
   onEventDrop?: (event: CalendarEvent, dropDay: Date) => void;
   onEventResize?: (event: CalendarEvent, newStart: string, newEnd: string) => void;
@@ -19,7 +18,7 @@ interface CalendarMonthViewProps {
 
 const MAX_VISIBLE_LANES = 5;
 
-export function MonthView({ events, currentDate, onEventClick, onDayClick, onEventDrop, onEventResize }: CalendarMonthViewProps) {
+export function MonthView({ events, currentDate, onDayClick, onEventDrop, onEventResize }: CalendarMonthViewProps) {
   const weeks = useMemo(() => getWeeksForMonth(currentDate), [currentDate]);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -92,10 +91,20 @@ export function MonthView({ events, currentDate, onEventClick, onDayClick, onEve
     });
   };
 
+  const getWeekStartForEvent = useCallback((event: CalendarEvent): Date => {
+    const eventStart = event.startDate ? parseISO(event.startDate) : new Date();
+    const weekStart = weeks.find(w => {
+      const wStart = startOfDay(w[0]);
+      const wEnd = startOfDay(w[w.length - 1]);
+      return eventStart >= wStart && eventStart <= wEnd;
+    });
+    return weekStart ? weekStart[0] : weeks[0]?.[0] || new Date();
+  }, [weeks]);
+
   const handleDragStart = useCallback((event: CalendarEvent, _e: React.MouseEvent) => {
     if (!onEventDrop) return;
-    setDragState({ event, type: "move", startX: _e.clientX, startY: _e.clientY, weekStart: new Date() });
-  }, [onEventDrop]);
+    setDragState({ event, type: "move", startX: _e.clientX, startY: _e.clientY, weekStart: getWeekStartForEvent(event) });
+  }, [onEventDrop, getWeekStartForEvent]);
 
   const handleResizeStart = useCallback((event: CalendarEvent, edge: "left" | "right", _e: React.MouseEvent) => {
     if (!onEventResize) return;
@@ -104,9 +113,9 @@ export function MonthView({ events, currentDate, onEventClick, onDayClick, onEve
       type: edge === "left" ? "resize-left" : "resize-right",
       startX: _e.clientX,
       startY: _e.clientY,
-      weekStart: new Date(),
+      weekStart: getWeekStartForEvent(event),
     });
-  }, [onEventResize]);
+  }, [onEventResize, getWeekStartForEvent]);
 
   return (
     <div className="flex flex-col rounded-xl border shadow-sm overflow-hidden bg-card">
@@ -178,7 +187,6 @@ export function MonthView({ events, currentDate, onEventClick, onDayClick, onEve
                       placement={placement}
                       weekDays={weekDays}
                       maxLanes={visibleLanes}
-                      onEventClick={onEventClick}
                       onDragStart={handleDragStart}
                       onResizeStart={handleResizeStart}
                     />

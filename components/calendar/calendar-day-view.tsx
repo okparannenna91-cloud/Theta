@@ -10,7 +10,6 @@ import type { CalendarEvent } from "./calendar-types";
 interface DayViewProps {
   currentDate: Date;
   events: CalendarEvent[];
-  onEventClick: (event: CalendarEvent) => void;
   onDayClick: (day: Date) => void;
   onLogActivity: (action: string, taskId: string, metadata?: any) => void;
 }
@@ -18,7 +17,6 @@ interface DayViewProps {
 export function DayView({
   currentDate,
   events,
-  onEventClick,
   onDayClick,
 }: DayViewProps) {
   const [hoveredEvent, setHoveredEvent] = useState<{ event: CalendarEvent; rect: DOMRect } | null>(null);
@@ -60,7 +58,6 @@ export function DayView({
                 <CalendarEventBar
                   key={event.id}
                   event={event}
-                  onClick={onEventClick}
                   onMouseEnter={(ev, rect) => setHoveredEvent({ event: ev, rect })}
                   onMouseLeave={() => setHoveredEvent(null)}
                 />
@@ -93,7 +90,6 @@ export function DayView({
                   <CalendarEventBar
                     key={event.id}
                     event={event}
-                    onClick={onEventClick}
                     onMouseEnter={(ev, rect) => setHoveredEvent({ event: ev, rect })}
                     onMouseLeave={() => setHoveredEvent(null)}
                   />

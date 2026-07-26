@@ -11,7 +11,6 @@ import { TaskBar } from "./calendar-task-bar";
 interface WeekViewProps {
   currentDate: Date;
   events: CalendarEvent[];
-  onEventClick: (event: CalendarEvent) => void;
   onDayClick: (day: Date) => void;
   onEventDrop: (event: CalendarEvent, dropDay: Date) => void;
   onLogActivity: (action: string, taskId: string, metadata?: any) => void;
@@ -21,7 +20,6 @@ interface WeekViewProps {
 export function WeekView({
   events,
   currentDate,
-  onEventClick,
   onDayClick,
 }: WeekViewProps) {
   const [hoveredEvent, setHoveredEvent] = useState<{ event: CalendarEvent; rect: DOMRect } | null>(null);
@@ -79,7 +77,6 @@ export function WeekView({
                   placement={placement}
                   weekDays={days}
                   maxLanes={allDayPlacements.length}
-                  onEventClick={onEventClick}
                 />
               </div>
             ))}
@@ -121,7 +118,6 @@ export function WeekView({
                         <CalendarEventBar
                           key={event.id}
                           event={event}
-                          onClick={onEventClick}
                           onMouseEnter={(ev, rect) => setHoveredEvent({ event: ev, rect })}
                           onMouseLeave={() => setHoveredEvent(null)}
                         />

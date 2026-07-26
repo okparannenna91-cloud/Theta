@@ -98,6 +98,7 @@ export default function TimelineCanvas({
     }, []);
 
     const taskTree = useMemo(() => {
+        if (!Array.isArray(tasks)) return [];
         const map = new Map<string, any>(tasks.map(t => [t.id, { ...t, children: [] }]));
         const roots: any[] = [];
         map.forEach(task => {
@@ -136,14 +137,16 @@ export default function TimelineCanvas({
         const flattened: any[] = [];
 
         function flatten(nodes: any[], depth = 0) {
+            if (!Array.isArray(nodes)) return;
             nodes.forEach(node => {
                 if (node._isGroupHeader) {
                     flattened.push(node);
                     return;
                 }
                 flattened.push({ ...node, depth });
-                if (!collapsedIds.has(node.id) && node.children.length > 0) {
-                    flatten(node.children, depth + 1);
+                const children = Array.isArray(node.children) ? node.children : [];
+                if (!collapsedIds.has(node.id) && children.length > 0) {
+                    flatten(children, depth + 1);
                 }
             });
         }
@@ -328,8 +331,12 @@ export default function TimelineCanvas({
         if (!isGantt || !showCriticalPath) return new Set<string>();
         const flatten = (nodes: any[]): any[] => {
             if (!Array.isArray(nodes) || nodes.length === 0) return [];
-            return nodes.flatMap((n: any) => [n, ...flatten(Array.isArray(n.children) ? n.children : [])]);
+            return nodes.flatMap((n: any) => {
+                const children = Array.isArray(n.children) ? n.children : [];
+                return [n, ...flatten(children)];
+            });
         };
+        if (!Array.isArray(taskTree)) return new Set<string>();
         const unfiltered = taskTree.flatMap((nodes) => flatten(nodes));
         const schedulingTasks = unfiltered.map(t => ({
             id: t.id,
@@ -337,11 +344,11 @@ export default function TimelineCanvas({
             dueDate: t.dueDate ? new Date(t.dueDate) : null,
             durationMinutes: t.startDate && t.dueDate ? differenceInMinutes(new Date(t.dueDate), new Date(t.startDate)) : 0,
             schedulingMode: t.schedulingMode || "auto",
-            predecessors: t.predecessors?.map((p: any) => ({
+            predecessors: Array.isArray(t.predecessors) ? t.predecessors.map((p: any) => ({
                 predecessorId: p.predecessorId,
                 type: p.type,
                 lagMinutes: p.lag || 0
-            })) || []
+            })) : []
         }));
         return detectCriticalPath(schedulingTasks);
     }, [taskTree, isGantt, showCriticalPath]);
@@ -615,7 +622,6 @@ export default function TimelineCanvas({
                                                 onUpdate={(updates) => handleTaskUpdate(task.id, updates, prevState)}
                                                 onDragStart={() => setIsDragging(true)}
                                                 onDragEnd={() => setIsDragging(false)}
-                                                onClick={(t) => onTaskClick?.(t)}
                                             />
                                             <div className="absolute inset-0 bg-primary/0 group-hover:bg-primary/5 -z-10 transition-colors pointer-events-none" />
                                         </div>

@@ -10,14 +10,13 @@ interface TaskBarProps {
   placement: EventPlacement;
   weekDays: Date[];
   maxLanes: number;
-  onEventClick?: (event: CalendarEvent) => void;
   onDragStart?: (event: CalendarEvent, e: React.MouseEvent) => void;
   onResizeStart?: (event: CalendarEvent, edge: "left" | "right", e: React.MouseEvent) => void;
 }
 
 export type { TaskBarProps };
 
-export function TaskBar({ placement, weekDays, maxLanes, onEventClick, onDragStart, onResizeStart }: TaskBarProps) {
+export function TaskBar({ placement, weekDays, maxLanes, onDragStart, onResizeStart }: TaskBarProps) {
   const { event, columnSpan, laneIndex, continuesFromPrev, continuesToNext } = placement;
   const columnStart = continuesFromPrev ? 1 : placement.columnStart;
   const [isHovered, setIsHovered] = useState(false);
@@ -60,9 +59,8 @@ export function TaskBar({ placement, weekDays, maxLanes, onEventClick, onDragSta
   if (isMilestone) {
     return (
       <div
-        className="flex items-center gap-1.5 px-1 cursor-pointer group"
+        className="flex items-center gap-1.5 px-1 cursor-default group"
         style={{ gridColumn: `${columnStart} / span ${columnSpan}`, gridRow: laneIndex + 2 }}
-        onClick={() => onEventClick?.(event)}
         onMouseEnter={(e) => { setIsHovered(true); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
         onMouseLeave={() => setIsHovered(false)}
         onMouseMove={(e) => setTooltipPos({ x: e.clientX, y: e.clientY })}
@@ -93,7 +91,6 @@ export function TaskBar({ placement, weekDays, maxLanes, onEventClick, onDragSta
         ...(rightRounded ? { borderRadius: leftRounded ? "5px" : "0 5px 5px 0" } : {}),
         backgroundColor: `${event.color}18`,
       }}
-      onClick={() => onEventClick?.(event)}
       onMouseDown={handleMouseDown}
       onMouseEnter={(e) => { setIsHovered(true); setTooltipPos({ x: e.clientX, y: e.clientY }); }}
       onMouseLeave={() => { setIsHovered(false); setIsDragging(false); }}

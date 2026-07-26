@@ -5,7 +5,7 @@ import { differenceInDays, startOfDay, addDays, parseISO } from "date-fns";
 import { motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { Milestone, GripVertical } from "lucide-react";
-import { getTaskLeft, getTaskWidth, getPriorityColor, getStatusColor } from "./timeline-utils";
+import { getTaskLeft, getTaskWidth, getPriorityColor, getStatusColor, getDateFromX } from "./timeline-utils";
 
 interface TimelineSimpleBarProps {
   task: any;
@@ -16,7 +16,6 @@ interface TimelineSimpleBarProps {
   onUpdate?: (updates: any) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
-  onClick?: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 }
@@ -30,19 +29,21 @@ export function TimelineSimpleBar({
   onUpdate,
   onDragStart,
   onDragEnd,
-  onClick,
   onMouseEnter,
   onMouseLeave,
 }: TimelineSimpleBarProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [dragOffset, setDragOffset] = useState(0);
   const [resizeDrag, setResizeDrag] = useState<{ direction: "left" | "right"; startX: number; currentDelta: number } | null>(null);
-  const snapUnitMinutes = 1440; // snap to day
+  const dragStartRef = useRef<{ mouseX: number; startDate: string; dueDate: string } | null>(null);
+  const barRef = useRef<HTMLDivElement>(null);
+  const snapUnitMinutes = 1440;
 
   const left = getTaskLeft(task, timelineStart, cellWidth);
   const width = getTaskWidth(task, cellWidth);
   const isMilestone = task.isMilestone;
 
-  const visualLeft = resizeDrag?.direction === "left" ? left + resizeDrag.currentDelta : left;
+  const visualLeft = dragOffset !== 0 ? left + dragOffset : (resizeDrag?.direction === "left" ? left + resizeDrag.currentDelta : left);
   const visualWidth = resizeDrag
     ? resizeDrag.direction === "left"
       ? width - resizeDrag.currentDelta
@@ -56,27 +57,52 @@ export function TimelineSimpleBar({
 
   const statusColor = getStatusColor(task.status);
 
-  const handleDragEnd = useCallback((_: any, info: any) => {
-    setIsDragging(false);
-    if (!onUpdate) return;
-    const rawPixels = info.offset.x;
-    const daysMoved = Math.round(rawPixels / cellWidth);
-    if (daysMoved === 0) return;
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.button !== 0 || e.shiftKey) return;
+    e.preventDefault();
+    e.stopPropagation();
 
-    const taskStart = task.startDate ? parseISO(task.startDate) : (task.dueDate ? parseISO(task.dueDate) : new Date());
-    const taskEnd = task.dueDate ? parseISO(task.dueDate) : (task.startDate ? parseISO(task.startDate) : new Date());
-
-    onUpdate({
-      startDate: addDays(taskStart, daysMoved).toISOString(),
-      dueDate: addDays(taskEnd, daysMoved).toISOString(),
-    });
-    onDragEnd?.();
-  }, [onUpdate, task, cellWidth, onDragEnd]);
-
-  const handleDragStart = useCallback(() => {
     setIsDragging(true);
     onDragStart?.();
-  }, [onDragStart]);
+
+    const startX = e.clientX;
+    const taskStartDate = task.startDate || task.dueDate || new Date().toISOString();
+    const taskDueDate = task.dueDate || task.startDate || new Date().toISOString();
+    dragStartRef.current = { mouseX: startX, startDate: taskStartDate, dueDate: taskDueDate };
+
+    const onMouseMove = (me: MouseEvent) => {
+      const rawDelta = me.clientX - startX;
+      const snappedPixels = Math.round(rawDelta / cellWidth) * cellWidth;
+      setDragOffset(snappedPixels);
+    };
+
+    const onMouseUp = (ue: MouseEvent) => {
+      document.removeEventListener("mousemove", onMouseMove);
+      document.removeEventListener("mouseup", onMouseUp);
+      setIsDragging(false);
+      setDragOffset(0);
+
+      if (!onUpdate || !dragStartRef.current) {
+        onDragEnd?.();
+        dragStartRef.current = null;
+        return;
+      }
+
+      const rawDelta = ue.clientX - dragStartRef.current.mouseX;
+      const daysMoved = Math.round(rawDelta / cellWidth);
+      if (daysMoved !== 0) {
+        onUpdate({
+          startDate: addDays(parseISO(dragStartRef.current.startDate), daysMoved).toISOString(),
+          dueDate: addDays(parseISO(dragStartRef.current.dueDate), daysMoved).toISOString(),
+        });
+      }
+      dragStartRef.current = null;
+      onDragEnd?.();
+    };
+
+    document.addEventListener("mousemove", onMouseMove);
+    document.addEventListener("mouseup", onMouseUp);
+  }, [onUpdate, task, cellWidth, onDragStart, onDragEnd]);
 
   const handleResizeStart = useCallback((e: React.MouseEvent, direction: "left" | "right") => {
     e.preventDefault();
@@ -118,19 +144,15 @@ export function TimelineSimpleBar({
       <motion.div
         initial={{ opacity: 0, scale: 0.5 }}
         animate={{ opacity: 1, scale: 1 }}
-        drag="x"
-        dragMomentum={false}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
         style={{
-          left: left - 12,
+          left: (dragOffset !== 0 ? left + dragOffset : left) - 12,
           top: (rowHeight - 24) / 2,
           zIndex: isDragging ? 50 : 10,
         }}
         className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing"
+        onMouseDown={handleMouseDown}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
-        onClick={onClick}
       >
         <div
           className={cn(
@@ -151,13 +173,9 @@ export function TimelineSimpleBar({
       className="absolute inset-0 pointer-events-none"
       style={{ height: rowHeight }}
     >
-      <motion.div
-        initial={{ opacity: 0, x: -10 }}
-        animate={{ opacity: 1, x: 0 }}
-        drag="x"
-        dragMomentum={false}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
+      <div
+        ref={barRef}
+        onMouseDown={handleMouseDown}
         style={{
           left: visualLeft,
           width: Math.max(visualWidth, 16),
@@ -176,7 +194,6 @@ export function TimelineSimpleBar({
         )}
         onMouseEnter={onMouseEnter}
         onMouseLeave={onMouseLeave}
-        onClick={(e) => { e.stopPropagation(); onClick?.(); }}
       >
         <div
           className="absolute left-0 top-0 bottom-0 rounded-l-md opacity-20 pointer-events-none"
@@ -211,13 +228,13 @@ export function TimelineSimpleBar({
 
         <div
           onMouseDown={(e) => handleResizeStart(e, "left")}
-          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/30 rounded-l-md z-20 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute left-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/30 rounded-l-md z-20 pointer-events-auto"
         />
         <div
           onMouseDown={(e) => handleResizeStart(e, "right")}
-          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/30 rounded-r-md z-20 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity"
+          className="absolute right-0 top-0 bottom-0 w-1.5 cursor-ew-resize hover:bg-white/30 rounded-r-md z-20 pointer-events-auto"
         />
-      </motion.div>
+      </div>
     </div>
   );
 }

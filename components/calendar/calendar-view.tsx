@@ -135,10 +135,6 @@ export function CalendarView({
     onDateChange(date);
   }, [onDateChange]);
 
-  const handleEventClick = useCallback((event: CalendarEvent) => {
-    onTaskClick(event.originalTask);
-  }, [onTaskClick]);
-
   const handleDayClick = useCallback((day: Date) => {
     if (viewType === "day") {
       onCreateTask(startOfDay(day).toISOString(), startOfDay(day).toISOString());
@@ -272,7 +268,6 @@ export function CalendarView({
               <MonthView
                 currentDate={currentDate}
                 events={events}
-                onEventClick={handleEventClick}
                 onDayClick={handleDayClick}
                 onEventDrop={handleEventDrop}
                 onEventResize={handleEventResize}
@@ -282,7 +277,6 @@ export function CalendarView({
               <WeekView
                 currentDate={currentDate}
                 events={events}
-                onEventClick={handleEventClick}
                 onDayClick={handleDayClick}
                 onEventDrop={handleEventDrop}
                 onLogActivity={onLogActivity}
@@ -293,7 +287,6 @@ export function CalendarView({
               <DayView
                 currentDate={currentDate}
                 events={events}
-                onEventClick={handleEventClick}
                 onDayClick={handleDayClick}
                 onLogActivity={onLogActivity}
               />
@@ -302,7 +295,6 @@ export function CalendarView({
               <AgendaView
                 currentDate={currentDate}
                 events={events}
-                onEventClick={handleEventClick}
               />
             )}
           </>
@@ -321,7 +313,6 @@ export function CalendarView({
               <MonthView
                 currentDate={currentDate}
                 events={group.events}
-                onEventClick={handleEventClick}
                 onDayClick={handleDayClick}
                 onEventDrop={handleEventDrop}
                 onEventResize={handleEventResize}
@@ -331,7 +322,6 @@ export function CalendarView({
                   <WeekView
                     currentDate={currentDate}
                     events={group.events}
-                    onEventClick={handleEventClick}
                     onDayClick={handleDayClick}
                     onEventDrop={handleEventDrop}
                     onLogActivity={onLogActivity}
@@ -342,7 +332,6 @@ export function CalendarView({
                   <DayView
                     currentDate={currentDate}
                     events={group.events}
-                    onEventClick={handleEventClick}
                     onDayClick={handleDayClick}
                     onLogActivity={onLogActivity}
                   />
@@ -351,7 +340,6 @@ export function CalendarView({
                   <AgendaView
                     currentDate={currentDate}
                     events={group.events}
-                    onEventClick={handleEventClick}
                   />
                 )}
               </div>

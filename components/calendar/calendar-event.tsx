@@ -23,19 +23,18 @@ const statusLabels: Record<string, string> = {
 
 interface CalendarEventBarProps {
   event: CalendarEvent;
-  onClick: (event: CalendarEvent) => void;
   onMouseEnter?: (event: CalendarEvent, rect: DOMRect) => void;
   onMouseLeave?: () => void;
   compact?: boolean;
 }
 
-export function CalendarEventBar({ event, onClick, onMouseEnter, onMouseLeave, compact }: CalendarEventBarProps) {
+export function CalendarEventBar({ event, onMouseEnter, onMouseLeave, compact }: CalendarEventBarProps) {
   const priorityColor = PRIORITY_CONFIG[event.priority]?.color || PRIORITY_CONFIG.none.color;
 
   return (
     <div
       className={cn(
-        "relative flex items-center gap-1 px-1.5 py-0.5 select-none cursor-pointer group",
+        "relative flex items-center gap-1 px-1.5 py-0.5 select-none group",
         "transition-all duration-150 ease-out rounded-md",
         "hover:shadow-md hover:z-10",
         event.isCompleted && "opacity-50",
@@ -44,7 +43,6 @@ export function CalendarEventBar({ event, onClick, onMouseEnter, onMouseLeave, c
       style={{
         backgroundColor: `${event.color}18`,
       }}
-      onClick={(e) => { e.stopPropagation(); onClick(event); }}
       onMouseEnter={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         onMouseEnter?.(event, rect);

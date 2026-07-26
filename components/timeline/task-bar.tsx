@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback, useRef } from "react";
-import { differenceInDays, startOfDay, addMinutes, addDays } from "date-fns";
+import { differenceInDays, startOfDay, addMinutes, addDays, parseISO } from "date-fns";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -15,10 +15,9 @@ interface TaskBarProps {
     snapUnit?: "hour" | "day" | "week" | "month";
     showBaseline?: boolean;
     highlightVariance?: boolean;
-    onUpdate?: (updates: any) => void;
-    onDragStart?: () => void;
-    onDragEnd?: () => void;
-    onClick?: (task: any) => void;
+  onUpdate?: (updates: any) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
 export default function TaskBar({
@@ -31,12 +30,13 @@ export default function TaskBar({
     onUpdate,
     onDragStart,
     onDragEnd,
-onClick,
 }: TaskBarProps) {
     const [resizeDrag, setResizeDrag] = useState<{ direction: "left" | "right"; deltaX: number } | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [dragOffset, setDragOffset] = useState(0);
     const [isHovered, setIsHovered] = useState(false);
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
+    const dragStartRef = useRef<{ mouseX: number; startDate: string; dueDate: string } | null>(null);
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const { left, width, isMilestone, isSummary, baselineLeft, baselineWidth, hasVariance } = useMemo(() => {
@@ -78,33 +78,57 @@ onClick,
         }
     }, []);
 
-    const visualLeft = resizeDrag?.direction === "left" ? left + resizeDrag.deltaX : left;
+    const visualLeft = dragOffset !== 0 ? left + dragOffset : (resizeDrag?.direction === "left" ? left + resizeDrag.deltaX : left);
     const visualWidth = resizeDrag ? (
         resizeDrag.direction === "left" ? width - resizeDrag.deltaX : width + resizeDrag.deltaX
     ) : width;
 
-    const handleDragEnd = useCallback((_: any, info: any) => {
-        setIsDragging(false);
-        if (!onUpdate) return;
-        const rawPixels = info.offset.x;
-        const pixelsPerUnit = cellWidth;
-        const unitsMoved = snapToUnit(Math.round(rawPixels / pixelsPerUnit) * 1440, snapUnit) / 1440;
-        if (unitsMoved === 0) return;
+    const handleMouseDown = useCallback((e: React.MouseEvent) => {
+        if (e.button !== 0 || e.shiftKey) return;
+        e.preventDefault();
+        e.stopPropagation();
 
-        const newStart = addMinutes(new Date(task.startDate || task.dueDate || new Date()), unitsMoved * 1440);
-        const newEnd = addMinutes(new Date(task.dueDate || task.startDate || new Date()), unitsMoved * 1440);
-
-        onUpdate({
-            startDate: newStart.toISOString(),
-            dueDate: newEnd.toISOString()
-        });
-        onDragEnd?.();
-    }, [onUpdate, task, snapUnit, cellWidth, onDragEnd]);
-
-    const handleDragStart = useCallback(() => {
         setIsDragging(true);
         onDragStart?.();
-    }, [onDragStart]);
+
+        const startX = e.clientX;
+        const taskStartDate = task.startDate || task.dueDate || new Date().toISOString();
+        const taskDueDate = task.dueDate || task.startDate || new Date().toISOString();
+        dragStartRef.current = { mouseX: startX, startDate: taskStartDate, dueDate: taskDueDate };
+
+        const onMouseMove = (me: MouseEvent) => {
+            const rawDelta = me.clientX - startX;
+            const snappedPixels = Math.round(rawDelta / cellWidth) * cellWidth;
+            setDragOffset(snappedPixels);
+        };
+
+        const onMouseUp = (ue: MouseEvent) => {
+            document.removeEventListener("mousemove", onMouseMove);
+            document.removeEventListener("mouseup", onMouseUp);
+            setIsDragging(false);
+            setDragOffset(0);
+
+            if (!onUpdate || !dragStartRef.current) {
+                onDragEnd?.();
+                dragStartRef.current = null;
+                return;
+            }
+
+            const rawDelta = ue.clientX - dragStartRef.current.mouseX;
+            const unitsMoved = snapToUnit(Math.round(rawDelta / cellWidth) * 1440, snapUnit) / 1440;
+            if (unitsMoved !== 0) {
+                onUpdate({
+                    startDate: addMinutes(parseISO(dragStartRef.current.startDate), unitsMoved * 1440).toISOString(),
+                    dueDate: addMinutes(parseISO(dragStartRef.current.dueDate), unitsMoved * 1440).toISOString(),
+                });
+            }
+            dragStartRef.current = null;
+            onDragEnd?.();
+        };
+
+        document.addEventListener("mousemove", onMouseMove);
+        document.addEventListener("mouseup", onMouseUp);
+    }, [onUpdate, task, snapUnit, cellWidth, onDragStart, onDragEnd]);
 
     const handleResizeStart = useCallback((e: React.MouseEvent, direction: "left" | "right") => {
         e.preventDefault();
@@ -172,18 +196,14 @@ onClick,
                 <motion.div
                     initial={{ opacity: 0, scale: 0.5, rotate: 45 }}
                     animate={{ opacity: 1, scale: 1, rotate: 45 }}
-                    drag="x"
-                    dragMomentum={false}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                    onClick={() => onClick?.(task)}
+                    onMouseDown={handleMouseDown}
                     onMouseEnter={(e) => {
                         setIsHovered(true);
                         const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                         setTooltipPos({ x: Math.min(rect.right + 8, window.innerWidth - 300), y: rect.top });
                     }}
                     onMouseLeave={() => setIsHovered(false)}
-                    style={{ left, zIndex: isDragging ? 50 : 10 }}
+                    style={{ left: visualLeft, zIndex: isDragging ? 50 : 10 }}
                     className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing group"
                 >
                     <div className={cn(
@@ -268,14 +288,8 @@ onClick,
                 <GripVertical className="h-3 w-3 text-muted-foreground/40" />
             </div>
 
-            <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                drag="x"
-                dragMomentum={false}
-                onDragStart={handleDragStart}
-                onDragEnd={handleDragEnd}
-                onClick={() => onClick?.(task)}
+            <div
+                onMouseDown={handleMouseDown}
                 onMouseEnter={(e) => {
                     setIsHovered(true);
                     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -347,7 +361,7 @@ onClick,
                     onMouseDown={(e) => handleResizeStart(e, "right")}
                     className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30 rounded-r-lg z-20 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity"
                 />
-            </motion.div>
+            </div>
 
             {isHovered && !isDragging && !resizeDrag && (
                 <div

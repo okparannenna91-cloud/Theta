@@ -367,7 +367,6 @@ export function TimelineView({
                             onTaskUpdate(task.id, updates);
                             onLogActivity("moved", task.id, { changes: { startDate: { old: task.startDate, new: updates.startDate }, dueDate: { old: task.dueDate, new: updates.dueDate } } });
                           }}
-                          onClick={() => onTaskClick(task)}
                         />
                       </div>
                     );

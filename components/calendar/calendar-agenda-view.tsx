@@ -13,13 +13,11 @@ import { getStatusColor } from "./calendar-utils";
 interface AgendaViewProps {
   currentDate: Date;
   events: CalendarEvent[];
-  onEventClick: (event: CalendarEvent) => void;
 }
 
 export function AgendaView({
   currentDate,
   events,
-  onEventClick,
 }: AgendaViewProps) {
   const [hoveredEvent, setHoveredEvent] = useState<{ event: CalendarEvent; rect: DOMRect } | null>(null);
 
@@ -91,8 +89,7 @@ export function AgendaView({
             {overdueEvents.map((event) => (
               <div
                 key={event.id}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer"
-                onClick={() => onEventClick(event)}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
                 onMouseEnter={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   setHoveredEvent({ event, rect });
@@ -137,8 +134,7 @@ export function AgendaView({
             {group.events.map((event) => (
               <div
                 key={event.id}
-                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors cursor-pointer"
-                onClick={() => onEventClick(event)}
+                className="flex items-center gap-3 px-4 py-3 hover:bg-muted/30 transition-colors"
                 onMouseEnter={(e) => {
                   const rect = e.currentTarget.getBoundingClientRect();
                   setHoveredEvent({ event, rect });
