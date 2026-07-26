@@ -16,7 +16,7 @@ import {
   Trash2,
   Edit2,
   Calendar,
-  User as UserIcon,
+
   LayoutGrid,
   List as ListIcon,
   Users as UsersIcon,
@@ -86,8 +86,10 @@ import MapView from "@/components/boards/map-view";
 import FilterSortBar from "@/components/boards/filter-sort-bar";
 import type { FilterConfig, SortConfig, ColumnVisibility, SavedView } from "@/components/boards/filter-sort-bar";
 import { TaskDialog } from "@/components/tasks/task-dialog";
+import { UserAvatar } from "@/components/ui/user-avatar";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useAbly } from "@/hooks/use-ably";
+import { useMemberMap } from "@/components/providers/members-provider";
 import { usePopups } from "@/components/popups/popup-manager";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { getBoardChannel } from "@/lib/ably";
@@ -130,7 +132,7 @@ async function deleteColumn(columnId: string, migrateToStatusId?: string) {
   return res.json();
 }
 
-function TaskCardContent({ task }: { task: any }) {
+function TaskCardContent({ task, memberMap }: { task: any; memberMap: Record<string, any> }) {
   const priorityInfo = useMemo(() => {
     switch (task.priority) {
       case "urgent":
@@ -186,7 +188,6 @@ function TaskCardContent({ task }: { task: any }) {
     };
   }, [task.tags]);
 
-  const avatarColors = ["bg-blue-500", "bg-emerald-500", "bg-violet-500", "bg-rose-500", "bg-amber-500", "bg-cyan-500"];
 
   return (
     <div className="space-y-1.5">
@@ -251,14 +252,18 @@ function TaskCardContent({ task }: { task: any }) {
         {task.assigneeIds?.length > 0 && (
           <div className="flex items-center">
             <div className="flex -space-x-1">
-              {task.assigneeIds.slice(0, 3).map((id: string, i: number) => (
-                <div
-                  key={id}
-                  className={`h-5 w-5 rounded-full ${avatarColors[i % avatarColors.length]} ring-1 ring-background flex items-center justify-center`}
-                >
-                  <UserIcon className="h-2.5 w-2.5 text-white" />
-                </div>
-              ))}
+              {task.assigneeIds.slice(0, 3).map((id: string) => {
+                const member = memberMap[id];
+                return (
+                  <UserAvatar
+                    key={id}
+                    imageUrl={member?.user?.imageUrl}
+                    name={member?.user?.name}
+                    size="sm"
+                    className="ring-1 ring-background"
+                  />
+                );
+              })}
               {task.assigneeIds.length > 3 && (
                 <div className="h-5 w-5 rounded-full bg-muted ring-1 ring-background flex items-center justify-center text-[9px] font-medium text-muted-foreground">
                   +{task.assigneeIds.length - 3}
@@ -297,12 +302,14 @@ function SortableTask({
   task, 
   onClick, 
   isSelected, 
-  onSelect 
+  onSelect,
+  memberMap,
 }: { 
   task: any; 
   onClick: () => void;
   isSelected: boolean;
   onSelect: (checked: boolean) => void;
+  memberMap: Record<string, any>;
 }) {
   const {
     attributes,
@@ -356,7 +363,7 @@ function SortableTask({
           className="h-3.5 w-3.5 rounded border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
         />
       </div>
-      <TaskCardContent task={task} />
+      <TaskCardContent task={task} memberMap={memberMap} />
     </Card>
   );
 }
@@ -440,6 +447,7 @@ function getMoveViolation(task: any, targetColName: string, allTasks: any[], col
 
 export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const { activeWorkspaceId } = useWorkspace();
+  const memberMap = useMemberMap();
   const { showConfirm, showUpgradePrompt } = usePopups();
   const queryClient = useQueryClient();
   const [activeTask, setActiveTask] = useState<any>(null);
@@ -1186,6 +1194,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                                     checked ? [...prev, task.id] : prev.filter(id => id !== task.id)
                                   );
                                 }}
+                                memberMap={memberMap}
                               />
                             ))}
                           </div>
@@ -1229,7 +1238,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                   className="p-3 w-[320px] bg-card border shadow-2xl rounded-lg rotate-[1deg] scale-[1.02]"
                   style={activeTask.color ? { borderLeftColor: activeTask.color, borderLeftWidth: "3px" } : {}}
                 >
-                  <TaskCardContent task={activeTask} />
+                  <TaskCardContent task={activeTask} memberMap={memberMap} />
                 </div>
               )}
             </DragOverlay>

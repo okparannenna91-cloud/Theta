@@ -4,7 +4,9 @@ import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { CalendarDays, User, Flag, Tag, CheckCircle2, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { getPriorityColor, getStatusColor, MINI_AVATAR_SIZE } from "./timeline-utils";
+import { getPriorityColor, getStatusColor } from "./timeline-utils";
+import { useMemberMap } from "@/components/providers/members-provider";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface TimelineHoverCardProps {
   task: any;
@@ -13,6 +15,7 @@ interface TimelineHoverCardProps {
 export function TimelineHoverCard({ task }: TimelineHoverCardProps) {
   const priorityColor = getPriorityColor(task.priority);
   const statusColor = getStatusColor(task.status);
+  const memberMap = useMemberMap();
 
   const statusLabel = task.status
     ?.replace(/_/g, " ")
@@ -27,8 +30,17 @@ export function TimelineHoverCard({ task }: TimelineHoverCardProps) {
     return `${start} → ${end}`;
   }, [task]);
 
+  const taskColor = task.color || "";
+
+  const assignees = (task.assigneeIds || [])
+    .map((id: string) => memberMap[id]?.user)
+    .filter(Boolean);
+
   return (
     <div className="w-72 rounded-xl border-subtle bg-popover/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+      {taskColor && (
+        <div className="h-1 w-full" style={{ backgroundColor: taskColor }} />
+      )}
       <div className="p-3.5 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -71,10 +83,14 @@ export function TimelineHoverCard({ task }: TimelineHoverCardProps) {
             <span>{statusLabel}</span>
           </div>
 
-          {task.assigneeIds && task.assigneeIds.length > 0 && (
+          {assignees.length > 0 && (
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <User className="h-3.5 w-3.5 flex-shrink-0" />
-              <span>{task.assigneeIds.length} assignee{task.assigneeIds.length !== 1 ? "s" : ""}</span>
+              <div className="flex -space-x-1">
+                {assignees.map((u: any) => (
+                  <UserAvatar key={u.id} imageUrl={u.imageUrl} name={u.name} size="sm" className="ring-1 ring-background" />
+                ))}
+              </div>
             </div>
           )}
 

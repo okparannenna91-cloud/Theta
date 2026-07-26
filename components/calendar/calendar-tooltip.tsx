@@ -3,6 +3,8 @@
 import { format, parseISO } from "date-fns";
 import { PRIORITY_CONFIG } from "./calendar-types";
 import type { CalendarEvent } from "./calendar-types";
+import { useMemberMap } from "@/components/providers/members-provider";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface CalendarTooltipProps {
   event: CalendarEvent;
@@ -29,6 +31,7 @@ const statusColors: Record<string, string> = {
 export function CalendarTooltip({ event, x, y }: CalendarTooltipProps) {
   const task = event.originalTask;
   const priority = PRIORITY_CONFIG[event.priority] || PRIORITY_CONFIG.none;
+  const memberMap = useMemberMap();
 
   const formatDate = (d: string | null) => {
     if (!d) return "—";
@@ -40,11 +43,18 @@ export function CalendarTooltip({ event, x, y }: CalendarTooltipProps) {
   const offsetX = x + 16 > windowWidth - tooltipWidth ? x - tooltipWidth - 8 : x + 16;
   const offsetY = y + 16;
 
+  const assignees = event.assigneeIds
+    .map((id) => memberMap[id]?.user)
+    .filter(Boolean);
+
   return (
     <div
       className="fixed z-[9999] w-80 rounded-xl shadow-2xl border bg-popover/95 backdrop-blur-xl overflow-hidden pointer-events-none animate-in fade-in zoom-in-95 duration-150"
       style={{ left: offsetX, top: offsetY }}
     >
+      {event.color && (
+        <div className="h-1 w-full" style={{ backgroundColor: event.color }} />
+      )}
       <div className="p-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <h4 className="text-sm font-semibold text-foreground leading-snug">{event.title}</h4>
@@ -71,6 +81,17 @@ export function CalendarTooltip({ event, x, y }: CalendarTooltipProps) {
             <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: priority.color }} />
             <span>{priority.label}</span>
           </div>
+
+          {assignees.length > 0 && (
+            <>
+              <div className="text-muted-foreground">Assignees</div>
+              <div className="flex items-center -space-x-1">
+                {assignees.map((u: any) => (
+                  <UserAvatar key={u.id} imageUrl={u.imageUrl} name={u.name} size="sm" />
+                ))}
+              </div>
+            </>
+          )}
 
           <div className="text-muted-foreground">Start</div>
           <div>{formatDate(event.startDate)}</div>

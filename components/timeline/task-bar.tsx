@@ -152,6 +152,20 @@ onClick,
 
     const criticalStyle = "from-red-500/40 to-rose-600/30 border-red-500/50 shadow-red-500/20 ring-1 ring-red-500/30";
 
+    const taskColor = task.color || "";
+    const hasTaskColor = !!taskColor;
+    const priorityBorderColor: Record<string, string> = {
+        urgent: "rgba(239,68,68,0.5)",
+        high: "rgba(244,63,94,0.4)",
+        medium: "rgba(251,191,36,0.4)",
+        low: "rgba(52,211,153,0.4)",
+        none: "rgba(255,255,255,0.1)",
+    };
+    const taskBarGradient = hasTaskColor
+        ? "bg-card border-white/10"
+        : task.isCritical ? criticalStyle : priorityStyles[task.priority] || "from-slate-500/20 to-slate-400/10 border-white/10";
+    const taskBarBorderColor = hasTaskColor ? (task.isCritical ? "rgba(239,68,68,0.5)" : priorityBorderColor[task.priority] || "rgba(255,255,255,0.1)") : undefined;
+
     if (isMilestone) {
         return (
             <>
@@ -174,8 +188,9 @@ onClick,
                 >
                     <div className={cn(
                         "w-6 h-6 border-2 border-white dark:border-slate-800 shadow-xl group-hover:scale-125 transition-all overflow-hidden",
-                        task.isCritical ? "bg-red-500" : "bg-amber-500"
-                    )}>
+                        !hasTaskColor && (task.isCritical ? "bg-red-500" : "bg-amber-500")
+                    )}
+                    style={hasTaskColor ? { backgroundColor: taskColor } : {}}>
                         <div className="-rotate-45 flex items-center justify-center h-full relative">
                             <Milestone className="w-2.5 h-2.5 text-white relative z-10" />
                             {task.progress > 0 && (
@@ -272,15 +287,24 @@ onClick,
                     width: visualWidth,
                     pointerEvents: "auto",
                     zIndex: isDragging ? 50 : 10,
+                    ...(hasTaskColor ? {
+                        backgroundColor: `${taskColor}20`,
+                        borderColor: taskBarBorderColor,
+                    } : {}),
                 }}
                 className={cn(
                     "absolute h-10 rounded-lg border flex items-center px-3 cursor-grab active:cursor-grabbing group backdrop-blur-xl shadow-lg transition-shadow hover:shadow-xl",
-                    "bg-gradient-to-r",
-                    task.isCritical ? criticalStyle : priorityStyles[task.priority] || "from-slate-500/20 to-slate-400/10 border-white/10",
+                    hasTaskColor ? "" : "bg-gradient-to-r",
+                    taskBarGradient,
                     isDragging && "ring-2 ring-primary/50 shadow-2xl scale-y-110",
                     resizeDrag && "ring-2 ring-primary/50"
+                )}>
+                {hasTaskColor && (
+                    <div
+                        className="absolute left-0 top-1 bottom-1 w-1 rounded-full"
+                        style={{ backgroundColor: taskColor }}
+                    />
                 )}
-            >
                 <div className="absolute inset-0 bg-black/5 dark:bg-white/5 rounded-lg overflow-hidden pointer-events-none">
                     <motion.div
                         initial={{ width: 0 }}

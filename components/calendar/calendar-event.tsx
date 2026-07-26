@@ -8,6 +8,8 @@ import { cn } from "@/lib/utils";
 import { PRIORITY_CONFIG } from "./calendar-types";
 import { getPriorityColor, getStatusColor } from "./calendar-utils";
 import type { CalendarEvent } from "./calendar-types";
+import { useMemberMap } from "@/components/providers/members-provider";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 const statusLabels: Record<string, string> = {
   todo: "To Do",
@@ -80,6 +82,7 @@ export function CalendarEventHoverCard({ event }: CalendarEventHoverCardProps) {
   const priorityColor = getPriorityColor(event.priority);
   const statusColor = getStatusColor(event.status);
   const statusLabel = statusLabels[event.status] || event.status?.replace(/_/g, " ");
+  const memberMap = useMemberMap();
 
   const dateRange = (() => {
     const start = event.startDate ? format(parseISO(event.startDate), "MMM d") : "";
@@ -88,8 +91,15 @@ export function CalendarEventHoverCard({ event }: CalendarEventHoverCardProps) {
     return end || start;
   })();
 
+  const assignees = event.assigneeIds
+    .map((id) => memberMap[id]?.user)
+    .filter(Boolean);
+
   return (
     <div className="w-72 rounded-xl border bg-popover/95 backdrop-blur-xl shadow-2xl overflow-hidden">
+      {event.color && (
+        <div className="h-1 w-full" style={{ backgroundColor: event.color }} />
+      )}
       <div className="p-3.5 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
@@ -119,6 +129,17 @@ export function CalendarEventHoverCard({ event }: CalendarEventHoverCardProps) {
             <span>{statusLabel}</span>
           </div>
 
+          {assignees.length > 0 && (
+            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+              <User className="h-3.5 w-3.5 shrink-0" />
+              <div className="flex -space-x-1">
+                {assignees.map((u: any) => (
+                  <UserAvatar key={u.id} imageUrl={u.imageUrl} name={u.name} size="sm" className="ring-1 ring-background" />
+                ))}
+              </div>
+            </div>
+          )}
+
           {event.isOverdue && (
             <div className="flex items-center gap-2 text-[11px] text-destructive font-medium">
               <AlertCircle className="h-3.5 w-3.5 shrink-0" />
@@ -130,13 +151,6 @@ export function CalendarEventHoverCard({ event }: CalendarEventHoverCardProps) {
             <div className="flex items-center gap-2 text-[11px] text-amber-500 font-medium">
               <Clock className="h-3.5 w-3.5 shrink-0" />
               <span>Due today</span>
-            </div>
-          )}
-
-          {event.assigneeIds.length > 0 && (
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-              <User className="h-3.5 w-3.5 shrink-0" />
-              <span>{event.assigneeIds.length} assignee{event.assigneeIds.length !== 1 ? "s" : ""}</span>
             </div>
           )}
 

@@ -91,6 +91,7 @@ export function TaskBar({ placement, weekDays, maxLanes, onEventClick, onDragSta
         gridRow: laneIndex + 2,
         borderRadius: leftRounded ? "5px 0 0 5px" : "0",
         ...(rightRounded ? { borderRadius: leftRounded ? "5px" : "0 5px 5px 0" } : {}),
+        backgroundColor: `${event.color}18`,
       }}
       onClick={() => onEventClick?.(event)}
       onMouseDown={handleMouseDown}

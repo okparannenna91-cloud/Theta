@@ -3,6 +3,7 @@ import { CommandSearch } from "@/components/layout/command-search";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { OnboardingRedirect } from "@/components/providers/onboarding-redirect";
+import { MembersProvider } from "@/components/providers/members-provider";
 import dynamic from "next/dynamic";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { AppsDropdown } from "@/components/apps/apps-dropdown";
@@ -36,7 +37,9 @@ export default function DashboardLayout({
             </header>
             <main className="flex-1 overflow-y-auto px-8 pb-4">
               <ErrorBoundary>
-                {children}
+                <MembersProvider>
+                  {children}
+                </MembersProvider>
               </ErrorBoundary>
             </main>
           </div>
