@@ -5,7 +5,8 @@ import { format, parseISO } from "date-fns";
 import { CalendarDays, User, Flag, Tag, CheckCircle2, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getPriorityColor, getStatusColor } from "./timeline-utils";
-import { useMemberMap } from "@/components/providers/members-provider";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface TimelineHoverCardProps {
@@ -15,7 +16,8 @@ interface TimelineHoverCardProps {
 export function TimelineHoverCard({ task }: TimelineHoverCardProps) {
   const priorityColor = getPriorityColor(task.priority);
   const statusColor = getStatusColor(task.status);
-  const memberMap = useMemberMap();
+  const { activeWorkspaceId } = useWorkspace();
+  const { memberMap } = useWorkspaceMembers(activeWorkspaceId);
 
   const statusLabel = task.status
     ?.replace(/_/g, " ")

@@ -3,7 +3,8 @@
 import { format, parseISO } from "date-fns";
 import { PRIORITY_CONFIG } from "./calendar-types";
 import type { CalendarEvent } from "./calendar-types";
-import { useMemberMap } from "@/components/providers/members-provider";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface CalendarTooltipProps {
@@ -31,7 +32,8 @@ const statusColors: Record<string, string> = {
 export function CalendarTooltip({ event, x, y }: CalendarTooltipProps) {
   const task = event.originalTask;
   const priority = PRIORITY_CONFIG[event.priority] || PRIORITY_CONFIG.none;
-  const memberMap = useMemberMap();
+  const { activeWorkspaceId } = useWorkspace();
+  const { memberMap } = useWorkspaceMembers(activeWorkspaceId);
 
   const formatDate = (d: string | null) => {
     if (!d) return "—";

@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 import { PRIORITY_CONFIG } from "./calendar-types";
 import { getPriorityColor, getStatusColor } from "./calendar-utils";
 import type { CalendarEvent } from "./calendar-types";
-import { useMemberMap } from "@/components/providers/members-provider";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import { UserAvatar } from "@/components/ui/user-avatar";
 
 const statusLabels: Record<string, string> = {
@@ -82,7 +83,8 @@ export function CalendarEventHoverCard({ event }: CalendarEventHoverCardProps) {
   const priorityColor = getPriorityColor(event.priority);
   const statusColor = getStatusColor(event.status);
   const statusLabel = statusLabels[event.status] || event.status?.replace(/_/g, " ");
-  const memberMap = useMemberMap();
+  const { activeWorkspaceId } = useWorkspace();
+  const { memberMap } = useWorkspaceMembers(activeWorkspaceId);
 
   const dateRange = (() => {
     const start = event.startDate ? format(parseISO(event.startDate), "MMM d") : "";

@@ -89,7 +89,7 @@ import { TaskDialog } from "@/components/tasks/task-dialog";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useAbly } from "@/hooks/use-ably";
-import { useMemberMap } from "@/components/providers/members-provider";
+import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import { usePopups } from "@/components/popups/popup-manager";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { getBoardChannel } from "@/lib/ably";
@@ -447,7 +447,7 @@ function getMoveViolation(task: any, targetColName: string, allTasks: any[], col
 
 export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const { activeWorkspaceId } = useWorkspace();
-  const memberMap = useMemberMap();
+  const { memberMap } = useWorkspaceMembers(activeWorkspaceId);
   const { showConfirm, showUpgradePrompt } = usePopups();
   const queryClient = useQueryClient();
   const [activeTask, setActiveTask] = useState<any>(null);
