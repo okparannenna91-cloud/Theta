@@ -257,8 +257,8 @@ function TaskCardContent({ task, memberMap }: { task: any; memberMap: Record<str
                 return (
                   <UserAvatar
                     key={id}
-                    imageUrl={member?.user?.imageUrl}
-                    name={member?.user?.name}
+                    imageUrl={member?.imageUrl}
+                    name={member?.name}
                     size="sm"
                     className="ring-1 ring-background"
                   />

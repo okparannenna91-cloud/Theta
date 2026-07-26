@@ -45,8 +45,8 @@ export function CalendarTooltip({ event, x, y }: CalendarTooltipProps) {
   const offsetX = x + 16 > windowWidth - tooltipWidth ? x - tooltipWidth - 8 : x + 16;
   const offsetY = y + 16;
 
-  const assignees = event.assigneeIds
-    .map((id) => memberMap[id]?.user)
+  const assigneeMembers = event.assigneeIds
+    .map((id) => memberMap[id])
     .filter(Boolean);
 
   return (
@@ -84,12 +84,12 @@ export function CalendarTooltip({ event, x, y }: CalendarTooltipProps) {
             <span>{priority.label}</span>
           </div>
 
-          {assignees.length > 0 && (
+          {assigneeMembers.length > 0 && (
             <>
               <div className="text-muted-foreground">Assignees</div>
               <div className="flex items-center -space-x-1">
-                {assignees.map((u: any) => (
-                  <UserAvatar key={u.id} imageUrl={u.imageUrl} name={u.name} size="sm" />
+                {assigneeMembers.map((m: any) => (
+                  <UserAvatar key={m.id} imageUrl={m.imageUrl} name={m.name} size="sm" />
                 ))}
               </div>
             </>

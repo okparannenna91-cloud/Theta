@@ -2,14 +2,10 @@ import { useQuery } from "@tanstack/react-query";
 
 interface WorkspaceMember {
   id: string;
-  userId: string;
+  name: string | null;
+  email: string;
+  imageUrl: string | null;
   role: string;
-  user: {
-    id: string;
-    name: string | null;
-    email: string;
-    imageUrl: string | null;
-  };
 }
 
 interface UseWorkspaceMembersResult {
@@ -33,8 +29,7 @@ export function useWorkspaceMembers(workspaceId: string | null): UseWorkspaceMem
 
   const memberMap: Record<string, WorkspaceMember> = {};
   for (const m of members) {
-    memberMap[m.userId] = m;
-    memberMap[m.user.id] = m;
+    memberMap[m.id] = m;
   }
 
   return { members, memberMap, isLoading, error: error as Error | null };

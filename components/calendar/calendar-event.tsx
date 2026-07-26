@@ -93,8 +93,8 @@ export function CalendarEventHoverCard({ event }: CalendarEventHoverCardProps) {
     return end || start;
   })();
 
-  const assignees = event.assigneeIds
-    .map((id) => memberMap[id]?.user)
+  const assigneeMembers = event.assigneeIds
+    .map((id) => memberMap[id])
     .filter(Boolean);
 
   return (
@@ -131,12 +131,12 @@ export function CalendarEventHoverCard({ event }: CalendarEventHoverCardProps) {
             <span>{statusLabel}</span>
           </div>
 
-          {assignees.length > 0 && (
+          {assigneeMembers.length > 0 && (
             <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
               <User className="h-3.5 w-3.5 shrink-0" />
               <div className="flex -space-x-1">
-                {assignees.map((u: any) => (
-                  <UserAvatar key={u.id} imageUrl={u.imageUrl} name={u.name} size="sm" className="ring-1 ring-background" />
+                {assigneeMembers.map((m: any) => (
+                  <UserAvatar key={m.id} imageUrl={m.imageUrl} name={m.name} size="sm" className="ring-1 ring-background" />
                 ))}
               </div>
             </div>
