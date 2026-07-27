@@ -4,10 +4,11 @@ import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { ProjectHeader } from "@/components/projects/project-header";
+import { ProjectTabBar } from "@/components/projects/project-tab-bar";
 
 export default function ProjectLayout({ children, params }: { children: React.ReactNode; params: { id: string } }) {
   const { activeWorkspaceId } = useWorkspace();
@@ -25,12 +26,16 @@ export default function ProjectLayout({ children, params }: { children: React.Re
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-10 w-10 rounded-full" />
-          <Skeleton className="h-8 w-64" />
+      <div className="h-full flex flex-col">
+        <div className="px-8 lg:px-10 py-3.5 border-b border-border/20">
+          <div className="flex items-center gap-2.5">
+            <Skeleton className="h-7 w-7 rounded-lg" />
+            <Skeleton className="h-4 w-40" />
+          </div>
         </div>
-        <Skeleton className="h-[600px] w-full rounded-lg" />
+        <div className="flex-1 p-8 lg:p-10">
+          <Skeleton className="h-[600px] w-full rounded-2xl" />
+        </div>
       </div>
     );
   }
@@ -38,7 +43,7 @@ export default function ProjectLayout({ children, params }: { children: React.Re
   if (!project) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <Card className="max-w-md border-subtle">
+        <Card className="max-w-md border-border/20 shadow-sm rounded-2xl">
           <CardHeader className="text-center">
             <CardTitle className="text-base">Project not found</CardTitle>
             <CardDescription>The project you&apos;re looking for doesn&apos;t exist or has been deleted.</CardDescription>
@@ -52,34 +57,11 @@ export default function ProjectLayout({ children, params }: { children: React.Re
   }
 
   return (
-    <div className="h-full flex flex-col bg-background">
-      <div className="px-6 lg:px-8 py-4 border-b border-subtle sticky top-0 z-40 bg-background">
-        <div className="flex items-center gap-4">
-          <Link href="/projects">
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg">
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-          </Link>
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-xl font-semibold text-foreground">{project.name}</h1>
-              {project.visibility === "private" && (
-                <Badge variant="secondary" className="text-xs rounded-md px-2 py-0 h-5">Private</Badge>
-              )}
-              {project.visibility !== "private" && (
-                <Badge variant="outline" className="text-xs rounded-md px-2 py-0 h-5">{project.visibility === "team_access" ? "Team" : "Workspace"}</Badge>
-              )}
-            </div>
-            <div className="flex items-center gap-2 mt-0.5">
-              <p className="text-xs text-muted-foreground">Created {new Date(project.createdAt).toLocaleDateString()}</p>
-              <span className="h-1 w-1 rounded-full bg-muted-foreground/30" />
-              <Badge variant="outline" className="text-xs rounded-md px-2 py-0 h-5 capitalize">{project.status || "Active"}</Badge>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div className="h-full flex flex-col">
+      <ProjectHeader project={project} />
+      <ProjectTabBar projectId={params.id} />
 
-      <div className="flex-1 p-6 lg:p-8 overflow-y-auto">
+      <div className="flex-1 p-8 lg:p-10 overflow-y-auto">
         {children}
       </div>
     </div>

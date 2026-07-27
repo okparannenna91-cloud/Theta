@@ -485,6 +485,8 @@ export default function CalendarPage({ projectId }: { projectId?: string }) {
         isOpen={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         defaultStatus="todo"
+        defaultStartDate={createDialogDefaults.startDate}
+        defaultDueDate={createDialogDefaults.dueDate}
       />
     </div>
   );

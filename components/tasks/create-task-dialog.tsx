@@ -22,6 +22,8 @@ interface CreateTaskDialogProps {
   onOpenChange: (open: boolean) => void;
   defaultProjectId?: string;
   defaultStatus?: string;
+  defaultStartDate?: string;
+  defaultDueDate?: string;
 }
 
 export function CreateTaskDialog({
@@ -29,12 +31,16 @@ export function CreateTaskDialog({
   onOpenChange,
   defaultProjectId = "",
   defaultStatus = "todo",
+  defaultStartDate,
+  defaultDueDate,
 }: CreateTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState(defaultStatus);
   const [priority, setPriority] = useState("medium");
   const [projectId, setProjectId] = useState(defaultProjectId);
+  const [startDate, setStartDate] = useState(defaultStartDate || "");
+  const [dueDate, setDueDate] = useState(defaultDueDate || "");
   const [coverImage, setCoverImage] = useState("");
 
   const queryClient = useQueryClient();
@@ -94,6 +100,8 @@ export function CreateTaskDialog({
       setStatus(defaultStatus);
       setPriority("medium");
       setProjectId(defaultProjectId);
+      setStartDate("");
+      setDueDate("");
       setCoverImage("");
       toast.success("Task created successfully");
     },
@@ -116,6 +124,8 @@ export function CreateTaskDialog({
       description,
       status,
       priority,
+      startDate: startDate || undefined,
+      dueDate: dueDate || undefined,
       projectId: projectId && projectId !== "no-project" ? projectId : undefined,
       coverImage,
     });
@@ -206,6 +216,26 @@ export function CreateTaskDialog({
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="startDate">Start Date</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
+            </div>
+            <div>
+              <Label htmlFor="dueDate">Due Date</Label>
+              <Input
+                id="dueDate"
+                type="date"
+                value={dueDate}
+                onChange={(e) => setDueDate(e.target.value)}
+              />
+            </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>

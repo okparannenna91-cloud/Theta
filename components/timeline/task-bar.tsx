@@ -193,19 +193,20 @@ export default function TaskBar({
     if (isMilestone) {
         return (
             <>
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.5, rotate: 45 }}
-                    animate={{ opacity: 1, scale: 1, rotate: 45 }}
-                    onMouseDown={handleMouseDown}
-                    onMouseEnter={(e) => {
-                        setIsHovered(true);
-                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                        setTooltipPos({ x: Math.min(rect.right + 8, window.innerWidth - 300), y: rect.top });
-                    }}
-                    onMouseLeave={() => setIsHovered(false)}
-                    style={{ left: visualLeft, zIndex: isDragging ? 50 : 10 }}
-                    className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing group"
-                >
+            <motion.div
+                data-task-id={task.id}
+                initial={{ opacity: 0, scale: 0.5, rotate: 45 }}
+                animate={{ opacity: 1, scale: 1, rotate: 45 }}
+                onMouseDown={handleMouseDown}
+                onMouseEnter={(e) => {
+                    setIsHovered(true);
+                    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                    setTooltipPos({ x: Math.min(rect.right + 8, window.innerWidth - 300), y: rect.top });
+                }}
+                onMouseLeave={() => setIsHovered(false)}
+                style={{ left: visualLeft, zIndex: isDragging ? 50 : 10 }}
+                className="absolute flex items-center justify-center cursor-grab active:cursor-grabbing group"
+            >
                     <div className={cn(
                         "w-6 h-6 border-2 border-white dark:border-slate-800 shadow-xl group-hover:scale-125 transition-all overflow-hidden",
                         !hasTaskColor && (task.isCritical ? "bg-red-500" : "bg-amber-500")
@@ -234,10 +235,11 @@ export default function TaskBar({
     if (isSummary) {
         const collapsed = task.children?.length > 0 && task.children.every((c: any) => c.isSummary || !c.children || c.children.length === 0);
         return (
-            <div
-                style={{ left, pointerEvents: "auto" }}
-                className="absolute h-8 flex flex-col justify-end z-10 pointer-events-none"
-            >
+        <div
+            data-task-id={task.id}
+            style={{ left, pointerEvents: "auto" }}
+            className="absolute h-8 flex flex-col justify-end z-10 pointer-events-none"
+        >
                 <div className={cn(
                     "h-2 w-full rounded-sm relative",
                     task.isCritical ? "bg-red-500/60" : "bg-slate-900 dark:bg-slate-200"
@@ -289,6 +291,7 @@ export default function TaskBar({
             </div>
 
             <div
+                data-task-id={task.id}
                 onMouseDown={handleMouseDown}
                 onMouseEnter={(e) => {
                     setIsHovered(true);

@@ -154,3 +154,63 @@
 .calendar-event-enter {
   animation: calendar-bar-enter 0.2s var(--ease-out) both;
 }
+
+@keyframes page-enter {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes card-lift {
+  0% { transform: translateY(0); box-shadow: var(--tw-ring-offset-shadow, 0 0 transparent), var(--tw-ring-shadow, 0 0 transparent), var(--shadow-sm); }
+  100% { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.4; }
+  50% { opacity: 0.8; }
+}
+
+@keyframes specular-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.animate-page-enter {
+  animation: page-enter 0.35s var(--ease-out) both;
+}
+
+.animate-card-lift {
+  transition: transform 0.2s var(--ease-out), box-shadow 0.2s var(--ease-out);
+}
+.animate-card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+}
+
+.glass-deep {
+  @apply bg-background/50 backdrop-blur-2xl border border-border/10;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.02), inset 0 1px 0 rgba(255,255,255,0.05);
+}
+
+.glass-card-deep {
+  @apply bg-card/60 backdrop-blur-2xl border border-border/10 rounded-2xl;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.03), 0 1px 2px rgba(0,0,0,0.02), inset 0 1px 0 rgba(255,255,255,0.06);
+}
+
+.specular-highlight {
+  background: linear-gradient(135deg,
+    transparent 0%,
+    rgba(255,255,255,0.03) 30%,
+    rgba(255,255,255,0.06) 50%,
+    rgba(255,255,255,0.03) 70%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: specular-shimmer 6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.scroll-edge-mask {
+  mask-image: linear-gradient(to bottom, transparent 0%, black 12px, black calc(100% - 12px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 12px, black calc(100% - 12px), transparent 100%);
+}

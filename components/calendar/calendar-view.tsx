@@ -279,6 +279,7 @@ export function CalendarView({
                 events={events}
                 onDayClick={handleDayClick}
                 onEventDrop={handleEventDrop}
+                onEventResize={handleEventResize}
                 onLogActivity={onLogActivity}
                 showWeekends={showWeekends}
               />
@@ -288,6 +289,8 @@ export function CalendarView({
                 currentDate={currentDate}
                 events={events}
                 onDayClick={handleDayClick}
+                onEventDrop={handleEventDrop}
+                onEventResize={handleEventResize}
                 onLogActivity={onLogActivity}
               />
             )}
@@ -324,6 +327,7 @@ export function CalendarView({
                     events={group.events}
                     onDayClick={handleDayClick}
                     onEventDrop={handleEventDrop}
+                    onEventResize={handleEventResize}
                     onLogActivity={onLogActivity}
                     showWeekends={showWeekends}
                   />
@@ -333,6 +337,8 @@ export function CalendarView({
                     currentDate={currentDate}
                     events={group.events}
                     onDayClick={handleDayClick}
+                    onEventDrop={handleEventDrop}
+                    onEventResize={handleEventResize}
                     onLogActivity={onLogActivity}
                   />
                 )}

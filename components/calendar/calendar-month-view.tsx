@@ -7,6 +7,7 @@ import { getWeeksForMonth, placeEventsInWeek } from "./calendar-utils";
 import { DAY_HEADERS } from "./calendar-utils";
 import type { CalendarEvent } from "./calendar-types";
 import { TaskBar } from "./calendar-task-bar";
+import { CalendarDays } from "lucide-react";
 
 interface CalendarMonthViewProps {
   events: CalendarEvent[];
@@ -29,6 +30,7 @@ export function MonthView({ events, currentDate, onDayClick, onEventDrop, onEven
     startX: number;
     startY: number;
     weekStart: Date;
+    currentCol?: number;
   } | null>(null);
 
   const weekPlacements = useMemo(() => {
@@ -40,6 +42,12 @@ export function MonthView({ events, currentDate, onDayClick, onEventDrop, onEven
 
     const handleMouseMove = (e: MouseEvent) => {
       e.preventDefault();
+      if (!gridRef.current) return;
+      const rect = gridRef.current.getBoundingClientRect();
+      const colWidth = rect.width / 7;
+      const relX = e.clientX - rect.left;
+      const colIndex = Math.max(0, Math.min(6, Math.floor(relX / colWidth)));
+      setDragState(prev => prev ? { ...prev, currentCol: colIndex } : null);
     };
 
     const handleMouseUp = (e: MouseEvent) => {
@@ -117,6 +125,27 @@ export function MonthView({ events, currentDate, onDayClick, onEventDrop, onEven
     });
   }, [onEventResize, getWeekStartForEvent]);
 
+  if (events.length === 0) {
+    return (
+      <div className="flex flex-col rounded-xl border shadow-sm overflow-hidden bg-card">
+        <div className="grid grid-cols-7 border-b bg-muted/30">
+          {DAY_HEADERS.map((header) => (
+            <div key={header} className="px-2 py-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider text-center">
+              {header}
+            </div>
+          ))}
+        </div>
+        <div className="flex items-center justify-center py-16 text-muted-foreground">
+          <div className="text-center">
+            <CalendarDays className="h-10 w-10 mx-auto mb-2 opacity-20" />
+            <p className="text-sm font-medium">No events this month</p>
+            <p className="text-xs mt-1">Click a day to create a new task.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col rounded-xl border shadow-sm overflow-hidden bg-card">
       <div className="grid grid-cols-7 border-b bg-muted/30">
@@ -191,6 +220,16 @@ export function MonthView({ events, currentDate, onDayClick, onEventDrop, onEven
                       onResizeStart={handleResizeStart}
                     />
                   ))}
+
+                {dragState && dragState.currentCol !== undefined && (
+                  <div
+                    style={{
+                      gridColumn: dragState.currentCol + 1,
+                      gridRow: `2 / ${visibleLanes + 2}`,
+                    }}
+                    className="mx-1 rounded-md border-2 border-dashed border-primary/40 bg-primary/5 pointer-events-none z-10"
+                  />
+                )}
 
                 {hiddenCount > 0 && (
                   <button

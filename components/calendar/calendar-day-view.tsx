@@ -1,16 +1,19 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { isToday, format, parseISO } from "date-fns";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
+import { isToday, format, parseISO, startOfDay, differenceInDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getEventsForDay } from "./calendar-utils";
 import { CalendarEventBar, CalendarEventHoverCard } from "./calendar-event";
 import type { CalendarEvent } from "./calendar-types";
+import { CalendarDays } from "lucide-react";
 
 interface DayViewProps {
   currentDate: Date;
   events: CalendarEvent[];
   onDayClick: (day: Date) => void;
+  onEventDrop?: (event: CalendarEvent, dropDay: Date) => void;
+  onEventResize?: (event: CalendarEvent, newStart: string, newEnd: string) => void;
   onLogActivity: (action: string, taskId: string, metadata?: any) => void;
 }
 
@@ -18,8 +21,18 @@ export function DayView({
   currentDate,
   events,
   onDayClick,
+  onEventDrop,
+  onEventResize,
 }: DayViewProps) {
   const [hoveredEvent, setHoveredEvent] = useState<{ event: CalendarEvent; rect: DOMRect } | null>(null);
+  const [dragState, setDragState] = useState<{
+    event: CalendarEvent;
+    type: "move" | "resize-left" | "resize-right";
+    startX: number;
+    startY: number;
+    currentHour: number;
+  } | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const dayEvents = useMemo(() => getEventsForDay(events, currentDate), [events, currentDate]);
 
@@ -34,6 +47,72 @@ export function DayView({
   );
 
   const HOURS = Array.from({ length: 24 }, (_, h) => h);
+
+  useEffect(() => {
+    if (!dragState) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      e.preventDefault();
+      if (!gridRef.current) return;
+      const rect = gridRef.current.getBoundingClientRect();
+      const scrollTop = gridRef.current?.scrollTop || 0;
+      const hourHeight = 52;
+      const relY = e.clientY - rect.top + scrollTop;
+      const hourIndex = Math.max(0, Math.min(23, Math.floor(relY / hourHeight)));
+      setDragState(prev => prev ? { ...prev, currentHour: hourIndex } : null);
+    };
+
+    const handleMouseUp = (e: MouseEvent) => {
+      if (!gridRef.current || !dragState) return;
+
+      const fromDate = dragState.event.startDate ? parseISO(dragState.event.startDate) : new Date();
+      const toDate = dragState.event.dueDate ? parseISO(dragState.event.dueDate) : fromDate;
+
+      if (dragState.type === "move") {
+        onEventDrop?.(dragState.event, currentDate);
+      } else if (dragState.type === "resize-left" && onEventResize) {
+        const newStart = startOfDay(currentDate).toISOString();
+        const newEnd = toDate.toISOString();
+        if (new Date(newStart) < toDate) {
+          onEventResize(dragState.event, newStart, newEnd);
+        }
+      } else if (dragState.type === "resize-right" && onEventResize) {
+        const newStart = fromDate.toISOString();
+        const newEnd = startOfDay(currentDate).toISOString();
+        if (fromDate < new Date(newEnd)) {
+          onEventResize(dragState.event, newStart, newEnd);
+        }
+      }
+
+      setDragState(null);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragState, onEventDrop, onEventResize, currentDate]);
+
+  const handleEventDragStart = useCallback((event: CalendarEvent, e: React.MouseEvent) => {
+    if (!onEventDrop) return;
+    setDragState({ event, type: "move", startX: e.clientX, startY: e.clientY, currentHour: 0 });
+  }, [onEventDrop]);
+
+  if (events.length === 0) {
+    return (
+      <div className="rounded-xl border shadow-sm bg-card overflow-hidden">
+        <div className="flex items-center justify-center py-16 text-muted-foreground">
+          <div className="text-center">
+            <CalendarDays className="h-10 w-10 mx-auto mb-2 opacity-20" />
+            <p className="text-sm font-medium">No events this day</p>
+            <p className="text-xs mt-1">Click to create a new task.</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="rounded-xl border shadow-sm bg-card overflow-hidden">
@@ -67,17 +146,28 @@ export function DayView({
         </div>
       )}
 
-      <div className="divide-y max-h-[500px] overflow-y-auto">
+      <div className="divide-y max-h-[500px] overflow-y-auto" ref={gridRef}>
         {HOURS.map((hour) => {
+          const hourStart = new Date(currentDate);
+          hourStart.setHours(hour, 0, 0, 0);
+          const hourEnd = new Date(currentDate);
+          hourEnd.setHours(hour + 1, 0, 0, 0);
           const hourlyEvents = timedEvents.filter((e) => {
             if (!e.startDate) return false;
-            return parseISO(e.startDate).getHours() === hour;
+            const es = parseISO(e.startDate);
+            const ee = e.dueDate ? parseISO(e.dueDate) : es;
+            return es < hourEnd && ee >= hourStart;
           });
+
+          const isDropTarget = dragState && dragState.currentHour === hour;
 
           return (
             <div
               key={hour}
-              className="flex min-h-[52px] hover:bg-muted/10 transition-colors cursor-pointer"
+              className={cn(
+                "flex min-h-[52px] hover:bg-muted/10 transition-colors cursor-pointer",
+                isDropTarget && "bg-primary/10",
+              )}
               onClick={() => onDayClick(currentDate)}
             >
               <div className="w-16 shrink-0 border-r px-2 py-1.5 text-right sticky left-0 bg-card">
@@ -92,6 +182,7 @@ export function DayView({
                     event={event}
                     onMouseEnter={(ev, rect) => setHoveredEvent({ event: ev, rect })}
                     onMouseLeave={() => setHoveredEvent(null)}
+                    onMouseDown={(e, ev) => handleEventDragStart(ev, e)}
                   />
                 ))}
               </div>
@@ -99,6 +190,18 @@ export function DayView({
           );
         })}
       </div>
+
+      {dragState && (
+        <div
+          className="fixed z-50 border-2 border-dashed border-primary/40 bg-primary/10 rounded-md pointer-events-none"
+          style={{
+            left: (gridRef.current?.offsetLeft || 0) + 64,
+            top: (gridRef.current?.offsetTop || 0) + dragState.currentHour * 52,
+            width: (gridRef.current?.offsetWidth || 0) - 64,
+            height: 48,
+          }}
+        />
+      )}
 
       {hoveredEvent && (
         <div

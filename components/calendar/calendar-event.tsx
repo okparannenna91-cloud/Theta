@@ -25,10 +25,11 @@ interface CalendarEventBarProps {
   event: CalendarEvent;
   onMouseEnter?: (event: CalendarEvent, rect: DOMRect) => void;
   onMouseLeave?: () => void;
+  onMouseDown?: (e: React.MouseEvent, event: CalendarEvent) => void;
   compact?: boolean;
 }
 
-export function CalendarEventBar({ event, onMouseEnter, onMouseLeave, compact }: CalendarEventBarProps) {
+export function CalendarEventBar({ event, onMouseEnter, onMouseLeave, onMouseDown, compact }: CalendarEventBarProps) {
   const priorityColor = PRIORITY_CONFIG[event.priority]?.color || PRIORITY_CONFIG.none.color;
 
   return (
@@ -43,6 +44,7 @@ export function CalendarEventBar({ event, onMouseEnter, onMouseLeave, compact }:
       style={{
         backgroundColor: `${event.color}18`,
       }}
+      onMouseDown={(e) => onMouseDown?.(e, event)}
       onMouseEnter={(e) => {
         const rect = e.currentTarget.getBoundingClientRect();
         onMouseEnter?.(event, rect);

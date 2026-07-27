@@ -196,6 +196,14 @@ function TaskCardContent({ task, memberMap }: { task: any; memberMap: Record<str
         {task.title}
       </h4>
 
+      {/* Parent-child indicator */}
+      {task.parentId && (
+        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
+          <GitBranch className="h-2.5 w-2.5 -rotate-90" />
+          <span>Subtask</span>
+        </div>
+      )}
+
       {/* Tags — max 2 pills, +N overflow, hidden when empty */}
       {visibleTags && (
         <div className="flex flex-wrap items-center gap-1">

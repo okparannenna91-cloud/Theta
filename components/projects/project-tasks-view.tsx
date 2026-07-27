@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2 } from "lucide-react";
+import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2, ListChecks } from "lucide-react";
 import { AiGenerator } from "@/components/ai/ai-generator";
 import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
@@ -134,38 +134,86 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
     if (isLoading) {
         return (
             <div className="space-y-3">
-                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-lg" />)}
+                {[1, 2, 3].map((i) => <Skeleton key={i} className="h-20 rounded-xl" />)}
             </div>
         );
     }
 
     return (
-        <div className="space-y-4">
+        <div className="space-y-6">
             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-muted-foreground">Tasks ({tasks.length})</h3>
-                <div className="flex items-center gap-2">
-                    <div className="border rounded-md p-0.5 flex items-center">
-                        <Button variant={view === "list" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-sm px-3" onClick={() => setView("list")}>List</Button>
-                        <Button variant={view === "board" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-sm px-3" onClick={() => setView("board")}>Board</Button>
-                        <Button variant={view === "table" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-sm px-3" onClick={() => setView("table")}>Table</Button>
+                <div>
+                    <h2 className="text-lg font-semibold tracking-tight">Tasks</h2>
+                    <p className="text-xs text-muted-foreground/60 mt-0.5">{tasks.length} {(tasks.length === 1 ? "task" : "tasks")} in this project</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    <div className="bg-card/80 border border-border/30 rounded-xl p-0.5 flex items-center shadow-sm">
+                        <Button variant={view === "list" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-lg px-3" onClick={() => setView("list")}>List</Button>
+                        <Button variant={view === "board" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-lg px-3" onClick={() => setView("board")}>Board</Button>
+                        <Button variant={view === "table" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-lg px-3" onClick={() => setView("table")}>Table</Button>
                     </div>
-                    <Button size="sm" onClick={() => setShowCreate(true)}>
-                        <Plus className="h-4 w-4 mr-1.5" /> New Task
+                    <Button size="sm" className="h-9 text-xs rounded-xl px-4 shadow-sm" onClick={() => setShowCreate(true)}>
+                        <Plus className="h-3.5 w-3.5 mr-1.5" /> New Task
                     </Button>
                 </div>
             </div>
 
+            {/* Sprint health summary */}
+            {tasks.length > 0 && (
+              <div className="flex items-center gap-4 px-4 py-3 rounded-2xl bg-card/30 border-0 shadow-sm"
+                style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.06)" }}
+              >
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="text-[10px] text-muted-foreground/50">
+                    {tasks.filter((t: any) => t.status === "done").length} done
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-blue-500" />
+                  <span className="text-[10px] text-muted-foreground/50">
+                    {tasks.filter((t: any) => t.status === "in_progress" || t.status === "in-progress").length} in progress
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-red-500" />
+                  <span className="text-[10px] text-muted-foreground/50">
+                    {tasks.filter((t: any) => t.status === "blocked" || t.status === "stuck").length} blocked
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
+                  <span className="text-[10px] text-muted-foreground/50">
+                    {tasks.filter((t: any) => t.status !== "done" && t.status !== "in_progress" && t.status !== "in-progress" && t.status !== "blocked" && t.status !== "stuck").length} backlog
+                  </span>
+                </div>
+                <div className="ml-auto flex items-center gap-1.5">
+                  <span className="text-[10px] text-muted-foreground/30">Backlog</span>
+                  <div className="h-1.5 w-20 bg-muted/30 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full bg-primary/50"
+                      style={{ width: `${tasks.length > 0 ? (tasks.filter((t: any) => t.status === "done").length / tasks.length) * 100 : 0}%` }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
             {tasks.length === 0 ? (
-                <div className="py-20 flex flex-col items-center justify-center text-center border-2 border-dashed rounded-lg">
-                    <p className="text-sm text-muted-foreground mb-4">No tasks in this project yet.</p>
-                    <Button size="sm" onClick={() => setShowCreate(true)} variant="outline">
+                <div className="py-20 flex flex-col items-center justify-center text-center border-2 border-dashed border-border/40 rounded-2xl bg-card/30">
+                    <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                        <ListChecks className="h-6 w-6 text-muted-foreground/40" />
+                    </div>
+                    <p className="text-sm font-medium text-muted-foreground mb-1">No tasks yet</p>
+                    <p className="text-xs text-muted-foreground/50 mb-4">Create your first task to get started.</p>
+                    <Button size="sm" onClick={() => setShowCreate(true)} variant="outline" className="rounded-xl">
                         <Plus className="h-4 w-4 mr-1.5" /> Create Task
                     </Button>
                 </div>
             ) : view === "list" ? (
                 <div className="space-y-2">
                     {tasks.map((task: any) => (
-                        <Card key={task.id} className="border shadow-sm hover:border-primary/30 transition-colors cursor-pointer"
+                        <Card key={task.id} className="border border-border/40 bg-card/50 backdrop-blur-sm shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200 cursor-pointer rounded-xl"
                             onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
                             <CardHeader className="p-4">
                                 <div className="flex items-start justify-between gap-4">

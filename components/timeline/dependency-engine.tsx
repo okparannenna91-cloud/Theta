@@ -115,9 +115,14 @@ export default function DependencyEngine({
         const onMove = (me: MouseEvent) => {
             setDragDep(prev => prev ? { ...prev, currentX: me.clientX, currentY: me.clientY } : null);
         };
-        const onUp = () => {
+        const onUp = (me: MouseEvent) => {
             document.removeEventListener("mousemove", onMove);
             document.removeEventListener("mouseup", onUp);
+            const el = document.elementFromPoint(me.clientX, me.clientY);
+            const targetId = el?.closest?.("[data-task-id]")?.getAttribute("data-task-id");
+            if (targetId && targetId !== sourceId && onDependencyCreate) {
+                onDependencyCreate(sourceId, targetId, "FS");
+            }
             setDragDep(null);
         };
         document.addEventListener("mousemove", onMove);

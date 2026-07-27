@@ -156,7 +156,7 @@ export const Sidebar = memo(function Sidebar() {
 
       <div
         className={cn(
-          "fixed lg:static inset-y-0 left-0 z-50 flex h-screen w-60 flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out border-r border-sidebar-border",
+          "fixed lg:static inset-y-0 left-0 z-50 flex h-screen w-60 flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out border-r border-sidebar-border/50",
           "lg:translate-x-0",
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
