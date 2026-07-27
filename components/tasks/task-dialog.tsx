@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo, lazy, Suspense } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
     Sheet,
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-    import {
+import {
     Select,
     SelectContent,
     SelectItem,
@@ -30,17 +30,17 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
+import { useStatuses, useWorkspaceStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
-import { TaskSubtasks } from "./task-subtasks";
-import { TaskComments } from "./task-comments";
+import { TaskAssignees } from "./task-assignees";
 import { TagSelector } from "./tag-selector";
 import { TimeTracker } from "./time-tracker";
-import { TaskActivity } from "./task-activity";
-import { TaskAttachments } from "./task-attachments";
+import { TaskSubtasks } from "./task-subtasks";
 import { TaskChecklist } from "./task-checklist";
-import { TaskAssignees } from "./task-assignees";
 import { TaskDependencies } from "./task-dependencies";
+import { TaskAttachments } from "./task-attachments";
+import { TaskComments } from "./task-comments";
+import { TaskActivity } from "./task-activity";
 
 interface TaskDialogProps {
     task: any;
@@ -231,6 +231,13 @@ Last Description: ${description}`;
 
     const typeInfo = TASK_TYPES.find(t => t.value === taskType) || TASK_TYPES[0];
 
+    const progressPosition = useMemo(() => {
+        if (!statuses?.length) return progress;
+        const idx = statuses.findIndex((s: any) => s.id === status);
+        if (idx === -1) return progress;
+        return Math.round((idx / (statuses.length - 1)) * 100);
+    }, [status, statuses, progress]);
+
     if (!task) return null;
 
     return (
@@ -293,55 +300,31 @@ Last Description: ${description}`;
                                 />
                             </div>
 
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3">
-                                    <Sparkles className="h-4 w-4 text-primary" />
-                                    <h3 className="text-lg font-semibold tracking-tight">Subtasks</h3>
-                                </div>
-                                <TaskSubtasks taskId={task.id} workspaceId={workspaceId} />
-                            </div>
+                            <LazySection icon={Sparkles} title="Subtasks">
+                                <SubtasksContent taskId={task.id} workspaceId={workspaceId} />
+                            </LazySection>
 
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3">
-                                    <CheckSquare className="h-4 w-4 text-primary" />
-                                    <h3 className="text-lg font-semibold tracking-tight">Checklist</h3>
-                                </div>
-                                <TaskChecklist taskId={task.id} workspaceId={workspaceId} />
-                            </div>
+                            <LazySection icon={CheckSquare} title="Checklist">
+                                <ChecklistContent taskId={task.id} workspaceId={workspaceId} />
+                            </LazySection>
 
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3">
-                                    <Link2 className="h-4 w-4 text-primary" />
-                                    <h3 className="text-lg font-semibold tracking-tight">Dependencies</h3>
-                                </div>
-                                <TaskDependencies taskId={task.id} workspaceId={workspaceId} />
-                            </div>
+                            <LazySection icon={Link2} title="Dependencies">
+                                <DependenciesContent taskId={task.id} workspaceId={workspaceId} />
+                            </LazySection>
 
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3">
-                                    <Palette className="h-4 w-4 text-primary" />
-                                    <h3 className="text-lg font-semibold tracking-tight">Attachments</h3>
-                                </div>
-                                <TaskAttachments taskId={task.id} workspaceId={workspaceId} attachments={task.fieldValues?.attachments || []} />
-                            </div>
+                            <LazySection icon={Palette} title="Attachments">
+                                <AttachmentsContent taskId={task.id} workspaceId={workspaceId} attachments={task.fieldValues?.attachments || []} />
+                            </LazySection>
 
                             <hr className="border-border/10 my-8" />
 
-                            <div className="space-y-6">
-                                <div className="flex items-center gap-3">
-                                    <MessageSquare className="h-4 w-4 text-primary" />
-                                    <h3 className="text-lg font-semibold tracking-tight">Comments</h3>
-                                </div>
-                                <TaskComments taskId={task.id} workspaceId={workspaceId} />
-                            </div>
+                            <LazySection icon={MessageSquare} title="Comments">
+                                <CommentsContent taskId={task.id} workspaceId={workspaceId} />
+                            </LazySection>
 
-                            <div className="space-y-6 pt-12">
-                                <div className="flex items-center gap-3">
-                                    <Clock className="h-4 w-4 text-primary" />
-                                    <h3 className="text-lg font-semibold tracking-tight">Activity</h3>
-                                </div>
-                                <TaskActivity taskId={task.id} workspaceId={workspaceId} />
-                            </div>
+                            <LazySection icon={Clock} title="Activity">
+                                <ActivityContent taskId={task.id} workspaceId={workspaceId} />
+                            </LazySection>
                         </div>
 
                         <div className="w-full lg:w-[320px] xl:w-[360px] shrink-0 p-8 sm:p-10 bg-muted/30">
@@ -490,24 +473,12 @@ Last Description: ${description}`;
                                         </div>
                                     </div>
 
-                                    <div className="space-y-3">
-                                        <Label className="text-xs font-medium text-muted-foreground ml-1">Progress (%)</Label>
-                                        <Input
-                                            type="number"
-                                            min="0"
-                                            max="100"
-                                            value={progress}
-                                            onChange={(e) => {
-                                                const val = Math.min(100, Math.max(0, parseInt(e.target.value) || 0));
-                                                setProgress(val);
-                                            }}
-                                            onBlur={(e) => {
-                                                const val = Math.min(100, Math.max(0, parseInt(e.currentTarget.value) || 0));
-                                                handleUpdate("progress", val);
-                                            }}
-                                            className="h-11 bg-background border rounded-lg text-xs shadow-sm text-center hover:border-primary/30 transition-colors"
-                                        />
-                                    </div>
+                                    <ProgressSection
+                                        progress={progress}
+                                        status={status}
+                                        statuses={statuses}
+                                        onProgressChange={(val) => { setProgress(val); handleUpdate("progress", val); }}
+                                    />
                                     
                                     <div className="space-y-3">
                                         <Label className="text-xs font-medium text-muted-foreground ml-1">Color</Label>
@@ -649,5 +620,84 @@ Last Description: ${description}`;
                 </div>
             </SheetContent>
         </Sheet>
+    );
+}
+
+function LazySection({ icon: Icon, title, children }: { icon: any; title: string; children: React.ReactNode }) {
+    const [visible, setVisible] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const el = ref.current;
+        if (!el) return;
+        const obs = new IntersectionObserver(([entry]) => {
+            if (entry.isIntersecting) { setVisible(true); obs.disconnect(); }
+        }, { rootMargin: "200px" });
+        obs.observe(el);
+        return () => obs.disconnect();
+    }, []);
+    return (
+        <div ref={ref} className="space-y-4">
+            <div className="flex items-center gap-2.5">
+                <Icon className="h-3.5 w-3.5 text-primary" />
+                <h3 className="text-sm font-semibold tracking-tight">{title}</h3>
+            </div>
+            {visible ? children : <div className="h-12 animate-pulse rounded-lg bg-muted/50" />}
+        </div>
+    );
+}
+
+const SubtasksContent = React.memo(function SubtasksContent({ taskId, workspaceId }: { taskId: string; workspaceId: string }) {
+    return <TaskSubtasks taskId={taskId} workspaceId={workspaceId} />;
+});
+const ChecklistContent = React.memo(function ChecklistContent({ taskId, workspaceId }: { taskId: string; workspaceId: string }) {
+    return <TaskChecklist taskId={taskId} workspaceId={workspaceId} />;
+});
+const DependenciesContent = React.memo(function DependenciesContent({ taskId, workspaceId }: { taskId: string; workspaceId: string }) {
+    return <TaskDependencies taskId={taskId} workspaceId={workspaceId} />;
+});
+const AttachmentsContent = React.memo(function AttachmentsContent({ taskId, workspaceId, attachments }: { taskId: string; workspaceId: string; attachments?: any[] }) {
+    return <TaskAttachments taskId={taskId} workspaceId={workspaceId} attachments={attachments || []} />;
+});
+const CommentsContent = React.memo(function CommentsContent({ taskId, workspaceId }: { taskId: string; workspaceId: string }) {
+    return <TaskComments taskId={taskId} workspaceId={workspaceId} />;
+});
+const ActivityContent = React.memo(function ActivityContent({ taskId, workspaceId }: { taskId: string; workspaceId: string }) {
+    return <TaskActivity taskId={taskId} workspaceId={workspaceId} />;
+});
+
+function ProgressSection({ progress, status, statuses, onProgressChange }: { progress: number; status: string; statuses: any[]; onProgressChange: (val: number) => void }) {
+    const statusIdx = statuses.findIndex((s: any) => s.id === status);
+    const statusProgress = statusIdx >= 0 ? Math.round((statusIdx / Math.max(1, statuses.length - 1)) * 100) : 0;
+
+    return (
+        <div className="space-y-3">
+            <Label className="text-xs font-medium text-muted-foreground ml-1">Progress</Label>
+            <div className="flex items-center gap-2">
+                <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={progress}
+                    onChange={(e) => onProgressChange(parseInt(e.target.value))}
+                    className="flex-1 h-1.5 accent-primary cursor-pointer"
+                />
+                <span className="text-xs font-medium w-8 text-right tabular-nums">{progress}%</span>
+            </div>
+            {statuses.length > 2 && (
+                <div className="flex justify-between px-0.5">
+                    {statuses.filter((_: any, i: number) => i === 0 || i === Math.floor(statuses.length / 2) || i === statuses.length - 1).map((s: any) => (
+                        <span key={s.id} className="text-[9px] text-muted-foreground">{s.name}</span>
+                    ))}
+                </div>
+            )}
+            <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
+                    <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+                </div>
+                <span className="text-[10px] text-muted-foreground w-8 text-right">
+                    {statusProgress > 0 && progress !== statusProgress ? `${statusProgress}% from status` : ""}
+                </span>
+            </div>
+        </div>
     );
 }

@@ -31,46 +31,83 @@ interface CalendarEventBarProps {
 
 export function CalendarEventBar({ event, onMouseEnter, onMouseLeave, onMouseDown, compact }: CalendarEventBarProps) {
   const priorityColor = PRIORITY_CONFIG[event.priority]?.color || PRIORITY_CONFIG.none.color;
+  const statusColors: Record<string, string> = {
+    todo: "#9ca3af", in_progress: "#3b82f6", "in-progress": "#3b82f6",
+    review: "#8b5cf6", done: "#10b981",
+  };
+  const statusColor = statusColors[event.status] || "#9ca3af";
+  const { activeWorkspaceId } = useWorkspace();
+  const { memberMap } = useWorkspaceMembers(activeWorkspaceId);
+  const assigneeMembers = (event.assigneeIds || []).map((id: string) => memberMap[id]).filter(Boolean);
+
+  if (compact) {
+    return (
+      <div
+        className={cn(
+          "relative h-1.5 rounded-full overflow-hidden transition-all duration-200",
+          event.isCompleted && "opacity-50",
+        )}
+        style={{ backgroundColor: `${event.color}30` }}
+        onMouseDown={(e) => onMouseDown?.(e, event)}
+        onMouseEnter={(e) => { const rect = e.currentTarget.getBoundingClientRect(); onMouseEnter?.(event, rect); }}
+        onMouseLeave={onMouseLeave}
+      >
+        <div className="h-full rounded-full" style={{ backgroundColor: priorityColor, width: "100%" }} />
+      </div>
+    );
+  }
 
   return (
     <div
       className={cn(
-        "relative flex items-center gap-1 px-1.5 py-0.5 select-none group",
-        "transition-all duration-150 ease-out rounded-md",
-        "hover:shadow-md hover:z-10",
-        event.isCompleted && "opacity-50",
-        event.isOverdue && "ring-1 ring-destructive/30",
+        "relative flex flex-col gap-0.5 px-2 py-1 select-none group cursor-pointer",
+        "rounded-md border border-border/30 shadow-sm",
+        "transition-all duration-150 ease-out",
+        "hover:shadow-md hover:border-border/60 hover:-translate-y-0.5 hover:z-10",
+        event.isCompleted && "opacity-60",
+        event.isOverdue && "ring-1 ring-destructive/20",
       )}
       style={{
-        backgroundColor: `${event.color}18`,
+        backgroundColor: `${event.color}10`,
       }}
       onMouseDown={(e) => onMouseDown?.(e, event)}
-      onMouseEnter={(e) => {
-        const rect = e.currentTarget.getBoundingClientRect();
-        onMouseEnter?.(event, rect);
-      }}
+      onMouseEnter={(e) => { const rect = e.currentTarget.getBoundingClientRect(); onMouseEnter?.(event, rect); }}
       onMouseLeave={onMouseLeave}
     >
-      <div
-        className="absolute left-0 top-0.5 bottom-0.5 w-0.5 rounded-full transition-all duration-200"
-        style={{ backgroundColor: priorityColor }}
-      />
+      {/* Priority accent stripe */}
+      <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-l-[4px]" style={{ backgroundColor: priorityColor }} />
 
-      {compact ? (
-        <div className="h-1.5 w-full rounded-full ml-1" style={{ backgroundColor: event.color }} />
-      ) : (
-        <>
-          <span className="text-[11px] font-medium truncate flex-1 text-foreground/70 group-hover:text-foreground transition-colors duration-200 ml-1">
-            {event.title}
-          </span>
-          <div className="flex items-center gap-1 flex-shrink-0 mr-0.5">
-            <div
-              className="w-1.5 h-1.5 rounded-full flex-shrink-0 ring-1 ring-background"
-              style={{ backgroundColor: getStatusColor(event.status) }}
-            />
-          </div>
-        </>
+      {/* Progress bar - bottom edge */}
+      {event.progress > 0 && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 rounded-b-[4px] pointer-events-none overflow-hidden">
+          <div className="h-full transition-all duration-300 ease-out"
+            style={{ backgroundColor: statusColor, width: `${Math.min(100, Math.max(0, event.progress))}%` }} />
+        </div>
       )}
+
+      <div className="flex flex-col gap-0 relative z-10">
+        <span className="text-[11px] font-medium truncate text-foreground/80 group-hover:text-foreground transition-colors duration-200">
+          {event.title}
+        </span>
+        <div className="flex items-center gap-1 min-w-0">
+          <div className="w-[5px] h-[5px] rounded-full flex-shrink-0" style={{ backgroundColor: statusColor }} />
+          {assigneeMembers.length > 0 && (
+            <div className="flex items-center -space-x-1 ml-auto">
+              {assigneeMembers.slice(0, 2).map((m: any) => (
+                <div key={m.id} className="h-3.5 w-3.5 rounded-full ring-1 ring-background overflow-hidden"
+                  title={m.name} style={{ backgroundColor: m.color || "#e2e8f0" }}>
+                  {m.imageUrl && <img src={m.imageUrl} alt="" className="h-full w-full object-cover" />}
+                </div>
+              ))}
+              {assigneeMembers.length > 2 && (
+                <div className="h-3.5 w-3.5 rounded-full bg-muted text-[6px] flex items-center justify-center font-medium text-muted-foreground ring-1 ring-background">
+                  +{assigneeMembers.length - 2}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

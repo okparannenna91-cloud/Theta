@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { format, parseISO } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,14 +11,17 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2, CalendarDays, User, GripVertical, ChevronRight, ChevronDown, ListChecks } from "lucide-react";
 import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
 import { useStatuses, useWorkspaceStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
+import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { TaskDialog } from "./task-dialog";
 import { toast } from "sonner";
@@ -223,65 +227,38 @@ export default function TasksPage() {
           ))}
         </div>
       ) : (
-        <div className="border-subtle rounded-lg overflow-hidden">
+        <div className="border rounded-lg overflow-hidden bg-card">
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
               <thead>
-                <tr className="bg-muted/50 border-b border-subtle">
-                  <th className="p-3 text-xs font-medium text-muted-foreground w-12 text-center">Done</th>
-                  <th className="p-3 text-xs font-medium text-muted-foreground">Task Name</th>
-                  <th className="p-3 text-xs font-medium text-muted-foreground">Project</th>
-                  <th className="p-3 text-xs font-medium text-muted-foreground">Status</th>
-                  <th className="p-3 text-xs font-medium text-muted-foreground">Priority</th>
-                  <th className="p-3 text-xs font-medium text-muted-foreground text-right">Action</th>
+                <tr className="bg-muted/50 border-b text-[11px] font-semibold text-muted-foreground">
+                  <th className="p-2.5 w-8"></th>
+                  <th className="p-2.5">Task</th>
+                  <th className="p-2.5 w-28">Status</th>
+                  <th className="p-2.5 w-24">Priority</th>
+                  <th className="p-2.5 w-28 hidden md:table-cell">Assignee</th>
+                  <th className="p-2.5 w-28 hidden md:table-cell">Due Date</th>
+                  <th className="p-2.5 w-16 text-right"></th>
                 </tr>
               </thead>
               <tbody>
                 {tasks?.map((task: any) => (
-                  <tr key={task.id} className="border-b border-subtle hover:bg-muted/20 transition-colors group cursor-pointer"
-                    onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
-                    <td className="p-3 text-center">
-                      <button onClick={() => updateMutation.mutate({ id: task.id, data: { status: task.status === "done" ? "todo" : "done" } })}
-                        className="hover:scale-110 transition-transform">
-                        {getStatusIcon(task.status)}
-                      </button>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex flex-col">
-                        <span className={cn("text-sm font-medium truncate max-w-[200px]", (task.status === "done") && "line-through text-muted-foreground")}>{task.title}</span>
-                        {task.description && <span className="text-xs text-muted-foreground truncate max-w-[200px] mt-0.5">{task.description}</span>}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <Badge variant="secondary" className="text-xs rounded-md px-2 py-0 h-5 bg-primary/10 text-primary border-none">
-                        {task.project?.name || "No Project"}
-                      </Badge>
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <div className={cn("h-1.5 w-1.5 rounded-full",
-                          (task.status === "done") ? "bg-emerald-500" :
-                          (task.status === "in_progress" || task.status === "in-progress") ? "bg-blue-500" : "bg-muted-foreground"
-                        )} />
-                        {task.status.replace(/[_-]/g, " ")}
-                      </div>
-                    </td>
-                    <td className="p-3">
-                      <Badge className={cn("text-xs rounded-md px-2 py-0 h-5 font-medium", getPriorityColor(task.priority))}>
-                        {task.priority}
-                      </Badge>
-                    </td>
-                    <td className="p-3 text-right">
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(task.id); }}>
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </Button>
-                    </td>
-                  </tr>
+                  <TableRow
+                    key={task.id}
+                    task={task}
+                    statuses={statuses}
+                    onSelect={() => { setSelectedTask(task); setIsDetailOpen(true); }}
+                    onUpdate={(data) => updateMutation.mutate({ id: task.id, data })}
+                    onDelete={() => deleteMutation.mutate(task.id)}
+                    workspaceId={activeWorkspaceId!}
+                  />
                 ))}
               </tbody>
             </table>
           </div>
+          {tasks?.length === 0 && (
+            <div className="text-center py-12 text-sm text-muted-foreground">No tasks found</div>
+          )}
         </div>
       )}
 
@@ -376,5 +353,255 @@ export default function TasksPage() {
         />
       )}
     </div>
+  );
+}
+
+function TableRow({ task, statuses, onSelect, onUpdate, onDelete, workspaceId }: {
+  task: any; statuses: any[]; onSelect: () => void;
+  onUpdate: (data: any) => void; onDelete: () => void; workspaceId: string;
+}) {
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [expanded, setExpanded] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const { memberMap } = useWorkspaceMembers(workspaceId);
+
+  useEffect(() => {
+    if (editingField && inputRef.current) inputRef.current.focus();
+  }, [editingField]);
+
+  const statusColorMap: Record<string, string> = {
+    todo: "#9ca3af", in_progress: "#3b82f6", "in-progress": "#3b82f6",
+    review: "#8b5cf6", done: "#10b981", cancelled: "#ef4444", backlog: "#64748b",
+  };
+
+  const statusDot = (s: string) => {
+    const color = statusColorMap[s] || statusColorMap.todo;
+    return <div className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />;
+  };
+
+  const priorityColors: Record<string, string> = {
+    urgent: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400",
+    high: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
+    medium: "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+    low: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
+    none: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
+  };
+
+  const assignees = (task.assigneeIds || []).map((id: string) => memberMap[id]).filter(Boolean);
+
+  const isDone = task.status === "done";
+
+  if (editingField === "status") {
+    return (
+      <tr className="border-b border-subtle bg-muted/20">
+        <td className="p-2.5 text-center">
+          <button onClick={(e) => { e.stopPropagation(); onUpdate({ status: isDone ? "todo" : "done" }); }}
+            className="hover:scale-110 transition-transform">
+            {isDone ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+          </button>
+        </td>
+        <td className="p-2.5">
+          <span className={cn("text-sm font-medium cursor-pointer hover:text-primary", isDone && "line-through text-muted-foreground")} onClick={onSelect}>
+            {task.title}
+          </span>
+        </td>
+        <td className="p-2.5" colSpan={5}>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {statuses.map((s: any) => (
+              <button key={s.id} onClick={() => { onUpdate({ status: s.id }); setEditingField(null); }}
+                className={cn("px-2 py-1 text-[11px] rounded-md border transition-all",
+                  task.status === s.id ? "border-primary bg-primary/10 font-medium" : "border-border hover:border-primary/30")}>
+                <span className="flex items-center gap-1.5">
+                  {statusDot(s.id)}
+                  {s.name}
+                </span>
+              </button>
+            ))}
+            <button onClick={() => setEditingField(null)} className="text-[11px] text-muted-foreground hover:text-foreground px-1">✕</button>
+          </div>
+        </td>
+      </tr>
+    );
+  }
+
+  if (editingField === "priority") {
+    return (
+      <tr className="border-b border-subtle bg-muted/20">
+        <td className="p-2.5 text-center">
+          <button onClick={(e) => { e.stopPropagation(); onUpdate({ status: isDone ? "todo" : "done" }); }}
+            className="hover:scale-110 transition-transform">
+            {isDone ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+          </button>
+        </td>
+        <td className="p-2.5">
+          <span className={cn("text-sm font-medium cursor-pointer hover:text-primary", isDone && "line-through text-muted-foreground")} onClick={onSelect}>
+            {task.title}
+          </span>
+        </td>
+        <td className="p-2.5">
+          <span className="flex items-center gap-1.5 text-xs" onClick={() => setEditingField("status")}>
+            {statusDot(task.status)}
+            <span className="cursor-pointer hover:text-primary">{task.status.replace(/[_-]/g, " ")}</span>
+          </span>
+        </td>
+        <td className="p-2.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {["urgent", "high", "medium", "low", "none"].map((p) => (
+              <button key={p} onClick={() => { onUpdate({ priority: p }); setEditingField(null); }}
+                className={cn("px-2 py-1 text-[10px] rounded-md border transition-all capitalize",
+                  task.priority === p ? "border-primary bg-primary/10 font-medium" : "border-border hover:border-primary/30")}>
+                {p}
+              </button>
+            ))}
+            <button onClick={() => setEditingField(null)} className="text-[11px] text-muted-foreground hover:text-foreground px-1">✕</button>
+          </div>
+        </td>
+        <td className="p-2.5 hidden md:table-cell"></td>
+        <td className="p-2.5 hidden md:table-cell"></td>
+        <td className="p-2.5 text-right"></td>
+      </tr>
+    );
+  }
+
+  if (editingField === "dueDate") {
+    return (
+      <tr className="border-b border-subtle bg-muted/20">
+        <td className="p-2.5 text-center">
+          <button onClick={(e) => { e.stopPropagation(); onUpdate({ status: isDone ? "todo" : "done" }); }}
+            className="hover:scale-110 transition-transform">
+            {isDone ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+          </button>
+        </td>
+        <td className="p-2.5">
+          <span className={cn("text-sm font-medium cursor-pointer hover:text-primary", isDone && "line-through text-muted-foreground")} onClick={onSelect}>
+            {task.title}
+          </span>
+        </td>
+        <td className="p-2.5">
+          <span className="flex items-center gap-1.5 text-xs cursor-pointer hover:text-primary" onClick={() => setEditingField("status")}>
+            {statusDot(task.status)}
+            {task.status.replace(/[_-]/g, " ")}
+          </span>
+        </td>
+        <td className="p-2.5">
+          <span className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium cursor-pointer", priorityColors[task.priority] || priorityColors.none)}
+            onClick={() => setEditingField("priority")}>
+            {task.priority}
+          </span>
+        </td>
+        <td className="p-2.5 hidden md:table-cell"></td>
+        <td className="p-2.5 hidden md:table-cell">
+          <input type="date" ref={inputRef}
+            value={task.dueDate ? format(new Date(task.dueDate), "yyyy-MM-dd") : ""}
+            onChange={(e) => setEditValue(e.target.value)}
+            onBlur={() => { if (editValue) onUpdate({ dueDate: new Date(editValue).toISOString() }); setEditingField(null); }}
+            onKeyDown={(e) => { if (e.key === "Escape") setEditingField(null); }}
+            className="h-7 text-xs border rounded px-1.5 w-full" />
+        </td>
+        <td className="p-2.5 text-right"></td>
+      </tr>
+    );
+  }
+
+  return (
+    <>
+      <tr className={cn("border-b border-subtle hover:bg-muted/10 transition-colors group relative",
+        isDone && "opacity-60")}>
+        {task.progress > 0 && (
+          <td colSpan={7} className="absolute bottom-0 left-0 right-0 h-0.5 p-0">
+            <div className="h-full bg-primary/40 transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, task.progress))}%` }} />
+          </td>
+        )}
+        <td className="p-2.5 text-center">
+          <button onClick={(e) => { e.stopPropagation(); onUpdate({ status: isDone ? "todo" : "done" }); }}
+            className="hover:scale-110 transition-transform">
+            {isDone ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
+          </button>
+        </td>
+        <td className="p-2.5">
+          <div className="flex items-center gap-2">
+            {task.subtasks?.length > 0 && (
+              <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="shrink-0 text-muted-foreground hover:text-foreground">
+                {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+              </button>
+            )}
+            <span className={cn("text-sm font-medium cursor-pointer hover:text-primary transition-colors", isDone && "line-through text-muted-foreground")}
+              onClick={onSelect}>
+              {task.title}
+            </span>
+          </div>
+          {task.description && (
+            <p className="text-xs text-muted-foreground/60 mt-0.5 truncate max-w-xs">{task.description}</p>
+          )}
+        </td>
+        <td className="p-2.5">
+          <span className="inline-flex items-center gap-1.5 text-xs cursor-pointer hover:bg-muted rounded-md px-1.5 py-1 -ml-1.5 transition-colors"
+            onClick={() => setEditingField("status")}>
+            {statusDot(task.status)}
+            <span className="capitalize">{task.status.replace(/[_-]/g, " ")}</span>
+          </span>
+        </td>
+        <td className="p-2.5">
+          <span className={cn("text-[11px] px-2 py-0.5 rounded-full font-medium cursor-pointer inline-block", priorityColors[task.priority] || priorityColors.none)}
+            onClick={() => setEditingField("priority")}>
+            {task.priority}
+          </span>
+        </td>
+        <td className="p-2.5 hidden md:table-cell">
+          <div className="flex -space-x-1">
+            {assignees.length === 0 && <User className="h-4 w-4 text-muted-foreground/40" />}
+            {assignees.slice(0, 3).map((m: any) => (
+              <div key={m.id} className="h-6 w-6 rounded-full ring-2 ring-background overflow-hidden" title={m.name}>
+                {m.imageUrl ? (
+                  <img src={m.imageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <div className="h-full w-full bg-primary/20 flex items-center justify-center text-[9px] font-medium text-primary">
+                    {m.name?.[0] || "?"}
+                  </div>
+                )}
+              </div>
+            ))}
+            {assignees.length > 3 && (
+              <div className="h-6 w-6 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-[9px] font-medium text-muted-foreground">
+                +{assignees.length - 3}
+              </div>
+            )}
+          </div>
+        </td>
+        <td className="p-2.5 hidden md:table-cell">
+          <span className={cn("text-xs cursor-pointer hover:bg-muted rounded px-1.5 py-1 -ml-1.5 inline-flex items-center gap-1 transition-colors",
+            !task.dueDate && "text-muted-foreground/40")}
+            onClick={() => { setEditValue(""); setEditingField("dueDate"); }}>
+            <CalendarDays className="h-3 w-3" />
+            {task.dueDate ? format(new Date(task.dueDate), "MMM d") : <span className="italic">Set date</span>}
+          </span>
+        </td>
+        <td className="p-2.5 text-right">
+          <div className="flex items-center gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+            {task.subtasks?.length > 0 && (
+              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
+                <ListChecks className="h-3 w-3" />
+                {task.subtasks.filter((s: any) => s.completed).length}/{task.subtasks.length}
+              </span>
+            )}
+            <button onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="h-6 w-6 rounded flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+              <Trash2 className="h-3 w-3" />
+            </button>
+          </div>
+        </td>
+      </tr>
+      {expanded && task.subtasks?.map((st: any) => (
+        <tr key={st.id} className="border-b border-subtle bg-muted/5 text-sm">
+          <td colSpan={7} className="p-2 pl-10">
+            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+              {st.completed ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <Circle className="h-3 w-3" />}
+              {st.title}
+            </span>
+          </td>
+        </tr>
+      ))}
+    </>
   );
 }

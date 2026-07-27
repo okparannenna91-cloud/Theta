@@ -28,7 +28,7 @@ interface TableViewProps {
   tasks: any[];
   columns: any[];
   groups: any[];
-  onSelectTask: (task: any) => void;
+  onSelectTask?: (task: any) => void;
   workspaceId: string;
   projectId?: string | null;
 }
@@ -366,7 +366,7 @@ export default function TableView({
               setEditingCell({ taskId: task.id, columnId: col.id });
               setEditValue(task.title);
             }}
-            onClick={() => onSelectTask(task)}
+            onClick={() => onSelectTask?.(task)}
           >
             {task.title}
           </span>
@@ -403,7 +403,7 @@ export default function TableView({
       <div key={task.id}>
         <div
           className={cn(
-            "flex border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group",
+            "flex border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group relative",
             isSelected && "bg-muted/50 dark:bg-primary/10",
             task.priority === "high" && "border-l-2 border-l-red-400",
             task.priority === "medium" && "border-l-2 border-l-amber-400",
@@ -411,6 +411,11 @@ export default function TableView({
           )}
           style={{ paddingLeft: `${depth * 24}px` }}
         >
+          {task.progress > 0 && (
+            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-secondary/50 pointer-events-none">
+              <div className="h-full bg-primary/60 transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, task.progress))}%` }} />
+            </div>
+          )}
           <div className="flex items-center gap-1 px-2 w-10 flex-shrink-0">
             <input
               type="checkbox"

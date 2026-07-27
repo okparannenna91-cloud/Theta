@@ -36,7 +36,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
   const { user } = useUser();
 
   // View state
-  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("week");
+  const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("day");
   const [searchQuery, setSearchQuery] = useState("");
   const [dateOffset, setDateOffset] = useState(0);
 
@@ -256,73 +256,39 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
 
   return (
     <div className="h-[calc(100vh-100px)] flex flex-col overflow-hidden">
-      <header className="flex items-center justify-between gap-3 px-6 py-2.5 border-b border-subtle bg-background/95 backdrop-blur-xl">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="p-1 bg-primary/10 rounded-lg shrink-0">
-            <CalendarDays className="h-4 w-4 text-primary" />
+      <header className="flex items-start sm:items-center justify-between gap-2 px-4 sm:px-6 py-2 border-b border-subtle bg-background/95 backdrop-blur-xl">
+        <div className="flex items-center gap-2 min-w-0 shrink-0">
+          <div className="p-1 bg-primary/10 rounded-lg shrink-0 hidden xs:block">
+            <CalendarDays className="h-3.5 w-3.5 text-primary" />
           </div>
           <div className="min-w-0">
-            <h1 className="text-sm font-semibold flex items-center gap-1.5 truncate">
+            <h1 className="text-xs sm:text-sm font-semibold truncate flex items-center gap-1.5">
               Timeline
-              <Badge variant="outline" className="text-[9px] rounded-md px-1.5 py-0 font-normal leading-tight">Scheduling</Badge>
+              <Badge variant="outline" className="text-[8px] sm:text-[9px] rounded-md px-1 py-0 font-normal leading-tight hidden xs:inline">Scheduling</Badge>
             </h1>
           </div>
-          <div className="hidden sm:flex items-center gap-1.5 ml-3 pl-3 border-l border-border/40">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 rounded-md p-0" onClick={() => handleNavigate("prev")}>
-                    <ChevronLeft className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Previous period (k)</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-            <Button variant="outline" size="sm" className="h-7 text-[11px] rounded-md px-2 font-medium" onClick={() => setDateOffset(0)}>
-              Today
-            </Button>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 rounded-md p-0" onClick={() => handleNavigate("next")}>
-                    <ChevronRight className="h-3.5 w-3.5" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Next period (j)</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+          <div className="hidden md:flex items-center gap-1 ml-2 pl-2 border-l border-border/40">
+            <button className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted text-muted-foreground" onClick={() => handleNavigate("prev")} title="Previous (k)">
+              <ChevronLeft className="h-3 w-3" />
+            </button>
+            <button className="h-6 text-[10px] px-1.5 rounded font-medium hover:bg-muted transition-colors" onClick={() => setDateOffset(0)}>Today</button>
+            <button className="h-6 w-6 rounded flex items-center justify-center hover:bg-muted text-muted-foreground" onClick={() => handleNavigate("next")} title="Next (j)">
+              <ChevronRight className="h-3 w-3" />
+            </button>
           </div>
         </div>
 
-        <div className="flex items-center gap-1.5">
-          <div className="hidden sm:flex items-center gap-1 border rounded-lg p-0.5 bg-muted/30 mr-1">
-            <button
-              onClick={() => setZoomLevel("day")}
-              className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${
-                zoomLevel === "day" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >Day</button>
-            <button
-              onClick={() => setZoomLevel("week")}
-              className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${
-                zoomLevel === "week" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >Week</button>
-            <button
-              onClick={() => setZoomLevel("month")}
-              className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${
-                zoomLevel === "month" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >Month</button>
-            <button
-              onClick={() => setZoomLevel("quarter")}
-              className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${
-                zoomLevel === "quarter" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-              }`}
-            >Quarter</button>
+        <div className="flex items-center gap-1 flex-wrap justify-end">
+          <div className="hidden lg:flex items-center gap-0.5 border rounded-md p-0.5 bg-muted/30">
+            {(["day","week","month","quarter"] as const).map(z => (
+              <button key={z} onClick={() => setZoomLevel(z)}
+                className={`px-1.5 py-0.5 text-[9px] rounded font-medium transition-colors ${zoomLevel === z ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+                {z.charAt(0).toUpperCase() + z.slice(1)}
+              </button>
+            ))}
           </div>
 
-          <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
+          <div className="h-4 w-px bg-border mx-0.5 hidden lg:block" />
 
           <TimelineSavedViews
             savedViews={savedViews}
@@ -335,18 +301,16 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-7 text-[11px] rounded-md px-2">
-                <LayoutList className="h-3 w-3 mr-1" />
-                {GROUP_BY_OPTIONS.find(o => o.value === groupBy)?.label || "Group"}
+              <Button variant="ghost" size="sm" className="h-6 md:h-7 text-[10px] md:text-[11px] rounded-md px-1.5 md:px-2">
+                <LayoutList className="h-2.5 md:h-3 w-2.5 md:w-3 mr-0.5 md:mr-1" />
+                <span className="hidden xs:inline">{GROUP_BY_OPTIONS.find(o => o.value === groupBy)?.label || "Group"}</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-36 rounded-lg" align="end">
+            <DropdownMenuContent className="w-32 rounded-lg" align="end">
               {GROUP_BY_OPTIONS.map(opt => (
-                <DropdownMenuItem
-                  key={opt.value}
+                <DropdownMenuItem key={opt.value}
                   className={`text-[11px] py-1.5 ${groupBy === opt.value ? "bg-primary/10 font-medium" : ""}`}
-                  onClick={() => setGroupBy(opt.value as GroupByKey | "none")}
-                >
+                  onClick={() => setGroupBy(opt.value as GroupByKey | "none")}>
                   {opt.label}
                 </DropdownMenuItem>
               ))}
@@ -355,14 +319,14 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
 
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant={hasActiveFilters ? "default" : "ghost"} size="sm" className="h-7 text-[11px] rounded-md px-2">
-                <Filter className="h-3 w-3 mr-1" />
-                {hasActiveFilters ? "Filtered" : "Filter"}
+              <Button variant={hasActiveFilters ? "default" : "ghost"} size="sm" className="h-6 md:h-7 text-[10px] md:text-[11px] rounded-md px-1.5 md:px-2">
+                <Filter className="h-2.5 md:h-3 w-2.5 md:w-3 mr-0.5 md:mr-1" />
+                {hasActiveFilters ? "F" : <span className="hidden xs:inline">Filter</span>}
               </Button>
             </PopoverTrigger>
-            <PopoverContent className="w-64 p-3 rounded-lg" align="end">
-              <div className="space-y-3">
-                <div className="space-y-1.5">
+            <PopoverContent className="w-56 p-2.5 rounded-lg" align="end">
+              <div className="space-y-2.5">
+                <div className="space-y-1">
                   <Label className="text-[10px] text-muted-foreground">Status</Label>
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
                     <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
@@ -374,7 +338,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
                     </SelectContent>
                   </Select>
                 </div>
-                <div className="space-y-1.5">
+                <div className="space-y-1">
                   <Label className="text-[10px] text-muted-foreground">Priority</Label>
                   <Select value={filterPriority} onValueChange={setFilterPriority}>
                     <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
@@ -388,41 +352,28 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
                 </div>
                 <Separator />
                 <div className="flex items-center justify-between">
-                  <Label className="text-[10px] text-muted-foreground cursor-pointer" onClick={() => setShowMilestones(!showMilestones)}>
-                    Milestones
-                  </Label>
-                  <Switch checked={showMilestones} onCheckedChange={setShowMilestones} className="h-4" />
+                  <Label className="text-[10px] text-muted-foreground cursor-pointer" onClick={() => setShowMilestones(!showMilestones)}>Milestones</Label>
+                  <Switch checked={showMilestones} onCheckedChange={setShowMilestones} className="h-3.5" />
                 </div>
                 <div className="flex items-center justify-between">
-                  <Label className="text-[10px] text-muted-foreground cursor-pointer" onClick={() => setShowWeekends(!showWeekends)}>
-                    Weekends
-                  </Label>
-                  <Switch checked={showWeekends} onCheckedChange={setShowWeekends} className="h-4" />
+                  <Label className="text-[10px] text-muted-foreground cursor-pointer" onClick={() => setShowWeekends(!showWeekends)}>Weekends</Label>
+                  <Switch checked={showWeekends} onCheckedChange={setShowWeekends} className="h-3.5" />
                 </div>
                 <Button variant="ghost" size="sm" className="w-full text-[11px] h-7"
-                  onClick={() => {
-                    setFilterStatus("all"); setFilterPriority("all");
-                    setFilterAssignee("all"); setFilterProject("all");
-                    setFilterTags([]);
-                  }}>
+                  onClick={() => { setFilterStatus("all"); setFilterPriority("all"); setFilterAssignee("all"); setFilterProject("all"); setFilterTags([]); }}>
                   Clear Filters
                 </Button>
               </div>
             </PopoverContent>
           </Popover>
 
-          <div className="relative w-40 hidden sm:block">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              className="h-7 pl-7 text-[11px] rounded-md"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-            />
+          <div className="relative w-24 lg:w-32 hidden sm:block">
+            <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-2.5 w-2.5 text-muted-foreground" />
+            <Input placeholder="Search..." className="h-6 md:h-7 pl-6 text-[10px] md:text-[11px] rounded-md" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
 
-          <Button className="h-7 text-[11px] rounded-md px-2.5" onClick={() => { setCreateDialogDefaults({}); setIsCreateDialogOpen(true); }}>
-            <Plus className="h-3 w-3 mr-1" /> New Task
+          <Button className="h-6 md:h-7 text-[10px] md:text-[11px] rounded-md px-1.5 md:px-2.5" onClick={() => { setCreateDialogDefaults({}); setIsCreateDialogOpen(true); }}>
+            <Plus className="h-2.5 md:h-3 w-2.5 md:w-3 mr-0.5 md:mr-1" /> <span className="hidden xs:inline">New</span>
           </Button>
         </div>
       </header>

@@ -55,7 +55,8 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
         queryFn: async () => {
             const res = await fetch(`/api/tasks?workspaceId=${workspaceId}&search=${encodeURIComponent(searchQuery)}&exclude=${taskId}`);
             if (!res.ok) throw new Error("Failed to search tasks");
-            return res.json();
+            const data = await res.json();
+            return data.tasks || [];
         },
         enabled: !!workspaceId && showSearch && searchQuery.length > 0,
     });

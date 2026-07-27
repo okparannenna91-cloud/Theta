@@ -38,7 +38,7 @@ import type { ZoomLevel, UndoCommand } from "@/components/shared/timeline/types"
 export default function GanttPage({ projectId }: { projectId?: string }) {
     const { activeWorkspaceId } = useWorkspace();
     const queryClient = useQueryClient();
-    const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("week");
+    const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("day");
     const [searchQuery, setSearchQuery] = useState("");
     const [isFullScreen, setIsFullScreen] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
