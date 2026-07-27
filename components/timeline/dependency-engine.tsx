@@ -32,13 +32,13 @@ export default function DependencyEngine({
     const ROW_HEIGHT = 56;
 
     const lines: DependencyLine[] = useMemo(() => {
-        if (!isGantt) return [];
+        if (!isGantt || !Array.isArray(tasks)) return [];
         const paths: DependencyLine[] = [];
         const taskMap = new Map(tasks.map((t, i) => [t.id, { ...t, index: i }]));
 
         tasks.forEach((task, targetIndex) => {
-            if (!task.predecessors) return;
-            task.predecessors.forEach((dep: any) => {
+            const predecessors = Array.isArray(task.predecessors) ? task.predecessors : [];
+            predecessors.forEach((dep: any) => {
                 const source = taskMap.get(dep.predecessorId);
                 if (!source) return;
 
@@ -203,7 +203,7 @@ export default function DependencyEngine({
             </svg>
 
             <div className="absolute left-0 top-0 bottom-0 w-2 z-20 pointer-events-none">
-                {tasks.map((task, index) => (
+                {Array.isArray(tasks) && tasks.map((task, index) => (
                     <TooltipProvider key={task.id}>
                         <Tooltip content="Drag to create dependency">
                             <TooltipTrigger asChild>

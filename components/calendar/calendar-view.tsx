@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect } from "react";
 import { startOfDay, parseISO, format } from "date-fns";
 import { MonthView } from "./calendar-month-view";
 import { WeekView } from "./calendar-week-view";
@@ -167,6 +167,54 @@ export function CalendarView({
 
   const title = getViewTitle(currentDate, viewType);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      switch (e.key) {
+        case "j":
+        case "J":
+          e.preventDefault();
+          onDateChange(navigateCalendar(currentDate, viewType, 1));
+          break;
+        case "k":
+        case "K":
+          e.preventDefault();
+          onDateChange(navigateCalendar(currentDate, viewType, -1));
+          break;
+        case "n":
+        case "N":
+          e.preventDefault();
+          onCreateTask(startOfDay(new Date()).toISOString(), startOfDay(new Date()).toISOString());
+          break;
+        case "t":
+        case "T":
+          e.preventDefault();
+          onDateChange(new Date());
+          break;
+        case "m":
+        case "M":
+          e.preventDefault();
+          onViewTypeChange("month");
+          break;
+        case "d":
+        case "D":
+          e.preventDefault();
+          onViewTypeChange("day");
+          break;
+        case "w":
+        case "W":
+          e.preventDefault();
+          onViewTypeChange("week");
+          break;
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [currentDate, viewType, onDateChange, onCreateTask, onViewTypeChange]);
+
   return (
     <div className="flex gap-4 h-full">
       <div className="w-64 shrink-0 space-y-4">
@@ -271,6 +319,7 @@ export function CalendarView({
                 onDayClick={handleDayClick}
                 onEventDrop={handleEventDrop}
                 onEventResize={handleEventResize}
+                onCreateTask={onCreateTask}
               />
             )}
             {viewType === "week" && (
@@ -282,6 +331,7 @@ export function CalendarView({
                 onEventResize={handleEventResize}
                 onLogActivity={onLogActivity}
                 showWeekends={showWeekends}
+                onCreateTask={onCreateTask}
               />
             )}
             {viewType === "day" && (
@@ -292,6 +342,7 @@ export function CalendarView({
                 onEventDrop={handleEventDrop}
                 onEventResize={handleEventResize}
                 onLogActivity={onLogActivity}
+                onCreateTask={onCreateTask}
               />
             )}
             {viewType === "agenda" && (
@@ -319,6 +370,7 @@ export function CalendarView({
                 onDayClick={handleDayClick}
                 onEventDrop={handleEventDrop}
                 onEventResize={handleEventResize}
+                onCreateTask={onCreateTask}
               />
             )}
                 {viewType === "week" && (
@@ -330,6 +382,7 @@ export function CalendarView({
                     onEventResize={handleEventResize}
                     onLogActivity={onLogActivity}
                     showWeekends={showWeekends}
+                    onCreateTask={onCreateTask}
                   />
                 )}
                 {viewType === "day" && (
@@ -340,6 +393,7 @@ export function CalendarView({
                     onEventDrop={handleEventDrop}
                     onEventResize={handleEventResize}
                     onLogActivity={onLogActivity}
+                    onCreateTask={onCreateTask}
                   />
                 )}
                 {viewType === "agenda" && (

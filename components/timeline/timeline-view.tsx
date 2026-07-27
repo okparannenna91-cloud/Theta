@@ -11,7 +11,7 @@ import { TimelineHoverCard } from "./timeline-hover-card";
 import {
   computeDateRange, computeTimeUnits, getDateFromX, ROW_HEIGHT, LANE_HEADER_HEIGHT,
   HEADER_HEIGHT, HEADER_SUB_HEIGHT, SIDEBAR_WIDTH, CELL_WIDTHS,
-  groupTasks, GroupByKey,
+  groupTasks, getStatusColor, GroupByKey,
 } from "./timeline-utils";
 import type { ZoomLevel } from "@/components/shared/timeline/types";
 
@@ -56,13 +56,29 @@ export function TimelineView({
   const [dragCreate, setDragCreate] = useState<{ startX: number; currentX: number; startDate: Date } | null>(null);
   const [isPanning, setIsPanning] = useState(false);
   const [panStart, setPanStart] = useState({ x: 0, scrollLeft: 0 });
+  const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const editInputRef = useRef<HTMLInputElement>(null);
+  const selectedRef = useRef<HTMLDivElement>(null);
 
   const isSyncingRef = useRef(false);
   const cellWidth = CELL_WIDTHS[zoomLevel] || CELL_WIDTHS.week;
 
+  const currentDate = useMemo(() => {
+    const base = new Date();
+    switch (zoomLevel) {
+      case "day": return addDays(base, dateOffset * 7);
+      case "week": return addWeeks(base, dateOffset);
+      case "month": return addMonths(base, dateOffset);
+      case "quarter": return addQuarters(base, dateOffset);
+      default: return addDays(base, dateOffset * 7);
+    }
+  }, [zoomLevel, dateOffset]);
+
   const { start: timelineStart, end: timelineEnd } = useMemo(
-    () => computeDateRange(zoomLevel),
-    [zoomLevel]
+    () => computeDateRange(zoomLevel, currentDate),
+    [zoomLevel, currentDate]
   );
 
   const { units: timeUnits, headers: headerLevels } = useMemo(
@@ -73,7 +89,7 @@ export function TimelineView({
   const totalTimelineWidth = timeUnits.length * cellWidth;
 
   const filteredTasks = useMemo(() => {
-    let result = tasks;
+    let result = Array.isArray(tasks) ? tasks : [];
 
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
@@ -101,17 +117,6 @@ export function TimelineView({
     () => grouped.filter(g => !collapsedGroups.has(g.key)),
     [grouped, collapsedGroups]
   );
-
-  const currentDate = useMemo(() => {
-    const base = new Date();
-    switch (zoomLevel) {
-      case "day": return addDays(base, dateOffset * 7);
-      case "week": return addWeeks(base, dateOffset);
-      case "month": return addMonths(base, dateOffset);
-      case "quarter": return addQuarters(base, dateOffset);
-      default: return addDays(base, dateOffset * 7);
-    }
-  }, [zoomLevel, dateOffset]);
 
   useEffect(() => {
     const handleResize = () => {
@@ -202,6 +207,106 @@ export function TimelineView({
 
   const todayIndex = timeUnits.findIndex(u => isToday(u.date));
 
+  const flatTaskList = useMemo(() => {
+    const list: { task: any; groupKey: string }[] = [];
+    for (const group of grouped) {
+      if (collapsedGroups.has(group.key)) continue;
+      for (const task of group.tasks) {
+        list.push({ task, groupKey: group.key });
+      }
+    }
+    return list;
+  }, [grouped, collapsedGroups]);
+
+  const selectedIndex = useMemo(() => {
+    if (!selectedTaskId) return -1;
+    return flatTaskList.findIndex(item => item.task.id === selectedTaskId);
+  }, [flatTaskList, selectedTaskId]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const tag = (e.target as HTMLElement)?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      switch (e.key) {
+        case "j":
+        case "J": {
+          e.preventDefault();
+          if (flatTaskList.length === 0) return;
+          const nextIdx = selectedIndex < flatTaskList.length - 1 ? selectedIndex + 1 : 0;
+          setSelectedTaskId(flatTaskList[nextIdx].task.id);
+          break;
+        }
+        case "k":
+        case "K": {
+          e.preventDefault();
+          if (flatTaskList.length === 0) return;
+          const prevIdx = selectedIndex > 0 ? selectedIndex - 1 : flatTaskList.length - 1;
+          setSelectedTaskId(flatTaskList[prevIdx].task.id);
+          break;
+        }
+        case "n":
+        case "N": {
+          e.preventDefault();
+          const today = new Date();
+          onCreateTask(today.toISOString(), addDays(today, 7).toISOString());
+          break;
+        }
+        case "Enter": {
+          if (selectedIndex >= 0 && flatTaskList[selectedIndex]) {
+            e.preventDefault();
+            onTaskClick(flatTaskList[selectedIndex].task);
+          }
+          break;
+        }
+        case "Escape": {
+          if (editingTaskId) {
+            setEditingTaskId(null);
+            setEditingTitle("");
+          }
+          break;
+        }
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [flatTaskList, selectedIndex, selectedTaskId, onTaskClick, onCreateTask, editingTaskId]);
+
+  // Scroll selected task into view
+  useEffect(() => {
+    if (selectedRef.current) {
+      selectedRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [selectedTaskId]);
+
+  const handleStartEditing = useCallback((task: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingTaskId(task.id);
+    setEditingTitle(task.title || "");
+    setTimeout(() => editInputRef.current?.focus(), 50);
+  }, []);
+
+  const handleSaveEditing = useCallback((taskId: string) => {
+    const trimmed = editingTitle.trim();
+    if (trimmed && trimmed !== flatTaskList.find(i => i.task.id === taskId)?.task?.title) {
+      onTaskUpdate(taskId, { title: trimmed });
+      onLogActivity("renamed", taskId, { newTitle: trimmed });
+    }
+    setEditingTaskId(null);
+    setEditingTitle("");
+  }, [editingTitle, flatTaskList, onTaskUpdate, onLogActivity]);
+
+  const handleEditingKeyDown = useCallback((e: React.KeyboardEvent, taskId: string) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      handleSaveEditing(taskId);
+    } else if (e.key === "Escape") {
+      setEditingTaskId(null);
+      setEditingTitle("");
+    }
+  }, [handleSaveEditing]);
+
   let rowOffset = 0;
   const groupRows: { key: string; label: string; taskCount: number; rowStart: number; rowCount: number }[] = [];
 
@@ -243,35 +348,82 @@ export function TimelineView({
             const isCollapsed = collapsedGroups.has(group.key);
             const top = gr.rowStart * ROW_HEIGHT;
 
+            const groupStatusColor = groupBy === "status"
+              ? getStatusColor(group.key.replace("status:", ""))
+              : null;
+
             return (
               <div key={group.key}>
                 <div
-                  className="flex items-center gap-2 px-4 border-b bg-muted/30 hover:bg-muted/50 cursor-pointer transition-colors sticky-top"
-                  style={{ height: ROW_HEIGHT, top }}
+                  className="flex items-center gap-2 px-4 border-b cursor-pointer transition-colors"
+                  style={{
+                    height: ROW_HEIGHT,
+                    top,
+                    backgroundColor: groupStatusColor ? `${groupStatusColor}08` : undefined,
+                  }}
                   onClick={() => onToggleGroup(group.key)}
                 >
-                  {isCollapsed ? (
-                    <ChevronRight className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                  ) : (
-                    <ChevronDown className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                  )}
-                  <span className="text-xs font-semibold truncate">{group.label}</span>
-                  <span className="text-[10px] text-muted-foreground/60 ml-auto">{group.tasks.length}</span>
-                </div>
-                {!isCollapsed && group.tasks.map((task: any) => (
-                  <div
-                    key={task.id}
-                    className="flex items-center gap-2 px-4 pl-9 border-b hover:bg-primary/5 transition-colors cursor-pointer"
-                    style={{ height: ROW_HEIGHT }}
-                    onClick={() => onTaskClick(task)}
-                  >
+                  {groupStatusColor && (
                     <div
                       className="h-2 w-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: task.color || (task.isMilestone ? "#f59e0b" : "#64748b") }}
+                      style={{ backgroundColor: groupStatusColor }}
                     />
-                    <span className="text-xs truncate">{task.title}</span>
-                  </div>
-                ))}
+                  )}
+                  {isCollapsed ? (
+                    <ChevronRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                  )}
+                  <span
+                    className="text-xs font-semibold truncate"
+                    style={{ color: groupStatusColor || undefined }}
+                  >
+                    {group.label}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/60 ml-auto">{group.tasks.length}</span>
+                </div>
+                {!isCollapsed && group.tasks.map((task: any) => {
+                  const isSelected = selectedTaskId === task.id;
+                  const isEditing = editingTaskId === task.id;
+                  return (
+                    <div
+                      key={task.id}
+                      ref={isSelected ? selectedRef : undefined}
+                      className={cn(
+                        "flex items-center gap-2 px-4 pl-9 border-b transition-colors cursor-pointer",
+                        isSelected ? "bg-primary/8 ring-1 ring-inset ring-primary/20" : "hover:bg-primary/5"
+                      )}
+                      style={{ height: ROW_HEIGHT }}
+                      onClick={() => {
+                        setSelectedTaskId(task.id);
+                        onTaskClick(task);
+                      }}
+                    >
+                      <div
+                        className="h-2 w-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: getStatusColor(task.status) }}
+                      />
+                      {isEditing ? (
+                        <input
+                          ref={editInputRef}
+                          value={editingTitle}
+                          onChange={(e) => setEditingTitle(e.target.value)}
+                          onBlur={() => handleSaveEditing(task.id)}
+                          onKeyDown={(e) => handleEditingKeyDown(e, task.id)}
+                          className="flex-1 text-xs bg-transparent border-b border-primary/40 outline-none px-0 py-0"
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      ) : (
+                        <span
+                          className="text-xs truncate flex-1"
+                          onDoubleClick={(e) => handleStartEditing(task, e)}
+                        >
+                          {task.title}
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             );
           })}
@@ -344,6 +496,7 @@ export function TimelineView({
                 <div key={group.key}>
                   {group.tasks.map((task: any, taskIdx: number) => {
                     const rowTop = (gr.rowStart + 1 + taskIdx) * ROW_HEIGHT;
+                    const isSelected = selectedTaskId === task.id;
                     return (
                       <div
                         key={task.id}
@@ -353,8 +506,14 @@ export function TimelineView({
                           height: ROW_HEIGHT,
                           width: totalTimelineWidth,
                         }}
-                        className="border-b group"
-                        onMouseEnter={() => setHoveredTask(task.id)}
+                        className={cn(
+                          "border-b group",
+                          isSelected && "bg-primary/[0.02]"
+                        )}
+                        onMouseEnter={() => {
+                          setHoveredTask(task.id);
+                          setSelectedTaskId(task.id);
+                        }}
                         onMouseLeave={() => setHoveredTask(null)}
                       >
                         <TimelineSimpleBar
@@ -362,7 +521,7 @@ export function TimelineView({
                           timelineStart={timelineStart}
                           cellWidth={cellWidth}
                           rowHeight={ROW_HEIGHT}
-                          isHovered={hoveredTask === task.id}
+                          isHovered={hoveredTask === task.id || isSelected}
                           onUpdate={(updates) => {
                             onTaskUpdate(task.id, updates);
                             onLogActivity("moved", task.id, { changes: { startDate: { old: task.startDate, new: updates.startDate }, dueDate: { old: task.dueDate, new: updates.dueDate } } });

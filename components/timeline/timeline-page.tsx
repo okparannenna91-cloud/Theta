@@ -20,7 +20,6 @@ import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { ZoomController } from "@/components/shared/timeline/zoom-controller";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
@@ -151,7 +150,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
     });
   }, [allTasks, filterStatus, filterPriority, filterAssignee, filterProject, filterTags]);
 
-  // Task update mutation
+  // Task update mutation with optimistic updates
   const updateMutation = useMutation({
     mutationFn: async ({ taskId, updates }: { taskId: string; updates: any }) => {
       const res = await fetch(`/api/tasks/${taskId}`, {
@@ -162,10 +161,24 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
       if (!res.ok) throw new Error("Failed to update task");
       return res.json();
     },
+    onMutate: async ({ taskId, updates }) => {
+      await queryClient.cancelQueries({ queryKey: ["timeline-tasks", activeWorkspaceId] });
+      const prev = queryClient.getQueriesData({ queryKey: ["timeline-tasks", activeWorkspaceId] });
+      queryClient.setQueriesData({ queryKey: ["timeline-tasks", activeWorkspaceId] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((t: any) => t.id === taskId ? { ...t, ...updates } : t);
+      });
+      return { prev };
+    },
     onSuccess: () => {
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      if (context?.prev) {
+        for (const [key, data] of context.prev) {
+          queryClient.setQueryData(key, data);
+        }
+      }
       console.error("Task update error:", error);
     },
   });
@@ -243,189 +256,189 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
 
   return (
     <div className="h-[calc(100vh-100px)] flex flex-col overflow-hidden">
-      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-8 py-3">
-        <div className="flex items-center gap-3">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <CalendarDays className="h-5 w-5 text-primary" />
+      <header className="flex items-center justify-between gap-3 px-6 py-2.5 border-b border-subtle bg-background/95 backdrop-blur-xl">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-1 bg-primary/10 rounded-lg shrink-0">
+            <CalendarDays className="h-4 w-4 text-primary" />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold flex items-center gap-2">
+          <div className="min-w-0">
+            <h1 className="text-sm font-semibold flex items-center gap-1.5 truncate">
               Timeline
-              <Badge variant="outline" className="text-[10px] rounded-md px-2 py-0 font-normal">Scheduling</Badge>
+              <Badge variant="outline" className="text-[9px] rounded-md px-1.5 py-0 font-normal leading-tight">Scheduling</Badge>
             </h1>
-            <p className="text-[11px] text-muted-foreground">
-              {scheduleCount} scheduled task{scheduleCount !== 1 ? "s" : ""}
-            </p>
           </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 w-8 rounded-md p-0" onClick={() => handleNavigate("prev")}>
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Previous period</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <Button variant="outline" size="sm" className="h-8 text-xs rounded-md px-2.5" onClick={() => setDateOffset(0)}>
-            Today
-          </Button>
-
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 w-8 rounded-md p-0" onClick={() => handleNavigate("next")}>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Next period</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <div className="h-7 w-px bg-border mx-1 hidden sm:block" />
-
-          <ZoomController zoomLevel={zoomLevel} onZoomChange={setZoomLevel} variant="timeline" />
-
-          <div className="h-7 w-px bg-border mx-1 hidden sm:block" />
-
-          <div className="flex items-center gap-1.5">
-            <TimelineSavedViews
-              savedViews={savedViews}
-              activeViewId={activeViewId}
-              onSaveView={handleSaveView}
-              onLoadView={handleLoadView}
-              onDeleteView={handleDeleteView}
-              currentConfig={{ zoomLevel, groupBy, filterStatus, filterPriority, filterAssignee, filterProject, showMilestones, showWeekends }}
-            />
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 text-xs rounded-md px-2.5">
-                  <LayoutList className="h-3.5 w-3.5 mr-1" />
-                  {GROUP_BY_OPTIONS.find(o => o.value === groupBy)?.label || "Group"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-40 rounded-lg" align="end">
-                {GROUP_BY_OPTIONS.map(opt => (
-                  <DropdownMenuItem
-                    key={opt.value}
-                    className={`text-xs py-1.5 ${groupBy === opt.value ? "bg-primary/10 font-medium" : ""}`}
-                    onClick={() => setGroupBy(opt.value as GroupByKey | "none")}
-                  >
-                    {opt.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant={hasActiveFilters ? "default" : "outline"} size="sm" className="h-8 text-xs rounded-md px-2.5">
-                  <Filter className="h-3.5 w-3.5 mr-1" />
-                  {hasActiveFilters ? "Filtered" : "Filter"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-4 rounded-lg" align="end">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Status</Label>
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Statuses</SelectItem>
-                        {STATUS_OPTIONS.map(s => (
-                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Priority</Label>
-                    <Select value={filterPriority} onValueChange={setFilterPriority}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Priorities</SelectItem>
-                        {PRIORITY_OPTIONS.map(p => (
-                          <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Project</Label>
-                    <Select value={filterProject} onValueChange={setFilterProject}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Projects</SelectItem>
-                        {projects.map((p: any) => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground cursor-pointer" onClick={() => setShowMilestones(!showMilestones)}>
-                      Show Milestones
-                    </Label>
-                    <Switch checked={showMilestones} onCheckedChange={setShowMilestones} />
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground cursor-pointer" onClick={() => setShowWeekends(!showWeekends)}>
-                      Show Weekends
-                    </Label>
-                    <Switch checked={showWeekends} onCheckedChange={setShowWeekends} />
-                  </div>
-                  <Button variant="ghost" size="sm" className="w-full text-xs h-8"
-                    onClick={() => {
-                      setFilterStatus("all"); setFilterPriority("all");
-                      setFilterAssignee("all"); setFilterProject("all");
-                      setFilterTags([]);
-                    }}>
-                    Clear All Filters
+          <div className="hidden sm:flex items-center gap-1.5 ml-3 pl-3 border-l border-border/40">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 rounded-md p-0" onClick={() => handleNavigate("prev")}>
+                    <ChevronLeft className="h-3.5 w-3.5" />
                   </Button>
-                </div>
-              </PopoverContent>
-            </Popover>
-
-            <Button className="h-8 text-xs rounded-md px-3" onClick={() => { setCreateDialogDefaults({}); setIsCreateDialogOpen(true); }}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> New Task
+                </TooltipTrigger>
+                <TooltipContent>Previous period (k)</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button variant="outline" size="sm" className="h-7 text-[11px] rounded-md px-2 font-medium" onClick={() => setDateOffset(0)}>
+              Today
             </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 rounded-md p-0" onClick={() => handleNavigate("next")}>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Next period (j)</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
-      </header>
 
-      <div className="flex items-center justify-between px-8 py-1.5 border-b border-subtle">
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-          <span className="flex items-center gap-1">
-            <GripHorizontal className="h-3 w-3" /> Shift+drag to pan
-          </span>
-          <span className="text-muted-foreground/30">|</span>
-          <span className="flex items-center gap-1">
-            <MousePointer2 className="h-3 w-3" /> Drag bars to reschedule
-          </span>
-          <span className="text-muted-foreground/30">|</span>
-          <span className="flex items-center gap-1">
-            <ZoomIn className="h-3 w-3" /> Ctrl+Scroll to zoom
-          </span>
-          <span className="text-muted-foreground/30">|</span>
-          <span className="flex items-center gap-1">
-            Click empty area to create task
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative w-52">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+        <div className="flex items-center gap-1.5">
+          <div className="hidden sm:flex items-center gap-1 border rounded-lg p-0.5 bg-muted/30 mr-1">
+            <button
+              onClick={() => setZoomLevel("day")}
+              className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${
+                zoomLevel === "day" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >Day</button>
+            <button
+              onClick={() => setZoomLevel("week")}
+              className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${
+                zoomLevel === "week" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >Week</button>
+            <button
+              onClick={() => setZoomLevel("month")}
+              className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${
+                zoomLevel === "month" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >Month</button>
+            <button
+              onClick={() => setZoomLevel("quarter")}
+              className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${
+                zoomLevel === "quarter" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+              }`}
+            >Quarter</button>
+          </div>
+
+          <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
+
+          <TimelineSavedViews
+            savedViews={savedViews}
+            activeViewId={activeViewId}
+            onSaveView={handleSaveView}
+            onLoadView={handleLoadView}
+            onDeleteView={handleDeleteView}
+            currentConfig={{ zoomLevel, groupBy, filterStatus, filterPriority, filterAssignee, filterProject, showMilestones, showWeekends }}
+          />
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 text-[11px] rounded-md px-2">
+                <LayoutList className="h-3 w-3 mr-1" />
+                {GROUP_BY_OPTIONS.find(o => o.value === groupBy)?.label || "Group"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-36 rounded-lg" align="end">
+              {GROUP_BY_OPTIONS.map(opt => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  className={`text-[11px] py-1.5 ${groupBy === opt.value ? "bg-primary/10 font-medium" : ""}`}
+                  onClick={() => setGroupBy(opt.value as GroupByKey | "none")}
+                >
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={hasActiveFilters ? "default" : "ghost"} size="sm" className="h-7 text-[11px] rounded-md px-2">
+                <Filter className="h-3 w-3 mr-1" />
+                {hasActiveFilters ? "Filtered" : "Filter"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3 rounded-lg" align="end">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground">Status</Label>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-[11px]">All Statuses</SelectItem>
+                      {STATUS_OPTIONS.map(s => (
+                        <SelectItem key={s.value} value={s.value} className="text-[11px]">{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground">Priority</Label>
+                  <Select value={filterPriority} onValueChange={setFilterPriority}>
+                    <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-[11px]">All Priorities</SelectItem>
+                      {PRIORITY_OPTIONS.map(p => (
+                        <SelectItem key={p.value} value={p.value} className="text-[11px]">{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] text-muted-foreground cursor-pointer" onClick={() => setShowMilestones(!showMilestones)}>
+                    Milestones
+                  </Label>
+                  <Switch checked={showMilestones} onCheckedChange={setShowMilestones} className="h-4" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] text-muted-foreground cursor-pointer" onClick={() => setShowWeekends(!showWeekends)}>
+                    Weekends
+                  </Label>
+                  <Switch checked={showWeekends} onCheckedChange={setShowWeekends} className="h-4" />
+                </div>
+                <Button variant="ghost" size="sm" className="w-full text-[11px] h-7"
+                  onClick={() => {
+                    setFilterStatus("all"); setFilterPriority("all");
+                    setFilterAssignee("all"); setFilterProject("all");
+                    setFilterTags([]);
+                  }}>
+                  Clear Filters
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
+
+          <div className="relative w-40 hidden sm:block">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
-              placeholder="Search tasks..."
-              className="h-7 pl-8 text-xs rounded-md"
+              placeholder="Search..."
+              className="h-7 pl-7 text-[11px] rounded-md"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+
+          <Button className="h-7 text-[11px] rounded-md px-2.5" onClick={() => { setCreateDialogDefaults({}); setIsCreateDialogOpen(true); }}>
+            <Plus className="h-3 w-3 mr-1" /> New Task
+          </Button>
+        </div>
+      </header>
+
+      <div className="flex items-center justify-between px-6 py-1 border-b border-subtle bg-muted/10">
+        <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
+          <span>j/k navigate</span>
+          <span className="text-muted-foreground/20">·</span>
+          <span>n new task</span>
+          <span className="text-muted-foreground/20">·</span>
+          <span>drag to reschedule</span>
+          <span className="text-muted-foreground/20">·</span>
+          <span>double-click to rename</span>
+        </div>
+        <div className="text-[9px] text-muted-foreground/40">
+          {scheduleCount} task{scheduleCount !== 1 ? "s" : ""}
         </div>
       </div>
 

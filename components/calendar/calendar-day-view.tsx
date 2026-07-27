@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
-import { isToday, format, parseISO, startOfDay, differenceInDays } from "date-fns";
+import { isToday, format, parseISO, startOfDay, differenceInDays, addDays } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getEventsForDay } from "./calendar-utils";
 import { CalendarEventBar, CalendarEventHoverCard } from "./calendar-event";
@@ -15,6 +15,7 @@ interface DayViewProps {
   onEventDrop?: (event: CalendarEvent, dropDay: Date) => void;
   onEventResize?: (event: CalendarEvent, newStart: string, newEnd: string) => void;
   onLogActivity: (action: string, taskId: string, metadata?: any) => void;
+  onCreateTask?: (startDate: string, endDate: string) => void;
 }
 
 export function DayView({
@@ -23,6 +24,7 @@ export function DayView({
   onDayClick,
   onEventDrop,
   onEventResize,
+  onCreateTask,
 }: DayViewProps) {
   const [hoveredEvent, setHoveredEvent] = useState<{ event: CalendarEvent; rect: DOMRect } | null>(null);
   const [dragState, setDragState] = useState<{
@@ -30,6 +32,10 @@ export function DayView({
     type: "move" | "resize-left" | "resize-right";
     startX: number;
     startY: number;
+    currentHour: number;
+  } | null>(null);
+  const [dragCreate, setDragCreate] = useState<{
+    startHour: number;
     currentHour: number;
   } | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -94,6 +100,38 @@ export function DayView({
       document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [dragState, onEventDrop, onEventResize, currentDate]);
+
+  // Drag-to-create
+  useEffect(() => {
+    if (!dragCreate) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!gridRef.current || !dragCreate) return;
+      const rect = gridRef.current.getBoundingClientRect();
+      const scrollTop = gridRef.current?.scrollTop || 0;
+      const hourHeight = 52;
+      const relY = e.clientY - rect.top + scrollTop;
+      const hourIndex = Math.max(0, Math.min(23, Math.floor(relY / hourHeight)));
+      setDragCreate(prev => prev ? { ...prev, currentHour: hourIndex } : null);
+    };
+
+    const handleMouseUp = () => {
+      if (!dragCreate || !onCreateTask) return;
+      const startHour = startOfDay(currentDate);
+      startHour.setHours(Math.min(dragCreate.startHour, dragCreate.currentHour));
+      const endHour = startOfDay(currentDate);
+      endHour.setHours(Math.max(dragCreate.startHour, dragCreate.currentHour) + 1);
+      onCreateTask(startHour.toISOString(), endHour.toISOString());
+      setDragCreate(null);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragCreate, onCreateTask, currentDate]);
 
   const handleEventDragStart = useCallback((event: CalendarEvent, e: React.MouseEvent) => {
     if (!onEventDrop) return;
@@ -160,6 +198,9 @@ export function DayView({
           });
 
           const isDropTarget = dragState && dragState.currentHour === hour;
+          const isDragCreateTarget = dragCreate &&
+            hour >= Math.min(dragCreate.startHour, dragCreate.currentHour) &&
+            hour <= Math.max(dragCreate.startHour, dragCreate.currentHour);
 
           return (
             <div
@@ -167,8 +208,17 @@ export function DayView({
               className={cn(
                 "flex min-h-[52px] hover:bg-muted/10 transition-colors cursor-pointer",
                 isDropTarget && "bg-primary/10",
+                isDragCreateTarget && "bg-primary/15",
               )}
               onClick={() => onDayClick(currentDate)}
+              onMouseDown={(e) => {
+                if (e.button !== 0 || dragState || !onCreateTask) return;
+                const target = e.target as HTMLElement;
+                if (target.closest("[data-event-bar]")) return;
+                if (hourlyEvents.length > 0) return;
+                e.preventDefault();
+                setDragCreate({ startHour: hour, currentHour: hour });
+              }}
             >
               <div className="w-16 shrink-0 border-r px-2 py-1.5 text-right sticky left-0 bg-card">
                 <span className="text-[10px] text-muted-foreground font-medium">
@@ -201,6 +251,24 @@ export function DayView({
             height: 48,
           }}
         />
+      )}
+
+      {dragCreate && (
+        <div
+          className="absolute z-40 border-2 border-dashed border-primary/50 bg-primary/10 rounded-md pointer-events-none flex items-center justify-center"
+          style={{
+            left: 64,
+            top: Math.min(dragCreate.startHour, dragCreate.currentHour) * 52,
+            right: 0,
+            height: (Math.abs(dragCreate.currentHour - dragCreate.startHour) + 1) * 52,
+          }}
+        >
+          <span className="text-[9px] font-semibold text-primary">
+            {format(new Date().setHours(Math.min(dragCreate.startHour, dragCreate.currentHour), 0, 0, 0), "ha")}
+            {" → "}
+            {format(new Date().setHours(Math.max(dragCreate.startHour, dragCreate.currentHour) + 1, 0, 0, 0), "ha")}
+          </span>
+        </div>
       )}
 
       {hoveredEvent && (

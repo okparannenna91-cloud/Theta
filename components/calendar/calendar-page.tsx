@@ -145,7 +145,7 @@ export default function CalendarPage({ projectId }: { projectId?: string }) {
     });
   }, [allTasks, filterStatus, filterPriority, filterAssignee, filterProject]);
 
-  // Task update mutation
+  // Task update mutation with optimistic updates
   const updateMutation = useMutation({
     mutationFn: async ({ taskId, updates }: { taskId: string; updates: any }) => {
       const res = await fetch(`/api/tasks/${taskId}`, {
@@ -156,10 +156,24 @@ export default function CalendarPage({ projectId }: { projectId?: string }) {
       if (!res.ok) throw new Error("Failed to update task");
       return res.json();
     },
+    onMutate: async ({ taskId, updates }) => {
+      await queryClient.cancelQueries({ queryKey: ["calendar-tasks", activeWorkspaceId] });
+      const prev = queryClient.getQueriesData({ queryKey: ["calendar-tasks", activeWorkspaceId] });
+      queryClient.setQueriesData({ queryKey: ["calendar-tasks", activeWorkspaceId] }, (old: any) => {
+        if (!Array.isArray(old)) return old;
+        return old.map((t: any) => t.id === taskId ? { ...t, ...updates } : t);
+      });
+      return { prev };
+    },
     onSuccess: () => {
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
     },
-    onError: (error) => {
+    onError: (error, _vars, context) => {
+      if (context?.prev) {
+        for (const [key, data] of context.prev) {
+          queryClient.setQueryData(key, data);
+        }
+      }
       console.error("Task update error:", error);
     },
   });
@@ -246,29 +260,63 @@ export default function CalendarPage({ projectId }: { projectId?: string }) {
 
   return (
     <div ref={containerRef} className={cn("flex flex-col overflow-hidden", isFullScreen ? "h-screen bg-background" : "h-[calc(100vh-100px)]")}>
-      <header className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 px-8 py-3">
-        <div className="flex items-center gap-3">
-          <div className="p-1.5 bg-primary/10 rounded-lg">
-            <CalendarDays className="h-5 w-5 text-primary" />
+      <header className="flex items-center justify-between gap-3 px-6 py-2.5 border-b border-subtle bg-background/95 backdrop-blur-xl">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-1 bg-primary/10 rounded-lg shrink-0">
+            <CalendarDays className="h-4 w-4 text-primary" />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold flex items-center gap-2">
+          <div className="min-w-0">
+            <h1 className="text-sm font-semibold flex items-center gap-1.5 truncate">
               Calendar
-              <Badge variant="outline" className="text-[10px] rounded-md px-2 py-0 font-normal">Planning</Badge>
+              <Badge variant="outline" className="text-[9px] rounded-md px-1.5 py-0 font-normal leading-tight">Planning</Badge>
             </h1>
-            <p className="text-[11px] text-muted-foreground">
-              {scheduleCount} scheduled task{scheduleCount !== 1 ? "s" : ""}
-            </p>
+          </div>
+          <div className="hidden sm:flex items-center gap-1.5 ml-3 pl-3 border-l border-border/40">
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 rounded-md p-0" onClick={() => setCurrentDate(prev => {
+                    const d = new Date(prev);
+                    if (viewType === "month") d.setMonth(d.getMonth() - 1);
+                    else if (viewType === "week") d.setDate(d.getDate() - 7);
+                    else d.setDate(d.getDate() - 1);
+                    return d;
+                  })}>
+                    <ChevronLeft className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Previous (k)</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+            <Button variant="outline" size="sm" className="h-7 text-[11px] rounded-md px-2 font-medium" onClick={() => setCurrentDate(new Date())}>
+              Today
+            </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="ghost" size="sm" className="h-7 w-7 rounded-md p-0" onClick={() => setCurrentDate(prev => {
+                    const d = new Date(prev);
+                    if (viewType === "month") d.setMonth(d.getMonth() + 1);
+                    else if (viewType === "week") d.setDate(d.getDate() + 7);
+                    else d.setDate(d.getDate() + 1);
+                    return d;
+                  })}>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Next (j)</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          <div className="flex items-center gap-1 border rounded-lg p-0.5 bg-muted/30">
+        <div className="flex items-center gap-1.5">
+          <div className="hidden sm:flex items-center gap-1 border rounded-lg p-0.5 bg-muted/30">
             {CALENDAR_VIEW_OPTIONS.map((opt) => (
               <button
                 key={opt.value}
                 onClick={() => setViewType(opt.value)}
-                className={`px-2.5 py-1 text-xs rounded-md font-medium transition-colors ${
+                className={`px-2 py-0.5 text-[10px] rounded font-medium transition-colors ${
                   viewType === opt.value
                     ? "bg-background text-foreground shadow-sm"
                     : "text-muted-foreground hover:text-foreground"
@@ -279,177 +327,116 @@ export default function CalendarPage({ projectId }: { projectId?: string }) {
             ))}
           </div>
 
-          <div className="h-7 w-px bg-border mx-1 hidden sm:block" />
+          <div className="h-5 w-px bg-border mx-1 hidden sm:block" />
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 w-8 rounded-md p-0" onClick={() => setCurrentDate(prev => {
-                  const d = new Date(prev);
-                  if (viewType === "month") d.setMonth(d.getMonth() - 1);
-                  else if (viewType === "week") d.setDate(d.getDate() - 7);
-                  else d.setDate(d.getDate() - 1);
-                  return d;
-                })}>
-                  <ChevronLeft className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Previous</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <CalendarSavedViews
+            savedViews={savedViews}
+            activeViewId={activeViewId}
+            onSaveView={handleSaveView}
+            onLoadView={handleLoadView}
+            onDeleteView={handleDeleteView}
+            currentConfig={{ viewType, groupBy, filterStatus, filterPriority, filterAssignee, filterProject, showWeekends }}
+          />
 
-          <Button variant="outline" size="sm" className="h-8 text-xs rounded-md px-2.5" onClick={() => setCurrentDate(new Date())}>
-            Today
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-7 text-[11px] rounded-md px-2">
+                <LayoutList className="h-3 w-3 mr-1" />
+                {CALENDAR_GROUP_OPTIONS.find(o => o.value === groupBy)?.label || "Group"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-36 rounded-lg" align="end">
+              {CALENDAR_GROUP_OPTIONS.map(opt => (
+                <DropdownMenuItem
+                  key={opt.value}
+                  className={`text-[11px] py-1.5 ${groupBy === opt.value ? "bg-primary/10 font-medium" : ""}`}
+                  onClick={() => setGroupBy(opt.value as CalendarGroupByKey | "none")}
+                >
+                  {opt.label}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 w-8 rounded-md p-0" onClick={() => setCurrentDate(prev => {
-                  const d = new Date(prev);
-                  if (viewType === "month") d.setMonth(d.getMonth() + 1);
-                  else if (viewType === "week") d.setDate(d.getDate() + 7);
-                  else d.setDate(d.getDate() + 1);
-                  return d;
-                })}>
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>Next</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-
-          <div className="h-7 w-px bg-border mx-1 hidden sm:block" />
-
-          <div className="flex items-center gap-1.5">
-            <CalendarSavedViews
-              savedViews={savedViews}
-              activeViewId={activeViewId}
-              onSaveView={handleSaveView}
-              onLoadView={handleLoadView}
-              onDeleteView={handleDeleteView}
-              currentConfig={{ viewType, groupBy, filterStatus, filterPriority, filterAssignee, filterProject, showWeekends }}
-            />
-
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 text-xs rounded-md px-2.5">
-                  <LayoutList className="h-3.5 w-3.5 mr-1" />
-                  {CALENDAR_GROUP_OPTIONS.find(o => o.value === groupBy)?.label || "Group"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-40 rounded-lg" align="end">
-                {CALENDAR_GROUP_OPTIONS.map(opt => (
-                  <DropdownMenuItem
-                    key={opt.value}
-                    className={`text-xs py-1.5 ${groupBy === opt.value ? "bg-primary/10 font-medium" : ""}`}
-                    onClick={() => setGroupBy(opt.value as CalendarGroupByKey | "none")}
-                  >
-                    {opt.label}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant={hasActiveFilters ? "default" : "outline"} size="sm" className="h-8 text-xs rounded-md px-2.5">
-                  <Filter className="h-3.5 w-3.5 mr-1" />
-                  {hasActiveFilters ? "Filtered" : "Filter"}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-72 p-4 rounded-lg" align="end">
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Status</Label>
-                    <Select value={filterStatus} onValueChange={setFilterStatus}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Statuses</SelectItem>
-                        {STATUS_OPTIONS.map(s => (
-                          <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Priority</Label>
-                    <Select value={filterPriority} onValueChange={setFilterPriority}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Priorities</SelectItem>
-                        {PRIORITY_OPTIONS.map(p => (
-                          <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-xs text-muted-foreground">Project</Label>
-                    <Select value={filterProject} onValueChange={setFilterProject}>
-                      <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all">All Projects</SelectItem>
-                        {projects.map((p: any) => (
-                          <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Separator />
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-muted-foreground cursor-pointer" onClick={() => setShowWeekends(!showWeekends)}>
-                      Show Weekends
-                    </Label>
-                    <Switch checked={showWeekends} onCheckedChange={setShowWeekends} />
-                  </div>
-                  <Button variant="ghost" size="sm" className="w-full text-xs h-8"
-                    onClick={() => {
-                      setFilterStatus("all"); setFilterPriority("all");
-                      setFilterAssignee("all"); setFilterProject("all");
-                    }}>
-                    Clear All Filters
-                  </Button>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant={hasActiveFilters ? "default" : "ghost"} size="sm" className="h-7 text-[11px] rounded-md px-2">
+                <Filter className="h-3 w-3 mr-1" />
+                {hasActiveFilters ? "Filtered" : "Filter"}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-64 p-3 rounded-lg" align="end">
+              <div className="space-y-3">
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground">Status</Label>
+                  <Select value={filterStatus} onValueChange={setFilterStatus}>
+                    <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-[11px]">All Statuses</SelectItem>
+                      {STATUS_OPTIONS.map(s => (
+                        <SelectItem key={s.value} value={s.value} className="text-[11px]">{s.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-              </PopoverContent>
-            </Popover>
+                <div className="space-y-1.5">
+                  <Label className="text-[10px] text-muted-foreground">Priority</Label>
+                  <Select value={filterPriority} onValueChange={setFilterPriority}>
+                    <SelectTrigger className="h-7 text-[11px]"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all" className="text-[11px]">All Priorities</SelectItem>
+                      {PRIORITY_OPTIONS.map(p => (
+                        <SelectItem key={p.value} value={p.value} className="text-[11px]">{p.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <Label className="text-[10px] text-muted-foreground cursor-pointer" onClick={() => setShowWeekends(!showWeekends)}>
+                    Weekends
+                  </Label>
+                  <Switch checked={showWeekends} onCheckedChange={setShowWeekends} className="h-4" />
+                </div>
+                <Button variant="ghost" size="sm" className="w-full text-[11px] h-7"
+                  onClick={() => {
+                    setFilterStatus("all"); setFilterPriority("all");
+                    setFilterAssignee("all"); setFilterProject("all");
+                  }}>
+                  Clear Filters
+                </Button>
+              </div>
+            </PopoverContent>
+          </Popover>
 
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="ghost" size="sm" className="h-8 w-8 rounded-md p-0" onClick={toggleFullScreen}>
-                    {isFullScreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>{isFullScreen ? "Exit Full Screen" : "Full Screen"}</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-
-            <Button className="h-8 text-xs rounded-md px-3" onClick={() => { setCreateDialogDefaults({}); setIsCreateDialogOpen(true); }}>
-              <Plus className="h-3.5 w-3.5 mr-1" /> New Task
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <div className="flex items-center justify-between px-8 py-1.5 border-b border-subtle">
-        <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-          <span>Click a date to create a task</span>
-          <span className="text-muted-foreground/30">|</span>
-          <span>Drag events to reschedule</span>
-          <span className="text-muted-foreground/30">|</span>
-          <span>Hover for task details</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="relative w-52">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+          <div className="relative w-40 hidden sm:block">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
             <Input
-              placeholder="Search tasks..."
-              className="h-7 pl-8 text-xs rounded-md"
+              placeholder="Search..."
+              className="h-7 pl-7 text-[11px] rounded-md"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+
+          <Button className="h-7 text-[11px] rounded-md px-2.5" onClick={() => { setCreateDialogDefaults({}); setIsCreateDialogOpen(true); }}>
+            <Plus className="h-3 w-3 mr-1" /> New Task
+          </Button>
+        </div>
+      </header>
+
+      <div className="flex items-center justify-between px-6 py-1 border-b border-subtle bg-muted/10">
+        <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
+          <span>j/k navigate</span>
+          <span className="text-muted-foreground/20">·</span>
+          <span>n new task</span>
+          <span className="text-muted-foreground/20">·</span>
+          <span>t today</span>
+          <span className="text-muted-foreground/20">·</span>
+          <span>drag to reschedule</span>
+        </div>
+        <div className="text-[9px] text-muted-foreground/40">
+          {scheduleCount} task{scheduleCount !== 1 ? "s" : ""}
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useRef, useCallback, useEffect } from "react";
-import { isSameMonth, isToday, format, parseISO, differenceInDays, addDays, startOfDay } from "date-fns";
+import { isSameMonth, isToday, format, parseISO, differenceInDays, addDays, startOfDay, min as dateMin, max as dateMax } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getWeeksForMonth, placeEventsInWeek } from "./calendar-utils";
 import { DAY_HEADERS } from "./calendar-utils";
@@ -15,11 +15,12 @@ interface CalendarMonthViewProps {
   onDayClick?: (day: Date) => void;
   onEventDrop?: (event: CalendarEvent, dropDay: Date) => void;
   onEventResize?: (event: CalendarEvent, newStart: string, newEnd: string) => void;
+  onCreateTask?: (startDate: string, endDate: string) => void;
 }
 
 const MAX_VISIBLE_LANES = 5;
 
-export function MonthView({ events, currentDate, onDayClick, onEventDrop, onEventResize }: CalendarMonthViewProps) {
+export function MonthView({ events, currentDate, onDayClick, onEventDrop, onEventResize, onCreateTask }: CalendarMonthViewProps) {
   const weeks = useMemo(() => getWeeksForMonth(currentDate), [currentDate]);
   const gridRef = useRef<HTMLDivElement>(null);
 
@@ -31,6 +32,11 @@ export function MonthView({ events, currentDate, onDayClick, onEventDrop, onEven
     startY: number;
     weekStart: Date;
     currentCol?: number;
+  } | null>(null);
+  const [dragCreate, setDragCreate] = useState<{
+    startDay: Date;
+    currentDay: Date;
+    weekDays: Date[];
   } | null>(null);
 
   const weekPlacements = useMemo(() => {
@@ -89,6 +95,39 @@ export function MonthView({ events, currentDate, onDayClick, onEventDrop, onEven
       document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [dragState, onEventDrop, onEventResize]);
+
+  // Drag-to-create handlers
+  useEffect(() => {
+    if (!dragCreate) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!gridRef.current || !dragCreate) return;
+      const rect = gridRef.current.getBoundingClientRect();
+      const colWidth = rect.width / 7;
+      const relX = e.clientX - rect.left;
+      const colIndex = Math.max(0, Math.min(6, Math.floor(relX / colWidth)));
+      const currentDay = addDays(dragCreate.weekDays[0], colIndex);
+      setDragCreate(prev => prev ? { ...prev, currentDay } : null);
+    };
+
+    const handleMouseUp = () => {
+      if (!dragCreate || !onCreateTask) return;
+      const start = dateMin([dragCreate.startDay, dragCreate.currentDay]);
+      const end = dateMax([dragCreate.startDay, dragCreate.currentDay]);
+      const duration = differenceInDays(end, start);
+      if (duration >= 0) {
+        onCreateTask(startOfDay(start).toISOString(), startOfDay(end).toISOString());
+      }
+      setDragCreate(null);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragCreate, onCreateTask]);
 
   const toggleExpanded = (weekIdx: number) => {
     setExpandedWeeks((prev) => {
@@ -173,12 +212,19 @@ export function MonthView({ events, currentDate, onDayClick, onEventDrop, onEven
                   gridTemplateRows: `auto repeat(${visibleLanes + 1}, 22px)`,
                 }}
                 onMouseDown={(e) => {
-                  if (e.button === 0 && dragState) {
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    const colWidth = rect.width / 7;
-                    const colIndex = Math.max(0, Math.min(6, Math.floor((e.clientX - rect.left) / colWidth)));
-                    const dropDay = addDays(weekDays[0], colIndex);
+                  if (e.button !== 0) return;
+                  const target = e.target as HTMLElement;
+                  if (target.closest("[data-task-bar]") || target.closest("[data-no-dnd]")) return;
+
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const colWidth = rect.width / 7;
+                  const colIndex = Math.max(0, Math.min(6, Math.floor((e.clientX - rect.left) / colWidth)));
+
+                  if (dragState) {
                     setDragState(prev => prev ? { ...prev, weekStart: weekDays[0] } : null);
+                  } else if (onCreateTask) {
+                    const startDay = addDays(weekDays[0], colIndex);
+                    setDragCreate({ startDay, currentDay: startDay, weekDays });
                   }
                 }}
               >
@@ -229,6 +275,23 @@ export function MonthView({ events, currentDate, onDayClick, onEventDrop, onEven
                     }}
                     className="mx-1 rounded-md border-2 border-dashed border-primary/40 bg-primary/5 pointer-events-none z-10"
                   />
+                )}
+
+                {dragCreate && (
+                  <div
+                    style={{
+                      gridColumn: `${Math.min(dragCreate.weekDays.indexOf(dragCreate.startDay), dragCreate.weekDays.indexOf(dragCreate.currentDay)) + 1} / span ${Math.abs(dragCreate.weekDays.indexOf(dragCreate.currentDay) - dragCreate.weekDays.indexOf(dragCreate.startDay)) + 1}`,
+                      gridRow: `2 / ${visibleLanes + 2}`,
+                    }}
+                    className="mx-0.5 rounded-md border-2 border-dashed border-primary/50 bg-primary/10 pointer-events-none z-10 flex items-center justify-center"
+                  >
+                    <span className="text-[9px] font-semibold text-primary">
+                      {format(dateMin([dragCreate.startDay, dragCreate.currentDay]), "MMM d")}
+                      {differenceInDays(dateMax([dragCreate.startDay, dragCreate.currentDay]), dateMin([dragCreate.startDay, dragCreate.currentDay])) > 0 &&
+                        ` - ${format(dateMax([dragCreate.startDay, dragCreate.currentDay]), "MMM d")}`
+                      }
+                    </span>
+                  </div>
                 )}
 
                 {hiddenCount > 0 && (

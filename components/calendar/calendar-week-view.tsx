@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
-import { isToday, isWeekend, format, parseISO, isAfter, isBefore, startOfDay, addDays, differenceInDays } from "date-fns";
+import { isToday, isWeekend, format, parseISO, isAfter, isBefore, startOfDay, addDays, differenceInDays, min as dateMin, max as dateMax } from "date-fns";
 import { cn } from "@/lib/utils";
 import { getWeekDays, getEventsForDay, placeEventsInWeek } from "./calendar-utils";
 import { CalendarEventBar, CalendarEventHoverCard } from "./calendar-event";
@@ -17,6 +17,7 @@ interface WeekViewProps {
   onEventResize?: (event: CalendarEvent, newStart: string, newEnd: string) => void;
   onLogActivity: (action: string, taskId: string, metadata?: any) => void;
   showWeekends: boolean;
+  onCreateTask?: (startDate: string, endDate: string) => void;
 }
 
 export function WeekView({
@@ -25,6 +26,7 @@ export function WeekView({
   onDayClick,
   onEventDrop,
   onEventResize,
+  onCreateTask,
 }: WeekViewProps) {
   const [hoveredEvent, setHoveredEvent] = useState<{ event: CalendarEvent; rect: DOMRect } | null>(null);
   const [dragState, setDragState] = useState<{
@@ -32,6 +34,12 @@ export function WeekView({
     type: "move" | "resize-left" | "resize-right";
     startX: number;
     startY: number;
+    currentCol: number;
+    currentHour: number;
+  } | null>(null);
+  const [dragCreate, setDragCreate] = useState<{
+    startCol: number;
+    startHour: number;
     currentCol: number;
     currentHour: number;
   } | null>(null);
@@ -117,6 +125,40 @@ export function WeekView({
       document.removeEventListener("mouseup", handleMouseUp);
     };
   }, [dragState, onEventDrop, onEventResize, days]);
+
+  // Drag-to-create
+  useEffect(() => {
+    if (!dragCreate) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!gridRef.current || !dragCreate) return;
+      const rect = gridRef.current.getBoundingClientRect();
+      const colWidth = rect.width / 7;
+      const colIndex = Math.max(0, Math.min(6, Math.floor((e.clientX - rect.left) / colWidth)));
+      const scrollTop = gridRef.current?.scrollTop || 0;
+      const hourHeight = 44;
+      const relY = e.clientY - rect.top + scrollTop - 30;
+      const hourIndex = Math.max(0, Math.min(23, Math.floor(relY / hourHeight)));
+      setDragCreate(prev => prev ? { ...prev, currentCol: colIndex, currentHour: hourIndex } : null);
+    };
+
+    const handleMouseUp = () => {
+      if (!dragCreate || !onCreateTask) return;
+      const startCol = Math.min(dragCreate.startCol, dragCreate.currentCol);
+      const endCol = Math.max(dragCreate.startCol, dragCreate.currentCol);
+      const startDay = addDays(days[0], startCol);
+      const endDay = addDays(days[0], endCol);
+      onCreateTask(startOfDay(startDay).toISOString(), startOfDay(endDay).toISOString());
+      setDragCreate(null);
+    };
+
+    document.addEventListener("mousemove", handleMouseMove);
+    document.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [dragCreate, onCreateTask, days]);
 
   const handleEventDragStart = useCallback((event: CalendarEvent, e: React.MouseEvent) => {
     if (!onEventDrop) return;
@@ -205,6 +247,11 @@ export function WeekView({
                 });
 
                 const isDropTarget = dragState && dragState.currentCol === i && dragState.currentHour === hour;
+                const isDragCreateTarget = dragCreate &&
+                  i >= Math.min(dragCreate.startCol, dragCreate.currentCol) &&
+                  i <= Math.max(dragCreate.startCol, dragCreate.currentCol) &&
+                  hour >= Math.min(dragCreate.startHour, dragCreate.currentHour) &&
+                  hour <= Math.max(dragCreate.startHour, dragCreate.currentHour);
 
                 return (
                   <div
@@ -214,8 +261,17 @@ export function WeekView({
                       isWeekend(day) && "bg-muted/5",
                       isToday(day) && hour === new Date().getHours() && "bg-primary/[0.03]",
                       isDropTarget && "bg-primary/10",
+                      isDragCreateTarget && "bg-primary/15",
                     )}
                     onClick={() => onDayClick(day)}
+                    onMouseDown={(e) => {
+                      if (e.button !== 0 || dragState || !onCreateTask) return;
+                      const target = e.target as HTMLElement;
+                      if (target.closest("[data-event-bar]")) return;
+                      if (cellEvents.length > 0) return;
+                      e.preventDefault();
+                      setDragCreate({ startCol: i, startHour: hour, currentCol: i, currentHour: hour });
+                    }}
                   >
                     <div className="absolute inset-x-0.5 top-0.5 space-y-0.5">
                       {cellEvents.map((event) => (
@@ -246,6 +302,25 @@ export function WeekView({
             height: 40,
           }}
         />
+      )}
+
+      {dragCreate && (
+        <div
+          className="absolute z-40 border-2 border-dashed border-primary/50 bg-primary/10 rounded-md pointer-events-none flex items-center justify-center"
+          style={{
+            left: (Math.min(dragCreate.startCol, dragCreate.currentCol) * ((gridRef.current?.offsetWidth || 0) / 7)) + 2,
+            top: Math.min(dragCreate.startHour, dragCreate.currentHour) * 44 + 30,
+            width: (Math.abs(dragCreate.currentCol - dragCreate.startCol) + 1) * ((gridRef.current?.offsetWidth || 0) / 7) - 4,
+            height: (Math.abs(dragCreate.currentHour - dragCreate.startHour) + 1) * 44,
+          }}
+        >
+          <span className="text-[9px] font-semibold text-primary">
+            {format(addDays(days[0], Math.min(dragCreate.startCol, dragCreate.currentCol)), "MMM d")}
+            {(Math.abs(dragCreate.currentCol - dragCreate.startCol) > 0 || Math.abs(dragCreate.currentHour - dragCreate.startHour) > 0) &&
+              ` → ${format(addDays(days[0], Math.max(dragCreate.startCol, dragCreate.currentCol)), "MMM d")}`
+            }
+          </span>
+        </div>
       )}
 
       {hoveredEvent && (
