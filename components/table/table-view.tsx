@@ -715,10 +715,10 @@ export function TableView({
       )}
 
       {/* ─── Table header ─── */}
-      <div className={cn("flex border-b bg-muted/20 sticky top-0 z-10 shrink-0", resizingCol.current && "col-resize-active")}>
+      <div className={cn("flex border-b border-border/60 bg-muted/30 sticky top-0 z-10 shrink-0", resizingCol.current && "col-resize-active")}>
         {pinnedCols.map(col => (
           <div key={col.id}
-            className="relative flex items-center gap-1 px-2 py-1.5 border-r shrink-0 bg-muted/20 sticky left-0 z-10"
+            className="relative flex items-center gap-1 px-2 py-2 border-r border-border/60 shrink-0 bg-muted/30 sticky left-0 z-10"
             style={{ width: getColWidth(col), minWidth: getColWidth(col) }}
             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
             {col.type === "checkbox" ? (
@@ -742,7 +742,7 @@ export function TableView({
                 )}
               </button>
             )}
-            <button className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resive hover:bg-primary/30 group z-20 opacity-0 hover:opacity-100 transition-opacity"
+            <button className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/30 group z-20 opacity-0 hover:opacity-100 transition-opacity"
               onMouseDown={(e) => handleResizeStart(e, col)}>
               <div className="h-full w-0.5 mx-auto transition-colors group-hover:bg-primary/50" />
             </button>
@@ -750,7 +750,7 @@ export function TableView({
         ))}
         {scrollCols.map(col => (
           <div key={col.id}
-            className="relative flex items-center gap-1 px-2 py-1.5 border-r shrink-0 group/header"
+            className="relative flex items-center gap-1 px-2 py-2 border-r border-border/60 shrink-0 group/header"
             style={{ width: getColWidth(col), minWidth: getColWidth(col) }}
             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
             <button onClick={() => toggleSort(col.id)}
@@ -806,10 +806,10 @@ export function TableView({
             return (
               <div key={item.key}
                 className={cn(
-                  "flex border-b transition-colors group/row relative",
-                  isSelected && "bg-primary/[0.03]",
-                  isRowActive && "bg-primary/[0.02]",
-                  !isSelected && !isRowActive && "hover:bg-muted/20",
+                  "flex border-b border-border/40 transition-colors group/row relative",
+                  isSelected && "bg-primary/[0.04]",
+                  isRowActive && "bg-primary/[0.03]",
+                  !isSelected && !isRowActive && "hover:bg-muted/30",
                 )}
                 style={{ position: "absolute", top: item.offset, left: 0, right: 0, height: item.height }}
                 onClick={(e) => {
@@ -850,9 +850,9 @@ export function TableView({
                   return (
                     <div key={col.id} data-col-idx={colIdx}
                       className={cn(
-                        "px-2 py-1 text-xs border-r shrink-0 bg-card sticky left-0 z-[1] group/cell transition-colors relative",
+                        "px-2 py-1 text-xs border-r border-border/60 shrink-0 bg-card sticky left-0 z-[1] group/cell transition-colors relative",
                         isEditing && "z-[5]",
-                        isCellActive && "ring-1 ring-primary/40 ring-inset bg-primary/[0.02]",
+                        isCellActive && "ring-2 ring-primary/60 ring-inset bg-primary/[0.03]",
                       )}
                       style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
                       {isEditing ? (
@@ -867,14 +867,9 @@ export function TableView({
                             const newStatus = task.status === "done" ? "todo" : "done";
                             setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
                             updateMutation.mutate({ id: task.id, data: { status: newStatus } });
-                          } else if (col.type === "title") {
-                            onSelectTask?.(task);
                           }
                         }}>
-                          <CellDisplay col={col} value={value} row={task} isActive={isCellActive}
-                            onClick={() => {
-                              if (col.type === "title") onSelectTask?.(task);
-                            }} />
+                          <CellDisplay col={col} value={value} row={task} isActive={isCellActive} onClick={() => {}} />
                         </div>
                       )}
                     </div>
@@ -890,9 +885,9 @@ export function TableView({
                   return (
                     <div key={col.id} data-col-idx={colIdx}
                       className={cn(
-                        "px-2 py-1 text-xs border-r shrink-0 group/cell transition-colors relative",
+                        "px-2 py-1 text-xs border-r border-border/60 shrink-0 group/cell transition-colors relative",
                         isEditing && "z-[5]",
-                        isCellActive && "ring-1 ring-primary/40 ring-inset bg-primary/[0.02]",
+                        isCellActive && "ring-2 ring-primary/60 ring-inset bg-primary/[0.03]",
                       )}
                       style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
                       {isEditing ? (

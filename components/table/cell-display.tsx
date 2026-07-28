@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import {
   CalendarDays, User, MessageSquare, Paperclip, Link2, Clock, Flag,
-  CheckSquare, Square, GripVertical,
+  CheckSquare, Square,
 } from "lucide-react";
 import { format } from "date-fns";
 import type { Column } from "./types";
@@ -45,7 +45,9 @@ export function CellDisplay({
             )}
           </div>
         )}
-        <span className={cn("text-xs font-medium truncate", isDone && "line-through text-muted-foreground/60")}>
+        <span className={cn("text-xs font-medium truncate hover:text-primary transition-colors cursor-pointer", isDone && "line-through text-muted-foreground/60")}
+            onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+            title="Open task">
           {row.title || "Untitled"}
         </span>
         <span className="flex items-center gap-1 ml-auto shrink-0">
