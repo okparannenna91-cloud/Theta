@@ -189,6 +189,13 @@ function EditCell({ col, value, onSave, onCancel, inputRef: externalRef }: {
   const localRef = useRef<HTMLInputElement>(null);
   const ref = externalRef || localRef;
   const [editVal, setEditVal] = useState(value ?? "");
+  const [localSel, setLocalSel] = useState<string[]>([]);
+  const [localLabels, setLocalLabels] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (col.type === "assignee") setLocalSel(Array.isArray(value) ? value : []);
+    else if (col.type === "labels" || col.type === "tags") setLocalLabels(Array.isArray(value) ? value : []);
+  }, [col.type, value]);
 
   useEffect(() => { setTimeout(() => ref.current?.focus(), 0); }, [ref]);
 
@@ -249,8 +256,6 @@ function EditCell({ col, value, onSave, onCancel, inputRef: externalRef }: {
 
   if (col.type === "assignee") {
     const allMembers = (col.options || ["Alice", "Bob", "Charlie", "Diana"]).map(m => ({ id: m, name: m }));
-    const selected = Array.isArray(value) ? value : [];
-    const [localSel, setLocalSel] = useState<string[]>(selected);
     const memberColors = ["bg-red-100", "bg-blue-100", "bg-green-100", "bg-amber-100", "bg-purple-100", "bg-pink-100"];
     return (
       <div className="p-1.5 min-w-[160px]" onKeyDown={(e) => e.stopPropagation()}>
@@ -301,8 +306,6 @@ function EditCell({ col, value, onSave, onCancel, inputRef: externalRef }: {
 
   if (col.type === "labels" || col.type === "tags") {
     const allLabels = col.options || ["bug", "feature", "enhancement", "docs", "urgent", "design"];
-    const selected = Array.isArray(value) ? value : [];
-    const [localLabels, setLocalLabels] = useState<string[]>(selected);
     const labelColors = ["bg-red-100 text-red-700", "bg-blue-100 text-blue-700", "bg-green-100 text-green-700", "bg-amber-100 text-amber-700", "bg-purple-100 text-purple-700"];
     return (
       <div className="p-1.5 min-w-[140px]" onKeyDown={(e) => e.stopPropagation()}>
@@ -926,7 +929,7 @@ export function TableView({ tasks: initialTasks, columns: customColumns, workspa
     } else return;
     const csv = serializeToCSV(rowsToCopy, visibleColumns, getCellValue);
     navigator.clipboard.writeText(csv).then(() => toast.success("Copied")).catch(() => toast.error("Copy failed"));
-  }, [selectedRows, activeCell, groupedTasks, visibleColumns, getCellValue]);
+  }, [selectedRows, activeCell, groupedTasks, visibleColumns]);
 
   const pasteFromClipboard = useCallback(async () => {
     const text = await navigator.clipboard.readText().catch(() => "");
