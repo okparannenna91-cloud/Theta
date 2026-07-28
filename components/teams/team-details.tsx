@@ -36,6 +36,7 @@ import {
     Fingerprint,
     Sparkles,
     UserCog,
+    UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -901,7 +902,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                             <h3 className="font-semibold text-sm text-muted-foreground uppercase">Pending Invitations</h3>
                                             {invites && invites.length > 0 && (
                                                 <Badge variant="outline" className="text-xs">
-                                                    {invites.length} pending
+                                                    {invites.filter((i: any) => !i.acceptedAt).length} pending
                                                 </Badge>
                                             )}
                                         </div>
@@ -909,13 +910,14 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                             const expiresAt = new Date(invite.expiresAt);
                                             const now = new Date();
                                             const daysLeft = Math.ceil((expiresAt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-                                            const isExpiringSoon = invite.status === "pending" && daysLeft <= 2 && daysLeft > 0;
+                                            const isAccepted = !!invite.acceptedAt;
+                                            const isExpiringSoon = invite.status === "pending" && !isAccepted && daysLeft <= 2 && daysLeft > 0;
                                             const isExpired = daysLeft <= 0 && !invite.acceptedAt;
                                             return (
                                                 <div key={invite.id} className="flex items-center justify-between p-4 border rounded-xl bg-card/50">
                                                     <div className="flex items-center gap-3 min-w-0">
                                                         <div className="h-9 w-9 rounded-full bg-muted border flex items-center justify-center shrink-0">
-                                                            <Mail className="h-4 w-4 text-muted-foreground" />
+                                                            {isAccepted ? <UserCheck className="h-4 w-4 text-green-600" /> : <Mail className="h-4 w-4 text-muted-foreground" />}
                                                         </div>
                                                         <div className="min-w-0">
                                                             <p className="font-medium text-sm truncate">{invite.email}</p>
@@ -923,6 +925,9 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                                                 <span>{format(new Date(invite.createdAt), "MMM d, yyyy")}</span>
                                                                 <span>•</span>
                                                                 <span className="capitalize">{invite.role}</span>
+                                                                {isAccepted && (
+                                                                    <span className="text-green-600 font-semibold">• Accepted {format(new Date(invite.acceptedAt), "MMM d, yyyy")}</span>
+                                                                )}
                                                                 {isExpiringSoon && (
                                                                     <span className="text-amber-600 font-semibold">• Expires in {daysLeft}d</span>
                                                                 )}
@@ -934,12 +939,13 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                                     </div>
                                                     <div className="flex items-center gap-2 shrink-0">
                                                         <Badge variant="outline" className={
-                                                            invite.status === "pending" ? "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950/20" :
-                                                                invite.status === "revoked" ? "text-red-600 bg-red-50 dark:bg-red-950/20" : ""
+                                                            isAccepted ? "text-green-600 bg-green-50 border-green-200 dark:bg-green-950/20" :
+                                                                invite.status === "pending" ? "text-amber-600 bg-amber-50 border-amber-200 dark:bg-amber-950/20" :
+                                                                    invite.status === "revoked" ? "text-red-600 bg-red-50 dark:bg-red-950/20" : ""
                                                         }>
-                                                            {invite.status}
+                                                            {isAccepted ? "Accepted" : invite.status}
                                                         </Badge>
-                                                        {isAdmin && invite.status === "pending" && (
+                                                        {isAdmin && invite.status === "pending" && !isAccepted && (
                                                             <div className="flex items-center gap-1">
                                                                 <Button
                                                                     variant="ghost"
