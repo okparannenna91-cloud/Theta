@@ -21,8 +21,8 @@ export function CellDisplay({
     return (
       <span className="flex items-center justify-center h-full cursor-pointer" onClick={e => { e.stopPropagation(); onClick(); }}>
         {isDone
-          ? <CheckSquare className="h-4 w-4 text-emerald-500" />
-          : <Square className="h-3.5 w-3.5 text-muted-foreground/30 hover:text-muted-foreground/60" />}
+          ? <CheckSquare className="h-4 w-4 text-emerald-500" strokeWidth={1.5} />
+          : <Square className="h-4 w-4 text-muted-foreground/20 hover:text-muted-foreground/40" strokeWidth={1.5} />}
       </span>
     );
   }
@@ -39,36 +39,44 @@ export function CellDisplay({
         {subtaskCount > 0 && (
           <div className="shrink-0 flex items-center gap-0.5">
             {completedSubtasks === subtaskCount ? (
-              <CheckSquare className="h-3 w-3 text-emerald-500" />
+              <CheckSquare className="h-3 w-3 text-emerald-500" strokeWidth={1.5} />
             ) : (
-              <span className="text-[9px] font-medium text-muted-foreground/50">{completedSubtasks}/{subtaskCount}</span>
+              <span className="text-[10px] font-medium text-muted-foreground/40 tabular-nums">{completedSubtasks}/{subtaskCount}</span>
             )}
           </div>
         )}
-        <span className={cn("text-xs font-medium truncate hover:text-primary transition-colors cursor-pointer", isDone && "line-through text-muted-foreground/60")}
-            onClick={(e) => { e.stopPropagation(); onClick?.(); }}
-            title="Open task">
+        <span className={cn(
+          "text-[13px] font-medium truncate leading-none",
+          "hover:text-primary transition-colors cursor-pointer",
+          isDone && "line-through text-muted-foreground/50",
+        )}
+          onClick={(e) => { e.stopPropagation(); onClick?.(); }}
+          title="Open task">
           {row.title || "Untitled"}
         </span>
-        <span className="flex items-center gap-1 ml-auto shrink-0">
+        <span className="flex items-center gap-2 ml-auto shrink-0">
           {commentCount > 0 && (
-            <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/50">
-              <MessageSquare className="h-2.5 w-2.5" />{commentCount}
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground/40 tabular-nums">
+              <MessageSquare className="h-3 w-3" strokeWidth={1.5} />
+              {commentCount}
             </span>
           )}
           {attachmentCount > 0 && (
-            <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/50">
-              <Paperclip className="h-2.5 w-2.5" />{attachmentCount}
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground/40 tabular-nums">
+              <Paperclip className="h-3 w-3" strokeWidth={1.5} />
+              {attachmentCount}
             </span>
           )}
           {depCount > 0 && (
-            <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/50">
-              <Link2 className="h-2.5 w-2.5" />{depCount}
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground/40 tabular-nums">
+              <Link2 className="h-3 w-3" strokeWidth={1.5} />
+              {depCount}
             </span>
           )}
           {row.estimatedHours > 0 && (
-            <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/50">
-              <Clock className="h-2.5 w-2.5" />{row.estimatedHours}h
+            <span className="flex items-center gap-1 text-[10px] text-muted-foreground/40 tabular-nums">
+              <Clock className="h-3 w-3" strokeWidth={1.5} />
+              {row.estimatedHours}h
             </span>
           )}
         </span>
@@ -79,9 +87,9 @@ export function CellDisplay({
   if (col.type === "status") {
     const color = getStatusColor(value);
     return (
-      <div className="flex items-center gap-1.5 h-full">
+      <div className="flex items-center gap-2 h-full">
         <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-        <span className="text-[11px] capitalize leading-none">{typeof value === "string" ? value.replace(/[_-]/g, " ") : "todo"}</span>
+        <span className="text-xs capitalize text-foreground/80">{typeof value === "string" ? value.replace(/[_-]/g, " ") : "todo"}</span>
       </div>
     );
   }
@@ -89,7 +97,7 @@ export function CellDisplay({
   if (col.type === "priority") {
     const meta = getPriorityMeta(value);
     return (
-      <span className={cn("inline-flex items-center gap-1.5 text-[10px] px-2 py-0.5 rounded-full font-medium", meta.bg, meta.text)}>
+      <span className={cn("inline-flex items-center gap-2 text-xs font-medium", meta.text)}>
         <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} />
         {meta.label}
       </span>
@@ -99,16 +107,16 @@ export function CellDisplay({
   if (col.type === "assignee") {
     const assignees = (value || []).slice(0, 3);
     const overflow = (value || []).length - 3;
-    if (!assignees.length) return <User className="h-3.5 w-3.5 text-muted-foreground/20" />;
+    if (!assignees.length) return <User className="h-4 w-4 text-muted-foreground/20" strokeWidth={1.5} />;
     return (
-      <div className="flex -space-x-1 items-center h-full">
+      <div className="flex -space-x-1.5 items-center h-full">
         {assignees.map((id: string, i: number) => (
-          <div key={id || i} className="h-5 w-5 rounded-full ring-1 ring-background bg-primary/10 flex items-center justify-center text-[7px] font-medium text-primary">
+          <div key={id || i} className="h-6 w-6 rounded-full ring-2 ring-background bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-[9px] font-semibold text-primary">
             {id?.[0]?.toUpperCase() || "?"}
           </div>
         ))}
         {overflow > 0 && (
-          <div className="h-5 w-5 rounded-full ring-1 ring-background bg-muted flex items-center justify-center text-[7px] font-medium text-muted-foreground">
+          <div className="h-6 w-6 rounded-full ring-2 ring-background bg-muted flex items-center justify-center text-[9px] font-medium text-muted-foreground">
             +{overflow}
           </div>
         )}
@@ -117,13 +125,13 @@ export function CellDisplay({
   }
 
   if (col.type === "date" || col.type === "dueDate" || col.type === "startDate") {
-    if (!value) return <span className="text-[11px] text-muted-foreground/30 italic">Set date</span>;
+    if (!value) return <span className="text-xs text-muted-foreground/30">—</span>;
     let d: Date;
-    try { d = new Date(value); if (isNaN(d.getTime())) throw new Error("invalid"); } catch { return <span className="text-[11px]">{String(value)}</span>; }
+    try { d = new Date(value); if (isNaN(d.getTime())) throw new Error("invalid"); } catch { return <span className="text-xs">{String(value)}</span>; }
     const isOverdue = col.id === "dueDate" && d < new Date() && row.status !== "done";
     return (
-      <span className={cn("inline-flex items-center gap-1 text-[11px]", isOverdue ? "text-red-500 font-medium" : "text-muted-foreground")}>
-        <CalendarDays className="h-3 w-3" />
+      <span className={cn("inline-flex items-center gap-1.5 text-xs", isOverdue ? "text-red-500 font-medium" : "text-muted-foreground/70")}>
+        <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.5} />
         {format(d, "MMM d")}
       </span>
     );
@@ -132,33 +140,33 @@ export function CellDisplay({
   if (col.type === "progress") {
     const p = Math.min(100, Math.max(0, value || 0));
     return (
-      <div className="flex items-center gap-2 h-full">
-        <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden" style={{ maxWidth: 60 }}>
-          <div className="h-full rounded-full bg-primary transition-all" style={{ width: `${p}%` }} />
+      <div className="flex items-center gap-2.5 h-full">
+        <div className="flex-1 h-1 bg-muted rounded-full overflow-hidden" style={{ maxWidth: 64 }}>
+          <div className="h-full rounded-full bg-foreground/40 transition-all" style={{ width: `${p}%` }} />
         </div>
-        <span className="text-[10px] font-medium tabular-nums text-muted-foreground">{p}%</span>
+        <span className="text-[11px] font-medium tabular-nums text-muted-foreground/60">{p}%</span>
       </div>
     );
   }
 
   if (col.type === "project") {
     return (
-      <Badge variant="secondary" className="text-[10px] rounded-md px-1.5 py-0 h-5 bg-primary/5 text-primary border-none font-normal">
-        {value || "No Project"}
-      </Badge>
+      <span className="inline-flex text-xs text-muted-foreground/60">
+        {value || "—"}
+      </span>
     );
   }
 
   if (col.type === "sprint") {
-    return <span className="text-[11px] text-muted-foreground">{value ? String(value).replace(/[_-]/g, " ") : "—"}</span>;
+    return <span className="text-xs text-muted-foreground/60">{value ? String(value).replace(/[_-]/g, " ") : "—"}</span>;
   }
 
   if (col.type === "milestone") {
     return (
-      <Badge variant="outline" className="text-[10px] rounded-md px-1.5 py-0 h-5 font-normal">
-        <Flag className="h-2.5 w-2.5 mr-0.5" />
-        {value ? String(value).replace(/[_-]/g, " ") : "No Milestone"}
-      </Badge>
+      <span className="inline-flex items-center gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+        <Flag className="h-3 w-3" strokeWidth={1.5} />
+        {value ? String(value).replace(/[_-]/g, " ") : "—"}
+      </span>
     );
   }
 
@@ -166,40 +174,40 @@ export function CellDisplay({
     return (
       <div className="flex items-center gap-1 flex-wrap h-full">
         {(value || []).slice(0, 2).map((t: string, i: number) => (
-          <span key={i} className="text-[9px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground">{t}</span>
+          <span key={i} className="text-[10px] px-2 py-0.5 rounded-md bg-muted/80 text-muted-foreground/70 font-medium">{t}</span>
         ))}
-        {(value || []).length > 2 && <span className="text-[9px] text-muted-foreground">+{(value || []).length - 2}</span>}
+        {(value || []).length > 2 && <span className="text-[10px] text-muted-foreground/40">+{(value || []).length - 2}</span>}
       </div>
     );
   }
 
   if (col.type === "number" || col.type === "estimate" || col.type === "storyPoints") {
-    return <span className="text-[11px] tabular-nums font-medium">{value ?? 0}</span>;
+    return <span className="text-xs tabular-nums text-muted-foreground/80">{value ?? "—"}</span>;
   }
 
   if (col.type === "boolean") {
     return (
-      <div className={cn("h-4 w-7 rounded-full transition-colors relative", value ? "bg-primary" : "bg-muted")}>
-        <div className={cn("h-3.5 w-3.5 rounded-full bg-white shadow transition-all absolute top-[1px]", value ? "left-[14px]" : "left-[1px]")} />
+      <div className={cn("h-3.5 w-6 rounded-full transition-colors relative", value ? "bg-foreground/30" : "bg-muted")}>
+        <div className={cn("h-2.5 w-2.5 rounded-full bg-white shadow-sm transition-all absolute top-[2px]", value ? "left-[14px]" : "left-[2px]")} />
       </div>
     );
   }
 
   if (col.type === "color") {
     return (
-      <div className="h-4 w-4 rounded-full border" style={value ? { backgroundColor: value } : { background: "linear-gradient(135deg, #e2e8f0, #94a3b8)" }} />
+      <div className="h-4 w-4 rounded-full border border-border/40" style={value ? { backgroundColor: value } : { background: "linear-gradient(135deg, #e2e8f0, #94a3b8)" }} />
     );
   }
 
   if (col.type === "createdBy") {
-    return <span className="text-[11px] text-muted-foreground">{value || "—"}</span>;
+    return <span className="text-xs text-muted-foreground/60">{value || "—"}</span>;
   }
 
   if (col.type === "updatedAt") {
-    if (!value) return <span className="text-[11px] text-muted-foreground">—</span>;
-    try { return <span className="text-[11px] text-muted-foreground tabular-nums">{format(new Date(value), "MMM d")}</span>; }
-    catch { return <span className="text-[11px] text-muted-foreground">—</span>; }
+    if (!value) return <span className="text-xs text-muted-foreground/60">—</span>;
+    try { return <span className="text-xs text-muted-foreground/60 tabular-nums">{format(new Date(value), "MMM d")}</span>; }
+    catch { return <span className="text-xs text-muted-foreground/60">—</span>; }
   }
 
-  return <span className="text-[11px] truncate">{String(value ?? "")}</span>;
+  return <span className="text-xs truncate text-muted-foreground/80">{String(value ?? "")}</span>;
 }

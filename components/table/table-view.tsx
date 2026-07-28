@@ -16,7 +16,7 @@ import {
   GripVertical, Plus, Trash2, ExternalLink, Search, X, MoreHorizontal,
   Undo2, Redo2, ArrowUpDown, Filter, Columns3, LayoutList, Copy,
   Download, Archive, CheckSquare, Square, ChevronDown, ChevronRight,
-  Upload,
+  Upload, EyeOff,
 } from "lucide-react";
 import type { Column, CellPosition, SortConfig, FilterRule, FlatItem } from "./types";
 import {
@@ -174,6 +174,7 @@ export function TableView({
 
   /* ─── Column widths ─── */
   const getColWidth = useCallback((col: Column) => columnWidths[col.id] || col.width, [columnWidths]);
+const CELL_PADDING = "px-2.5 py-1.5";
 
   /* ─── Processed tasks ─── */
   const processedTasks = useMemo(() => {
@@ -512,136 +513,136 @@ export function TableView({
   return (
     <div className="flex flex-col h-full select-none" ref={tableRef} tabIndex={-1} onKeyDown={handleKeyDown}>
       {/* ─── Toolbar ─── */}
-      <div className="flex items-center justify-between px-3 py-1.5 border-b bg-background shrink-0 z-20">
-        <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-          <span className="font-medium text-foreground">{processedTasks.length}</span> items
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border/40 bg-background shrink-0 z-20">
+        <div className="flex items-center gap-3 text-xs text-muted-foreground/60">
+          <span className="font-medium text-foreground/80">{processedTasks.length}</span> tasks
           {selectedRows.size > 0 && (
-            <span className="font-medium text-primary ml-1">({selectedRows.size} selected)</span>
+            <span className="font-medium text-foreground ml-1">{selectedRows.size} selected</span>
           )}
           {sortConfig.length > 0 && (
-            <span className="flex items-center gap-1 ml-2">
-              <ArrowUpDown className="h-3 w-3" />
+            <span className="flex items-center gap-1.5 ml-1">
               {sortConfig.map((s, i) => (
-                <span key={s.col} className="inline-flex items-center gap-0.5 text-[10px] bg-muted px-1.5 py-0.5 rounded-md">
+                <span key={s.col} className="inline-flex items-center gap-1 text-[11px] bg-muted/60 px-1.5 py-0.5 rounded-md">
                   {columns.find(c => c.id === s.col)?.name || s.col}
-                  <span className="text-[9px]">{s.dir === "asc" ? "↑" : "↓"}</span>
-                  <button onClick={() => removeSortLevel(s.col)} className="hover:text-destructive ml-0.5">✕</button>
+                  <span className="text-[10px]">{s.dir === "asc" ? "↑" : "↓"}</span>
+                  <button onClick={() => removeSortLevel(s.col)} className="hover:text-foreground ml-0.5 leading-none">✕</button>
                 </span>
               ))}
             </span>
           )}
           <div className="flex items-center gap-0.5 ml-1">
             <button onClick={handleUndo} disabled={undoStack.length === 0}
-              className={cn("h-5 w-5 rounded flex items-center justify-center transition-colors",
-                undoStack.length > 0 ? "text-muted-foreground hover:text-foreground hover:bg-muted" : "text-muted-foreground/20 cursor-default")}>
-              <Undo2 className="h-3 w-3" />
+              className={cn("h-6 w-6 rounded-md flex items-center justify-center transition-colors",
+                undoStack.length > 0 ? "text-muted-foreground/60 hover:text-foreground hover:bg-muted/60" : "text-muted-foreground/10 cursor-default")}>
+              <Undo2 className="h-3.5 w-3.5" strokeWidth={1.5} />
             </button>
             <button onClick={handleRedo} disabled={redoStack.length === 0}
-              className={cn("h-5 w-5 rounded flex items-center justify-center transition-colors",
-                redoStack.length > 0 ? "text-muted-foreground hover:text-foreground hover:bg-muted" : "text-muted-foreground/20 cursor-default")}>
-              <Redo2 className="h-3 w-3" />
+              className={cn("h-6 w-6 rounded-md flex items-center justify-center transition-colors",
+                redoStack.length > 0 ? "text-muted-foreground/60 hover:text-foreground hover:bg-muted/60" : "text-muted-foreground/10 cursor-default")}>
+              <Redo2 className="h-3.5 w-3.5" strokeWidth={1.5} />
             </button>
           </div>
         </div>
         <div className="flex items-center gap-1.5">
           {/* Bulk action toolbar (floating) */}
           {selectedRows.size > 0 && (
-            <div className="flex items-center gap-1.5 mr-2 px-2 py-0.5 bg-primary/5 rounded-lg border">
-              <span className="text-[10px] font-medium text-primary mr-1">{selectedRows.size} selected</span>
+            <div className="flex items-center gap-1.5 mr-2 px-2.5 py-1 bg-accent/80 rounded-lg border border-border/40">
+              <span className="text-[11px] font-medium text-foreground/80 mr-1">{selectedRows.size}</span>
               <Select onValueChange={(v) => { selectedRows.forEach(id => updateMutation.mutate({ id, data: { status: v } })); }}>
-                <SelectTrigger className="h-5 text-[9px] rounded px-1.5 w-16 border-0 bg-background/80"><SelectValue placeholder="Status" /></SelectTrigger>
+                <SelectTrigger className="h-6 text-[10px] rounded-md px-2 w-[72px] border-0 bg-background/60"><SelectValue placeholder="Status" /></SelectTrigger>
                 <SelectContent>
                   {["todo", "in_progress", "done", "review", "backlog"].map(s => (
-                    <SelectItem key={s} value={s} className="text-[10px] capitalize">{s.replace(/[_-]/g, " ")}</SelectItem>
+                    <SelectItem key={s} value={s} className="text-[11px] capitalize">{s.replace(/[_-]/g, " ")}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
               <Select onValueChange={(v) => { selectedRows.forEach(id => updateMutation.mutate({ id, data: { priority: v } })); }}>
-                <SelectTrigger className="h-5 text-[9px] rounded px-1.5 w-16 border-0 bg-background/80"><SelectValue placeholder="Priority" /></SelectTrigger>
+                <SelectTrigger className="h-6 text-[10px] rounded-md px-2 w-[72px] border-0 bg-background/60"><SelectValue placeholder="Priority" /></SelectTrigger>
                 <SelectContent>
                   {["urgent", "high", "medium", "low", "none"].map(p => (
-                    <SelectItem key={p} value={p} className="text-[10px] capitalize">{p}</SelectItem>
+                    <SelectItem key={p} value={p} className="text-[11px] capitalize">{p}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              <Button variant="ghost" size="sm" className="h-5 text-[9px] px-1.5" onClick={duplicateSelected}>
-                <Copy className="h-2.5 w-2.5 mr-0.5" /> Duplicate
+              <div className="w-px h-4 bg-border/40" />
+              <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5 rounded-md" onClick={duplicateSelected}>
+                <Copy className="h-3 w-3 mr-1" strokeWidth={1.5} /> Duplicate
               </Button>
-              <Button variant="ghost" size="sm" className="h-5 text-[9px] px-1.5" onClick={exportCSV}>
-                <Download className="h-2.5 w-2.5 mr-0.5" /> Export
+              <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5 rounded-md" onClick={exportCSV}>
+                <Download className="h-3 w-3 mr-1" strokeWidth={1.5} /> Export
               </Button>
-              <Button variant="ghost" size="sm" className="h-5 text-[9px] px-1.5 text-destructive"
+              <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5 rounded-md text-destructive/70 hover:text-destructive"
                 onClick={() => { selectedRows.forEach(id => deleteMutation.mutate(id)); setSelectedRows(new Set()); }}>
-                <Trash2 className="h-2.5 w-2.5 mr-0.5" /> Delete
+                <Trash2 className="h-3 w-3 mr-1" strokeWidth={1.5} /> Delete
               </Button>
-              <Button variant="ghost" size="sm" className="h-5 w-5 p-0"
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 rounded-md"
                 onClick={() => setSelectedRows(new Set())}>
-                <X className="h-2.5 w-2.5" />
+                <X className="h-3 w-3" strokeWidth={1.5} />
               </Button>
             </div>
           )}
           {/* Search */}
-          <div className="relative w-28">
-            <Search className="absolute left-1.5 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-            <Input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-6 pl-6 text-[10px] rounded-md" />
+          <div className="relative w-[120px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/40" strokeWidth={1.5} />
+            <input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-7 w-full pl-7 pr-2 text-[11px] rounded-md border border-border/40 bg-muted/30 outline-none focus:border-foreground/20 focus:bg-background transition-colors placeholder:text-muted-foreground/30" />
           </div>
           {/* Group */}
           <Select value={groupBy || "none"} onValueChange={(v) => setGroupBy(v === "none" ? null : v)}>
-            <SelectTrigger className="h-6 text-[10px] rounded-md px-1.5 w-16">
-              <LayoutList className="h-3 w-3 mr-0.5" />
+            <SelectTrigger className="h-7 text-[10px] rounded-md px-2 w-[72px] border border-border/40 bg-muted/30">
+              <LayoutList className="h-3 w-3 mr-1" strokeWidth={1.5} />
               <SelectValue placeholder="Group" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="none" className="text-[10px]">No Group</SelectItem>
-              <SelectItem value="status" className="text-[10px]">Status</SelectItem>
-              <SelectItem value="priority" className="text-[10px]">Priority</SelectItem>
-              <SelectItem value="assignee" className="text-[10px]">Assignee</SelectItem>
-              <SelectItem value="project" className="text-[10px]">Project</SelectItem>
-              <SelectItem value="sprint" className="text-[10px]">Sprint</SelectItem>
+              <SelectItem value="none" className="text-[11px]">No Group</SelectItem>
+              <SelectItem value="status" className="text-[11px]">Status</SelectItem>
+              <SelectItem value="priority" className="text-[11px]">Priority</SelectItem>
+              <SelectItem value="assignee" className="text-[11px]">Assignee</SelectItem>
+              <SelectItem value="project" className="text-[11px]">Project</SelectItem>
+              <SelectItem value="sprint" className="text-[11px]">Sprint</SelectItem>
             </SelectContent>
           </Select>
           {/* Multi-sort button */}
           {sortConfig.length > 0 && (
-            <Button variant="ghost" size="sm" className="h-6 text-[9px] px-1.5" onClick={addSortLevel}>
-              +Sort
+            <Button variant="ghost" size="sm" className="h-7 text-[10px] px-1.5 rounded-md" onClick={addSortLevel}>
+              + Sort
             </Button>
           )}
           {/* Filter */}
-          <Button variant="ghost" size="sm" className={cn("h-6 text-[9px] px-1.5", filterRules.length > 0 && "text-primary")}
+          <Button variant="ghost" size="sm" className={cn("h-7 text-[10px] px-1.5 rounded-md", filterRules.length > 0 && "text-foreground")}
             onClick={() => setShowFilter(!showFilter)}>
-            <Filter className={cn("h-2.5 w-2.5 mr-0.5", filterRules.length > 0 && "text-primary")} />
+            <Filter className={cn("h-3 w-3 mr-1", filterRules.length > 0 && "text-foreground")} strokeWidth={1.5} />
             Filter{filterRules.length > 0 && ` (${filterRules.length})`}
           </Button>
           {/* Columns */}
-          <Button variant="ghost" size="sm" className="h-6 text-[9px] px-1.5"
+          <Button variant="ghost" size="sm" className="h-7 text-[10px] px-1.5 rounded-md"
             onClick={() => setShowColumnManager(!showColumnManager)}>
-            <Columns3 className="h-2.5 w-2.5 mr-0.5" /> Columns
+            <Columns3 className="h-3 w-3 mr-1" strokeWidth={1.5} /> Columns
           </Button>
           {/* Export */}
-          <Button variant="ghost" size="sm" className="h-6 text-[9px] px-1.5" onClick={exportCSV}>
-            <Download className="h-2.5 w-2.5 mr-0.5" /> Export
+          <Button variant="ghost" size="sm" className="h-7 text-[10px] px-1.5 rounded-md" onClick={exportCSV}>
+            <Download className="h-3 w-3 mr-1" strokeWidth={1.5} />
           </Button>
           {/* Add task */}
-          <Button size="sm" className="h-6 text-[10px] px-2 gap-1" onClick={createTask}>
-            <Plus className="h-3 w-3" /> New
+          <Button size="sm" className="h-7 text-[11px] px-3 gap-1.5 rounded-md" onClick={createTask}>
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.5} /> New
           </Button>
         </div>
       </div>
 
       {/* ─── Column manager ─── */}
       {showColumnManager && (
-        <div className="border-b bg-muted/5 px-3 py-2 animate-in slide-in-from-top-1 duration-150">
+        <div className="border-b border-border/40 bg-muted/10 px-4 py-2 animate-in slide-in-from-top-1 duration-150">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-[10px] font-medium text-muted-foreground">Columns:</span>
+            <span className="text-[11px] font-medium text-muted-foreground/60">Columns:</span>
             {columns.sort((a, b) => a.order - b.order).map(col => (
-              <label key={col.id} className="flex items-center gap-1.5 text-[10px] cursor-pointer hover:text-foreground px-1.5 py-0.5 rounded-md hover:bg-muted transition-colors">
+              <label key={col.id} className="flex items-center gap-1.5 text-[11px] cursor-pointer hover:text-foreground px-1.5 py-0.5 rounded-md hover:bg-muted/60 transition-colors">
                 <input type="checkbox" checked={col.visible}
                   onChange={() => toggleColumnVisibility(col.id)}
                   className="h-3 w-3 rounded border-muted" />
                 {col.name || (col.type === "title" ? "Task" : col.type === "checkbox" ? "" : col.type)}
                 <button onClick={() => toggleColumnPin(col.id)}
-                  className={cn("text-[9px] px-1 rounded", col.pinned ? "text-primary bg-primary/10" : "text-muted-foreground/40 hover:text-muted-foreground")}>
+                  className={cn("text-[10px] px-1 rounded leading-none", col.pinned ? "text-foreground/60 bg-muted/60" : "text-muted-foreground/30 hover:text-muted-foreground")}>
                   📌
                 </button>
               </label>
@@ -652,26 +653,26 @@ export function TableView({
 
       {/* ─── Filter bar ─── */}
       {showFilter && (
-        <div className="flex flex-col gap-1 px-3 py-2 border-b bg-muted/5 text-[10px] animate-in slide-in-from-top-1 duration-150">
+        <div className="flex flex-col gap-1.5 px-4 py-2 border-b border-border/40 bg-muted/10 text-[11px] animate-in slide-in-from-top-1 duration-150">
           {filterRules.length === 0 && (
             <div className="flex items-center gap-2">
-              <span className="text-muted-foreground">No filters</span>
-              <Button variant="ghost" size="sm" className="h-5 text-[9px] px-1.5" onClick={() => addFilterRule("and")}>+ Add Filter</Button>
+              <span className="text-muted-foreground/60">No filters</span>
+              <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 rounded-md" onClick={() => addFilterRule("and")}>+ Add Filter</Button>
             </div>
           )}
           {filterRules.map((rule, i) => (
             <div key={rule.id} className="flex items-center gap-1.5">
               {i > 0 && (
                 <Select value={rule.logic} onValueChange={(v) => updateFilterRule(rule.id, { logic: v as "and" | "or" })}>
-                  <SelectTrigger className="h-5 text-[9px] rounded w-10"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-6 text-[10px] rounded-md w-12 border border-border/40 bg-background/60"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="and" className="text-[9px]">AND</SelectItem>
-                    <SelectItem value="or" className="text-[9px]">OR</SelectItem>
+                    <SelectItem value="and" className="text-[10px]">AND</SelectItem>
+                    <SelectItem value="or" className="text-[10px]">OR</SelectItem>
                   </SelectContent>
                 </Select>
               )}
               <Select value={rule.column} onValueChange={(v) => updateFilterRule(rule.id, { column: v })}>
-                <SelectTrigger className="h-5 text-[9px] rounded w-24"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-6 text-[10px] rounded-md w-[100px] border border-border/40 bg-background/60"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {visibleColumns.filter(c => c.type !== "checkbox").map(c => (
                     <SelectItem key={c.id} value={c.id} className="text-[10px]">{c.name || c.type}</SelectItem>
@@ -679,29 +680,29 @@ export function TableView({
                 </SelectContent>
               </Select>
               <Select value={rule.operator} onValueChange={(v) => updateFilterRule(rule.id, { operator: v })}>
-                <SelectTrigger className="h-5 text-[9px] rounded w-20"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-6 text-[10px] rounded-md w-[90px] border border-border/40 bg-background/60"><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="equals" className="text-[9px]">Equals</SelectItem>
-                  <SelectItem value="not_equals" className="text-[9px]">Not equals</SelectItem>
-                  <SelectItem value="contains" className="text-[9px]">Contains</SelectItem>
-                  <SelectItem value="not_contains" className="text-[9px]">Not contains</SelectItem>
-                  <SelectItem value="is_empty" className="text-[9px]">Is empty</SelectItem>
-                  <SelectItem value="is_not_empty" className="text-[9px]">Not empty</SelectItem>
-                  <SelectItem value="is_before" className="text-[9px]">Is before</SelectItem>
-                  <SelectItem value="is_after" className="text-[9px]">Is after</SelectItem>
+                  <SelectItem value="equals" className="text-[10px]">Equals</SelectItem>
+                  <SelectItem value="not_equals" className="text-[10px]">Not equals</SelectItem>
+                  <SelectItem value="contains" className="text-[10px]">Contains</SelectItem>
+                  <SelectItem value="not_contains" className="text-[10px]">Not contains</SelectItem>
+                  <SelectItem value="is_empty" className="text-[10px]">Is empty</SelectItem>
+                  <SelectItem value="is_not_empty" className="text-[10px]">Not empty</SelectItem>
+                  <SelectItem value="is_before" className="text-[10px]">Is before</SelectItem>
+                  <SelectItem value="is_after" className="text-[10px]">Is after</SelectItem>
                 </SelectContent>
               </Select>
-              <Input value={rule.value} onChange={(e) => updateFilterRule(rule.id, { value: e.target.value })}
-                placeholder="Value" className="h-5 text-[9px] rounded w-28" />
-              <Button variant="ghost" size="sm" className="h-5 w-5 p-0 text-muted-foreground hover:text-destructive"
+              <input value={rule.value} onChange={(e) => updateFilterRule(rule.id, { value: e.target.value })}
+                placeholder="Value" className="h-6 text-[10px] rounded-md w-[120px] border border-border/40 bg-background/60 px-2 outline-none focus:border-foreground/20 transition-colors placeholder:text-muted-foreground/30" />
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground/60 hover:text-destructive rounded-md"
                 onClick={() => removeFilterRule(rule.id)}>
-                <X className="h-2.5 w-2.5" />
+                <X className="h-3 w-3" strokeWidth={1.5} />
               </Button>
-              <Button variant="ghost" size="sm" className="h-5 text-[9px] px-1.5" onClick={() => addFilterRule("and")}>+</Button>
+              <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5 rounded-md" onClick={() => addFilterRule("and")}>+</Button>
             </div>
           ))}
           {filterRules.length > 0 && (
-            <Button variant="ghost" size="sm" className="h-5 text-[9px] px-1.5 text-muted-foreground w-fit"
+            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 text-muted-foreground/60 w-fit rounded-md"
               onClick={() => setFilterRules([])}>Clear all</Button>
           )}
         </div>
@@ -715,55 +716,55 @@ export function TableView({
       )}
 
       {/* ─── Table header ─── */}
-      <div className={cn("flex border-b border-border/60 bg-muted/30 sticky top-0 z-10 shrink-0", resizingCol.current && "col-resize-active")}>
+      <div className={cn("flex border-b border-border/40 bg-muted/20 sticky top-0 z-10 shrink-0", resizingCol.current && "col-resize-active")}>
         {pinnedCols.map(col => (
           <div key={col.id}
-            className="relative flex items-center gap-1 px-2 py-2 border-r border-border/60 shrink-0 bg-muted/30 sticky left-0 z-10"
+            className={cn("relative flex items-center gap-1.5 shrink-0 bg-muted/20 sticky left-0 z-10", CELL_PADDING, "border-r border-border/40")}
             style={{ width: getColWidth(col), minWidth: getColWidth(col) }}
             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
             {col.type === "checkbox" ? (
-              <span className="text-[10px] font-semibold text-muted-foreground">{col.name || ""}</span>
+              <span className="text-[11px] font-medium text-muted-foreground/40">{col.name || ""}</span>
             ) : col.type === "title" ? (
               <button onClick={() => toggleSort(col.id)}
-                className={cn("text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors",
-                  sortConfig.some(s => s.col === col.id) && "text-foreground")}>
+                className={cn("text-[11px] font-semibold text-muted-foreground/60 flex items-center gap-1 cursor-pointer hover:text-foreground/80 transition-colors",
+                  sortConfig.some(s => s.col === col.id) && "text-foreground/80")}>
                 Task
                 {sortConfig.some(s => s.col === col.id) && (
-                  <ArrowUpDown className={cn("h-2.5 w-2.5 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} />
+                  <ArrowUpDown className={cn("h-3 w-3 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} strokeWidth={1.5} />
                 )}
               </button>
             ) : (
               <button onClick={() => toggleSort(col.id)}
-                className={cn("text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors truncate",
-                  sortConfig.some(s => s.col === col.id) && "text-foreground")}>
+                className={cn("text-[11px] font-semibold text-muted-foreground/60 flex items-center gap-1 cursor-pointer hover:text-foreground/80 transition-colors truncate",
+                  sortConfig.some(s => s.col === col.id) && "text-foreground/80")}>
                 {col.name}
                 {sortConfig.some(s => s.col === col.id) && (
-                  <ArrowUpDown className={cn("h-2.5 w-2.5 shrink-0 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} />
+                  <ArrowUpDown className={cn("h-3 w-3 shrink-0 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} strokeWidth={1.5} />
                 )}
               </button>
             )}
-            <button className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/30 group z-20 opacity-0 hover:opacity-100 transition-opacity"
+            <button className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-foreground/10 group z-20 opacity-0 group-hover/header:opacity-100 transition-opacity"
               onMouseDown={(e) => handleResizeStart(e, col)}>
-              <div className="h-full w-0.5 mx-auto transition-colors group-hover:bg-primary/50" />
+              <div className="h-full w-px mx-auto transition-colors group-hover:bg-foreground/20" />
             </button>
           </div>
         ))}
         {scrollCols.map(col => (
           <div key={col.id}
-            className="relative flex items-center gap-1 px-2 py-2 border-r border-border/60 shrink-0 group/header"
+            className={cn("relative flex items-center gap-1.5 shrink-0 group/header", CELL_PADDING, "border-r border-border/40")}
             style={{ width: getColWidth(col), minWidth: getColWidth(col) }}
             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
             <button onClick={() => toggleSort(col.id)}
-              className={cn("text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors truncate",
-                sortConfig.some(s => s.col === col.id) && "text-foreground")}>
+              className={cn("text-[11px] font-semibold text-muted-foreground/60 flex items-center gap-1 cursor-pointer hover:text-foreground/80 transition-colors truncate",
+                sortConfig.some(s => s.col === col.id) && "text-foreground/80")}>
               {col.name}
               {sortConfig.some(s => s.col === col.id) && (
-                <ArrowUpDown className={cn("h-2.5 w-2.5 shrink-0 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} />
+                <ArrowUpDown className={cn("h-3 w-3 shrink-0 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} strokeWidth={1.5} />
               )}
             </button>
-            <button className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-primary/30 group z-20 opacity-0 group-hover/header:opacity-100 transition-opacity"
+            <button className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-foreground/10 group z-20 opacity-0 group-hover/header:opacity-100 transition-opacity"
               onMouseDown={(e) => handleResizeStart(e, col)}>
-              <div className="h-full w-0.5 mx-auto transition-colors group-hover:bg-primary/50" />
+              <div className="h-full w-px mx-auto transition-colors group-hover:bg-foreground/20" />
             </button>
           </div>
         ))}
@@ -781,7 +782,7 @@ export function TableView({
               if (!isGrouped) return null;
               return (
                 <div key={item.key}
-                  className="flex items-center gap-2 px-3 border-b bg-muted/5 cursor-pointer hover:bg-muted/10 transition-colors"
+                  className="flex items-center gap-2 px-3 border-b border-border/20 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors"
                   style={{ position: "absolute", top: item.offset, left: 0, right: 0, height: item.height }}
                   onClick={() => setCollapsedGroups(prev => {
                     const next = new Set(prev);
@@ -789,10 +790,10 @@ export function TableView({
                     return next;
                   })}>
                   {isCollapsed
-                    ? <ChevronRight className="h-3 w-3 text-muted-foreground" />
-                    : <ChevronDown className="h-3 w-3 text-muted-foreground" />}
-                  <span className="text-[11px] font-semibold capitalize">{group!.key.replace(/[_-]/g, " ")}</span>
-                  <span className="text-[10px] text-muted-foreground">{group!.tasks.length}</span>
+                    ? <ChevronRight className="h-3 w-3 text-muted-foreground/50" strokeWidth={1.5} />
+                    : <ChevronDown className="h-3 w-3 text-muted-foreground/50" strokeWidth={1.5} />}
+                  <span className="text-[11px] font-medium text-muted-foreground/70 capitalize">{group!.key.replace(/[_-]/g, " ")}</span>
+                  <span className="text-[10px] text-muted-foreground/40">{group!.tasks.length}</span>
                 </div>
               );
             }
@@ -806,10 +807,10 @@ export function TableView({
             return (
               <div key={item.key}
                 className={cn(
-                  "flex border-b border-border/40 transition-colors group/row relative",
-                  isSelected && "bg-primary/[0.04]",
-                  isRowActive && "bg-primary/[0.03]",
-                  !isSelected && !isRowActive && "hover:bg-muted/30",
+                  "flex border-b border-border/20 transition-colors group/row relative",
+                  isSelected && "bg-accent/40",
+                  isRowActive && "bg-accent/20",
+                  !isSelected && !isRowActive && "hover:bg-muted/20",
                 )}
                 style={{ position: "absolute", top: item.offset, left: 0, right: 0, height: item.height }}
                 onClick={(e) => {
@@ -831,8 +832,8 @@ export function TableView({
                 }}
                 onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, row: task }); }}>
                 {/* Drag handle */}
-                <div className="flex items-center justify-center w-5 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/10 group-hover/row:text-muted-foreground/40 transition-colors">
-                  <GripVertical className="h-3.5 w-3.5" />
+                <div className="flex items-center justify-center w-5 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/0 group-hover/row:text-muted-foreground/30 transition-colors">
+                  <GripVertical className="h-3.5 w-3.5" strokeWidth={1.5} />
                 </div>
 
                 {/* Progress bar under row */}
@@ -850,14 +851,14 @@ export function TableView({
                   return (
                     <div key={col.id} data-col-idx={colIdx}
                       className={cn(
-                        "px-2 py-1 text-xs border-r border-border/60 shrink-0 bg-card sticky left-0 z-[1] group/cell transition-colors relative",
+                        CELL_PADDING, "text-xs border-r border-border/20 shrink-0 bg-card sticky left-0 z-[1] group/cell transition-colors relative",
                         isEditing && "z-[5]",
-                        isCellActive && "ring-2 ring-primary/60 ring-inset bg-primary/[0.03]",
+                        isCellActive && "ring-2 ring-foreground/15 ring-inset bg-accent/30",
                       )}
                       style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
                       {isEditing ? (
                         getEditorForColumn(col, value,
-                          (v) => saveCell(globalIdx!, col, v),
+                          (v: any) => saveCell(globalIdx!, col, v),
                           () => setEditingCell(null),
                           focusRef
                         )
@@ -885,14 +886,14 @@ export function TableView({
                   return (
                     <div key={col.id} data-col-idx={colIdx}
                       className={cn(
-                        "px-2 py-1 text-xs border-r border-border/60 shrink-0 group/cell transition-colors relative",
+                        CELL_PADDING, "text-xs border-r border-border/20 shrink-0 group/cell transition-colors relative",
                         isEditing && "z-[5]",
-                        isCellActive && "ring-2 ring-primary/60 ring-inset bg-primary/[0.03]",
+                        isCellActive && "ring-2 ring-foreground/15 ring-inset bg-accent/30",
                       )}
                       style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
                       {isEditing ? (
                         getEditorForColumn(col, value,
-                          (v) => saveCell(globalIdx!, col, v),
+                          (v: any) => saveCell(globalIdx!, col, v),
                           () => setEditingCell(null),
                           focusRef
                         )
@@ -906,14 +907,14 @@ export function TableView({
                 })}
 
                 {/* Hover actions */}
-                <div className="flex items-center gap-1 px-2 shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                <div className="flex items-center gap-0.5 px-2 shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity">
                   <button onClick={(e) => { e.stopPropagation(); onSelectTask?.(task); }}
-                    className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted transition-colors">
-                    <ExternalLink className="h-3 w-3" />
+                    className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground/30 hover:text-foreground/60 hover:bg-muted/60 transition-colors">
+                    <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(task.id); }}
-                    className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-colors">
-                    <Trash2 className="h-3 w-3" />
+                    className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground/30 hover:text-destructive/70 hover:bg-destructive/10 transition-colors">
+                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
                   </button>
                 </div>
               </div>
@@ -940,40 +941,40 @@ export function TableView({
       {contextMenu && (
         <>
           <div className="fixed inset-0 z-50" onClick={() => setContextMenu(null)} />
-          <div className="fixed z-50 w-44 rounded-lg border bg-popover shadow-lg p-1 animate-in fade-in-0 zoom-in-95 duration-100"
+          <div className="fixed z-50 w-44 rounded-lg border border-border/40 bg-popover shadow-lg p-1 animate-in fade-in-0 zoom-in-95 duration-100"
             style={{ left: contextMenu.x, top: contextMenu.y }}>
             {contextMenu.col ? (
               <>
-                <button className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-muted text-left transition-colors"
+                <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { toggleSort(contextMenu.col!.id); setContextMenu(null); }}>
-                  <ArrowUpDown className="h-3 w-3" /> Sort Asc
+                  <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={1.5} /> Sort Asc
                 </button>
-                <button className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-muted text-left transition-colors"
+                <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { setSortConfig([{ col: contextMenu.col!.id, dir: "desc" }]); setContextMenu(null); }}>
-                  <ArrowUpDown className="h-3 w-3 rotate-180" /> Sort Desc
+                  <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60 rotate-180" strokeWidth={1.5} /> Sort Desc
                 </button>
-                <div className="h-px bg-border my-1" />
-                <button className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-muted text-left transition-colors"
+                <div className="h-px bg-border/40 my-1" />
+                <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { toggleColumnPin(contextMenu.col!.id); setContextMenu(null); }}>
                   📌 {contextMenu.col.pinned ? "Unpin" : "Pin Left"}
                 </button>
-                <button className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-muted text-left transition-colors"
+                <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { toggleColumnVisibility(contextMenu.col!.id); setContextMenu(null); }}>
-                  <X className="h-3 w-3" /> Hide
+                  <EyeOff className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={1.5} /> Hide
                 </button>
-                <div className="h-px bg-border my-1" />
-                <button className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-muted text-left transition-colors"
+                <div className="h-px bg-border/40 my-1" />
+                <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { setFilterRules(prev => [...prev, { id: generateId(), column: contextMenu.col!.id, operator: "equals", value: "", logic: "and" }]); setShowFilter(true); setContextMenu(null); }}>
-                  <Filter className="h-3 w-3" /> Filter by &ldquo;{contextMenu.col.name}&rdquo;
+                  <Filter className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={1.5} /> Filter by &ldquo;{contextMenu.col.name}&rdquo;
                 </button>
               </>
             ) : contextMenu.row ? (
               <>
-                <button className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-muted text-left transition-colors"
+                <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { onSelectTask?.(contextMenu.row); setContextMenu(null); }}>
-                  <ExternalLink className="h-3 w-3" /> Open Task
+                  <ExternalLink className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={1.5} /> Open Task
                 </button>
-                <button className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-muted text-left transition-colors"
+                <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => {
                     const newStatus = contextMenu.row.status === "done" ? "todo" : "done";
                     setTasks(prev => prev.map(t => t.id === contextMenu.row.id ? { ...t, status: newStatus } : t));
@@ -982,19 +983,19 @@ export function TableView({
                   }}>
                   {contextMenu.row?.status === "done" ? "Mark Incomplete" : "Mark Complete"}
                 </button>
-                <button className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-muted text-left transition-colors"
+                <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { setSelectedRows(new Set([contextMenu.row.id])); duplicateSelected(); setContextMenu(null); }}>
-                  <Copy className="h-3 w-3" /> Duplicate
+                  <Copy className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={1.5} /> Duplicate
                 </button>
-                <div className="h-px bg-border my-1" />
-                <button className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-muted text-left transition-colors"
+                <div className="h-px bg-border/40 my-1" />
+                <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { setSelectedRows(new Set([contextMenu.row.id])); copyToClipboard(); setContextMenu(null); }}>
-                  <Copy className="h-3 w-3" /> Copy Row
+                  <Copy className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={1.5} /> Copy Row
                 </button>
-                <div className="h-px bg-border my-1" />
-                <button className="w-full flex items-center gap-2 px-2 py-1.5 text-xs rounded-md hover:bg-muted text-left transition-colors text-destructive"
+                <div className="h-px bg-border/40 my-1" />
+                <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors text-destructive/70"
                   onClick={() => { deleteMutation.mutate(contextMenu.row.id); setContextMenu(null); }}>
-                  <Trash2 className="h-3 w-3" /> Delete
+                  <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} /> Delete
                 </button>
               </>
             ) : null}

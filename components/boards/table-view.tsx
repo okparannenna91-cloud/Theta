@@ -243,7 +243,7 @@ export default function TableView({
       return getEditorForColumn(
         col,
         value,
-        (v) => handleCellEdit(task.id, col, v),
+        (v: any) => handleCellEdit(task.id, col, v),
         () => setEditingCell(null),
         inputRef
       );
