@@ -776,6 +776,7 @@ export function TableView({
           {visibleItems.map(item => {
             if (item.type === "group") {
               const { group, isCollapsed } = item.data;
+              if (!group) return null;
               const isGrouped = groupBy !== null && group.key !== "all";
               if (!isGrouped) return null;
               return (
