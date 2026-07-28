@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import type { Column, CellPosition, SortConfig, FilterRule, FlatItem } from "./types";
 import {
-  DEFAULT_COLUMNS, ROW_HEIGHT, GROUP_HEADER_HEIGHT, OVERSCAN, MAX_HISTORY,
+  DEFAULT_COLUMNS, ROW_HEIGHT, GROUP_HEADER_HEIGHT, OVERSCAN, MAX_HISTORY, CELL_PADDING,
 } from "./constants";
 import {
   getCellValue, buildCellPayload, serializeToCSV, parseCSVToRows,
@@ -174,7 +174,6 @@ export function TableView({
 
   /* ─── Column widths ─── */
   const getColWidth = useCallback((col: Column) => columnWidths[col.id] || col.width, [columnWidths]);
-const CELL_PADDING = "px-2.5 py-1.5";
 
   /* ─── Processed tasks ─── */
   const processedTasks = useMemo(() => {
@@ -513,9 +512,9 @@ const CELL_PADDING = "px-2.5 py-1.5";
   return (
     <div className="flex flex-col h-full select-none" ref={tableRef} tabIndex={-1} onKeyDown={handleKeyDown}>
       {/* ─── Toolbar ─── */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-border/40 bg-background shrink-0 z-20">
-        <div className="flex items-center gap-3 text-xs text-muted-foreground/60">
-          <span className="font-medium text-foreground/80">{processedTasks.length}</span> tasks
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border/10 bg-background shrink-0 z-20">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground/40">
+          <span className="font-medium text-foreground/60">{processedTasks.length}</span> tasks
           {selectedRows.size > 0 && (
             <span className="font-medium text-foreground ml-1">{selectedRows.size} selected</span>
           )}
@@ -546,7 +545,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
         <div className="flex items-center gap-1.5">
           {/* Bulk action toolbar (floating) */}
           {selectedRows.size > 0 && (
-            <div className="flex items-center gap-1.5 mr-2 px-2.5 py-1 bg-accent/80 rounded-lg border border-border/40">
+            <div className="flex items-center gap-1.5 mr-2 px-2.5 py-1 bg-accent/80 rounded-lg border border-border/10">
               <span className="text-[11px] font-medium text-foreground/80 mr-1">{selectedRows.size}</span>
               <Select onValueChange={(v) => { selectedRows.forEach(id => updateMutation.mutate({ id, data: { status: v } })); }}>
                 <SelectTrigger className="h-6 text-[10px] rounded-md px-2 w-[72px] border-0 bg-background/60"><SelectValue placeholder="Status" /></SelectTrigger>
@@ -564,7 +563,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
                   ))}
                 </SelectContent>
               </Select>
-              <div className="w-px h-4 bg-border/40" />
+              <div className="w-px h-4 bg-border/10" />
               <Button variant="ghost" size="sm" className="h-6 text-[10px] px-1.5 rounded-md" onClick={duplicateSelected}>
                 <Copy className="h-3 w-3 mr-1" strokeWidth={1.5} /> Duplicate
               </Button>
@@ -585,11 +584,11 @@ const CELL_PADDING = "px-2.5 py-1.5";
           <div className="relative w-[120px]">
             <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/40" strokeWidth={1.5} />
             <input placeholder="Search..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-7 w-full pl-7 pr-2 text-[11px] rounded-md border border-border/40 bg-muted/30 outline-none focus:border-foreground/20 focus:bg-background transition-colors placeholder:text-muted-foreground/30" />
+              className="h-7 w-full pl-7 pr-2 text-[11px] rounded-md border border-border/10 bg-muted/20 outline-none focus:border-[#6161ff]/40 focus:bg-background transition-colors placeholder:text-muted-foreground/30" />
           </div>
           {/* Group */}
           <Select value={groupBy || "none"} onValueChange={(v) => setGroupBy(v === "none" ? null : v)}>
-            <SelectTrigger className="h-7 text-[10px] rounded-md px-2 w-[72px] border border-border/40 bg-muted/30">
+            <SelectTrigger className="h-7 text-[10px] rounded-md px-2 w-[72px] border border-border/10 bg-muted/20">
               <LayoutList className="h-3 w-3 mr-1" strokeWidth={1.5} />
               <SelectValue placeholder="Group" />
             </SelectTrigger>
@@ -632,7 +631,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
 
       {/* ─── Column manager ─── */}
       {showColumnManager && (
-        <div className="border-b border-border/40 bg-muted/10 px-4 py-2 animate-in slide-in-from-top-1 duration-150">
+        <div className="border-b border-border/10 bg-muted/10 px-4 py-2 animate-in slide-in-from-top-1 duration-150">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[11px] font-medium text-muted-foreground/60">Columns:</span>
             {columns.sort((a, b) => a.order - b.order).map(col => (
@@ -653,7 +652,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
 
       {/* ─── Filter bar ─── */}
       {showFilter && (
-        <div className="flex flex-col gap-1.5 px-4 py-2 border-b border-border/40 bg-muted/10 text-[11px] animate-in slide-in-from-top-1 duration-150">
+        <div className="flex flex-col gap-1.5 px-4 py-2 border-b border-border/10 bg-muted/10 text-[11px] animate-in slide-in-from-top-1 duration-150">
           {filterRules.length === 0 && (
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground/60">No filters</span>
@@ -664,7 +663,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
             <div key={rule.id} className="flex items-center gap-1.5">
               {i > 0 && (
                 <Select value={rule.logic} onValueChange={(v) => updateFilterRule(rule.id, { logic: v as "and" | "or" })}>
-                  <SelectTrigger className="h-6 text-[10px] rounded-md w-12 border border-border/40 bg-background/60"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="h-6 text-[10px] rounded-md w-12 border border-border/10 bg-background/60"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="and" className="text-[10px]">AND</SelectItem>
                     <SelectItem value="or" className="text-[10px]">OR</SelectItem>
@@ -672,7 +671,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
                 </Select>
               )}
               <Select value={rule.column} onValueChange={(v) => updateFilterRule(rule.id, { column: v })}>
-                <SelectTrigger className="h-6 text-[10px] rounded-md w-[100px] border border-border/40 bg-background/60"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-6 text-[10px] rounded-md w-[100px] border border-border/10 bg-background/60"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {visibleColumns.filter(c => c.type !== "checkbox").map(c => (
                     <SelectItem key={c.id} value={c.id} className="text-[10px]">{c.name || c.type}</SelectItem>
@@ -680,7 +679,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
                 </SelectContent>
               </Select>
               <Select value={rule.operator} onValueChange={(v) => updateFilterRule(rule.id, { operator: v })}>
-                <SelectTrigger className="h-6 text-[10px] rounded-md w-[90px] border border-border/40 bg-background/60"><SelectValue /></SelectTrigger>
+                <SelectTrigger className="h-6 text-[10px] rounded-md w-[90px] border border-border/10 bg-background/60"><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="equals" className="text-[10px]">Equals</SelectItem>
                   <SelectItem value="not_equals" className="text-[10px]">Not equals</SelectItem>
@@ -693,7 +692,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
                 </SelectContent>
               </Select>
               <input value={rule.value} onChange={(e) => updateFilterRule(rule.id, { value: e.target.value })}
-                placeholder="Value" className="h-6 text-[10px] rounded-md w-[120px] border border-border/40 bg-background/60 px-2 outline-none focus:border-foreground/20 transition-colors placeholder:text-muted-foreground/30" />
+                placeholder="Value" className="h-6 text-[10px] rounded-md w-[120px] border border-border/10 bg-background/60 px-2 outline-none focus:border-[#6161ff]/40 transition-colors placeholder:text-muted-foreground/30" />
               <Button variant="ghost" size="sm" className="h-6 w-6 p-0 text-muted-foreground/60 hover:text-destructive rounded-md"
                 onClick={() => removeFilterRule(rule.id)}>
                 <X className="h-3 w-3" strokeWidth={1.5} />
@@ -716,18 +715,18 @@ const CELL_PADDING = "px-2.5 py-1.5";
       )}
 
       {/* ─── Table header ─── */}
-      <div className={cn("flex border-b border-border/40 bg-muted/20 sticky top-0 z-10 shrink-0", resizingCol.current && "col-resize-active")}>
+      <div className={cn("flex border-b border-border/5 bg-muted/[0.03] sticky top-0 z-10 shrink-0", resizingCol.current && "col-resize-active")}>
         {pinnedCols.map(col => (
           <div key={col.id}
-            className={cn("relative flex items-center gap-1.5 shrink-0 bg-muted/20 sticky left-0 z-10", CELL_PADDING, "border-r border-border/40")}
+            className={cn("relative flex items-center gap-1 shrink-0 bg-muted/5 sticky left-0 z-10", CELL_PADDING, "border-r border-border/5")}
             style={{ width: getColWidth(col), minWidth: getColWidth(col) }}
             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
             {col.type === "checkbox" ? (
-              <span className="text-[11px] font-medium text-muted-foreground/40">{col.name || ""}</span>
+              <span className="text-[11px] font-medium text-muted-foreground/25">{col.name || ""}</span>
             ) : col.type === "title" ? (
               <button onClick={() => toggleSort(col.id)}
-                className={cn("text-[11px] font-semibold text-muted-foreground/60 flex items-center gap-1 cursor-pointer hover:text-foreground/80 transition-colors",
-                  sortConfig.some(s => s.col === col.id) && "text-foreground/80")}>
+                className={cn("text-[11px] font-medium text-muted-foreground/50 flex items-center gap-1 cursor-pointer hover:text-foreground/60 transition-colors",
+                  sortConfig.some(s => s.col === col.id) && "text-foreground/60")}>
                 Task
                 {sortConfig.some(s => s.col === col.id) && (
                   <ArrowUpDown className={cn("h-3 w-3 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} strokeWidth={1.5} />
@@ -735,8 +734,8 @@ const CELL_PADDING = "px-2.5 py-1.5";
               </button>
             ) : (
               <button onClick={() => toggleSort(col.id)}
-                className={cn("text-[11px] font-semibold text-muted-foreground/60 flex items-center gap-1 cursor-pointer hover:text-foreground/80 transition-colors truncate",
-                  sortConfig.some(s => s.col === col.id) && "text-foreground/80")}>
+                className={cn("text-[11px] font-medium text-muted-foreground/50 flex items-center gap-1 cursor-pointer hover:text-foreground/60 transition-colors truncate",
+                  sortConfig.some(s => s.col === col.id) && "text-foreground/60")}>
                 {col.name}
                 {sortConfig.some(s => s.col === col.id) && (
                   <ArrowUpDown className={cn("h-3 w-3 shrink-0 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} strokeWidth={1.5} />
@@ -751,7 +750,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
         ))}
         {scrollCols.map(col => (
           <div key={col.id}
-            className={cn("relative flex items-center gap-1.5 shrink-0 group/header", CELL_PADDING, "border-r border-border/40")}
+            className={cn("relative flex items-center gap-1 shrink-0 group/header", CELL_PADDING, "border-r border-border/5")}
             style={{ width: getColWidth(col), minWidth: getColWidth(col) }}
             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
             <button onClick={() => toggleSort(col.id)}
@@ -782,7 +781,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
               if (!isGrouped) return null;
               return (
                 <div key={item.key}
-                  className="flex items-center gap-2 px-3 border-b border-border/20 bg-muted/20 cursor-pointer hover:bg-muted/30 transition-colors"
+                  className="flex items-center gap-2 px-3 border-b border-border/5 bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors"
                   style={{ position: "absolute", top: item.offset, left: 0, right: 0, height: item.height }}
                   onClick={() => setCollapsedGroups(prev => {
                     const next = new Set(prev);
@@ -807,10 +806,10 @@ const CELL_PADDING = "px-2.5 py-1.5";
             return (
               <div key={item.key}
                 className={cn(
-                  "flex border-b border-border/20 transition-colors group/row relative",
-                  isSelected && "bg-accent/40",
-                  isRowActive && "bg-accent/20",
-                  !isSelected && !isRowActive && "hover:bg-muted/20",
+                  "flex border-b border-border/5 transition-colors group/row relative",
+                  isSelected && "bg-[#6161ff]/[0.06]",
+                  isRowActive && "bg-[#6161ff]/[0.03]",
+                  !isSelected && !isRowActive && "hover:bg-[#6161ff]/[0.02]",
                 )}
                 style={{ position: "absolute", top: item.offset, left: 0, right: 0, height: item.height }}
                 onClick={(e) => {
@@ -832,14 +831,14 @@ const CELL_PADDING = "px-2.5 py-1.5";
                 }}
                 onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, row: task }); }}>
                 {/* Drag handle */}
-                <div className="flex items-center justify-center w-5 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/0 group-hover/row:text-muted-foreground/30 transition-colors">
-                  <GripVertical className="h-3.5 w-3.5" strokeWidth={1.5} />
+                <div className="flex items-center justify-center w-4 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/0 group-hover/row:text-muted-foreground/20 transition-colors">
+                  <GripVertical className="h-3 w-3" strokeWidth={1.5} />
                 </div>
 
                 {/* Progress bar under row */}
                 {task.progress > 0 && (
-                  <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-secondary/30 pointer-events-none z-[1]">
-                    <div className="h-full bg-primary/40 transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, task.progress))}%` }} />
+                  <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-border/5 pointer-events-none z-[1]">
+                    <div className="h-full bg-[#6161ff]/30 transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, task.progress))}%` }} />
                   </div>
                 )}
 
@@ -851,9 +850,9 @@ const CELL_PADDING = "px-2.5 py-1.5";
                   return (
                     <div key={col.id} data-col-idx={colIdx}
                       className={cn(
-                        CELL_PADDING, "text-xs border-r border-border/20 shrink-0 bg-card sticky left-0 z-[1] group/cell transition-colors relative",
+                        CELL_PADDING, "text-xs border-r border-border/5 shrink-0 bg-card sticky left-0 z-[1] group/cell transition-colors relative",
                         isEditing && "z-[5]",
-                        isCellActive && "ring-2 ring-foreground/15 ring-inset bg-accent/30",
+                        isCellActive && "ring-[1.5px] ring-[#6161ff]/40 ring-inset bg-[#6161ff]/[0.04]",
                       )}
                       style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
                       {isEditing ? (
@@ -886,9 +885,9 @@ const CELL_PADDING = "px-2.5 py-1.5";
                   return (
                     <div key={col.id} data-col-idx={colIdx}
                       className={cn(
-                        CELL_PADDING, "text-xs border-r border-border/20 shrink-0 group/cell transition-colors relative",
+                        CELL_PADDING, "text-xs border-r border-border/5 shrink-0 group/cell transition-colors relative",
                         isEditing && "z-[5]",
-                        isCellActive && "ring-2 ring-foreground/15 ring-inset bg-accent/30",
+                        isCellActive && "ring-[1.5px] ring-[#6161ff]/40 ring-inset bg-[#6161ff]/[0.04]",
                       )}
                       style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
                       {isEditing ? (
@@ -906,15 +905,15 @@ const CELL_PADDING = "px-2.5 py-1.5";
                   );
                 })}
 
-                {/* Hover actions */}
+{/* Hover actions */}
                 <div className="flex items-center gap-0.5 px-2 shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity">
                   <button onClick={(e) => { e.stopPropagation(); onSelectTask?.(task); }}
-                    className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground/30 hover:text-foreground/60 hover:bg-muted/60 transition-colors">
-                    <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground/20 hover:text-foreground/50 hover:bg-muted/50 transition-colors">
+                    <ExternalLink className="h-3 w-3" strokeWidth={1.5} />
                   </button>
                   <button onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(task.id); }}
-                    className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground/30 hover:text-destructive/70 hover:bg-destructive/10 transition-colors">
-                    <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />
+                    className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground/20 hover:text-destructive/60 hover:bg-destructive/10 transition-colors">
+                    <Trash2 className="h-3 w-3" strokeWidth={1.5} />
                   </button>
                 </div>
               </div>
@@ -941,7 +940,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
       {contextMenu && (
         <>
           <div className="fixed inset-0 z-50" onClick={() => setContextMenu(null)} />
-          <div className="fixed z-50 w-44 rounded-lg border border-border/40 bg-popover shadow-lg p-1 animate-in fade-in-0 zoom-in-95 duration-100"
+          <div className="fixed z-50 w-44 rounded-lg border border-border/10 bg-popover shadow-lg p-1 animate-in fade-in-0 zoom-in-95 duration-100"
             style={{ left: contextMenu.x, top: contextMenu.y }}>
             {contextMenu.col ? (
               <>
@@ -953,7 +952,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
                   onClick={() => { setSortConfig([{ col: contextMenu.col!.id, dir: "desc" }]); setContextMenu(null); }}>
                   <ArrowUpDown className="h-3.5 w-3.5 text-muted-foreground/60 rotate-180" strokeWidth={1.5} /> Sort Desc
                 </button>
-                <div className="h-px bg-border/40 my-1" />
+                <div className="h-px bg-border/10 my-1" />
                 <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { toggleColumnPin(contextMenu.col!.id); setContextMenu(null); }}>
                   📌 {contextMenu.col.pinned ? "Unpin" : "Pin Left"}
@@ -962,7 +961,7 @@ const CELL_PADDING = "px-2.5 py-1.5";
                   onClick={() => { toggleColumnVisibility(contextMenu.col!.id); setContextMenu(null); }}>
                   <EyeOff className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={1.5} /> Hide
                 </button>
-                <div className="h-px bg-border/40 my-1" />
+                <div className="h-px bg-border/10 my-1" />
                 <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { setFilterRules(prev => [...prev, { id: generateId(), column: contextMenu.col!.id, operator: "equals", value: "", logic: "and" }]); setShowFilter(true); setContextMenu(null); }}>
                   <Filter className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={1.5} /> Filter by &ldquo;{contextMenu.col.name}&rdquo;
@@ -987,12 +986,12 @@ const CELL_PADDING = "px-2.5 py-1.5";
                   onClick={() => { setSelectedRows(new Set([contextMenu.row.id])); duplicateSelected(); setContextMenu(null); }}>
                   <Copy className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={1.5} /> Duplicate
                 </button>
-                <div className="h-px bg-border/40 my-1" />
+                <div className="h-px bg-border/10 my-1" />
                 <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { setSelectedRows(new Set([contextMenu.row.id])); copyToClipboard(); setContextMenu(null); }}>
                   <Copy className="h-3.5 w-3.5 text-muted-foreground/60" strokeWidth={1.5} /> Copy Row
                 </button>
-                <div className="h-px bg-border/40 my-1" />
+                <div className="h-px bg-border/10 my-1" />
                 <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors text-destructive/70"
                   onClick={() => { deleteMutation.mutate(contextMenu.row.id); setContextMenu(null); }}>
                   <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} /> Delete

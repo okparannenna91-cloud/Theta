@@ -1,9 +1,10 @@
 import type { Column } from "./types";
 
-export const ROW_HEIGHT = 36;
-export const GROUP_HEADER_HEIGHT = 30;
+export const ROW_HEIGHT = 34;
+export const GROUP_HEADER_HEIGHT = 28;
 export const OVERSCAN = 10;
 export const MAX_HISTORY = 50;
+export const CELL_PADDING = "px-3 py-1";
 
 export const STATUS_COLORS: Record<string, string> = {
   todo: "#94a3b8",
