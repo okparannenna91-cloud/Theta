@@ -1,26 +1,27 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import Image from "next/image";
-
 import { cn } from "@/lib/utils";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   GripVertical, ChevronDown, ChevronRight, Plus, Trash2,
   Settings, ArrowUpDown, Pin, EyeOff, Copy, Archive,
   MessageSquare, Paperclip, Clock, Link2, ListChecks,
-  AlertTriangle, User, CalendarDays, Hash, FileText,
-  CheckCircle2, XCircle, Flag, Tag, Star, Edit3
+  User, CalendarDays, Flag, Tag, Star, ExternalLink,
 } from "lucide-react";
-import { ColumnValue, type ColumnDef, type ColumnType } from "./column-types";
+import type { Column } from "@/components/table/types";
+import { DEFAULT_COLUMNS } from "@/components/table/constants";
+import { getCellValue, buildCellPayload, getStatusColor, getPriorityMeta } from "@/components/table/cell-utils";
+import { getEditorForColumn } from "@/components/table/cell-editors";
+import { CellDisplay } from "@/components/table/cell-display";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 
 interface TableViewProps {
@@ -33,25 +34,93 @@ interface TableViewProps {
   projectId?: string | null;
 }
 
+function mapBoardColumnToTableColumn(col: any): Column {
+  const typeMap: Record<string, Column["type"]> = {
+    text: "text",
+    number: "number",
+    date: "date",
+    status: "status",
+    priority: "priority",
+    people: "assignee",
+    tags: "tags",
+    checkbox: "checkbox",
+    progress: "progress",
+    colorPicker: "color",
+    dropdown: "text",
+    timeline: "date",
+    email: "text",
+    phone: "text",
+    link: "text",
+    location: "text",
+    country: "text",
+    rating: "number",
+    vote: "number",
+    timeTracking: "number",
+    autoNumber: "number",
+    formula: "number",
+    button: "text",
+    week: "date",
+    aiSummary: "text",
+    aiText: "text",
+    aiSentiment: "text",
+    aiLabel: "labels",
+    aiExtraction: "text",
+    aiPrioritization: "priority",
+    aiWriting: "text",
+    aiTranslation: "text",
+    combo: "text",
+    connectBoard: "text",
+    mirror: "text",
+    dependencies: "text",
+    files: "text",
+    worldClock: "text",
+    milestone: "milestone",
+    sprint: "sprint",
+  };
+  return {
+    id: col.id,
+    name: col.name,
+    type: typeMap[col.columnType] || "text",
+    width: col.width || 200,
+    visible: col.visible !== false,
+    pinned: col.pinned || false,
+    order: col.order || 0,
+    options: col.settings?.options,
+    color: col.color,
+  };
+}
+
 export default function TableView({
-  boardId,
-  tasks,
-  columns,
-  groups,
-  onSelectTask,
-  workspaceId,
-  projectId
+  boardId, tasks, columns: boardColumns, groups,
+  onSelectTask, workspaceId, projectId,
 }: TableViewProps) {
   const [sortColumn, setSortColumn] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [editingCell, setEditingCell] = useState<{ taskId: string; columnId: string } | null>(null);
-  const [editValue, setEditValue] = useState("");
   const [columnSettings, setColumnSettings] = useState<any>(null);
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const inputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
+
+  const columns: Column[] = useMemo(() => boardColumns.map(mapBoardColumnToTableColumn), [boardColumns]);
+  const tableColumns = useMemo(() => {
+    const hasCheckbox = columns.some(c => c.id === "__checkbox");
+    const titleCol = columns.find(c => c.type === "text" && c.order === 0);
+    const base = hasCheckbox ? columns : [
+      { id: "__checkbox", name: "", type: "checkbox" as const, width: 36, visible: true, pinned: true, order: -1 },
+      ...columns,
+    ];
+    return base.map(c => ({
+      ...c,
+      pinned: c.pinned || c.id === "__checkbox" || (titleCol ? c.id === titleCol.id : false),
+    }));
+  }, [columns]);
+
+  const visibleColumns = tableColumns.filter(c => c.visible);
+  const pinnedColumns = visibleColumns.filter(c => c.pinned);
+  const scrollColumns = visibleColumns.filter(c => !c.pinned);
 
   useEffect(() => {
     if (editingCell && inputRef.current) {
@@ -59,21 +128,24 @@ export default function TableView({
     }
   }, [editingCell]);
 
-  const sortedTasks = [...tasks].sort((a, b) => {
-    if (!sortColumn) return 0;
-    const aVal = a[sortColumn] ?? a.fieldValues?.[sortColumn] ?? "";
-    const bVal = b[sortColumn] ?? b.fieldValues?.[sortColumn] ?? "";
-    if (sortColumn === "dueDate" || sortColumn === "createdAt" || sortColumn === "startDate") {
-      const aNum = aVal ? new Date(aVal).getTime() : 0;
-      const bNum = bVal ? new Date(bVal).getTime() : 0;
-      return sortDirection === "asc" ? aNum - bNum : bNum - aNum;
-    }
-    if (typeof aVal === "number" && typeof bVal === "number") {
-      return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
-    }
-    const cmp = String(aVal).localeCompare(String(bVal));
-    return sortDirection === "asc" ? cmp : -cmp;
-  });
+  const sortedTasks = useMemo(() => {
+    return [...tasks].sort((a, b) => {
+      if (!sortColumn) return 0;
+      const col = columns.find(c => c.id === sortColumn);
+      const aVal = col ? getCellValue(a, col) : (a[sortColumn] ?? a.fieldValues?.[sortColumn] ?? "");
+      const bVal = col ? getCellValue(b, col) : (b[sortColumn] ?? b.fieldValues?.[sortColumn] ?? "");
+      if (sortColumn === "dueDate" || sortColumn === "createdAt" || sortColumn === "startDate") {
+        const aNum = aVal ? new Date(aVal).getTime() : 0;
+        const bNum = bVal ? new Date(bVal).getTime() : 0;
+        return sortDirection === "asc" ? aNum - bNum : bNum - aNum;
+      }
+      if (typeof aVal === "number" && typeof bVal === "number") {
+        return sortDirection === "asc" ? aVal - bVal : bVal - aVal;
+      }
+      const cmp = String(aVal).localeCompare(String(bVal));
+      return sortDirection === "asc" ? cmp : -cmp;
+    });
+  }, [tasks, sortColumn, sortDirection, columns]);
 
   const toggleSort = (col: string) => {
     if (sortColumn === col) {
@@ -87,8 +159,7 @@ export default function TableView({
   const toggleRow = (id: string) => {
     setExpandedRows(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
@@ -96,8 +167,7 @@ export default function TableView({
   const toggleSelect = (id: string) => {
     setSelectedRows(prev => {
       const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+      if (next.has(id)) next.delete(id); else next.add(id);
       return next;
     });
   };
@@ -127,251 +197,55 @@ export default function TableView({
       return res.json();
     },
     onSuccess: () => {
-      invalidateTaskCaches({ queryClient, workspaceId, projectId })
+      invalidateTaskCaches({ queryClient, workspaceId, projectId });
       toast.success("Cell updated");
     },
     onError: () => toast.error("Failed to update cell"),
   });
 
-  const handleCellEdit = (taskId: string, column: any, value: string) => {
-    const field = column.columnType === "text" ? "title" :
-      column.columnType === "number" ? "estimatedHours" :
-      column.columnType === "date" ? "dueDate" :
-      column.columnType === "status" ? "status" :
-      column.columnType === "priority" ? "priority" : null;
-
+  const handleCellEdit = (taskId: string, col: Column, value: string) => {
     const task = tasks.find(t => t.id === taskId);
-    const existingFieldValues = task?.fieldValues || {};
-
-    if (field && field !== column.id) {
-      updateFieldMutation.mutate({ taskId, field, value, existingFieldValues, columnId: column.id });
-    } else {
-      updateFieldMutation.mutate({ taskId, field: null, value, existingFieldValues, columnId: column.id });
+    if (!task || !col) return;
+    const payload = buildCellPayload(task, col, value);
+    const existingFieldValues = task.fieldValues || {};
+    const body: any = { ...payload };
+    if (!payload.title && !payload.status && !payload.priority && !payload.assigneeIds && !payload.projectId) {
+      body.fieldValues = { ...existingFieldValues, [col.id]: value };
+    } else if (col.type === "project" || col.type === "labels" || col.type === "sprint" || col.type === "milestone" || col.type === "tags") {
+      body.fieldValues = { ...existingFieldValues, [col.id]: value };
     }
+    updateFieldMutation.mutate({ taskId, field: null, value, existingFieldValues, columnId: col.id });
     setEditingCell(null);
   };
 
-  const columnDefs: ColumnDef[] = columns.map((c: any) => ({
-    id: c.id,
-    name: c.name,
-    columnType: (c.columnType || "text") as ColumnType,
-    order: c.order,
-    width: c.width || 200,
-    visible: c.visible !== false,
-    pinned: c.pinned || false,
-    color: c.color,
-    settings: c.settings,
-  }));
-
-  const visibleColumns = columnDefs.filter(c => c.visible);
-  const pinnedColumns = visibleColumns.filter(c => c.pinned);
-  const scrollColumns = visibleColumns.filter(c => !c.pinned);
-
-  const subtasksMap = new Map<string, any[]>();
-  sortedTasks.forEach(t => {
-    if (t.parentId) {
-      if (!subtasksMap.has(t.parentId)) subtasksMap.set(t.parentId, []);
-      subtasksMap.get(t.parentId)!.push(t);
-    }
-  });
+  const subtasksMap = useMemo(() => {
+    const map = new Map<string, any[]>();
+    sortedTasks.forEach(t => {
+      if (t.parentId) {
+        if (!map.has(t.parentId)) map.set(t.parentId, []);
+        map.get(t.parentId)!.push(t);
+      }
+    });
+    return map;
+  }, [sortedTasks]);
   const rootTasks = sortedTasks.filter(t => !t.parentId);
 
-  const renderCell = (task: any, col: ColumnDef) => {
-    const field = col.columnType === "text" ? "title" :
-      col.columnType === "number" ? "estimatedHours" :
-      col.columnType === "date" ? "dueDate" :
-      col.columnType === "status" ? "status" :
-      col.columnType === "priority" ? "priority" : "";
-    const value = task[field] ?? task.fieldValues?.[col.id];
+  const getColumnValue = (task: any, col: Column): any => {
+    return getCellValue(task, col);
+  };
 
+  const renderCell = (task: any, col: Column) => {
+    const value = getColumnValue(task, col);
     const isEditing = editingCell?.taskId === task.id && editingCell?.columnId === col.id;
-
-    const editableTypes = new Set(["text", "number", "date", "email", "phone", "link", "location", "country"]);
+    const editableTypes = new Set<Column["type"]>(["text", "number", "date", "status", "priority", "labels", "assignee", "color", "progress", "boolean", "sprint", "milestone", "tags"]);
 
     if (isEditing) {
-      if (col.columnType === "date") {
-        return (
-          <Input
-            ref={inputRef}
-            type="date"
-            value={editValue ? editValue.split("T")[0] : ""}
-            onChange={(e) => setEditValue(e.target.value)}
-            onBlur={() => handleCellEdit(task.id, col, editValue)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleCellEdit(task.id, col, editValue);
-              if (e.key === "Escape") setEditingCell(null);
-            }}
-            className="h-7 text-xs border-primary focus-visible:ring-0 rounded"
-          />
-        );
-      }
-
-      if (col.columnType === "status") {
-        return (
-          <Select
-            value={editValue || "todo"}
-            onValueChange={(v) => {
-              handleCellEdit(task.id, col, v);
-            }}
-            open={true}
-            onOpenChange={(open) => { if (!open) setEditingCell(null); }}
-          >
-            <SelectTrigger className="h-7 text-xs rounded">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todo" className="text-xs">Todo</SelectItem>
-              <SelectItem value="in_progress" className="text-xs">In Progress</SelectItem>
-              <SelectItem value="done" className="text-xs">Done</SelectItem>
-            </SelectContent>
-          </Select>
-        );
-      }
-
-      if (col.columnType === "priority") {
-        return (
-          <Select
-            value={editValue || "medium"}
-            onValueChange={(v) => {
-              handleCellEdit(task.id, col, v);
-            }}
-            open={true}
-            onOpenChange={(open) => { if (!open) setEditingCell(null); }}
-          >
-            <SelectTrigger className="h-7 text-xs rounded">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="none" className="text-xs">None</SelectItem>
-              <SelectItem value="low" className="text-xs">Low</SelectItem>
-              <SelectItem value="medium" className="text-xs">Medium</SelectItem>
-              <SelectItem value="high" className="text-xs">High</SelectItem>
-              <SelectItem value="urgent" className="text-xs">Urgent</SelectItem>
-            </SelectContent>
-          </Select>
-        );
-      }
-
-      if (col.columnType === "dropdown" && col.settings?.options) {
-        return (
-          <Select
-            value={editValue || ""}
-            onValueChange={(v) => {
-              handleCellEdit(task.id, col, v);
-            }}
-            open={true}
-            onOpenChange={(open) => { if (!open) setEditingCell(null); }}
-          >
-            <SelectTrigger className="h-7 text-xs rounded">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(col.settings.options as string[]).map((opt) => (
-                <SelectItem key={opt} value={opt} className="text-xs">{opt}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        );
-      }
-
-      return (
-        <Input
-          ref={inputRef}
-          type={col.columnType === "number" ? "number" : "text"}
-          value={editValue}
-          onChange={(e) => setEditValue(e.target.value)}
-          onBlur={() => handleCellEdit(task.id, col, editValue)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") handleCellEdit(task.id, col, editValue);
-            if (e.key === "Escape") setEditingCell(null);
-          }}
-          className="h-7 text-xs border-primary focus-visible:ring-0 rounded"
-        />
-      );
-    }
-
-    if (col.columnType === "checkbox") {
-      return (
-        <div className="min-h-[28px] flex items-center">
-          <button
-            onClick={() => handleCellEdit(task.id, col, value ? "" : "true")}
-            className="focus:outline-none"
-          >
-            {value ? (
-              <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-            ) : (
-              <XCircle className="h-4 w-4 text-slate-300 dark:text-slate-600" />
-            )}
-          </button>
-        </div>
-      );
-    }
-
-    if (col.columnType === "rating") {
-      return (
-        <div className="min-h-[28px] flex items-center gap-0.5">
-          {[1, 2, 3, 4, 5].map((star) => (
-            <button
-              key={star}
-              onClick={() => handleCellEdit(task.id, col, String(star === value ? 0 : star))}
-              className="focus:outline-none"
-            >
-              <Star className={cn(
-                "h-3 w-3",
-                star <= (value || 0) ? "text-amber-400 fill-amber-400" : "text-slate-300 dark:text-slate-600"
-              )} />
-            </button>
-          ))}
-        </div>
-      );
-    }
-
-    if (col.columnType === "vote") {
-      return (
-        <div className="min-h-[28px] flex items-center gap-1">
-          <button
-            onClick={() => handleCellEdit(task.id, col, String(Math.max(0, (value || 0) - 1)))}
-            className="text-slate-400 hover:text-red-500 focus:outline-none text-xs font-bold px-1"
-          >
-            −
-          </button>
-          <span className="text-xs font-bold min-w-[20px] text-center">{value || 0}</span>
-          <button
-            onClick={() => handleCellEdit(task.id, col, String((value || 0) + 1))}
-            className="text-slate-400 hover:text-emerald-500 focus:outline-none text-xs font-bold px-1"
-          >
-            +
-          </button>
-        </div>
-      );
-    }
-
-    if (col.columnType === "text" && col.order === 0) {
-      return (
-        <div className="flex items-center gap-2 min-w-0">
-          <button onClick={() => toggleRow(task.id)} className="flex-shrink-0 text-slate-400 hover:text-slate-600">
-            {subtasksMap.has(task.id) ? (
-              expandedRows.has(task.id) ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />
-            ) : <div className="w-3" />}
-          </button>
-          <GripVertical className="h-3 w-3 text-slate-300 flex-shrink-0 cursor-grab" />
-          {task.coverImage && (
-            <div className="h-6 w-6 rounded flex-shrink-0 overflow-hidden relative">
-              <Image src={task.coverImage} alt="" fill className="object-cover" />
-            </div>
-          )}
-          <span
-            className="text-xs font-medium truncate cursor-pointer hover:text-primary transition-colors"
-            onDoubleClick={() => {
-              setEditingCell({ taskId: task.id, columnId: col.id });
-              setEditValue(task.title);
-            }}
-            onClick={() => onSelectTask?.(task)}
-          >
-            {task.title}
-          </span>
-          {task.isMilestone && <Flag className="h-3 w-3 text-amber-500 flex-shrink-0" />}
-        </div>
+      return getEditorForColumn(
+        col,
+        value,
+        (v) => handleCellEdit(task.id, col, v),
+        () => setEditingCell(null),
+        inputRef
       );
     }
 
@@ -379,17 +253,21 @@ export default function TableView({
       <div
         className="min-h-[28px] flex items-center cursor-default"
         onDoubleClick={() => {
-          if (editableTypes.has(col.columnType)) {
+          if (editableTypes.has(col.type)) {
             setEditingCell({ taskId: task.id, columnId: col.id });
-            setEditValue(value ?? "");
-          }
-          if (col.columnType === "status" || col.columnType === "priority" || col.columnType === "dropdown") {
-            setEditingCell({ taskId: task.id, columnId: col.id });
-            setEditValue(value ?? "");
           }
         }}
       >
-        <ColumnValue column={col} value={value} task={task} />
+        <CellDisplay
+          col={col}
+          value={value}
+          row={task}
+          onClick={() => {
+            if (col.type === "checkbox") {
+              handleCellEdit(task.id, col, value ? "" : "true");
+            }
+          }}
+        />
       </div>
     );
   };
@@ -403,17 +281,17 @@ export default function TableView({
       <div key={task.id}>
         <div
           className={cn(
-            "flex border-b border-slate-100 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group relative",
-            isSelected && "bg-muted/50 dark:bg-primary/10",
+            "flex border-b border-border/50 hover:bg-muted/20 transition-colors group relative",
+            isSelected && "bg-primary/[0.03]",
             task.priority === "high" && "border-l-2 border-l-red-400",
             task.priority === "medium" && "border-l-2 border-l-amber-400",
-            depth > 0 && "bg-slate-50/30 dark:bg-slate-900/20"
+            depth > 0 && "bg-muted/10"
           )}
           style={{ paddingLeft: `${depth * 24}px` }}
         >
           {task.progress > 0 && (
-            <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-secondary/50 pointer-events-none">
-              <div className="h-full bg-primary/60 transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, task.progress))}%` }} />
+            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-secondary/40 pointer-events-none">
+              <div className="h-full bg-primary/50 transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, task.progress))}%` }} />
             </div>
           )}
           <div className="flex items-center gap-1 px-2 w-10 flex-shrink-0">
@@ -421,10 +299,10 @@ export default function TableView({
               type="checkbox"
               checked={isSelected}
               onChange={() => toggleSelect(task.id)}
-              className="h-3 w-3 rounded border-slate-300"
+              className="h-3 w-3 rounded border-muted"
             />
-            {task.subtasks?.length > 0 && (
-              <button onClick={() => toggleRow(task.id)} className="text-slate-400">
+            {subtasks.length > 0 && (
+              <button onClick={() => toggleRow(task.id)} className="text-muted-foreground hover:text-foreground transition-colors">
                 {isExpanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
               </button>
             )}
@@ -433,7 +311,7 @@ export default function TableView({
           {pinnedColumns.map(col => (
             <div
               key={col.id}
-              className="px-3 py-2 text-xs truncate flex-shrink-0 border-r border-slate-100 dark:border-slate-800/50 bg-white dark:bg-slate-950 sticky left-0 z-10"
+              className="px-3 py-2 text-xs truncate flex-shrink-0 border-r border-border/50 bg-card sticky left-0 z-10"
               style={{ width: col.width || 200, minWidth: col.width || 200 }}
             >
               {renderCell(task, col)}
@@ -452,13 +330,13 @@ export default function TableView({
 
           <div className="flex items-center gap-1 px-2 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
             {task._count?.comments > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
+              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                 <MessageSquare className="h-3 w-3" />{task._count.comments}
               </span>
             )}
-            {task.attachments && <Paperclip className="h-3 w-3 text-slate-400" />}
+            {task.attachments && <Paperclip className="h-3 w-3 text-muted-foreground" />}
             {task.subtasks?.length > 0 && (
-              <span className="flex items-center gap-0.5 text-[10px] text-slate-400">
+              <span className="flex items-center gap-0.5 text-[10px] text-muted-foreground">
                 <ListChecks className="h-3 w-3" />
                 {task.subtasks.filter((s: any) => s.completed).length}/{task.subtasks.length}
               </span>
@@ -473,19 +351,19 @@ export default function TableView({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between px-4 py-2 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <Hash className="h-3 w-3" />
+      <div className="flex items-center justify-between px-4 py-2 border-b border-border bg-background">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <ListChecks className="h-3 w-3" />
           <span className="font-medium">{tasks.length} items</span>
           {selectedRows.size > 0 && (
-            <Badge variant="secondary" className="text-[10px] px-2 py-0">
+            <Badge variant="secondary" className="text-[10px] px-2 py-0 rounded-md">
               {selectedRows.size} selected
             </Badge>
           )}
         </div>
         <div className="flex items-center gap-2">
           <Button
-            variant="ghost" size="sm" className="h-7 text-[10px] font-bold gap-1"
+            variant="ghost" size="sm" className="h-7 text-[10px] gap-1 rounded-md"
             onClick={() => {
               fetch("/api/tasks", {
                 method: "POST",
@@ -494,7 +372,7 @@ export default function TableView({
                   title: "New item",
                   workspaceId,
                   boardId,
-                  columnId: columns[0]?.id,
+                  columnId: boardColumns[0]?.id,
                   priority: "medium",
                   status: "todo",
                 }),
@@ -504,8 +382,8 @@ export default function TableView({
             <Plus className="h-3 w-3" /> Add Item
           </Button>
           <Button
-            variant="ghost" size="sm" className="h-7 text-[10px] font-bold gap-1"
-            onClick={() => setColumnSettings(columns[0])}
+            variant="ghost" size="sm" className="h-7 text-[10px] gap-1 rounded-md"
+            onClick={() => setColumnSettings(boardColumns[0])}
           >
             <Settings className="h-3 w-3" /> Columns
           </Button>
@@ -514,20 +392,20 @@ export default function TableView({
 
       <div className="flex-1 overflow-auto">
         <div className="min-w-full inline-block">
-          <div className="flex border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-900/80 sticky top-0 z-20">
+          <div className="flex border-b border-border bg-muted/20 sticky top-0 z-20">
             <div className="w-10 flex-shrink-0" />
 
             {pinnedColumns.map(col => (
               <div
                 key={col.id}
-                className="px-3 py-2 text-[10px] font-bold text-slate-500 flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200 border-r border-slate-100 dark:border-slate-800/50 bg-slate-50/80 dark:bg-slate-900/80 sticky left-0 z-20"
+                className="px-3 py-2 text-[10px] font-semibold text-muted-foreground flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors border-r border-border/50 bg-muted/20 sticky left-0 z-20"
                 style={{ width: col.width || 200, minWidth: col.width || 200 }}
                 onClick={() => toggleSort(col.id)}
               >
-                <Pin className="h-2.5 w-2.5" />
-                {col.name}
+                {col.pinned && <Pin className="h-2.5 w-2.5" />}
+                {col.name || (col.type === "checkbox" ? "" : col.type)}
                 {sortColumn === col.id && (
-                  <ArrowUpDown className={cn("h-3 w-3", sortDirection === "desc" && "rotate-180")} />
+                  <ArrowUpDown className={cn("h-3 w-3 transition-transform", sortDirection === "desc" && "rotate-180")} />
                 )}
               </div>
             ))}
@@ -535,13 +413,13 @@ export default function TableView({
             {scrollColumns.map(col => (
               <div
                 key={col.id}
-                className="px-3 py-2 text-[10px] font-bold text-slate-500 flex items-center gap-1 cursor-pointer hover:text-slate-800 dark:hover:text-slate-200"
+                className="px-3 py-2 text-[10px] font-semibold text-muted-foreground flex items-center gap-1 cursor-pointer hover:text-foreground transition-colors"
                 style={{ width: col.width || 200, minWidth: col.width || 200 }}
                 onClick={() => toggleSort(col.id)}
               >
-                {col.name}
+                {col.name || col.type}
                 {sortColumn === col.id && (
-                  <ArrowUpDown className={cn("h-3 w-3", sortDirection === "desc" && "rotate-180")} />
+                  <ArrowUpDown className={cn("h-3 w-3 transition-transform", sortDirection === "desc" && "rotate-180")} />
                 )}
               </div>
             ))}
@@ -549,10 +427,10 @@ export default function TableView({
             <div className="flex-1 min-w-[60px]" />
           </div>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800/30">
+          <div className="divide-y divide-border/30">
             {rootTasks.length === 0 ? (
-              <div className="py-20 flex flex-col items-center justify-center text-slate-400">
-                <ListChecks className="h-12 w-12 mb-4 opacity-30" />
+              <div className="py-20 flex flex-col items-center justify-center text-muted-foreground">
+                <ListChecks className="h-12 w-12 mb-4 opacity-20" />
                 <p className="text-sm font-medium">This table is empty</p>
                 <p className="text-xs mt-1">Click &ldquo;Add Item&rdquo; to create your first row</p>
               </div>
@@ -570,7 +448,7 @@ export default function TableView({
           </DialogHeader>
           <div className="space-y-4">
             <div>
-              <label className="text-xs font-bold text-slate-500">Width</label>
+              <label className="text-xs font-semibold text-muted-foreground">Width</label>
               <Input
                 type="number"
                 defaultValue={columnSettings?.width || 200}
@@ -588,7 +466,7 @@ export default function TableView({
             </div>
             <div className="flex items-center gap-4">
               <Button
-                variant="outline" size="sm" className="text-xs gap-2"
+                variant="outline" size="sm" className="text-xs gap-2 rounded-md"
                 onClick={() => {
                   const col = columnSettings;
                   if (!col) return;
@@ -602,7 +480,7 @@ export default function TableView({
                 <EyeOff className="h-3 w-3" /> Hide
               </Button>
               <Button
-                variant="outline" size="sm" className="text-xs gap-2"
+                variant="outline" size="sm" className="text-xs gap-2 rounded-md"
                 onClick={() => {
                   const col = columnSettings;
                   if (!col) return;
@@ -616,7 +494,7 @@ export default function TableView({
                 <Pin className="h-3 w-3" /> Pin
               </Button>
               <Button
-                variant="outline" size="sm" className="text-xs gap-2 text-red-500"
+                variant="outline" size="sm" className="text-xs gap-2 rounded-md text-destructive"
                 onClick={() => {
                   const col = columnSettings;
                   if (!col) return;
