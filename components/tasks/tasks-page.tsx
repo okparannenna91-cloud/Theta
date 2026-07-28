@@ -15,7 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2, CalendarDays, User, GripVertical, ChevronRight, ChevronDown, ListChecks } from "lucide-react";
+import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2, CalendarDays, User, GripVertical, ChevronRight, ChevronDown, ListChecks, ExternalLink } from "lucide-react";
 import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -392,6 +392,39 @@ function TableRow({ task, statuses, onSelect, onUpdate, onDelete, workspaceId }:
 
   const isDone = task.status === "done";
 
+  const isEditingTitle = editingField === "title";
+  const commonTitleCell = (
+    <td className="p-2.5">
+      {isEditingTitle ? (
+        <input ref={inputRef} type="text" value={editValue}
+          onChange={(e) => setEditValue(e.target.value)}
+          onBlur={() => { if (editValue.trim()) onUpdate({ title: editValue }); setEditingField(null); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && editValue.trim()) { onUpdate({ title: editValue }); setEditingField(null); } if (e.key === "Escape") setEditingField(null); }}
+          className="h-7 text-sm font-medium bg-transparent border-b border-primary outline-none w-full" />
+      ) : (
+        <div className="flex items-center gap-2">
+          {task.subtasks?.length > 0 && (
+            <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="shrink-0 text-muted-foreground hover:text-foreground">
+              {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            </button>
+          )}
+          <span className={cn("text-sm font-medium cursor-pointer hover:text-primary transition-colors", isDone && "line-through text-muted-foreground")}
+            onClick={() => { setEditingField("title"); setEditValue(task.title); }}>
+            {task.title}
+          </span>
+          <button onClick={(e) => { e.stopPropagation(); onSelect(); }}
+            className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground/30 hover:text-muted-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-all shrink-0"
+            title="Open task details">
+            <ExternalLink className="h-3 w-3" />
+          </button>
+        </div>
+      )}
+      {!isEditingTitle && task.description && (
+        <p className="text-xs text-muted-foreground/60 mt-0.5 truncate max-w-xs">{task.description}</p>
+      )}
+    </td>
+  );
+
   if (editingField === "status") {
     return (
       <tr className="border-b border-subtle bg-muted/20">
@@ -401,11 +434,7 @@ function TableRow({ task, statuses, onSelect, onUpdate, onDelete, workspaceId }:
             {isDone ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
           </button>
         </td>
-        <td className="p-2.5">
-          <span className={cn("text-sm font-medium cursor-pointer hover:text-primary", isDone && "line-through text-muted-foreground")} onClick={onSelect}>
-            {task.title}
-          </span>
-        </td>
+        {commonTitleCell}
         <td className="p-2.5" colSpan={5}>
           <div className="flex items-center gap-1.5 flex-wrap">
             {statuses.map((s: any) => (
@@ -434,11 +463,7 @@ function TableRow({ task, statuses, onSelect, onUpdate, onDelete, workspaceId }:
             {isDone ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
           </button>
         </td>
-        <td className="p-2.5">
-          <span className={cn("text-sm font-medium cursor-pointer hover:text-primary", isDone && "line-through text-muted-foreground")} onClick={onSelect}>
-            {task.title}
-          </span>
-        </td>
+        {commonTitleCell}
         <td className="p-2.5">
           <span className="flex items-center gap-1.5 text-xs" onClick={() => setEditingField("status")}>
             {statusDot(task.status)}
@@ -473,11 +498,7 @@ function TableRow({ task, statuses, onSelect, onUpdate, onDelete, workspaceId }:
             {isDone ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
           </button>
         </td>
-        <td className="p-2.5">
-          <span className={cn("text-sm font-medium cursor-pointer hover:text-primary", isDone && "line-through text-muted-foreground")} onClick={onSelect}>
-            {task.title}
-          </span>
-        </td>
+        {commonTitleCell}
         <td className="p-2.5">
           <span className="flex items-center gap-1.5 text-xs cursor-pointer hover:text-primary" onClick={() => setEditingField("status")}>
             {statusDot(task.status)}
@@ -519,22 +540,7 @@ function TableRow({ task, statuses, onSelect, onUpdate, onDelete, workspaceId }:
             {isDone ? <CheckCircle2 className="h-4 w-4 text-emerald-500" /> : <Circle className="h-4 w-4 text-muted-foreground" />}
           </button>
         </td>
-        <td className="p-2.5">
-          <div className="flex items-center gap-2">
-            {task.subtasks?.length > 0 && (
-              <button onClick={(e) => { e.stopPropagation(); setExpanded(!expanded); }} className="shrink-0 text-muted-foreground hover:text-foreground">
-                {expanded ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
-              </button>
-            )}
-            <span className={cn("text-sm font-medium cursor-pointer hover:text-primary transition-colors", isDone && "line-through text-muted-foreground")}
-              onClick={onSelect}>
-              {task.title}
-            </span>
-          </div>
-          {task.description && (
-            <p className="text-xs text-muted-foreground/60 mt-0.5 truncate max-w-xs">{task.description}</p>
-          )}
-        </td>
+        {commonTitleCell}
         <td className="p-2.5">
           <span className="inline-flex items-center gap-1.5 text-xs cursor-pointer hover:bg-muted rounded-md px-1.5 py-1 -ml-1.5 transition-colors"
             onClick={() => setEditingField("status")}>
