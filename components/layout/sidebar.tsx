@@ -118,11 +118,11 @@ export const Sidebar = memo(function Sidebar() {
   const projectSubNav = currentProjectId ? [
     { label: "Overview", href: `/projects/${currentProjectId}/overview` },
     { label: "Tasks", href: `/projects/${currentProjectId}/tasks` },
-    { label: "Table", href: `/projects/${currentProjectId}/table` },
+    // { label: "Table", href: `/projects/${currentProjectId}/table` }, // V2
     { label: "Kanban", href: `/projects/${currentProjectId}/kanban` },
     { label: "Timeline", href: `/projects/${currentProjectId}/timeline` },
     { label: "Gantt", href: `/projects/${currentProjectId}/gantt` },
-    { label: "Calendar", href: `/projects/${currentProjectId}/calendar` },
+    // { label: "Calendar", href: `/projects/${currentProjectId}/calendar` }, // V2
     { label: "Team", href: `/projects/${currentProjectId}/team` },
     { label: "Automations", href: `/projects/${currentProjectId}/automations` },
     { label: "Reports", href: `/projects/${currentProjectId}/reports` },
