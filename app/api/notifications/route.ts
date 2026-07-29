@@ -71,6 +71,10 @@ export async function GET(req: Request) {
                 where.type = { in: ["daily_summary", "weekly_summary"] };
                 where.archived = false;
                 break;
+            case "replies":
+                where.type = { in: ["comment_reply", "comment"] };
+                where.archived = false;
+                break;
             case "reminders":
                 where.type = "reminder";
                 where.archived = false;

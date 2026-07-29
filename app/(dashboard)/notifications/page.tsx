@@ -1,10 +1,5 @@
-import NotificationsDashboard from "@/components/notifications/notifications-dashboard";
-
-export const metadata = {
-    title: "Notifications | Theta",
-    description: "View and manage your workspace notifications.",
-};
+import { redirect } from "next/navigation";
 
 export default function NotificationsPage() {
-    return <NotificationsDashboard />;
+  redirect("/inbox");
 }

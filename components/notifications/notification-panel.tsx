@@ -95,7 +95,7 @@ export function NotificationPanel({ workspaceId, onClose }: NotificationPanelPro
 
             <div className="p-3 border-t text-center">
                 <Button asChild variant="ghost" size="sm" className="w-full text-xs text-muted-foreground hover:text-primary">
-                    <Link href="/notifications" onClick={onClose}>
+                    <Link href="/inbox" onClick={onClose}>
                         View all notifications
                         <ChevronRight className="h-3 w-3 ml-1" />
                     </Link>

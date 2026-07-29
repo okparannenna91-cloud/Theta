@@ -17,8 +17,7 @@ import {
    ChevronDown,
    Check,
    Plus,
-   MessageSquare,
-   Bot,
+    Bot,
    CreditCard,
  } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
@@ -216,7 +215,7 @@ export const Sidebar = memo(function Sidebar() {
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={isActive("/dashboard")} onClick={closeMobile} />
           <NavItem href="/my-tasks" icon={CheckSquare} label="My Tasks" active={isActive("/my-tasks")} onClick={closeMobile} />
-          <NavItem href="/notifications" icon={Bell} label="Notifications" active={isActive("/notifications")} onClick={closeMobile} />
+          <NavItem href="/inbox" icon={Bell} label="Inbox" active={isActive("/inbox")} onClick={closeMobile} />
 
           <NavItem href="/projects" icon={LayoutList} label="Projects" active={isActive("/projects")} onClick={closeMobile} />
 
@@ -246,7 +245,7 @@ export const Sidebar = memo(function Sidebar() {
           )}
 
           <NavItem href="/portfolio" icon={FolderKanban} label="Portfolio" active={isActive("/portfolio")} onClick={closeMobile} />
-          <NavItem href="/chat" icon={MessageSquare} label="Chat" active={isActive("/chat")} onClick={closeMobile} />
+
           <NavItem href="/teams" icon={Users} label="Teams" active={isActive("/teams")} onClick={closeMobile} />
           <NavItem href="/billing" icon={CreditCard} label="Billing" active={isActive("/billing")} onClick={closeMobile} />
          </nav>

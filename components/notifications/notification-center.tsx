@@ -187,7 +187,7 @@ export function NotificationCenter({ workspaceId, userId }: NotificationCenterPr
 
                 <div className="p-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/30 dark:bg-slate-950/20 text-center">
                     <Button asChild variant="ghost" size="sm" className="w-full text-[10px] font-semibold text-muted-foreground hover:text-primary">
-                        <Link href="/notifications">View all notifications</Link>
+                        <Link href="/inbox">View all notifications</Link>
                     </Button>
                 </div>
             </PopoverContent>
