@@ -27,6 +27,7 @@ const createPrismaClient = () => {
     "maxPoolSize=50",
     "retryWrites=true",
     "socketTimeoutMS=30000",
+    "w=majority",
   ];
   const finalUrl = sanitizedUrl.includes("?")
     ? `${sanitizedUrl}&${params.join("&")}`

@@ -78,9 +78,6 @@ export async function GET(req: Request) {
             },
             take: TAKE + 1,
             orderBy: { createdAt: "desc" },
-            include: {
-                replyTo: { select: { id: true, content: true, userId: true } }
-            }
         });
 
         console.log("[Chat API] Raw messages count", { count: messagesRaw.length, hasMore: messagesRaw.length > TAKE });
@@ -93,20 +90,34 @@ export async function GET(req: Request) {
         const pageMessages = hasMore ? messagesRaw.slice(0, TAKE) : messagesRaw;
         pageMessages.reverse();
 
+        const replyToIds = pageMessages.map(m => m.replyToId).filter(Boolean) as string[];
+        const replyToMessages = replyToIds.length > 0
+            ? await prisma.chatMessage.findMany({
+                where: { id: { in: replyToIds } },
+                select: { id: true, content: true, userId: true }
+              })
+            : [];
+        const replyToMap = new Map(replyToMessages.map(r => [r.id, r]));
+
         const uniqueUserIds = [...new Set(pageMessages.map(m => m.userId))] as string[];
+        const allReplyToUserIds = [...new Set(replyToMessages.map(r => r.userId))] as string[];
+        const allUserIds = [...new Set([...uniqueUserIds, ...allReplyToUserIds])];
         const users = await prisma.user.findMany({
-            where: { id: { in: uniqueUserIds } },
+            where: { id: { in: allUserIds } },
             select: { id: true, name: true, imageUrl: true }
         });
 
-        const messages = pageMessages.map(m => ({
-            ...m,
-            user: users.find(u => u.id === m.userId) || null,
-            replyTo: m.replyTo ? {
-                ...m.replyTo,
-                user: users.find(u => u.id === m.replyTo?.userId) || null
-            } : null,
-        }));
+        const messages = pageMessages.map(m => {
+            const replyTo = m.replyToId ? replyToMap.get(m.replyToId) : null;
+            return {
+                ...m,
+                user: users.find(u => u.id === m.userId) || null,
+                replyTo: replyTo ? {
+                    ...replyTo,
+                    user: users.find(u => u.id === replyTo.userId) || null
+                } : null,
+            };
+        });
 
         const { getPlanLimits } = await import("@/lib/plan-limits");
         const workspace = await prisma.workspace.findUnique({
@@ -194,9 +205,6 @@ export async function POST(req: Request) {
                 attachment: data.attachment,
                 replyToId: data.replyToId ?? null,
             },
-            include: {
-                replyTo: { select: { id: true, content: true, userId: true } }
-            }
         });
 
         console.log("[Chat POST] Created message", { id: messageRaw.id, workspaceId: messageRaw.workspaceId, teamId: messageRaw.teamId, userId: messageRaw.userId, content: messageRaw.content?.slice(0, 30) });
@@ -211,15 +219,25 @@ export async function POST(req: Request) {
         });
         console.log("[Chat POST] Count without teamId filter", { count: countNoTeam });
 
-        const replyToUser = messageRaw.replyTo ? await prisma.user.findUnique({
-            where: { id: messageRaw.replyTo.userId },
-            select: { id: true, name: true, imageUrl: true }
-        }) : null;
+        let replyToData = null;
+        let replyToUser = null;
+        if (data.replyToId) {
+            replyToData = await prisma.chatMessage.findUnique({
+                where: { id: data.replyToId },
+                select: { id: true, content: true, userId: true }
+            });
+            if (replyToData) {
+                replyToUser = await prisma.user.findUnique({
+                    where: { id: replyToData.userId },
+                    select: { id: true, name: true, imageUrl: true }
+                });
+            }
+        }
 
         const message = {
             ...messageRaw,
             user: { id: user.id, name: user.name || "User", imageUrl: user.imageUrl },
-            replyTo: messageRaw.replyTo ? { ...messageRaw.replyTo, user: replyToUser } : null,
+            replyTo: replyToData ? { ...replyToData, user: replyToUser } : null,
         };
 
         const channelName = data.teamId 

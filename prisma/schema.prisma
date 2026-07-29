@@ -65,7 +65,6 @@ model Workspace {
   agents        NovaAgent[]
   agentActions  AgentAction[]
   activities    Activity[]
-  chatMessages  ChatMessage[]
   invites       Invite[]
   integrations  Integration[]
   calendarEvents CalendarEvent[]
@@ -296,7 +295,6 @@ model User {
   teams         TeamMember[]
   notifications Notification[]
   activities    Activity[]
-  chatMessages  ChatMessage[]
   calendarEvents CalendarEvent[]
   comments      Comment[]
   timeLogs      TimeLog[]
@@ -335,7 +333,6 @@ model Project {
   members      ProjectMember[]
   teamMembers  TeamMember[]
   projectTeams ProjectTeam[]
-  chatMessages ChatMessage[]
   documents    Document[]
   activities   Activity[]
   calendarEvents CalendarEvent[]
@@ -674,7 +671,6 @@ model Team {
   members   TeamMember[]
   projects  Project[]
   projectTeams ProjectTeam[]
-  chatMessages ChatMessage[]
   calendarEvents CalendarEvent[]
   invites   Invite[]
 
@@ -820,10 +816,10 @@ model CalendarEvent {
 model ChatMessage {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   content     String
-  workspaceId String   @db.ObjectId
-  projectId   String?  @db.ObjectId
-  teamId      String?  @db.ObjectId
-  userId      String   @db.ObjectId
+  workspaceId String
+  projectId   String?
+  teamId      String?
+  userId      String
   attachment  Json?    @db.Json
   reactions   Json?    @db.Json
   
@@ -831,17 +827,10 @@ model ChatMessage {
   isEdited    Boolean  @default(false)
   deletedAt   DateTime?
   
-  replyToId   String?  @db.ObjectId
-  replyTo     ChatMessage? @relation("ChatReplies", fields: [replyToId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  replies     ChatMessage[] @relation("ChatReplies")
+  replyToId   String?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  team      Team?     @relation(fields: [teamId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([workspaceId])
   @@index([projectId])
