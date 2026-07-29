@@ -195,19 +195,35 @@ export async function POST(req: Request) {
 
         console.log("[Chat POST] Creating message", { workspaceId: data.workspaceId, teamId: data.teamId, content: data.content?.slice(0, 30) });
 
-        const messageRaw = await prisma.chatMessage.create({
-            data: {
+        const now = new Date();
+        const insertCmd = {
+            insert: "chat_messages",
+            documents: [{
                 content: data.content,
                 workspaceId: data.workspaceId,
                 projectId: data.projectId ?? null,
                 teamId: data.teamId ?? null,
                 userId: user.id,
-                attachment: data.attachment,
+                attachment: data.attachment ?? null,
+                reactions: null,
+                isPinned: false,
+                isEdited: false,
+                deletedAt: null,
                 replyToId: data.replyToId ?? null,
-            },
-        });
+                createdAt: now,
+                updatedAt: now,
+            }],
+        };
+        console.log("[Chat POST] Raw insert cmd", JSON.stringify(insertCmd).slice(0, 500));
+        const insertResult: any = await prisma.$runCommandRaw(insertCmd);
+        console.log("[Chat POST] Raw insert result", JSON.stringify(insertResult));
 
-        console.log("[Chat POST] Created message", { id: messageRaw.id, workspaceId: messageRaw.workspaceId, teamId: messageRaw.teamId, userId: messageRaw.userId, content: messageRaw.content?.slice(0, 30) });
+        const insertedId = insertResult?.insertedIds?.[0] || insertResult?.insertedId;
+        if (!insertedId) {
+            throw new Error("Raw insert did not return an insertedId");
+        }
+        const insertedIdStr = typeof insertedId === 'object' && insertedId.$oid ? insertedId.$oid : String(insertedId);
+        console.log("[Chat POST] Inserted _id", { insertedIdStr, raw: JSON.stringify(insertedId) });
 
         const verifyCount = await prisma.chatMessage.count({
             where: { workspaceId: data.workspaceId, teamId: data.teamId ?? undefined, deletedAt: null }
@@ -218,6 +234,30 @@ export async function POST(req: Request) {
             where: { workspaceId: data.workspaceId, deletedAt: null }
         });
         console.log("[Chat POST] Count without teamId filter", { count: countNoTeam });
+
+        const rawFind = await prisma.$runCommandRaw({
+            find: "chat_messages",
+            filter: { workspaceId: data.workspaceId, teamId: data.teamId },
+            limit: 5,
+        });
+        console.log("[Chat POST] Raw find after insert", JSON.stringify((rawFind as any)?.cursor?.firstBatch?.map((d: any) => ({ _id: d._id, wid: d.workspaceId, teamId: d.teamId }))));
+
+        const messageRaw = {
+            id: insertedIdStr,
+            content: data.content,
+            workspaceId: data.workspaceId,
+            projectId: data.projectId ?? null,
+            teamId: data.teamId ?? null,
+            userId: user.id,
+            attachment: data.attachment ?? null,
+            reactions: null,
+            isPinned: false,
+            isEdited: false,
+            deletedAt: null,
+            replyToId: data.replyToId ?? null,
+            createdAt: now,
+            updatedAt: now,
+        };
 
         let replyToData = null;
         let replyToUser = null;
