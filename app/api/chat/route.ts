@@ -24,8 +24,8 @@ const chatSchema = z.object({
 
 export const dynamic = "force-dynamic";
 
-function docToMessage(doc: any) {
-    if (!doc) return null;
+function docToMessage(doc: any): Record<string, any> {
+    if (!doc) return null as any;
     return {
         id: doc._id,
         content: doc.content,
@@ -143,9 +143,9 @@ export async function GET(req: Request) {
         const page = hasMore ? docs.slice(0, TAKE) : docs;
         page.reverse();
 
-        const messages = page.map(docToMessage);
+        const messages: Record<string, any>[] = page.map(docToMessage);
 
-        const replyToIds = messages.map(m => m.replyToId).filter(Boolean) as string[];
+        const replyToIds = messages.map((m: Record<string, any>) => m.replyToId).filter(Boolean) as string[];
         let replyToMap = new Map<string, any>();
         if (replyToIds.length > 0) {
             const replyDocs = await rawFind({ _id: { $in: replyToIds } });
@@ -154,7 +154,7 @@ export async function GET(req: Request) {
             }
         }
 
-        const allUserIds = [...new Set([...messages.map(m => m.userId), ...replyToIds.map(id => replyToMap.get(id)?.userId).filter(Boolean)])] as string[];
+        const allUserIds = [...new Set([...messages.map((m: Record<string, any>) => m.userId), ...replyToIds.map(id => replyToMap.get(id)?.userId).filter(Boolean)])] as string[];
         const users = allUserIds.length > 0
             ? await prisma.user.findMany({
                 where: { id: { in: allUserIds } },
@@ -162,7 +162,7 @@ export async function GET(req: Request) {
               })
             : [];
 
-        const enrichedMessages = messages.map(m => ({
+        const enrichedMessages: any[] = messages.map((m: Record<string, any>) => ({
             ...m,
             user: users.find(u => u.id === m.userId) || null,
             replyTo: m.replyToId && replyToMap.has(m.replyToId) ? {
@@ -361,7 +361,7 @@ export async function PATCH(req: Request) {
             { $set: { isPinned: newPinned, updatedAt: Date.now() } }
         );
 
-        const updated = { ...docToMessage(msg), isPinned: newPinned };
+        const updated: any = { ...docToMessage(msg), isPinned: newPinned };
 
         const channelName = updated.teamId
             ? `team:${updated.teamId}:chat`
