@@ -49,7 +49,7 @@ export async function GET(req: Request) {
                 select: { teamId: true },
             });
             for (const tm of teamMemberships) {
-                capabilities[`team:${tm.teamId}:chat`] = ["subscribe", "publish", "history"];
+                capabilities[`team:${tm.teamId}:chat`] = ["subscribe", "publish", "history", "presence"];
             }
         } else if (teamId) {
             const teamLookup = await prisma.team.findUnique({ where: { id: teamId }, select: { workspaceId: true } });
@@ -65,7 +65,7 @@ export async function GET(req: Request) {
                 if (!teamMember) {
                     return NextResponse.json({ error: "Not a team member" }, { status: 403 });
                 }
-                capabilities[`team:${teamId}:chat`] = ["subscribe", "publish", "history"];
+                capabilities[`team:${teamId}:chat`] = ["subscribe", "publish", "history", "presence"];
                 capabilities[`workspace:${wsId}`] = ["subscribe", "history"];
                 capabilities[`workspace:${wsId}:chat`] = ["subscribe", "publish", "history"];
                 capabilities[`workspace:${wsId}:board:*`] = ["subscribe", "history", "presence"];

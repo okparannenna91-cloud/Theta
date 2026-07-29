@@ -180,7 +180,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
       if (uid !== user?.id) setReadReceipts(prev => ({ ...prev, [uid]: timestamp }));
     });
 
-    channel.presence.enter({ id: user?.id, name: user?.fullName || user?.firstName || "User", imageUrl: user?.imageUrl });
+    channel.presence.enter({ id: user?.id, name: user?.fullName || user?.firstName || "User", imageUrl: user?.imageUrl }).catch(() => {});
     channel.presence.subscribe(['enter', 'leave', 'update'], () => {
       channel.presence.get().then((members: any) => { if (members) setOnlineUsers(members.map((m: any) => m.data)); }).catch(() => {});
     });
