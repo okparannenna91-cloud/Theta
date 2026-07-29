@@ -5,6 +5,7 @@ import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds, requireProjectAccess } from "@/lib/project-permissions";
 import { publishToChannel, getChatChannel } from "@/lib/ably";
 import { z } from "zod";
+import crypto from "crypto";
 
 const idSchema = z.string().min(1, "ID is required");
 
@@ -22,6 +23,59 @@ const chatSchema = z.object({
 });
 
 export const dynamic = "force-dynamic";
+
+function docToMessage(doc: any) {
+    if (!doc) return null;
+    return {
+        id: doc._id,
+        content: doc.content,
+        workspaceId: doc.workspaceId,
+        projectId: doc.projectId ?? null,
+        teamId: doc.teamId ?? null,
+        userId: doc.userId,
+        attachment: doc.attachment ?? null,
+        reactions: doc.reactions ?? null,
+        isPinned: doc.isPinned ?? false,
+        isEdited: doc.isEdited ?? false,
+        deletedAt: doc.deletedAt ? new Date(doc.deletedAt) : null,
+        replyToId: doc.replyToId ?? null,
+        createdAt: new Date(doc.createdAt),
+        updatedAt: new Date(doc.updatedAt),
+    };
+}
+
+async function rawFind(filter: Record<string, any>, sort: Record<string, number> = { createdAt: -1 }, limit = 51) {
+    const cmd: Record<string, any> = {
+        find: "chat_messages",
+        filter,
+        sort,
+        limit,
+    };
+    const result = await prisma.$runCommandRaw(cmd);
+    const batch = (result as any)?.cursor?.firstBatch ?? [];
+    return batch;
+}
+
+async function rawCount(filter: Record<string, any>) {
+    const result = await prisma.$runCommandRaw({ count: "chat_messages", query: filter });
+    return (result as any).n ?? 0;
+}
+
+async function rawInsert(doc: Record<string, any>) {
+    const result = await prisma.$runCommandRaw({
+        insert: "chat_messages",
+        documents: [doc],
+    });
+    return result as any;
+}
+
+async function rawUpdateOne(filter: Record<string, any>, update: Record<string, any>) {
+    const result = await prisma.$runCommandRaw({
+        update: "chat_messages",
+        updates: [{ q: filter, u: update }],
+    });
+    return result as any;
+}
 
 export async function GET(req: Request) {
     try {
@@ -50,101 +104,72 @@ export async function GET(req: Request) {
 
         const accessibleProjectIds = teamId ? [] : await getAccessibleProjectIds(user.id, effectiveWorkspaceId);
 
-        console.log("[Chat API] GET params", { workspaceId, teamId, cursor, effectiveWorkspaceId });
-
         const TAKE = 50;
 
-        const totalCount = await prisma.chatMessage.count({
-            where: {
-                workspaceId: effectiveWorkspaceId,
-                ...(teamId ? { teamId } : {}),
-                deletedAt: null,
+        const countFilter: Record<string, any> = {
+            workspaceId: effectiveWorkspaceId,
+            deletedAt: null,
+        };
+        if (teamId) {
+            countFilter.teamId = teamId;
+        }
+        const totalCount = await rawCount(countFilter);
+        console.log("[Chat API] Total count", { totalCount, effectiveWorkspaceId, teamId });
+
+        const findFilter: Record<string, any> = {
+            workspaceId: effectiveWorkspaceId,
+            deletedAt: null,
+        };
+        if (teamId) {
+            findFilter.teamId = teamId;
+        } else if (accessibleProjectIds.length > 0) {
+            findFilter.$or = [
+                { projectId: { $exists: false } },
+                { projectId: null },
+                { projectId: { $in: accessibleProjectIds } },
+            ];
+        } else {
+            findFilter.$or = [
+                { projectId: { $exists: false } },
+                { projectId: null },
+            ];
+        }
+        if (cursor) {
+            findFilter.createdAt = { $lt: new Date(cursor).getTime() };
+        }
+
+        const docs = await rawFind(findFilter, { createdAt: -1 }, TAKE + 1);
+        const hasMore = docs.length > TAKE;
+        const page = hasMore ? docs.slice(0, TAKE) : docs;
+        page.reverse();
+
+        const messages = page.map(docToMessage);
+
+        const replyToIds = messages.map(m => m.replyToId).filter(Boolean) as string[];
+        let replyToMap = new Map<string, any>();
+        if (replyToIds.length > 0) {
+            const replyDocs = await rawFind({ _id: { $in: replyToIds } });
+            for (const rd of replyDocs) {
+                replyToMap.set(rd._id, { id: rd._id, content: rd.content, userId: rd.userId });
             }
-        });
-        console.log("[Chat API] Total count for workspaceId+teamId", { totalCount, effectiveWorkspaceId, teamId });
-
-        let messagesRaw: any[];
-        try {
-            messagesRaw = await prisma.chatMessage.findMany({
-                where: {
-                    workspaceId: effectiveWorkspaceId,
-                    ...(teamId ? { teamId } : {}),
-                    ...(teamId ? {} : {
-                        OR: [
-                            { projectId: null },
-                            { projectId: { in: accessibleProjectIds } }
-                        ]
-                    }),
-                    deletedAt: null,
-                    ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
-                },
-                take: TAKE + 1,
-                orderBy: { createdAt: "desc" },
-            });
-        } catch {
-            console.log("[Chat API] findMany failed, cleaning up corrupted docs and retrying");
-            try {
-                await prisma.$runCommandRaw({
-                    delete: "chat_messages",
-                    deletes: [{ q: { createdAt: { $type: "string" } }, limit: 0 }],
-                });
-            } catch {}
-            messagesRaw = await prisma.chatMessage.findMany({
-                where: {
-                    workspaceId: effectiveWorkspaceId,
-                    ...(teamId ? { teamId } : {}),
-                    ...(teamId ? {} : {
-                        OR: [
-                            { projectId: null },
-                            { projectId: { in: accessibleProjectIds } }
-                        ]
-                    }),
-                    deletedAt: null,
-                    ...(cursor ? { createdAt: { lt: new Date(cursor) } } : {}),
-                },
-                take: TAKE + 1,
-                orderBy: { createdAt: "desc" },
-            });
         }
 
-        console.log("[Chat API] Raw messages count", { count: messagesRaw.length, hasMore: messagesRaw.length > TAKE });
-
-        if (messagesRaw.length > 0) {
-            console.log("[Chat API] First message details", { id: messagesRaw[0].id, workspaceId: messagesRaw[0].workspaceId, teamId: messagesRaw[0].teamId, createdAt: messagesRaw[0].createdAt });
-        }
-
-        const hasMore = messagesRaw.length > TAKE;
-        const pageMessages = hasMore ? messagesRaw.slice(0, TAKE) : messagesRaw;
-        pageMessages.reverse();
-
-        const replyToIds = pageMessages.map(m => m.replyToId).filter(Boolean) as string[];
-        const replyToMessages = replyToIds.length > 0
-            ? await prisma.chatMessage.findMany({
-                where: { id: { in: replyToIds } },
-                select: { id: true, content: true, userId: true }
+        const allUserIds = [...new Set([...messages.map(m => m.userId), ...replyToIds.map(id => replyToMap.get(id)?.userId).filter(Boolean)])] as string[];
+        const users = allUserIds.length > 0
+            ? await prisma.user.findMany({
+                where: { id: { in: allUserIds } },
+                select: { id: true, name: true, imageUrl: true }
               })
             : [];
-        const replyToMap = new Map(replyToMessages.map(r => [r.id, r]));
 
-        const uniqueUserIds = [...new Set(pageMessages.map(m => m.userId))] as string[];
-        const allReplyToUserIds = [...new Set(replyToMessages.map(r => r.userId))] as string[];
-        const allUserIds = [...new Set([...uniqueUserIds, ...allReplyToUserIds])];
-        const users = await prisma.user.findMany({
-            where: { id: { in: allUserIds } },
-            select: { id: true, name: true, imageUrl: true }
-        });
-
-        const messages = pageMessages.map(m => {
-            const replyTo = m.replyToId ? replyToMap.get(m.replyToId) : null;
-            return {
-                ...m,
-                user: users.find(u => u.id === m.userId) || null,
-                replyTo: replyTo ? {
-                    ...replyTo,
-                    user: users.find(u => u.id === replyTo.userId) || null
-                } : null,
-            };
-        });
+        const enrichedMessages = messages.map(m => ({
+            ...m,
+            user: users.find(u => u.id === m.userId) || null,
+            replyTo: m.replyToId && replyToMap.has(m.replyToId) ? {
+                ...replyToMap.get(m.replyToId),
+                user: users.find(u => u.id === replyToMap.get(m.replyToId)?.userId) || null,
+            } : null,
+        }));
 
         const { getPlanLimits } = await import("@/lib/plan-limits");
         const workspace = await prisma.workspace.findUnique({
@@ -163,13 +188,13 @@ export async function GET(req: Request) {
         }
 
         return NextResponse.json({
-            messages,
-            nextCursor: messages.length > 0 ? messages[0].createdAt : null,
+            messages: enrichedMessages,
+            nextCursor: enrichedMessages.length > 0 ? enrichedMessages[enrichedMessages.length - 1].createdAt : null,
             hasMore,
             lastReadAt,
             limits: {
                 max: limits.maxChatMessages,
-                current: messages.length,
+                current: enrichedMessages.length,
             }
         });
     } catch (error) {
@@ -220,43 +245,47 @@ export async function POST(req: Request) {
           }
         }
 
-        console.log("[Chat POST] Creating message", { workspaceId: data.workspaceId, teamId: data.teamId, content: data.content?.slice(0, 30) });
+        const now = Date.now();
+        const messageId = crypto.randomUUID();
 
-        const now = new Date();
-        const messageRaw = await prisma.chatMessage.create({
-            data: {
-                content: data.content,
-                workspaceId: data.workspaceId,
-                projectId: data.projectId ?? null,
-                teamId: data.teamId ?? null,
-                userId: user.id,
-                attachment: data.attachment,
-                replyToId: data.replyToId ?? null,
-                createdAt: now,
-                updatedAt: now,
-            },
+        const doc = {
+            _id: messageId,
+            content: data.content,
+            workspaceId: data.workspaceId,
+            projectId: data.projectId ?? null,
+            teamId: data.teamId ?? null,
+            userId: user.id,
+            attachment: data.attachment ?? null,
+            reactions: null,
+            isPinned: false,
+            isEdited: false,
+            deletedAt: null,
+            replyToId: data.replyToId ?? null,
+            createdAt: now,
+            updatedAt: now,
+        };
+
+        console.log("[Chat POST] Raw inserting", { messageId, workspaceId: data.workspaceId, teamId: data.teamId });
+        const result = await rawInsert(doc);
+        console.log("[Chat POST] Raw insert result", JSON.stringify(result));
+
+        const verifyCount = await rawCount({
+            workspaceId: data.workspaceId,
+            ...(data.teamId ? { teamId: data.teamId } : {}),
+            deletedAt: null,
         });
+        console.log("[Chat POST] Verify count after insert", { count: verifyCount });
 
-        console.log("[Chat POST] Created message", { id: messageRaw.id, workspaceId: messageRaw.workspaceId, teamId: messageRaw.teamId, userId: messageRaw.userId, content: messageRaw.content?.slice(0, 30) });
-
-        const verifyCount = await prisma.chatMessage.count({
-            where: { workspaceId: data.workspaceId, teamId: data.teamId ?? undefined, deletedAt: null }
-        });
-        console.log("[Chat POST] Verify count after create", { count: verifyCount, workspaceId: data.workspaceId, teamId: data.teamId });
-
-        const countNoTeam = await prisma.chatMessage.count({
-            where: { workspaceId: data.workspaceId, deletedAt: null }
-        });
-        console.log("[Chat POST] Count without teamId filter", { count: countNoTeam });
+        if (verifyCount === 0) {
+            console.error("[Chat POST] FATAL: Insert returned success but count is 0");
+        }
 
         let replyToData = null;
         let replyToUser = null;
         if (data.replyToId) {
-            replyToData = await prisma.chatMessage.findUnique({
-                where: { id: data.replyToId },
-                select: { id: true, content: true, userId: true }
-            });
-            if (replyToData) {
+            const replyDocs = await rawFind({ _id: data.replyToId });
+            if (replyDocs.length > 0) {
+                replyToData = { id: replyDocs[0]._id, content: replyDocs[0].content, userId: replyDocs[0].userId };
                 replyToUser = await prisma.user.findUnique({
                     where: { id: replyToData.userId },
                     select: { id: true, name: true, imageUrl: true }
@@ -265,7 +294,20 @@ export async function POST(req: Request) {
         }
 
         const message = {
-            ...messageRaw,
+            id: messageId,
+            content: data.content,
+            workspaceId: data.workspaceId,
+            projectId: data.projectId ?? null,
+            teamId: data.teamId ?? null,
+            userId: user.id,
+            attachment: data.attachment ?? null,
+            reactions: null,
+            isPinned: false,
+            isEdited: false,
+            deletedAt: null,
+            replyToId: data.replyToId ?? null,
+            createdAt: new Date(now),
+            updatedAt: new Date(now),
             user: { id: user.id, name: user.name || "User", imageUrl: user.imageUrl },
             replyTo: replyToData ? { ...replyToData, user: replyToUser } : null,
         };
@@ -304,18 +346,22 @@ export async function PATCH(req: Request) {
         const body = await req.json();
         const { isPinned } = body;
 
-        const message = await prisma.chatMessage.findUnique({ where: { id: messageId } });
+        const matchDocs = await rawFind({ _id: messageId }, {}, 1);
+        if (matchDocs.length === 0) return NextResponse.json({ error: "Message not found" }, { status: 404 });
 
-        if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
-        if (message.userId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        const msg = matchDocs[0];
+        if (msg.userId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        const hasAccess = await verifyWorkspaceAccess(user.id, message.workspaceId);
+        const hasAccess = await verifyWorkspaceAccess(user.id, msg.workspaceId);
         if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        const updated = await prisma.chatMessage.update({
-            where: { id: messageId },
-            data: { isPinned: isPinned !== undefined ? isPinned : !message.isPinned },
-        });
+        const newPinned = isPinned !== undefined ? isPinned : !msg.isPinned;
+        await rawUpdateOne(
+            { _id: messageId },
+            { $set: { isPinned: newPinned, updatedAt: Date.now() } }
+        );
+
+        const updated = { ...docToMessage(msg), isPinned: newPinned };
 
         const channelName = updated.teamId
             ? `team:${updated.teamId}:chat`
@@ -342,24 +388,23 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: "Missing message id" }, { status: 400 });
         }
 
-        const message = await prisma.chatMessage.findUnique({
-            where: { id: messageId }
-        });
+        const matchDocs = await rawFind({ _id: messageId }, {}, 1);
+        if (matchDocs.length === 0) return NextResponse.json({ error: "Message not found" }, { status: 404 });
 
-        if (!message) return NextResponse.json({ error: "Message not found" }, { status: 404 });
-        if (message.userId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+        const msg = matchDocs[0];
+        if (msg.userId !== user.id) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        const hasAccess = await verifyWorkspaceAccess(user.id, message.workspaceId);
+        const hasAccess = await verifyWorkspaceAccess(user.id, msg.workspaceId);
         if (!hasAccess) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
-        const deleted = await prisma.chatMessage.update({
-            where: { id: messageId },
-            data: { deletedAt: new Date() }
-        });
+        await rawUpdateOne(
+            { _id: messageId },
+            { $set: { deletedAt: Date.now() } }
+        );
 
-        const channelName = deleted.teamId
-            ? `team:${deleted.teamId}:chat`
-            : getChatChannel(deleted.workspaceId, deleted.projectId ?? undefined);
+        const channelName = msg.teamId
+            ? `team:${msg.teamId}:chat`
+            : getChatChannel(msg.workspaceId, msg.projectId ?? undefined);
         
         await publishToChannel(channelName, "message:deleted", { id: messageId });
 
