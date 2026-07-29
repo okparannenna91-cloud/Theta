@@ -3,16 +3,14 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
 import {
-  Hash, Pin, PinOff, MoreVertical, MessageSquare, Reply,
+  Hash, Pin, PinOff, MessageSquare, Reply,
   Image as ImageIcon, FileText, Paperclip, Lock, Send, Sparkles,
   X, Loader2, Maximize2, Minimize2,
-  AlertCircle, RefreshCw,
+  AlertCircle,
 } from "lucide-react";
 import Image from "next/image";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { usePopups } from "@/components/popups/popup-manager";
 import { FadeIn } from "@/components/common/motion-wrapper";
@@ -345,6 +343,14 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
     toast.success("Retrying message...");
   };
 
+  const deleteMessage = async (messageId: string) => {
+    try {
+      const res = await fetch(`/api/chat?id=${messageId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Failed to delete");
+      toast.success("Message deleted");
+    } catch { toast.error("Failed to delete message"); }
+  };
+
   const togglePin = async (msg: any) => {
     try {
       await fetch(`/api/chat?id=${msg.id}&workspaceId=${workspaceId}`, {
@@ -401,58 +407,54 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
   });
 
   const chatContent = (
-    <div className="flex bg-transparent relative overflow-hidden h-full">
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="p-4 sm:p-6 border-b flex items-center justify-between bg-background/40 backdrop-blur-3xl z-20 shrink-0">
-          <div className="flex items-center gap-4 min-w-0">
-            <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-xl bg-primary/5 flex items-center justify-center border shrink-0">
-              <Hash className="h-5 w-5 text-primary" />
-            </div>
-            <div className="min-w-0">
-              <h3 className="text-lg sm:text-xl font-semibold tracking-tight leading-none">Team Chat</h3>
-              <div className="flex items-center gap-3 mt-1">
-                <TeamPresence onlineUsers={onlineUsers} />
-                {!isConnected && (
-                  <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 text-[10px]">
-                    Disconnected
-                  </Badge>
-                )}
-                {reconnecting && (
-                  <Badge variant="outline" className="bg-blue-500/10 text-blue-500 border-blue-500/20 text-[10px] animate-pulse">
-                    Reconnecting...
-                  </Badge>
-                )}
+      <div className="flex bg-transparent relative overflow-hidden h-full">
+        <div className="flex-1 flex flex-col min-w-0">
+          <div className="px-5 sm:px-7 py-4 flex items-center justify-between border-b border-border/50 z-20 shrink-0 bg-background/80">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-9 w-9 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
+                <Hash className="h-[18px] w-[18px] text-primary" />
+              </div>
+              <div className="min-w-0">
+                <h3 className="text-[15px] font-semibold tracking-tight leading-none text-foreground">Team Chat</h3>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <TeamPresence onlineUsers={onlineUsers} />
+                  {!isConnected && (
+                    <span className="text-[11px] font-medium text-amber-500">Disconnected</span>
+                  )}
+                  {reconnecting && (
+                    <span className="text-[11px] font-medium text-blue-500 animate-pulse">Reconnecting...</span>
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="hidden md:flex items-center gap-4">
-            <ChatHeaderDashboard workspaceId={workspaceId} teamId={teamId} />
-          </div>
+            <div className="hidden md:flex items-center gap-3">
+              <ChatHeaderDashboard workspaceId={workspaceId} teamId={teamId} />
+            </div>
 
-          <div className="flex items-center gap-2 ml-2">
-            {pinnedMessages.length > 0 && (
-              <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/20 px-3 py-1.5 rounded-lg text-[10px] font-semibold hidden sm:flex">
-                <Pin className="h-3 w-3 mr-1.5" /> {pinnedMessages.length}
-              </Badge>
-            )}
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-muted-foreground" onClick={toggleFullScreen} title={isFullScreen ? "Exit full screen" : "Full screen"}>
-              {isFullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-            </Button>
+            <div className="flex items-center gap-1 ml-3">
+              {pinnedMessages.length > 0 && (
+                <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-amber-500 bg-amber-500/8 hover:bg-amber-500/12 transition-colors">
+                  <Pin className="h-3 w-3" /> {pinnedMessages.length}
+                </button>
+              )}
+              <button className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-all" onClick={toggleFullScreen} title={isFullScreen ? "Exit full screen" : "Full screen"}>
+                {isFullScreen ? <Minimize2 className="h-[18px] w-[18px]" /> : <Maximize2 className="h-[18px] w-[18px]" />}
+              </button>
+            </div>
           </div>
-        </div>
 
         {pinnedMessages.length > 0 && (
-          <div className="bg-amber-500/5 border-b border-amber-500/10 backdrop-blur-xl z-10 shrink-0">
+          <div className="bg-amber-500/4 border-b border-amber-500/8 z-10 shrink-0">
             {pinnedMessages.slice(0, 3).map(msg => (
-              <div key={msg.id} className="p-3 px-6 flex items-center justify-between gap-6">
-                <div className="flex items-center gap-4 min-w-0">
-                  <Pin className="h-4 w-4 text-amber-500 shrink-0" />
-                  <span className="text-xs font-medium text-amber-600/80 truncate">Pinned: {msg.content}</span>
+              <div key={msg.id} className="px-5 sm:px-7 py-2.5 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <Pin className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                  <span className="text-[13px] text-amber-600/70 truncate">{msg.content}</span>
                 </div>
-                <Button variant="ghost" size="icon" className="h-7 w-7 text-amber-500 rounded-md shrink-0" onClick={() => togglePin(msg)}>
-                  <PinOff className="h-3.5 w-3.5" />
-                </Button>
+                <button className="h-6 w-6 rounded-md flex items-center justify-center text-amber-400/50 hover:text-amber-500 hover:bg-amber-500/10 transition-all shrink-0" onClick={() => togglePin(msg)}>
+                  <PinOff className="h-3 w-3" />
+                </button>
               </div>
             ))}
           </div>
@@ -460,84 +462,149 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
 
         <div className={cn(
           "flex-1 overflow-y-auto no-scrollbar",
-          isFullScreen ? "p-6 sm:p-8 space-y-4 sm:space-y-6" : "p-4 sm:p-6 space-y-4 sm:space-y-6"
+          isFullScreen ? "px-7 sm:px-9 py-5 space-y-1" : "px-5 sm:px-7 py-4 space-y-1"
         )} ref={scrollRef} onScroll={handleScroll}>
           {hasMore && (
-            <div className="text-center py-4">
-              <Button variant="ghost" size="sm" className="text-xs text-muted-foreground" onClick={() => fetchMessages(cursor)} disabled={isFetchingMore}>
-                {isFetchingMore ? <Loader2 className="h-3 w-3 animate-spin mr-2" /> : null}
+            <div className="flex justify-center py-5">
+              <button onClick={() => fetchMessages(cursor)} disabled={isFetchingMore} className="flex items-center gap-2 px-4 py-2 rounded-xl text-[12px] font-medium text-muted-foreground/60 hover:text-foreground hover:bg-muted/50 transition-all border border-border/30">
+                {isFetchingMore ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
                 Load older messages
-              </Button>
+              </button>
             </div>
           )}
 
           {isLoading && messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-20">
-              <Loader2 className="h-16 w-16 sm:h-20 sm:w-20 animate-spin mb-6" />
-              <p className="text-xs font-semibold">Loading messages...</p>
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground/30">
+              <Loader2 className="h-10 w-10 animate-spin mb-4" />
+              <p className="text-[13px] font-medium">Loading messages...</p>
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full text-muted-foreground opacity-20">
-              <MessageSquare className="h-24 w-24 sm:h-32 sm:w-32 mb-6" />
-              <p className="text-xs font-semibold">No messages yet.</p>
-              <p className="text-[10px] text-muted-foreground/60 mt-1">Send a message to get started.</p>
+            <div className="flex flex-col items-center justify-center h-full text-muted-foreground/30">
+              <div className="h-16 w-16 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
+                <MessageSquare className="h-7 w-7 text-muted-foreground/40" />
+              </div>
+              <p className="text-[13px] font-medium">No messages yet.</p>
+              <p className="text-[12px] text-muted-foreground/40 mt-0.5">Send a message to get started.</p>
             </div>
-          ) : (
-            [...messages].filter(m => !m.deletedAt).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map((msg, idx, sortedMsgs) => {
+          ) : (() => {
+            const sorted = [...messages].filter(m => !m.deletedAt).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+
+            const formatDateLabel = (date: Date) => {
+              const now = new Date();
+              const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+              const yesterday = new Date(today);
+              yesterday.setDate(yesterday.getDate() - 1);
+              const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+              if (d.getTime() === today.getTime()) return "Today";
+              if (d.getTime() === yesterday.getTime()) return "Yesterday";
+              return format(date, "EEEE, MMMM d");
+            };
+
+            const isSameDay = (a: string, b: string) => {
+              const da = new Date(a), db = new Date(b);
+              return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
+            };
+
+            let unreadIndex = -1;
+            if (lastReadRef.current) {
+              const lastRead = new Date(lastReadRef.current).getTime();
+              unreadIndex = sorted.findIndex(m => new Date(m.createdAt).getTime() > lastRead);
+            }
+
+            return sorted.map((msg, idx) => {
               const isMe = msg.userId === dbUser?.id || msg.userId === user?.id;
-              const prevMsg = idx > 0 ? sortedMsgs[idx - 1] : null;
+              const prevMsg = idx > 0 ? sorted[idx - 1] : null;
               const isSameSender = prevMsg && prevMsg.userId === msg.userId && !prevMsg.deletedAt;
+              const showDateSeparator = idx === 0 || !isSameDay(msg.createdAt, sorted[idx - 1].createdAt);
+              const showUnread = unreadIndex >= 0 && idx === unreadIndex;
 
               return (
-                <FadeIn key={msg.id || msg.tempId} delay={0.02} className={cn(
-                  "flex group",
-                  isMe ? "justify-end" : "justify-start",
-                  isSameSender ? "mt-[-1.25rem]" : "mt-1"
-                )}>
-                  <div className={cn("flex gap-2.5 max-w-[88%] sm:max-w-[72%]", isMe ? "flex-row-reverse" : "flex-row")}>
-                    {!isMe && (
-                      !isSameSender ? (
-                        msg.user?.imageUrl ? (
-                          <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full shrink-0 overflow-hidden mt-1 shadow-sm ring-2 ring-background">
-                            <Image src={msg.user.imageUrl} alt="" width={36} height={36} className="object-cover w-full h-full" />
-                          </div>
-                        ) : (
-                          <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full shrink-0 flex items-center justify-center text-xs font-semibold border bg-muted/70 mt-1 shadow-sm">
-                            {msg.user?.name?.slice(0, 2).toUpperCase() || "U"}
-                          </div>
-                        )
+                <React.Fragment key={msg.id || msg.tempId}>
+                  {showDateSeparator && (
+                    <div className="flex items-center gap-3 py-3 px-1">
+                      <div className="flex-1 h-px bg-border/30" />
+                      <span className="text-[11px] font-medium text-muted-foreground/50 shrink-0">{formatDateLabel(new Date(msg.createdAt))}</span>
+                      <div className="flex-1 h-px bg-border/30" />
+                    </div>
+                  )}
+                  {showUnread && (
+                    <div className="flex items-center gap-3 py-2 px-1" id="unread-divider">
+                      <div className="flex-1 h-px bg-primary/20" />
+                      <span className="text-[10px] font-semibold text-primary/60 uppercase tracking-wider">Unread</span>
+                      <div className="flex-1 h-px bg-primary/20" />
+                    </div>
+                  )}
+                  <FadeIn delay={0.02} className={cn(
+                    "flex group relative",
+                    isMe ? "justify-end" : "justify-start",
+                    isSameSender ? "mt-[-0.875rem]" : showDateSeparator ? "mt-0" : "mt-3"
+                  )}>
+                    {/* Hover actions bar */}
+                    <div className={cn(
+                      "absolute top-0 z-10 hidden group-hover:flex items-center gap-0.5 px-1 py-0.5 rounded-xl bg-background/90 border border-border/50 shadow-sm backdrop-blur-xl",
+                      isMe ? "-top-3 right-0" : "-top-3 left-9"
+                    )}>
+                      <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-all" title="Reply" onClick={() => setReplyTo(msg)}>
+                        <Reply className="h-3.5 w-3.5" />
+                      </button>
+                      <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-all" title="React">
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      </button>
+                      <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-all" title="Edit" onClick={() => {}}>
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      </button>
+                      {msg.isPinned ? (
+                        <button className="h-7 w-7 rounded-lg flex items-center justify-center text-amber-500/70 hover:text-amber-500 hover:bg-amber-500/10 transition-all" title="Unpin" onClick={() => togglePin(msg)}>
+                          <PinOff className="h-3.5 w-3.5" />
+                        </button>
                       ) : (
-                        <div className="w-8 sm:w-9 shrink-0" />
-                      )
-                    )}
-                    <div className={cn("flex flex-col min-w-0", isMe ? "items-end" : "items-start")}>
-                      {!isSameSender && !isMe && (
-                        <span className="text-[11px] font-semibold text-foreground/50 ml-1 mb-0.5">
-                          {msg.user?.name || "Anonymous"}
-                        </span>
+                        <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-all" title="Pin" onClick={() => togglePin(msg)}>
+                          <Pin className="h-3.5 w-3.5" />
+                        </button>
                       )}
-                      <div className="relative flex flex-col">
+                      <div className="w-px h-4 bg-border/30 mx-0.5" />
+                      <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10 transition-all" title="Delete" onClick={() => deleteMessage(msg.id)}>
+                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      </button>
+                    </div>
+
+                    <div className={cn("flex gap-3 max-w-[88%] sm:max-w-[72%]", isMe ? "flex-row-reverse" : "flex-row")}>
+                      {!isMe && (
+                        !isSameSender ? (
+                          msg.user?.imageUrl ? (
+                            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full shrink-0 overflow-hidden mt-0.5 ring-2 ring-background shadow-sm">
+                              <Image src={msg.user.imageUrl} alt="" width={32} height={32} className="object-cover w-full h-full" />
+                            </div>
+                          ) : (
+                            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold bg-muted/80 mt-0.5 shadow-sm ring-1 ring-border/30">
+                              {msg.user?.name?.slice(0, 2).toUpperCase() || "U"}
+                            </div>
+                          )
+                        ) : (
+                          <div className="w-7 sm:w-8 shrink-0" />
+                        )
+                      )}
+                      <div className={cn("flex flex-col min-w-0", isMe ? "items-end" : "items-start")}>
+                        {!isSameSender && !isMe && (
+                          <span className="text-[12px] font-medium text-foreground/60 ml-1 mb-1">
+                            {msg.user?.name || "Anonymous"}
+                          </span>
+                        )}
                         <div className={cn(
-                          "absolute top-3 w-0 h-0 border-solid",
+                          "relative px-4 py-[10px] sm:px-5 sm:py-3 text-sm leading-relaxed shadow-sm transition-all",
                           isMe
-                            ? "-right-[7px] border-t-[7px] border-b-[7px] border-l-[9px] border-t-transparent border-b-transparent border-l-primary"
-                            : "-left-[7px] border-t-[7px] border-b-[7px] border-r-[9px] border-t-transparent border-b-transparent border-r-background"
-                        )} />
-                        <div className={cn(
-                          "px-4 py-2.5 sm:px-4 sm:py-2.5 text-sm shadow-sm border transition-all",
-                          isMe
-                            ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
-                            : "bg-background text-foreground rounded-2xl rounded-bl-sm"
+                            ? "bg-primary text-primary-foreground rounded-[18px] rounded-br-[6px]"
+                            : "bg-card text-card-foreground rounded-[18px] rounded-bl-[6px] border border-border/40"
                         )}>
                           {msg.replyTo && (
                             <div className={cn(
-                              "mb-2 p-2 rounded-lg text-xs border-l-4",
-                              isMe ? "bg-black/10 border-white/30 text-white/70" : "bg-muted/60 border-primary/40 text-muted-foreground"
+                              "mb-2.5 p-2.5 rounded-xl text-xs border-l-[3px]",
+                              isMe ? "bg-white/8 border-white/30 text-white/70" : "bg-muted/60 border-primary/30 text-muted-foreground"
                             )}>
-                              <div className="font-semibold mb-0.5 flex items-center gap-1.5">
+                              <div className="font-medium mb-0.5 flex items-center gap-1.5">
                                 <Reply className="h-3 w-3 shrink-0" /> Replying to {msg.replyTo.userId === user?.id ? "you" : (msg.replyTo.user?.name || "User")}
                               </div>
-                              <span className="line-clamp-2 italic">{msg.replyTo.content}</span>
+                              <span className="line-clamp-2 italic opacity-80">{msg.replyTo.content}</span>
                             </div>
                           )}
                           {msg.attachment && (() => {
@@ -546,16 +613,16 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                               return "#";
                             })();
                             return (
-                              <div className="mb-2">
+                              <div className="mb-2.5">
                                 {msg.attachment.category === "image" ? (
-                                  <a href={url} target="_blank" rel="noopener noreferrer" className="block relative h-40 sm:h-52 w-full sm:w-72 overflow-hidden rounded-xl border hover:scale-[1.02] transition-transform duration-500">
+                                  <a href={url} target="_blank" rel="noopener noreferrer" className="block relative h-40 sm:h-52 w-full sm:w-72 overflow-hidden rounded-2xl border hover:scale-[1.01] transition-transform duration-300">
                                     <Image src={url} alt="Image" fill className="object-cover" />
                                   </a>
                                 ) : (
-                                  <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 bg-black/[0.06] rounded-xl hover:bg-black/[0.1] transition-all">
-                                    <div className="h-8 w-8 rounded-lg bg-black/[0.08] flex items-center justify-center shrink-0"><FileText className="h-4 w-4" /></div>
+                                  <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 bg-black/[0.04] rounded-xl hover:bg-black/[0.08] transition-all">
+                                    <div className="h-8 w-8 rounded-lg bg-black/[0.06] flex items-center justify-center shrink-0"><FileText className="h-3.5 w-3.5 text-muted-foreground" /></div>
                                     <div className="flex flex-col min-w-0">
-                                      <span className="text-xs font-semibold truncate max-w-[120px] sm:max-w-[160px]">{msg.attachment.originalName}</span>
+                                      <span className="text-xs font-medium truncate max-w-[120px] sm:max-w-[160px]">{msg.attachment.originalName}</span>
                                       <span className="text-[10px] text-muted-foreground">Document</span>
                                     </div>
                                   </a>
@@ -563,24 +630,24 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                               </div>
                             );
                           })()}
-                          <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+                          <div className="whitespace-pre-wrap break-words">{msg.content}</div>
                           <div className={cn(
-                            "flex items-center gap-1 mt-0.5 -mb-1 select-none",
+                            "flex items-center gap-1.5 mt-1 -mb-0.5 select-none",
                             isMe ? "justify-end" : "justify-start"
                           )}>
                             <span className={cn(
                               "text-[10px] leading-none",
-                              isMe ? "text-primary-foreground/60" : "text-muted-foreground/70"
+                              isMe ? "text-primary-foreground/50" : "text-muted-foreground/60"
                             )}>
                               {format(new Date(msg.createdAt), "HH:mm")}
                             </span>
-                            {msg.isEdited && <span className="text-[9px] italic opacity-50">edited</span>}
-                            {msg.isPinned && <Pin className="h-2.5 w-2.5 text-amber-400/80" />}
-                            {isMe && <span className="text-[9px] opacity-50">✓✓</span>}
+                            {msg.isEdited && <span className="text-[9px] italic text-muted-foreground/50">edited</span>}
+                            {msg.isPinned && <Pin className="h-2.5 w-2.5 text-amber-400/70" />}
+                            {isMe && <span className="text-[9px] text-primary-foreground/40">✓✓</span>}
                           </div>
                         </div>
                         {msg.userId !== user?.id && (
-                          <div className={cn(isMe ? "self-start" : "self-end")}>
+                          <div className="mt-0.5">
                             <WorkspaceReactions
                               messageId={msg.id}
                               reactions={msg.reactions}
@@ -591,127 +658,129 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                         )}
                       </div>
                     </div>
-                  </div>
-                </FadeIn>
+                  </FadeIn>
+                </React.Fragment>
               );
-            })
-          )}
+            });
+          })()}
         </div>
 
-        <div className="shrink-0 p-4 sm:p-6 border-t bg-background/40 backdrop-blur-3xl z-20">
-          {Object.keys(typingUsers).length > 0 && (
-            <div className="mb-2 text-xs text-primary font-medium flex items-center gap-2">
-              <div className="flex gap-1">
-                <div className="h-1 w-1 bg-primary rounded-full animate-bounce" />
-                <div className="h-1 w-1 bg-primary rounded-full animate-bounce [animation-delay:0.2s]" />
-                <div className="h-1 w-1 bg-primary rounded-full animate-bounce [animation-delay:0.4s]" />
+        <div className="shrink-0 border-t border-border/40 bg-background/60 z-20">
+          <div className="px-5 sm:px-7 py-3.5">
+            {Object.keys(typingUsers).length > 0 && (
+              <div className="mb-2 text-[12px] font-medium text-primary/70 flex items-center gap-2">
+                <div className="flex gap-0.5">
+                  <div className="h-1 w-1 bg-primary/60 rounded-full animate-bounce" />
+                  <div className="h-1 w-1 bg-primary/60 rounded-full animate-bounce [animation-delay:0.2s]" />
+                  <div className="h-1 w-1 bg-primary/60 rounded-full animate-bounce [animation-delay:0.4s]" />
+                </div>
+                {Object.values(typingUsers)[0].name} typing...
               </div>
-              {Object.values(typingUsers)[0].name} typing...
-            </div>
-          )}
+            )}
 
-          {reconnecting && (
-            <div className="mb-3 flex items-center justify-between p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-              <div className="flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
-                <span className="text-xs font-medium text-blue-600">Connection lost. Reconnecting...</span>
+            {reconnecting && (
+              <div className="mb-3 flex items-center justify-between p-3 rounded-xl bg-blue-500/6 border border-blue-500/15">
+                <div className="flex items-center gap-2.5">
+                  <Loader2 className="h-4 w-4 animate-spin text-blue-500" />
+                  <span className="text-xs font-medium text-blue-600">Connection lost. Reconnecting...</span>
+                </div>
+                <button className="text-xs font-medium text-blue-600 hover:text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-500/10 transition-colors" onClick={handleReconnect}>
+                  Retry
+                </button>
               </div>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleReconnect}>
-                <RefreshCw className="h-3 w-3 mr-1" /> Retry
-              </Button>
-            </div>
-          )}
+            )}
 
-          {retryQueue.current.length > 0 && (
-            <div className="mb-3 flex items-center justify-between p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-amber-500" />
-                <span className="text-xs font-medium text-amber-600">{retryQueue.current.length} message(s) pending</span>
+            {retryQueue.current.length > 0 && (
+              <div className="mb-3 flex items-center justify-between p-3 rounded-xl bg-amber-500/6 border border-amber-500/15">
+                <div className="flex items-center gap-2.5">
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                  <span className="text-xs font-medium text-amber-600">{retryQueue.current.length} message(s) pending</span>
+                </div>
+                <button className="text-xs font-medium text-amber-600 hover:text-amber-700 px-3 py-1.5 rounded-lg hover:bg-amber-500/10 transition-colors" onClick={sendQueued}>
+                  Retry
+                </button>
               </div>
-              <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={sendQueued}>
-                <RefreshCw className="h-3 w-3 mr-1" /> Retry
-              </Button>
-            </div>
-          )}
+            )}
 
-          {(replyTo || attachment) && (
-            <div className="mb-4 flex flex-col gap-2">
-              {replyTo && (
-                <div className="flex items-center justify-between p-3 bg-primary/5 border rounded-lg backdrop-blur-xl">
-                  <div className="flex items-center gap-3 overflow-hidden">
-                    <Reply className="h-4 w-4 text-primary shrink-0" />
-                    <div className="flex flex-col min-w-0">
-                      <span className="text-xs font-semibold text-primary">Replying to {replyTo.user?.name}</span>
-                      <span className="text-xs text-muted-foreground truncate">{replyTo.content}</span>
+            {(replyTo || attachment) && (
+              <div className="mb-3 flex flex-col gap-2">
+                {replyTo && (
+                  <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/10 rounded-xl">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <Reply className="h-3.5 w-3.5 text-primary shrink-0" />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[12px] font-medium text-primary">Replying to {replyTo.user?.name}</span>
+                        <span className="text-[12px] text-muted-foreground/70 truncate">{replyTo.content}</span>
+                      </div>
                     </div>
+                    <button className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all shrink-0" onClick={() => setReplyTo(null)}><X className="h-3.5 w-3.5" /></button>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md shrink-0" onClick={() => setReplyTo(null)}><X className="h-3.5 w-3.5" /></Button>
-                </div>
-              )}
-              {attachment && (
-                <div className="flex items-center justify-between p-3 bg-primary/5 border rounded-lg backdrop-blur-xl">
-                  <div className="flex items-center gap-3">
-                    {attachment.category === "image" ? <ImageIcon className="h-4 w-4 text-primary" /> : <FileText className="h-4 w-4 text-primary" />}
-                    <div className="flex flex-col">
-                      <span className="text-xs font-semibold tracking-tight text-primary">{attachment.originalName}</span>
-                      <span className="text-[10px] text-muted-foreground">Attached</span>
+                )}
+                {attachment && (
+                  <div className="flex items-center justify-between p-3 bg-primary/5 border border-primary/10 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      {attachment.category === "image" ? <ImageIcon className="h-4 w-4 text-primary" /> : <FileText className="h-4 w-4 text-primary" />}
+                      <div className="flex flex-col">
+                        <span className="text-[12px] font-medium text-primary">{attachment.originalName}</span>
+                        <span className="text-[10px] text-muted-foreground/60">Attached</span>
+                      </div>
                     </div>
+                    <button className="h-6 w-6 rounded-md flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all shrink-0" onClick={() => setAttachment(null)}><X className="h-3.5 w-3.5" /></button>
                   </div>
-                  <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md" onClick={() => setAttachment(null)}><X className="h-3.5 w-3.5" /></Button>
-                </div>
-              )}
-            </div>
-          )}
-
-          <form onSubmit={sendMessage} className="flex gap-3">
-            <div className="flex-1 flex gap-2 p-1.5 sm:p-2 bg-background/50 rounded-xl border focus-within:ring-4 focus-within:ring-primary/10 transition-all shadow-sm backdrop-blur-2xl">
-              <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
-                <DialogTrigger asChild>
-                  <Button type="button" variant="ghost" size="icon" className="text-muted-foreground hover:text-primary shrink-0 h-10 w-10 rounded-full transition-colors hover:bg-primary/5" disabled={!isConnected}>
-                    <Paperclip className="h-5 w-5" />
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="rounded-xl border bg-background/80 backdrop-blur-3xl p-6 sm:p-8 shadow-2xl max-w-lg">
-                  <DialogHeader className="mb-6">
-                    <DialogTitle className="text-xl font-semibold tracking-tight">Attach File</DialogTitle>
-                  </DialogHeader>
-                  <FileUpload workspaceId={workspaceId} onUploadComplete={(data) => {
-                    setAttachment({
-                      url: data.url || data.secure_url,
-                      originalName: data.originalName || "File",
-                      category: (data.url || data.secure_url).match(/\.(jpeg|jpg|gif|png|webp)$/i) ? "image" : "document"
-                    });
-                    setIsUploadOpen(false);
-                  }} />
-                </DialogContent>
-              </Dialog>
-              <Input
-                ref={composerRef}
-                placeholder={isLimitReached ? "Message limit reached" : "Type a message..."}
-                value={message} onChange={handleInputChange}
-                className="border-none bg-transparent shadow-none focus-visible:ring-0 text-sm h-10"
-                disabled={!isConnected || isLimitReached}
-              />
-              <Button type="submit" size="icon" disabled={!isConnected || isLimitReached || (!message.trim() && !attachment)} className="bg-primary hover:bg-primary/90 shrink-0 h-10 w-10 rounded-full shadow-md hover:scale-105 active:scale-95 transition-all">
-                {isLimitReached ? <Lock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
-              </Button>
-            </div>
-          </form>
-
-          {isLimitReached && (
-            <FadeIn delay={0.1} className="mt-4 flex items-center justify-between p-4 sm:p-6 rounded-xl bg-primary text-primary-foreground shadow-md group overflow-hidden relative">
-              <div className="flex items-center gap-4">
-                <div className="h-10 w-10 rounded-xl bg-white/20 flex items-center justify-center backdrop-blur-xl shadow-lg shadow-black/20">
-                  <Sparkles className="h-5 w-5 text-white" />
-                </div>
-                <div className="space-y-0.5">
-                  <h4 className="text-sm font-semibold tracking-tight">Team Chat</h4>
-                  <p className="text-xs text-white/70">Unlock unlimited messaging</p>
-                </div>
+                )}
               </div>
-              <Button variant="outline" className="h-10 px-6 rounded-lg font-semibold text-xs bg-white text-primary border-none hover:scale-105 transition-all shadow-xl" onClick={() => showUpgradePrompt("chat")}>Upgrade</Button>
-            </FadeIn>
-          )}
+            )}
+
+            <form onSubmit={sendMessage} className="flex items-end gap-2">
+              <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 bg-background rounded-2xl border border-border/60 focus-within:border-primary/30 focus-within:shadow-[0_0_0_3px_hsl(var(--primary)/0.08)] transition-all shadow-sm">
+                <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
+                  <DialogTrigger asChild>
+                    <button type="button" className="flex items-center justify-center h-8 w-8 rounded-xl text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-all shrink-0" disabled={!isConnected}>
+                      <Paperclip className="h-[18px] w-[18px]" />
+                    </button>
+                  </DialogTrigger>
+                  <DialogContent className="rounded-2xl border bg-background p-6 sm:p-8 shadow-lg max-w-lg">
+                    <DialogHeader className="mb-5">
+                      <DialogTitle className="text-base font-semibold tracking-tight">Attach File</DialogTitle>
+                    </DialogHeader>
+                    <FileUpload workspaceId={workspaceId} onUploadComplete={(data) => {
+                      setAttachment({
+                        url: data.url || data.secure_url,
+                        originalName: data.originalName || "File",
+                        category: (data.url || data.secure_url).match(/\.(jpeg|jpg|gif|png|webp)$/i) ? "image" : "document"
+                      });
+                      setIsUploadOpen(false);
+                    }} />
+                  </DialogContent>
+                </Dialog>
+                <Input
+                  ref={composerRef}
+                  placeholder={isLimitReached ? "Message limit reached" : "Type a message..."}
+                  value={message} onChange={handleInputChange}
+                  className="border-none bg-transparent shadow-none focus-visible:ring-0 text-sm h-9 px-1 placeholder:text-muted-foreground/40"
+                  disabled={!isConnected || isLimitReached}
+                />
+                <button type="submit" disabled={!isConnected || isLimitReached || (!message.trim() && !attachment)} className="flex items-center justify-center h-8 w-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 shadow-sm">
+                  {isLimitReached ? <Lock className="h-[16px] w-[16px]" /> : <Send className="h-[16px] w-[16px]" />}
+                </button>
+              </div>
+            </form>
+
+            {isLimitReached && (
+              <FadeIn delay={0.1} className="mt-4 flex items-center justify-between p-4 sm:p-5 rounded-2xl bg-primary text-primary-foreground shadow-sm">
+                <div className="flex items-center gap-3">
+                  <div className="h-9 w-9 rounded-xl bg-white/15 flex items-center justify-center">
+                    <Sparkles className="h-[18px] w-[18px] text-white" />
+                  </div>
+                  <div className="space-y-0.5">
+                    <h4 className="text-[13px] font-semibold tracking-tight">Team Chat</h4>
+                    <p className="text-[12px] text-white/60">Unlock unlimited messaging</p>
+                  </div>
+                </div>
+                <button className="h-9 px-5 rounded-xl font-medium text-[12px] bg-white text-primary hover:bg-white/90 transition-all shadow-sm" onClick={() => showUpgradePrompt("chat")}>Upgrade</button>
+              </FadeIn>
+            )}
+          </div>
         </div>
       </div>
 
@@ -729,5 +798,9 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
     );
   }
 
-  return chatContent;
+  return (
+    <div className="h-full w-full">
+      {chatContent}
+    </div>
+  );
 }

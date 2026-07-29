@@ -17,6 +17,7 @@ import {
   ChevronDown,
   Check,
   Plus,
+  MessageSquare,
   Bot,
 } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
@@ -244,6 +245,7 @@ export const Sidebar = memo(function Sidebar() {
           )}
 
           <NavItem href="/portfolio" icon={FolderKanban} label="Portfolio" active={isActive("/portfolio")} onClick={closeMobile} />
+          <NavItem href="/chat" icon={MessageSquare} label="Chat" active={isActive("/chat")} onClick={closeMobile} />
           <NavItem href="/teams" icon={Users} label="Teams" active={isActive("/teams")} onClick={closeMobile} />
         </nav>
 
