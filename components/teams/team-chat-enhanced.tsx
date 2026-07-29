@@ -5,7 +5,7 @@ import { useUser } from "@clerk/nextjs";
 import {
   Hash, Pin, PinOff, MoreVertical, MessageSquare, Reply,
   Image as ImageIcon, FileText, Paperclip, Lock, Send, Sparkles,
-  X, Loader2, PanelRight, PanelRightOpen, Maximize2, Minimize2,
+  X, Loader2, Maximize2, Minimize2,
   AlertCircle, RefreshCw,
 } from "lucide-react";
 import Image from "next/image";
@@ -22,13 +22,7 @@ import { format } from "date-fns";
 
 import TeamPresence from "@/components/teams/chat/team-presence";
 import WorkspaceReactions from "@/components/teams/chat/workspace-reactions";
-import NovaInsightsPanel from "@/components/teams/chat/nova-insights-panel";
-import TeamActivityFeed from "@/components/teams/chat/team-activity-feed";
-import SharedTeamSpace from "@/components/teams/chat/shared-team-space";
-import SmartHighlights from "@/components/teams/chat/smart-highlights";
-import TeamAchievements from "@/components/teams/chat/team-achievements";
 import ChatHeaderDashboard from "@/components/teams/chat/chat-header-dashboard";
-import PinnedWidgets from "@/components/teams/chat/pinned-widgets";
 
 interface TeamChatEnhancedProps {
   teamId: string;
@@ -57,7 +51,6 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
   const [onlineUsers, setOnlineUsers] = useState<any[]>([]);
   const [typingUsers, setTypingUsers] = useState<Record<string, { name: string; timestamp: number }>>({});
   const [readReceipts, setReadReceipts] = useState<Record<string, string>>({});
-  const [showSidePanel, setShowSidePanel] = useState(true);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
 
@@ -425,9 +418,6 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
             <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-muted-foreground" onClick={toggleFullScreen} title={isFullScreen ? "Exit full screen" : "Full screen"}>
               {isFullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
             </Button>
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-lg text-muted-foreground" onClick={() => setShowSidePanel(!showSidePanel)}>
-              {showSidePanel ? <PanelRightOpen className="h-4 w-4" /> : <PanelRight className="h-4 w-4" />}
-            </Button>
           </div>
         </div>
 
@@ -680,31 +670,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
         </div>
       </div>
 
-      {showSidePanel && !isFullScreen && (
-        <div className="w-72 lg:w-80 border-l bg-background/40 backdrop-blur-3xl overflow-y-auto hidden lg:block shrink-0">
-          <div className="p-4 space-y-3">
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Workspace Hub</span>
-              <Sparkles className="w-3.5 h-3.5 text-primary" />
-            </div>
-            <SharedTeamSpace workspaceId={workspaceId} teamId={teamId} />
-            <SmartHighlights messages={messages} />
-            <NovaInsightsPanel teamId={teamId} workspaceId={workspaceId} messages={messages} />
-            <TeamActivityFeed workspaceId={workspaceId} teamId={teamId} />
-            <TeamAchievements teamId={teamId} workspaceId={workspaceId} />
-            <PinnedWidgets workspaceId={workspaceId} teamId={teamId} />
-          </div>
-        </div>
-      )}
 
-      {!showSidePanel && !isFullScreen && (
-        <button
-          onClick={() => setShowSidePanel(true)}
-          className="lg:hidden fixed right-4 bottom-24 z-30 w-10 h-10 rounded-full bg-primary shadow-lg flex items-center justify-center text-white"
-        >
-          <PanelRight className="w-4 h-4" />
-        </button>
-      )}
     </div>
   );
 
