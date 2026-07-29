@@ -274,7 +274,7 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
     const boardsList = Array.isArray(boards?.boards) ? boards.boards : Array.isArray(boards) ? boards : [];
     const projectCount = projectsList.length;
     const boardCount = boardsList.length;
-    const activeCount = memberList.filter((m: any) => m.isOnline).length;
+    const activeCount = memberList.filter((m: any) => m.user?.isOnline).length;
 
     // --- HANDLERS ---
 
@@ -655,9 +655,9 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                                     </div>
                                                     <span className={cn(
                                                         "absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card",
-                                                        member.isOnline ? "bg-emerald-500" : "bg-slate-400"
+                                                        member.user?.isOnline ? "bg-emerald-500" : "bg-slate-400"
                                                     )}>
-                                                        {member.isOnline && (
+                                                        {member.user?.isOnline && (
                                                             <span className="absolute inset-0 rounded-full bg-emerald-500 animate-ping opacity-30" />
                                                         )}
                                                     </span>
@@ -674,15 +674,15 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                                     <div className="flex items-center gap-2 mt-1">
                                                         <span className={cn(
                                                             "text-[10px] font-medium flex items-center gap-1",
-                                                            member.isOnline ? "text-emerald-600" : "text-slate-400"
+                                                            member.user?.isOnline ? "text-emerald-600" : "text-slate-400"
                                                         )}>
-                                                            {member.isOnline ? (
+                                                            {member.user?.isOnline ? (
                                                                 <><Wifi className="h-2.5 w-2.5" /> Online now</>
                                                             ) : (
                                                                 <><WifiOff className="h-2.5 w-2.5" /> Offline</>
                                                             )}
                                                         </span>
-                                                        {member.user?.lastActiveAt && !member.isOnline && (
+                                                        {member.user?.lastActiveAt && !member.user?.isOnline && (
                                                             <span className="text-[10px] text-muted-foreground">
                                                                 · {formatDistanceToNow(new Date(member.user.lastActiveAt), { addSuffix: true })}
                                                             </span>
