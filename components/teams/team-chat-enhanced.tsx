@@ -148,7 +148,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
       const currentUserId = dbUser?.id || user?.id;
       if (incoming.userId === currentUserId || incoming.user?.id === currentUserId) return;
       setMessages((prev) => {
-        const exists = prev.some(m => m.id === incoming.id);
+        const exists = prev.some(m => m.id === incoming.id || (incoming.tempId && m.tempId === incoming.tempId));
         if (exists) return prev;
         return [...prev, incoming];
       });
