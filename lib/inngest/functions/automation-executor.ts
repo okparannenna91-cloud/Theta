@@ -188,12 +188,15 @@ async function executeAction(
         ? params.content.replace(/\{task\.title\}/g, context.taskTitle || "")
         : "Automation triggered.";
 
+      const msgNow = new Date();
       return prisma.chatMessage.create({
         data: {
           content,
           userId: context.userId,
           workspaceId: context.workspaceId,
           projectId: params.projectId || context.projectId || null,
+          createdAt: msgNow,
+          updatedAt: msgNow,
         },
       });
     }
