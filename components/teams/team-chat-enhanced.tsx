@@ -20,7 +20,6 @@ import { format } from "date-fns";
 
 import TeamPresence from "@/components/teams/chat/team-presence";
 import WorkspaceReactions from "@/components/teams/chat/workspace-reactions";
-import ChatHeaderDashboard from "@/components/teams/chat/chat-header-dashboard";
 
 interface TeamChatEnhancedProps {
   teamId: string;
@@ -430,10 +429,6 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                   )}
                 </div>
               </div>
-            </div>
-
-            <div className="hidden md:flex items-center gap-2">
-              <ChatHeaderDashboard workspaceId={workspaceId} teamId={teamId} />
             </div>
 
             <div className="flex items-center gap-1 ml-2">

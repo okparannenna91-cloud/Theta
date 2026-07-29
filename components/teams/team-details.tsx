@@ -14,7 +14,6 @@ import {
     Copy,
     Check,
     MoreVertical,
-    Clock,
     Loader2,
     Trash2,
     LogOut,
@@ -25,17 +24,11 @@ import {
     Activity,
     Search,
     Hash,
-    Calendar,
-    BarChart3,
     Link2,
     BadgeCheck,
     Wifi,
     WifiOff,
     ChevronDown,
-    ShieldCheck,
-    Fingerprint,
-    Sparkles,
-    UserCog,
     UserCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -287,13 +280,11 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
     };
 
     const tabs = [
-        { id: "overview", label: "Overview", icon: BarChart3 },
         { id: "members", label: "Members", icon: Users, count: memberCount },
         { id: "projects", label: "Projects", icon: Archive, count: projectCount },
         { id: "boards", label: "Boards", icon: Shield, count: boardCount },
         { id: "chat", label: "Chat", icon: MessageSquare },
         { id: "invites", label: "Invitations", icon: UserPlus },
-        { id: "activity", label: "Activity", icon: Activity },
         { id: "settings", label: "Settings", icon: Settings },
     ];
 
@@ -425,185 +416,6 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                         exit="exit"
                         transition={{ duration: 0.2 }}
                     >
-                        {/* OVERVIEW TAB */}
-                        {activeTab === "overview" && (
-                            <div className="max-w-4xl space-y-6">
-                                {/* Stats Grid */}
-                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                    <Card className="bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/30 dark:to-purple-950/30 border-indigo-100 dark:border-indigo-900/30">
-                                        <CardContent className="p-5">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 rounded-xl bg-indigo-100 dark:bg-indigo-900/50">
-                                                    <Users className="h-5 w-5 text-indigo-600 dark:text-indigo-400" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-2xl font-bold">{memberCount}</p>
-                                                    <p className="text-xs text-muted-foreground">Members</p>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                    <Card className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-950/30 dark:to-teal-950/30 border-emerald-100 dark:border-emerald-900/30">
-                                        <CardContent className="p-5">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-900/50">
-                                                    <Archive className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-2xl font-bold">{projectCount}</p>
-                                                    <p className="text-xs text-muted-foreground">Projects</p>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                    <Card className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-100 dark:border-amber-900/30">
-                                        <CardContent className="p-5">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/50">
-                                                    <Shield className="h-5 w-5 text-amber-600 dark:text-amber-400" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-2xl font-bold">{boardCount}</p>
-                                                    <p className="text-xs text-muted-foreground">Boards</p>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                    <Card className="bg-gradient-to-br from-violet-50 to-pink-50 dark:from-violet-950/30 dark:to-pink-950/30 border-violet-100 dark:border-violet-900/30">
-                                        <CardContent className="p-5">
-                                            <div className="flex items-center gap-3">
-                                                <div className="p-2.5 rounded-xl bg-violet-100 dark:bg-violet-900/50">
-                                                    <Activity className="h-5 w-5 text-violet-600 dark:text-violet-400" />
-                                                </div>
-                                                <div>
-                                                    <p className="text-2xl font-bold">{activities?.length || 0}</p>
-                                                    <p className="text-xs text-muted-foreground">Activities</p>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-
-                                {/* Trust & Security + Recent Activity */}
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="text-sm flex items-center gap-2">
-                                                <ShieldCheck className="h-4 w-4 text-emerald-600" />
-                                                Trust & Security
-                                            </CardTitle>
-                                            <CardDescription className="text-xs">Team integrity signals and member verification</CardDescription>
-                                        </CardHeader>
-                                        <CardContent className="space-y-4">
-                                            <div className="flex items-center justify-between py-2 border-b">
-                                                <span className="text-sm text-muted-foreground">Team Created</span>
-                                                <span className="text-sm font-medium flex items-center gap-1.5">
-                                                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                                                    {team.createdAt ? format(new Date(team.createdAt), "MMM d, yyyy") : "N/A"}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between py-2 border-b">
-                                                <span className="text-sm text-muted-foreground">Owner</span>
-                                                <span className="text-sm font-medium flex items-center gap-1.5">
-                                                    <Crown className="h-3.5 w-3.5 text-amber-500" />
-                                                    {members?.find((m: any) => m.role === "owner")?.user?.name || "Unknown"}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between py-2 border-b">
-                                                <span className="text-sm text-muted-foreground">Admins</span>
-                                                <span className="text-sm font-medium">
-                                                    {members?.filter((m: any) => m.role === "admin").length || 0}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between py-2 border-b">
-                                                <span className="text-sm text-muted-foreground">Online Now</span>
-                                                <span className="text-sm font-medium flex items-center gap-1.5">
-                                                    <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                                                    {members?.filter((m: any) => m.user?.lastActiveAt && new Date(m.user.lastActiveAt).getTime() > Date.now() - 300000).length || 0}
-                                                    {" / "}{memberCount}
-                                                </span>
-                                            </div>
-                                            <div className="flex items-center justify-between py-2">
-                                                <span className="text-sm text-muted-foreground">Verification</span>
-                                                <span className="text-sm font-medium flex items-center gap-1.5">
-                                                    <Fingerprint className="h-3.5 w-3.5 text-indigo-500" />
-                                                    {members?.filter((m: any) => m.user?.emailVerified).length || 0} verified
-                                                </span>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-
-                                    <Card>
-                                        <CardHeader>
-                                            <CardTitle className="text-sm flex items-center gap-2">
-                                                <Sparkles className="h-4 w-4 text-amber-500" />
-                                                Recent Activity
-                                            </CardTitle>
-                                            <CardDescription className="text-xs">Latest team actions at a glance</CardDescription>
-                                        </CardHeader>
-                                        <CardContent>
-                                            <div className="space-y-3">
-                                                {activities?.slice(0, 5).map((activity: any) => (
-                                                    <div key={activity.id} className="flex items-start gap-3 text-sm">
-                                                        <div className="h-7 w-7 rounded-full bg-muted border flex items-center justify-center shrink-0 mt-0.5">
-                                                            {activity.user?.imageUrl ? (
-                                                                <Image src={activity.user.imageUrl} alt="" width={28} height={28} className="h-full w-full object-cover rounded-full" />
-                                                            ) : (
-                                                                <Activity className="h-3.5 w-3.5 text-muted-foreground" />
-                                                            )}
-                                                        </div>
-                                                        <div className="min-w-0 flex-1">
-                                                            <p className="truncate">
-                                                                <span className="font-medium">{activity.user?.name || "User"}</span>
-                                                                {" "}<span className="capitalize text-muted-foreground">{activity.action}</span>
-                                                                {" "}{activity.entityType?.replace(/_/g, " ")}
-                                                            </p>
-                                                            <p className="text-[10px] text-muted-foreground">
-                                                                {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
-                                                            </p>
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                                {(!activities || activities.length === 0) && (
-                                                    <p className="text-sm text-muted-foreground italic text-center py-6">No recent activity</p>
-                                                )}
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                </div>
-
-                                {/* Member Roles Distribution */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle className="text-sm flex items-center gap-2">
-                                            <UserCog className="h-4 w-4 text-muted-foreground" />
-                                            Member Role Distribution
-                                        </CardTitle>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="grid grid-cols-3 gap-4">
-                                            {[
-                                                { role: "Owner", count: members?.filter((m: any) => m.role === "owner").length || 0, color: "bg-amber-500", icon: Crown, light: "bg-amber-50 dark:bg-amber-950/30" },
-                                                { role: "Admins", count: members?.filter((m: any) => m.role === "admin").length || 0, color: "bg-indigo-500", icon: Shield, light: "bg-indigo-50 dark:bg-indigo-950/30" },
-                                                { role: "Members", count: members?.filter((m: any) => m.role === "member").length || 0, color: "bg-emerald-500", icon: Users, light: "bg-emerald-50 dark:bg-emerald-950/30" },
-                                            ].map(({ role, count, color, icon: Icon, light }) => (
-                                                <div key={role} className={`${light} rounded-xl p-4 border`}>
-                                                    <div className="flex items-center justify-between mb-2">
-                                                        <Icon className={`h-4 w-4 ${color.replace("bg-", "text-")}`} />
-                                                        <span className="text-lg font-bold">{count}</span>
-                                                    </div>
-                                                    <p className="text-xs text-muted-foreground">{role}</p>
-                                                    <div className="mt-2 h-1.5 rounded-full bg-muted overflow-hidden">
-                                                        <div className={`h-full rounded-full ${color} transition-all`} style={{ width: `${memberCount > 0 ? (count / memberCount) * 100 : 0}%` }} />
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </CardContent>
-                                </Card>
-                            </div>
-                        )}
-
                         {/* MEMBERS TAB */}
                         {activeTab === "members" && (
                             <div className="space-y-6">
@@ -1006,58 +818,6 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
                                         </CardHeader>
                                     </Card>
                                 </div>
-                            </div>
-                        )}
-
-                        {/* ACTIVITY TAB */}
-                        {activeTab === "activity" && (
-                            <div className="max-w-3xl">
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Team Activity</CardTitle>
-                                        <CardDescription>Recent actions and updates within this team.</CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <div className="space-y-6 relative before:absolute before:inset-0 before:ml-5 before:h-full before:w-0.5 before:bg-gradient-to-b before:from-transparent before:via-border before:to-transparent">
-                                            {activities?.map((activity: any) => (
-                                                <div key={activity.id} className="relative flex items-start gap-6">
-                                                    <div className="relative z-10 flex items-center justify-center w-10 h-10 rounded-full border bg-background shadow-sm shrink-0">
-                                                        {activity.user?.imageUrl ? (
-                                                            <Image src={activity.user.imageUrl} alt={activity.user.name || "User"} width={40} height={40} className="h-full w-full object-cover rounded-full" />
-                                                        ) : (
-                                                            <Activity className="h-5 w-5 text-muted-foreground" />
-                                                        )}
-                                                    </div>
-                                                    <div className="flex-1 min-w-0 p-4 rounded-xl border bg-card/50">
-                                                        <div className="flex items-center justify-between gap-2 mb-1">
-                                                            <div className="font-semibold text-sm text-foreground truncate">
-                                                                {activity.user?.name || "User"}
-                                                            </div>
-                                                            <time className="text-[10px] text-muted-foreground shrink-0">
-                                                                {formatDistanceToNow(new Date(activity.createdAt), { addSuffix: true })}
-                                                            </time>
-                                                        </div>
-                                                        <div className="text-sm text-muted-foreground">
-                                                            <span className="font-medium text-foreground capitalize">{activity.action}</span>
-                                                            {" "}{activity.entityType?.replace(/_/g, " ")}
-                                                            {activity.metadata?.details && (
-                                                                <span className="block text-xs text-muted-foreground/70 mt-0.5 italic">
-                                                                    {activity.metadata.details}
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                            ))}
-                                            {(!activities || activities.length === 0) && (
-                                                <div className="flex flex-col items-center py-12 text-muted-foreground">
-                                                    <Activity className="h-10 w-10 mb-3 text-muted-foreground/30" />
-                                                    <p className="italic">No recent activity recorded.</p>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </CardContent>
-                                </Card>
                             </div>
                         )}
 
