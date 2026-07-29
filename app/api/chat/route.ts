@@ -53,6 +53,16 @@ export async function GET(req: Request) {
         console.log("[Chat API] GET params", { workspaceId, teamId, cursor, effectiveWorkspaceId });
 
         const TAKE = 50;
+
+        const totalCount = await prisma.chatMessage.count({
+            where: {
+                workspaceId: effectiveWorkspaceId,
+                ...(teamId ? { teamId } : {}),
+                deletedAt: null,
+            }
+        });
+        console.log("[Chat API] Total count for workspaceId+teamId", { totalCount, effectiveWorkspaceId, teamId });
+
         const messagesRaw = await prisma.chatMessage.findMany({
             where: {
                 workspaceId: effectiveWorkspaceId,
@@ -74,6 +84,10 @@ export async function GET(req: Request) {
         });
 
         console.log("[Chat API] Raw messages count", { count: messagesRaw.length, hasMore: messagesRaw.length > TAKE });
+
+        if (messagesRaw.length > 0) {
+            console.log("[Chat API] First message details", { id: messagesRaw[0].id, workspaceId: messagesRaw[0].workspaceId, teamId: messagesRaw[0].teamId, createdAt: messagesRaw[0].createdAt });
+        }
 
         const hasMore = messagesRaw.length > TAKE;
         const pageMessages = hasMore ? messagesRaw.slice(0, TAKE) : messagesRaw;
@@ -168,6 +182,8 @@ export async function POST(req: Request) {
           }
         }
 
+        console.log("[Chat POST] Creating message", { workspaceId: data.workspaceId, teamId: data.teamId, content: data.content?.slice(0, 30) });
+
         const messageRaw = await prisma.chatMessage.create({
             data: {
                 content: data.content,
@@ -182,6 +198,13 @@ export async function POST(req: Request) {
                 replyTo: { select: { id: true, content: true, userId: true } }
             }
         });
+
+        console.log("[Chat POST] Created message", { id: messageRaw.id, workspaceId: messageRaw.workspaceId, teamId: messageRaw.teamId });
+
+        const verifyCount = await prisma.chatMessage.count({
+            where: { workspaceId: data.workspaceId, teamId: data.teamId ?? undefined, deletedAt: null }
+        });
+        console.log("[Chat POST] Verify count after create", { count: verifyCount, workspaceId: data.workspaceId, teamId: data.teamId });
 
         const replyToUser = messageRaw.replyTo ? await prisma.user.findUnique({
             where: { id: messageRaw.replyTo.userId },
