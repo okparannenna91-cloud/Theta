@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -17,7 +18,6 @@ import {
 } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { TeamDetails } from "./team-details";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -69,14 +69,14 @@ const cardVariants = {
 };
 
 export default function TeamsPage() {
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState<any>(null);
+  const [inviteTeamId, setInviteTeamId] = useState<string | null>(null);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState("member");
-  const [view, setView] = useState<"list" | "details">("list");
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState<FilterStatus>("all");
@@ -153,7 +153,7 @@ export default function TeamsPage() {
     e.preventDefault();
     if (!activeWorkspaceIdRef.current) { toast.error("Workspace ID missing"); return; }
     if (isMemberLimitReached) { showUpgradePrompt("members"); return; }
-    inviteMutation.mutate({ workspaceId: activeWorkspaceIdRef.current, email: inviteEmail, role: inviteRole, teamId: selectedTeam?.id });
+    inviteMutation.mutate({ workspaceId: activeWorkspaceIdRef.current, email: inviteEmail, role: inviteRole, teamId: inviteTeamId! });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -202,14 +202,6 @@ export default function TeamsPage() {
           <p className="text-sm text-muted-foreground">There was an error fetching your teams. Please try again.</p>
           <Button variant="outline" size="sm" onClick={() => window.location.reload()}>Retry</Button>
         </div>
-      </div>
-    );
-  }
-
-  if (selectedTeam && view === "details") {
-    return (
-      <div className="max-w-7xl mx-auto">
-        <TeamDetails team={selectedTeam} onBack={() => { setView("list"); setSelectedTeam(null); }} />
       </div>
     );
   }
@@ -433,7 +425,7 @@ export default function TeamsPage() {
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
               >
                 <Card
-                  onClick={() => { setSelectedTeam(team); setView("details"); }}
+                  onClick={() => router.push(`/teams/${team.id}`)}
                   className="group relative border shadow-sm hover:shadow-lg hover:border-primary/30 transition-all duration-300 cursor-pointer overflow-hidden rounded-2xl bg-card h-full flex flex-col"
                 >
                   {/* Accent bar */}
@@ -539,7 +531,7 @@ export default function TeamsPage() {
                           variant="outline"
                           size="sm"
                           className="flex-1 h-9 rounded-lg text-xs font-medium"
-                          onClick={(e) => { e.stopPropagation(); setSelectedTeam(team); setIsInviteOpen(true); }}
+                          onClick={(e) => { e.stopPropagation(); setInviteTeamId(team.id); setIsInviteOpen(true); }}
                         >
                           <UserPlus className="h-3.5 w-3.5 mr-1.5" /> Invite
                         </Button>
@@ -551,7 +543,7 @@ export default function TeamsPage() {
                           "flex-1 h-9 rounded-lg text-xs font-medium",
                           team.userRole !== "admin" && team.userRole !== "owner" ? "bg-primary/5 text-primary hover:bg-primary/10" : "text-muted-foreground hover:text-foreground"
                         )}
-                        onClick={(e) => { e.stopPropagation(); setSelectedTeam(team); setView("details"); }}
+                        onClick={(e) => { e.stopPropagation(); router.push(`/teams/${team.id}`); }}
                       >
                         <ExternalLink className="h-3.5 w-3.5 mr-1.5" /> Open
                       </Button>
@@ -619,7 +611,7 @@ export default function TeamsPage() {
               </div>
               <DialogTitle className="text-xl font-semibold">Invite Member</DialogTitle>
             </div>
-            <p className="text-sm text-muted-foreground">Add a new member to <strong>{selectedTeam?.name || "team"}</strong>.</p>
+            <p className="text-sm text-muted-foreground">Add a new member to the team.</p>
           </DialogHeader>
           <form onSubmit={handleInviteSubmit} className="space-y-5 mt-4">
             <div className="space-y-2">
