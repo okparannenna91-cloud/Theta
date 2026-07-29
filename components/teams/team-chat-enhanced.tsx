@@ -221,6 +221,16 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
   }, [teamId, workspaceId, fetchMessages]);
 
   useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible" && teamId && workspaceId) {
+        fetchMessages();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, [teamId, workspaceId, fetchMessages]);
+
+  useEffect(() => {
     if (user?.id && teamId) connectAbly();
     return () => {
       if (ablyRef.current) { ablyRef.current.close(); ablyRef.current = null; channelRef.current = null; }
