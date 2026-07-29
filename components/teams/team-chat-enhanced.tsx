@@ -144,15 +144,19 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
 
   const subscribeChannel = useCallback((ably: any, channel: any) => {
     channel.subscribe("message", (msg: any) => {
+      const incoming = msg.data;
+      const currentUserId = dbUser?.id || user?.id;
+      if (incoming.userId === currentUserId || incoming.user?.id === currentUserId) return;
       setMessages((prev) => {
-        const incoming = msg.data;
-        const exists = prev.some(m => m.id === incoming.id || (incoming.tempId && m.tempId === incoming.tempId));
-        if (exists) return prev.map(m => (incoming.tempId && m.tempId === incoming.tempId) ? incoming : m);
+        const exists = prev.some(m => m.id === incoming.id);
+        if (exists) return prev;
         return [...prev, incoming];
       });
     });
 
     channel.subscribe("message:updated", (msg: any) => {
+      const currentUserId = dbUser?.id || user?.id;
+      if (msg.data.userId === currentUserId || msg.data.user?.id === currentUserId) return;
       setMessages((prev) => prev.map(m => m.id === msg.data.id ? { ...m, ...msg.data } : m));
     });
 
@@ -512,7 +516,8 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
             }
 
             return sorted.map((msg, idx) => {
-              const isMe = msg.userId === dbUser?.id || msg.userId === user?.id;
+              const currentUserId = dbUser?.id || user?.id;
+              const isMe = msg.userId === currentUserId || msg.user?.id === currentUserId;
               const prevMsg = idx > 0 ? sorted[idx - 1] : null;
               const isSameSender = prevMsg && prevMsg.userId === msg.userId && !prevMsg.deletedAt;
               const showDateSeparator = idx === 0 || !isSameDay(msg.createdAt, sorted[idx - 1].createdAt);
