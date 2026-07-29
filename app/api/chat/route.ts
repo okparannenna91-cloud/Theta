@@ -199,12 +199,17 @@ export async function POST(req: Request) {
             }
         });
 
-        console.log("[Chat POST] Created message", { id: messageRaw.id, workspaceId: messageRaw.workspaceId, teamId: messageRaw.teamId });
+        console.log("[Chat POST] Created message", { id: messageRaw.id, workspaceId: messageRaw.workspaceId, teamId: messageRaw.teamId, userId: messageRaw.userId, content: messageRaw.content?.slice(0, 30) });
 
         const verifyCount = await prisma.chatMessage.count({
             where: { workspaceId: data.workspaceId, teamId: data.teamId ?? undefined, deletedAt: null }
         });
         console.log("[Chat POST] Verify count after create", { count: verifyCount, workspaceId: data.workspaceId, teamId: data.teamId });
+
+        const countNoTeam = await prisma.chatMessage.count({
+            where: { workspaceId: data.workspaceId, deletedAt: null }
+        });
+        console.log("[Chat POST] Count without teamId filter", { count: countNoTeam });
 
         const replyToUser = messageRaw.replyTo ? await prisma.user.findUnique({
             where: { id: messageRaw.replyTo.userId },
