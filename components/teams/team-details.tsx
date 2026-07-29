@@ -109,7 +109,8 @@ export function TeamDetails({ team: initialTeam, onBack }: TeamDetailsProps) {
             const res = await fetch(`/api/teams/${team.id}/members?workspaceId=${team.workspaceId}`);
             if (!res.ok) throw new Error("Failed to fetch members");
             return res.json();
-        }
+        },
+        refetchInterval: 60_000,
     });
 
     const { data: invites, isLoading: isLoadingInvites } = useQuery({
