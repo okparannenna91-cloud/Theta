@@ -4,7 +4,7 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { cn } from "@/lib/utils";
-import { Hash, Search, Loader2, MessageSquare } from "lucide-react";
+import { Search, Loader2, MessageSquare } from "lucide-react";
 import { format } from "date-fns";
 
 interface Conversation {
@@ -48,86 +48,75 @@ export function ChatSidebar({ activeConversationId, onSelectConversation }: Chat
     : conversations;
 
   return (
-    <div className="flex flex-col h-full bg-background/95 border-r border-border/40">
-      <div className="px-4 pt-5 pb-3">
-        <h2 className="text-sm font-semibold tracking-tight text-foreground/80 px-1">Chat</h2>
+    <div className="flex flex-col h-full bg-background">
+      <div className="px-4 pt-4 pb-2">
+        <h2 className="text-[13px] font-semibold tracking-tight text-foreground/70 px-1">Chat</h2>
       </div>
 
-      <div className="px-3 pb-3">
-        <div className="flex items-center gap-2 px-3 h-9 rounded-xl bg-muted/60 border border-border/40 text-muted-foreground/50 text-xs">
-          <Search className="h-3.5 w-3.5 shrink-0" />
+      <div className="px-3 pb-2">
+        <div className="flex items-center gap-2 px-3 h-8 rounded-full bg-muted/60 text-muted-foreground/40 text-[11px]">
+          <Search className="h-3 w-3 shrink-0" />
           <input
-            placeholder="Search conversations..."
+            placeholder="Search"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="bg-transparent border-none outline-none flex-1 text-xs placeholder:text-muted-foreground/40"
+            className="bg-transparent border-none outline-none flex-1 text-[11px] placeholder:text-muted-foreground/30"
           />
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto no-scrollbar">
         {isLoading ? (
-          <div className="flex items-center justify-center py-12 text-muted-foreground/40">
-            <Loader2 className="h-5 w-5 animate-spin" />
+          <div className="flex items-center justify-center py-12 text-muted-foreground/30">
+            <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 px-4 text-center text-muted-foreground/40">
-            <MessageSquare className="h-8 w-8 mb-3" />
-            <p className="text-xs font-medium">No conversations</p>
-            <p className="text-[10px] mt-1">Join a team to start chatting</p>
+          <div className="flex flex-col items-center justify-center py-12 px-4 text-center text-muted-foreground/30">
+            <MessageSquare className="h-6 w-6 mb-2" />
+            <p className="text-[11px] font-medium">No conversations</p>
           </div>
         ) : (
-          <div className="space-y-0.5 px-2 pb-3">
+          <div className="px-2 pb-2">
             {filtered.map(conv => (
               <button
                 key={conv.id}
                 onClick={() => onSelectConversation(conv.id)}
                 className={cn(
-                  "w-full flex items-start gap-3 px-3 py-2.5 rounded-xl text-left transition-all",
+                  "w-full flex items-start gap-2.5 px-3 py-2.5 rounded-[10px] text-left transition-all",
                   activeConversationId === conv.id
-                    ? "bg-primary/10 text-primary"
-                    : "hover:bg-muted/60 text-foreground/80 hover:text-foreground"
+                    ? "bg-accent"
+                    : "hover:bg-muted/50"
                 )}
               >
                 <div className={cn(
-                  "h-8 w-8 rounded-xl shrink-0 flex items-center justify-center text-xs font-semibold mt-0.5",
+                  "h-8 w-8 rounded-[9px] shrink-0 flex items-center justify-center text-[11px] font-semibold mt-0.5",
                   activeConversationId === conv.id
                     ? "bg-primary text-primary-foreground"
-                    : "bg-muted/80 text-muted-foreground border border-border/30"
+                    : "bg-muted/80 text-muted-foreground/70"
                 )}>
                   {conv.name.slice(0, 2).toUpperCase()}
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 pt-0.5">
                   <div className="flex items-center justify-between gap-2">
                     <span className={cn(
-                      "text-sm font-medium truncate",
-                      activeConversationId === conv.id && "text-primary"
+                      "text-[13px] font-medium truncate leading-none",
+                      activeConversationId === conv.id ? "text-foreground" : "text-foreground/80"
                     )}>
                       {conv.name}
                     </span>
                     {conv.lastMessage && (
-                      <span className="text-[10px] text-muted-foreground/50 shrink-0">
+                      <span className="text-[10px] text-muted-foreground/40 shrink-0 leading-none">
                         {format(new Date(conv.lastMessage.createdAt), "HH:mm")}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="mt-1.5">
                     {conv.lastMessage ? (
-                      <span className="text-xs text-muted-foreground/60 truncate">
-                        {conv.lastMessage.userName ? `${conv.lastMessage.userName}: ` : ""}
+                      <span className="text-[11px] text-muted-foreground/50 line-clamp-1 leading-tight">
                         {conv.lastMessage.content}
                       </span>
                     ) : (
-                      <span className="text-xs text-muted-foreground/30 italic">No messages yet</span>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="text-[9px] text-muted-foreground/40">{conv.membersCount} members</span>
-                    {conv.messageCount > 0 && (
-                      <>
-                        <span className="text-[9px] text-muted-foreground/20">·</span>
-                        <span className="text-[9px] text-muted-foreground/40">{conv.messageCount} messages</span>
-                      </>
+                      <span className="text-[11px] text-muted-foreground/25 italic leading-tight">No messages yet</span>
                     )}
                   </div>
                 </div>

@@ -33,9 +33,9 @@ export const MotionWrapper = ({
 
 export const FadeIn = ({ children, className, delay = 0 }: MotionWrapperProps) => (
     <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ duration: 0.5, delay }}
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay, ease: [0.16, 1, 0.3, 1] }}
         className={className}
     >
         {children}

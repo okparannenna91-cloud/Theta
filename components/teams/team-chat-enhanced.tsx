@@ -413,37 +413,37 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
   const chatContent = (
       <div className="flex bg-transparent relative overflow-hidden h-full">
         <div className="flex-1 flex flex-col min-w-0">
-          <div className="px-5 sm:px-7 py-4 flex items-center justify-between border-b border-border/50 z-20 shrink-0 bg-background/80">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="h-9 w-9 rounded-xl bg-primary/8 flex items-center justify-center shrink-0">
-                <Hash className="h-[18px] w-[18px] text-primary" />
+          <div className="px-5 sm:px-7 py-3 flex items-center justify-between border-b border-border/30 z-20 shrink-0 bg-background/60">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="h-7 w-7 rounded-[8px] bg-primary/10 flex items-center justify-center shrink-0">
+                <Hash className="h-[14px] w-[14px] text-primary" />
               </div>
               <div className="min-w-0">
-                <h3 className="text-[15px] font-semibold tracking-tight leading-none text-foreground">Team Chat</h3>
+                <h3 className="text-[13px] font-semibold tracking-tight leading-none text-foreground/90">Team Chat</h3>
                 <div className="flex items-center gap-2 mt-0.5">
                   <TeamPresence onlineUsers={onlineUsers} />
                   {!isConnected && (
-                    <span className="text-[11px] font-medium text-amber-500">Disconnected</span>
+                    <span className="text-[10px] font-medium text-amber-500/70">Disconnected</span>
                   )}
                   {reconnecting && (
-                    <span className="text-[11px] font-medium text-blue-500 animate-pulse">Reconnecting...</span>
+                    <span className="text-[10px] font-medium text-blue-500/70 animate-pulse">Reconnecting...</span>
                   )}
                 </div>
               </div>
             </div>
 
-            <div className="hidden md:flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2">
               <ChatHeaderDashboard workspaceId={workspaceId} teamId={teamId} />
             </div>
 
-            <div className="flex items-center gap-1 ml-3">
+            <div className="flex items-center gap-1 ml-2">
               {pinnedMessages.length > 0 && (
-                <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-amber-500 bg-amber-500/8 hover:bg-amber-500/12 transition-colors">
+                <button className="flex items-center gap-1 px-2 py-1 rounded-[6px] text-[10px] font-medium text-amber-500/60 hover:text-amber-500 hover:bg-amber-500/8 transition-colors">
                   <Pin className="h-3 w-3" /> {pinnedMessages.length}
                 </button>
               )}
-              <button className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground/60 hover:text-foreground hover:bg-muted/60 transition-all" onClick={toggleFullScreen} title={isFullScreen ? "Exit full screen" : "Full screen"}>
-                {isFullScreen ? <Minimize2 className="h-[18px] w-[18px]" /> : <Maximize2 className="h-[18px] w-[18px]" />}
+              <button className="h-7 w-7 rounded-[8px] flex items-center justify-center text-muted-foreground/30 hover:text-foreground/70 hover:bg-muted/60 transition-all" onClick={toggleFullScreen} title={isFullScreen ? "Exit full screen" : "Full screen"}>
+                {isFullScreen ? <Minimize2 className="h-[15px] w-[15px]" /> : <Maximize2 className="h-[15px] w-[15px]" />}
               </button>
             </div>
           </div>
@@ -526,17 +526,17 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
               return (
                 <React.Fragment key={msg.id || msg.tempId}>
                   {showDateSeparator && (
-                    <div className="flex items-center gap-3 py-3 px-1">
-                      <div className="flex-1 h-px bg-border/30" />
-                      <span className="text-[11px] font-medium text-muted-foreground/50 shrink-0">{formatDateLabel(new Date(msg.createdAt))}</span>
-                      <div className="flex-1 h-px bg-border/30" />
+                    <div className="flex items-center gap-3 py-2.5 px-1">
+                      <div className="flex-1 h-px bg-border/20" />
+                      <span className="text-[10px] font-medium text-muted-foreground/40 shrink-0 tracking-wide">{formatDateLabel(new Date(msg.createdAt))}</span>
+                      <div className="flex-1 h-px bg-border/20" />
                     </div>
                   )}
                   {showUnread && (
                     <div className="flex items-center gap-3 py-2 px-1" id="unread-divider">
-                      <div className="flex-1 h-px bg-primary/20" />
-                      <span className="text-[10px] font-semibold text-primary/60 uppercase tracking-wider">Unread</span>
-                      <div className="flex-1 h-px bg-primary/20" />
+                      <div className="flex-1 h-px bg-primary/15" />
+                      <span className="text-[9px] font-semibold text-primary/50 uppercase tracking-[0.08em]">Unread</span>
+                      <div className="flex-1 h-px bg-primary/15" />
                     </div>
                   )}
                   <FadeIn delay={0.02} className={cn(
@@ -546,30 +546,30 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                   )}>
                     {/* Hover actions bar */}
                     <div className={cn(
-                      "absolute top-0 z-10 hidden group-hover:flex items-center gap-0.5 px-1 py-0.5 rounded-xl bg-background/90 border border-border/50 shadow-sm backdrop-blur-xl",
-                      isMe ? "-top-3 right-0" : "-top-3 left-9"
+                      "absolute z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-px px-1 py-0.5 rounded-full bg-background/95 border border-border/40 shadow-lg shadow-black/[0.04] backdrop-blur-2xl",
+                      isMe ? "-top-2.5 right-0" : "-top-2.5 left-9"
                     )}>
-                      <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-all" title="Reply" onClick={() => setReplyTo(msg)}>
-                        <Reply className="h-3.5 w-3.5" />
+                      <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="Reply" onClick={() => setReplyTo(msg)}>
+                        <Reply className="h-[14px] w-[14px]" />
                       </button>
-                      <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-all" title="React">
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                      <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="React">
+                        <svg className="h-[14px] w-[14px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                       </button>
-                      <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-all" title="Edit" onClick={() => {}}>
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                      <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="Edit">
+                        <svg className="h-[14px] w-[14px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
                       </button>
                       {msg.isPinned ? (
-                        <button className="h-7 w-7 rounded-lg flex items-center justify-center text-amber-500/70 hover:text-amber-500 hover:bg-amber-500/10 transition-all" title="Unpin" onClick={() => togglePin(msg)}>
-                          <PinOff className="h-3.5 w-3.5" />
+                        <button className="h-7 w-7 rounded-full flex items-center justify-center text-amber-500/50 hover:text-amber-500 hover:bg-amber-500/10 transition-all active:scale-90" title="Unpin" onClick={() => togglePin(msg)}>
+                          <PinOff className="h-[14px] w-[14px]" />
                         </button>
                       ) : (
-                        <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-all" title="Pin" onClick={() => togglePin(msg)}>
-                          <Pin className="h-3.5 w-3.5" />
+                        <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="Pin" onClick={() => togglePin(msg)}>
+                          <Pin className="h-[14px] w-[14px]" />
                         </button>
                       )}
-                      <div className="w-px h-4 bg-border/30 mx-0.5" />
-                      <button className="h-7 w-7 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-red-500 hover:bg-red-500/10 transition-all" title="Delete" onClick={() => deleteMessage(msg.id)}>
-                        <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      <div className="w-px h-3.5 bg-border/20 mx-px" />
+                      <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10 transition-all active:scale-90" title="Delete" onClick={() => deleteMessage(msg.id)}>
+                        <svg className="h-[14px] w-[14px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
                       </button>
                     </div>
 
@@ -596,20 +596,20 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                           </span>
                         )}
                         <div className={cn(
-                          "relative px-4 py-[10px] sm:px-5 sm:py-3 text-sm leading-relaxed shadow-sm transition-all",
+                          "relative px-[14px] py-[9px] sm:px-4 sm:py-[10px] text-sm leading-relaxed transition-all",
                           isMe
-                            ? "bg-primary text-primary-foreground rounded-[18px] rounded-br-[6px]"
-                            : "bg-card text-card-foreground rounded-[18px] rounded-bl-[6px] border border-border/40"
+                            ? "bg-primary/[0.08] text-foreground rounded-[14px] rounded-br-[4px]"
+                            : "bg-muted/50 text-foreground rounded-[14px] rounded-bl-[4px]"
                         )}>
                           {msg.replyTo && (
                             <div className={cn(
-                              "mb-2.5 p-2.5 rounded-xl text-xs border-l-[3px]",
-                              isMe ? "bg-white/8 border-white/30 text-white/70" : "bg-muted/60 border-primary/30 text-muted-foreground"
+                              "mb-2 p-2 rounded-[10px] text-xs",
+                              isMe ? "bg-primary/[0.06] text-foreground/60" : "bg-muted/80 text-muted-foreground"
                             )}>
                               <div className="font-medium mb-0.5 flex items-center gap-1.5">
                                 <Reply className="h-3 w-3 shrink-0" /> Replying to {msg.replyTo.userId === user?.id ? "you" : (msg.replyTo.user?.name || "User")}
                               </div>
-                              <span className="line-clamp-2 italic opacity-80">{msg.replyTo.content}</span>
+                              <span className="line-clamp-2 italic opacity-70">{msg.replyTo.content}</span>
                             </div>
                           )}
                           {msg.attachment && (() => {
@@ -618,17 +618,17 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                               return "#";
                             })();
                             return (
-                              <div className="mb-2.5">
+                              <div className="mb-2">
                                 {msg.attachment.category === "image" ? (
-                                  <a href={url} target="_blank" rel="noopener noreferrer" className="block relative h-40 sm:h-52 w-full sm:w-72 overflow-hidden rounded-2xl border hover:scale-[1.01] transition-transform duration-300">
+                                  <a href={url} target="_blank" rel="noopener noreferrer" className="block relative h-40 sm:h-52 w-full sm:w-72 overflow-hidden rounded-xl hover:scale-[1.01] transition-transform duration-300 ring-1 ring-black/[0.04]">
                                     <Image src={url} alt="Image" fill className="object-cover" />
                                   </a>
                                 ) : (
-                                  <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 bg-black/[0.04] rounded-xl hover:bg-black/[0.08] transition-all">
-                                    <div className="h-8 w-8 rounded-lg bg-black/[0.06] flex items-center justify-center shrink-0"><FileText className="h-3.5 w-3.5 text-muted-foreground" /></div>
+                                  <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 bg-black/[0.03] rounded-xl hover:bg-black/[0.06] transition-all">
+                                    <div className="h-8 w-8 rounded-lg bg-black/[0.04] flex items-center justify-center shrink-0"><FileText className="h-3.5 w-3.5 text-muted-foreground/60" /></div>
                                     <div className="flex flex-col min-w-0">
                                       <span className="text-xs font-medium truncate max-w-[120px] sm:max-w-[160px]">{msg.attachment.originalName}</span>
-                                      <span className="text-[10px] text-muted-foreground">Document</span>
+                                      <span className="text-[10px] text-muted-foreground/60">Document</span>
                                     </div>
                                   </a>
                                 )}
@@ -637,18 +637,15 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                           })()}
                           <div className="whitespace-pre-wrap break-words">{msg.content}</div>
                           <div className={cn(
-                            "flex items-center gap-1.5 mt-1 -mb-0.5 select-none",
+                            "flex items-center gap-1.5 mt-0.5 select-none",
                             isMe ? "justify-end" : "justify-start"
                           )}>
-                            <span className={cn(
-                              "text-[10px] leading-none",
-                              isMe ? "text-primary-foreground/50" : "text-muted-foreground/60"
-                            )}>
+                            <span className="text-[10px] leading-none text-muted-foreground/50">
                               {format(new Date(msg.createdAt), "HH:mm")}
                             </span>
-                            {msg.isEdited && <span className="text-[9px] italic text-muted-foreground/50">edited</span>}
-                            {msg.isPinned && <Pin className="h-2.5 w-2.5 text-amber-400/70" />}
-                            {isMe && <span className="text-[9px] text-primary-foreground/40">✓✓</span>}
+                            {msg.isEdited && <span className="text-[9px] italic text-muted-foreground/40">edited</span>}
+                            {msg.isPinned && <Pin className="h-2.5 w-2.5 text-amber-400/60" />}
+                            {isMe && <span className="text-[9px] text-muted-foreground/40">✓✓</span>}
                           </div>
                         </div>
                         {msg.userId !== user?.id && (
@@ -737,16 +734,16 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
             )}
 
             <form onSubmit={sendMessage} className="flex items-end gap-2">
-              <div className="flex-1 flex items-center gap-1.5 px-3 py-1.5 bg-background rounded-2xl border border-border/60 focus-within:border-primary/30 focus-within:shadow-[0_0_0_3px_hsl(var(--primary)/0.08)] transition-all shadow-sm">
+              <div className="flex-1 flex items-center gap-1 px-3 py-1 bg-background rounded-full border border-border/50 focus-within:border-primary/30 focus-within:ring-[3px] focus-within:ring-primary/[0.06] transition-all">
                 <Dialog open={isUploadOpen} onOpenChange={setIsUploadOpen}>
                   <DialogTrigger asChild>
-                    <button type="button" className="flex items-center justify-center h-8 w-8 rounded-xl text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-all shrink-0" disabled={!isConnected}>
-                      <Paperclip className="h-[18px] w-[18px]" />
+                    <button type="button" className="flex items-center justify-center h-7 w-7 rounded-full text-muted-foreground/40 hover:text-foreground/70 hover:bg-muted/50 transition-all shrink-0" disabled={!isConnected}>
+                      <Paperclip className="h-[15px] w-[15px]" />
                     </button>
                   </DialogTrigger>
-                  <DialogContent className="rounded-2xl border bg-background p-6 sm:p-8 shadow-lg max-w-lg">
-                    <DialogHeader className="mb-5">
-                      <DialogTitle className="text-base font-semibold tracking-tight">Attach File</DialogTitle>
+                  <DialogContent className="rounded-xl border bg-background p-6 shadow-lg max-w-lg">
+                    <DialogHeader className="mb-4">
+                      <DialogTitle className="text-sm font-semibold tracking-tight">Attach File</DialogTitle>
                     </DialogHeader>
                     <FileUpload workspaceId={workspaceId} onUploadComplete={(data) => {
                       setAttachment({
@@ -760,13 +757,13 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                 </Dialog>
                 <Input
                   ref={composerRef}
-                  placeholder={isLimitReached ? "Message limit reached" : "Type a message..."}
+                  placeholder={isLimitReached ? "Message limit reached" : "Message..."}
                   value={message} onChange={handleInputChange}
-                  className="border-none bg-transparent shadow-none focus-visible:ring-0 text-sm h-9 px-1 placeholder:text-muted-foreground/40"
+                  className="border-none bg-transparent shadow-none focus-visible:ring-0 text-[13px] h-8 px-1 placeholder:text-muted-foreground/30"
                   disabled={!isConnected || isLimitReached}
                 />
-                <button type="submit" disabled={!isConnected || isLimitReached || (!message.trim() && !attachment)} className="flex items-center justify-center h-8 w-8 rounded-xl bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shrink-0 shadow-sm">
-                  {isLimitReached ? <Lock className="h-[16px] w-[16px]" /> : <Send className="h-[16px] w-[16px]" />}
+                <button type="submit" disabled={!isConnected || isLimitReached || (!message.trim() && !attachment)} className="flex items-center justify-center h-7 w-7 rounded-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-20 disabled:cursor-not-allowed transition-all shrink-0">
+                  {isLimitReached ? <Lock className="h-[14px] w-[14px]" /> : <Send className="h-[14px] w-[14px]" />}
                 </button>
               </div>
             </form>
