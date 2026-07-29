@@ -5,21 +5,22 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  CheckSquare,
-  Bell,
-  FolderKanban,
-  LayoutList,
-  Users,
-  Settings,
-  Menu,
-  X,
-  ChevronDown,
-  Check,
-  Plus,
-  MessageSquare,
-  Bot,
-} from "lucide-react";
+   LayoutDashboard,
+   CheckSquare,
+   Bell,
+   FolderKanban,
+   LayoutList,
+   Users,
+   Settings,
+   Menu,
+   X,
+   ChevronDown,
+   Check,
+   Plus,
+   MessageSquare,
+   Bot,
+   CreditCard,
+ } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -247,7 +248,8 @@ export const Sidebar = memo(function Sidebar() {
           <NavItem href="/portfolio" icon={FolderKanban} label="Portfolio" active={isActive("/portfolio")} onClick={closeMobile} />
           <NavItem href="/chat" icon={MessageSquare} label="Chat" active={isActive("/chat")} onClick={closeMobile} />
           <NavItem href="/teams" icon={Users} label="Teams" active={isActive("/teams")} onClick={closeMobile} />
-        </nav>
+          <NavItem href="/billing" icon={CreditCard} label="Billing" active={isActive("/billing")} onClick={closeMobile} />
+         </nav>
 
         <div className="px-2 py-2 border-t border-sidebar-border space-y-0.5">
           <Link
