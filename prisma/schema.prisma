@@ -829,8 +829,8 @@ model ChatMessage {
   
   replyToId   String?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime
+  updatedAt   DateTime
 
   @@index([workspaceId])
   @@index([projectId])
