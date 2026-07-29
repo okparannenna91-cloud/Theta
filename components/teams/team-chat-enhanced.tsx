@@ -99,9 +99,9 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
       } else {
         setIsFetchingMore(true);
       }
-      const url = `/api/chat?workspaceId=${workspaceId}&teamId=${teamId}${cursorParam ? `&cursor=${cursorParam}` : ""}`;
+      const url = `/api/chat?workspaceId=${workspaceId}&teamId=${teamId}${cursorParam ? `&cursor=${cursorParam}` : ""}&_=${Date.now()}`;
       console.log("[Chat] Fetching messages", { url });
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: "no-store" });
       if (!res.ok) {
         const errText = await res.text();
         console.error("[Chat] Fetch failed", { status: res.status, body: errText });
