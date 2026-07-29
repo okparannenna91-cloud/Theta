@@ -50,6 +50,8 @@ export async function GET(req: Request) {
 
         const accessibleProjectIds = teamId ? [] : await getAccessibleProjectIds(user.id, effectiveWorkspaceId);
 
+        console.log("[Chat API] GET params", { workspaceId, teamId, cursor, effectiveWorkspaceId });
+
         const TAKE = 50;
         const messagesRaw = await prisma.chatMessage.findMany({
             where: {
@@ -70,6 +72,8 @@ export async function GET(req: Request) {
                 replyTo: { select: { id: true, content: true, userId: true } }
             }
         });
+
+        console.log("[Chat API] Raw messages count", { count: messagesRaw.length, hasMore: messagesRaw.length > TAKE });
 
         const hasMore = messagesRaw.length > TAKE;
         const pageMessages = hasMore ? messagesRaw.slice(0, TAKE) : messagesRaw;

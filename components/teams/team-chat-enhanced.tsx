@@ -88,6 +88,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
 
   const fetchMessages = useCallback(async (cursorParam?: string | null) => {
     if (!workspaceId || !teamId || workspaceId === "undefined" || teamId === "undefined") {
+      console.log("[Chat] Skipping fetch - invalid ids", { workspaceId, teamId });
       setIsLoading(false);
       return;
     }
@@ -99,9 +100,15 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
         setIsFetchingMore(true);
       }
       const url = `/api/chat?workspaceId=${workspaceId}&teamId=${teamId}${cursorParam ? `&cursor=${cursorParam}` : ""}`;
+      console.log("[Chat] Fetching messages", { url });
       const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to load messages");
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error("[Chat] Fetch failed", { status: res.status, body: errText });
+        throw new Error("Failed to load messages");
+      }
       const data = await res.json();
+      console.log("[Chat] Fetch response", { messageCount: data.messages?.length, nextCursor: data.nextCursor, hasMore: data.hasMore });
       if (data.messages && Array.isArray(data.messages)) {
         if (cursorParam) {
           const scrollNode = scrollRef.current;
@@ -112,6 +119,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
             if (scrollNode) scrollNode.scrollTop = scrollNode.scrollHeight - oldScrollHeight;
           });
         } else {
+          console.log("[Chat] Setting messages", { count: data.messages.length, first: data.messages[0], last: data.messages[data.messages.length - 1] });
           setMessages(data.messages);
         }
         setCursor(data.nextCursor);
@@ -125,6 +133,8 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
           fetchedRef.current = true;
           markAsRead();
         }
+      } else {
+        console.warn("[Chat] No messages array in response", { data });
       }
     } catch (err) {
       console.error("[Chat] Failed to fetch messages:", err);
