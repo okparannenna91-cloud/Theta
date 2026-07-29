@@ -6,16 +6,16 @@ import { getAccessibleProjectIds, requireProjectAccess } from "@/lib/project-per
 import { publishToChannel, getChatChannel } from "@/lib/ably";
 import { z } from "zod";
 
-const objectIdSchema = z.string().regex(/^[a-fA-F0-9]{24}$/, "Invalid ObjectId format");
+const idSchema = z.string().min(1, "ID is required");
 
 const chatSchema = z.object({
     content: z.string().max(5000).optional().default(""),
-    workspaceId: objectIdSchema,
-    projectId: objectIdSchema.optional(),
-    teamId: objectIdSchema.optional(),
+    workspaceId: idSchema,
+    projectId: idSchema.optional(),
+    teamId: idSchema.optional(),
     attachment: z.any().optional(),
     tempId: z.string().optional(),
-    replyToId: objectIdSchema.optional(),
+    replyToId: idSchema.optional(),
 }).refine(data => data.content.trim().length > 0 || data.attachment, {
     message: "Message content or attachment is required",
     path: ["content"]

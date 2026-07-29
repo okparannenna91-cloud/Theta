@@ -306,6 +306,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
     setMessages(prev => [...prev, optimisticMsg]);
     setMessage(""); setAttachment(null); setReplyTo(null);
 
+    console.log("[Chat] sendMessage: about to POST", { workspaceId, teamId, tempId, content: optimisticMsg.content?.slice(0, 30) });
     try {
       const res = await fetch("/api/chat", {
         method: "POST",
