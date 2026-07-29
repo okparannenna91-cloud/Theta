@@ -19,6 +19,7 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const workspaceId = searchParams.get("workspaceId");
         const teamId = searchParams.get("teamId");
+        const conversationId = searchParams.get("conversationId");
 
         // Build capabilities based on user's access
         const capabilities: Record<string, ("subscribe" | "publish" | "history" | "presence")[]> = {};
@@ -50,6 +51,23 @@ export async function GET(req: Request) {
             });
             for (const tm of teamMemberships) {
                 capabilities[`team:${tm.teamId}:chat`] = ["subscribe", "publish", "history", "presence"];
+            }
+
+            // Grant access to DM channels for all user's conversations
+            try {
+                const dmConversations = await prisma.conversation.findMany({
+                    where: { workspaceId, participantIds: { has: user.id } },
+                    select: { id: true },
+                });
+                for (const conv of dmConversations) {
+                    capabilities[`dm:${conv.id}`] = ["subscribe", "publish", "history", "presence"];
+                }
+            } catch {}
+        } else if (conversationId) {
+            const conversation = await prisma.conversation.findUnique({ where: { id: conversationId } });
+            if (conversation && conversation.participantIds.includes(user.id)) {
+                capabilities[`dm:${conversationId}`] = ["subscribe", "publish", "history", "presence"];
+                capabilities[`workspace:${conversation.workspaceId}`] = ["subscribe", "history"];
             }
         } else if (teamId) {
             const teamLookup = await prisma.team.findUnique({ where: { id: teamId }, select: { workspaceId: true } });

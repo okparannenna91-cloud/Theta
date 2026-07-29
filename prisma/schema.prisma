@@ -90,6 +90,7 @@ model Workspace {
   paymentMethods     PaymentMethod[]
   billingEvents      BillingEvent[]
   creditBalances     CreditBalance[]
+  conversations      Conversation[]
 
   @@map("workspaces")
 }
@@ -819,6 +820,7 @@ model ChatMessage {
   workspaceId String
   projectId   String?
   teamId      String?
+  conversationId String?
   userId      String
   attachment  Json?    @db.Json
   reactions   Json?    @db.Json
@@ -835,9 +837,25 @@ model ChatMessage {
   @@index([workspaceId])
   @@index([projectId])
   @@index([teamId])
+  @@index([conversationId])
   @@index([userId])
   @@index([createdAt])
   @@map("chat_messages")
+}
+
+model Conversation {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  workspaceId String @db.ObjectId
+  type      String   @default("direct") // "direct" | "group"
+  participantIds String[] @db.ObjectId
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([participantIds])
+  @@map("conversations")
 }
 
 model Invite {
