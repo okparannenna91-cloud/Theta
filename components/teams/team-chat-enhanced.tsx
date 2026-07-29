@@ -483,51 +483,59 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
               <p className="text-[10px] text-muted-foreground/60 mt-1">Send a message to get started.</p>
             </div>
           ) : (
-            messages.filter(m => !m.deletedAt).map((msg, idx) => {
+            [...messages].filter(m => !m.deletedAt).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).map((msg, idx, sortedMsgs) => {
               const isMe = msg.userId === dbUser?.id || msg.userId === user?.id;
-              const prevMsg = idx > 0 ? messages[idx - 1] : null;
+              const prevMsg = idx > 0 ? sortedMsgs[idx - 1] : null;
               const isSameSender = prevMsg && prevMsg.userId === msg.userId && !prevMsg.deletedAt;
 
               return (
                 <FadeIn key={msg.id || msg.tempId} delay={0.02} className={cn(
                   "flex group",
                   isMe ? "justify-end" : "justify-start",
-                  isSameSender ? "mt-[-1rem]" : "mt-0"
+                  isSameSender ? "mt-[-1.25rem]" : "mt-1"
                 )}>
-                  <div className={cn("flex gap-3 max-w-[85%] sm:max-w-[75%]", isMe ? "flex-row-reverse" : "flex-row")}>
-                    {!isSameSender ? (
-                      <div className={cn(
-                        "h-8 w-8 sm:h-10 sm:w-10 rounded-xl shrink-0 flex items-center justify-center text-xs font-semibold border transition-all",
-                        isMe ? "bg-primary text-primary-foreground" : "bg-muted"
-                      )}>
-                        {msg.user?.name?.slice(0, 2).toUpperCase() || "U"}
-                      </div>
-                    ) : (
-                      <div className="w-8 sm:w-10 shrink-0" />
+                  <div className={cn("flex gap-2.5 max-w-[88%] sm:max-w-[72%]", isMe ? "flex-row-reverse" : "flex-row")}>
+                    {!isMe && (
+                      !isSameSender ? (
+                        msg.user?.imageUrl ? (
+                          <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full shrink-0 overflow-hidden mt-1 shadow-sm ring-2 ring-background">
+                            <Image src={msg.user.imageUrl} alt="" width={36} height={36} className="object-cover w-full h-full" />
+                          </div>
+                        ) : (
+                          <div className="h-8 w-8 sm:h-9 sm:w-9 rounded-full shrink-0 flex items-center justify-center text-xs font-semibold border bg-muted/70 mt-1 shadow-sm">
+                            {msg.user?.name?.slice(0, 2).toUpperCase() || "U"}
+                          </div>
+                        )
+                      ) : (
+                        <div className="w-8 sm:w-9 shrink-0" />
+                      )
                     )}
-                    <div className={cn("flex flex-col", isMe ? "items-end" : "items-start")}>
-                      {!isSameSender && (
-                        <div className="flex items-center gap-3 mb-1.5 px-2">
-                          <span className="text-xs font-medium text-muted-foreground">{msg.user?.name || "Anonymous"}</span>
-                          <span className="text-[10px] text-muted-foreground">{format(new Date(msg.createdAt), "HH:mm")}</span>
-                          {msg.isEdited && <span className="text-[9px] text-muted-foreground/40">(edited)</span>}
-                          {msg.isPinned && <Pin className="h-3 w-3 text-amber-500" />}
-                        </div>
+                    <div className={cn("flex flex-col min-w-0", isMe ? "items-end" : "items-start")}>
+                      {!isSameSender && !isMe && (
+                        <span className="text-[11px] font-semibold text-foreground/50 ml-1 mb-0.5">
+                          {msg.user?.name || "Anonymous"}
+                        </span>
                       )}
-                      <div className="relative group/bubble">
+                      <div className="relative flex flex-col">
                         <div className={cn(
-                          "rounded-xl px-4 py-2.5 sm:px-5 sm:py-3 text-sm backdrop-blur-3xl border transition-all",
+                          "absolute top-3 w-0 h-0 border-solid",
                           isMe
-                            ? "bg-primary text-primary-foreground rounded-tr-none"
-                            : "bg-background/40 text-foreground rounded-tl-none"
+                            ? "-right-[7px] border-t-[7px] border-b-[7px] border-l-[9px] border-t-transparent border-b-transparent border-l-primary"
+                            : "-left-[7px] border-t-[7px] border-b-[7px] border-r-[9px] border-t-transparent border-b-transparent border-r-background"
+                        )} />
+                        <div className={cn(
+                          "px-4 py-2.5 sm:px-4 sm:py-2.5 text-sm shadow-sm border transition-all",
+                          isMe
+                            ? "bg-primary text-primary-foreground rounded-2xl rounded-br-sm"
+                            : "bg-background text-foreground rounded-2xl rounded-bl-sm"
                         )}>
                           {msg.replyTo && (
                             <div className={cn(
-                              "mb-2.5 p-2.5 rounded-lg text-xs border-l-4",
-                              isMe ? "bg-black/10 border-white/30 text-white/70" : "bg-muted border-primary/30 text-muted-foreground"
+                              "mb-2 p-2 rounded-lg text-xs border-l-4",
+                              isMe ? "bg-black/10 border-white/30 text-white/70" : "bg-muted/60 border-primary/40 text-muted-foreground"
                             )}>
-                              <div className="font-semibold mb-0.5 flex items-center gap-2">
-                                <Reply className="h-3 w-3" /> Replying to {msg.replyTo.userId === user?.id ? "you" : (msg.replyTo.user?.name || "User")}
+                              <div className="font-semibold mb-0.5 flex items-center gap-1.5">
+                                <Reply className="h-3 w-3 shrink-0" /> Replying to {msg.replyTo.userId === user?.id ? "you" : (msg.replyTo.user?.name || "User")}
                               </div>
                               <span className="line-clamp-2 italic">{msg.replyTo.content}</span>
                             </div>
@@ -538,16 +546,16 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                               return "#";
                             })();
                             return (
-                              <div className="mb-3">
+                              <div className="mb-2">
                                 {msg.attachment.category === "image" ? (
-                                  <a href={url} target="_blank" rel="noopener noreferrer" className="block relative h-48 sm:h-60 w-full sm:w-80 overflow-hidden rounded-xl border hover:scale-[1.02] transition-transform duration-500">
+                                  <a href={url} target="_blank" rel="noopener noreferrer" className="block relative h-40 sm:h-52 w-full sm:w-72 overflow-hidden rounded-xl border hover:scale-[1.02] transition-transform duration-500">
                                     <Image src={url} alt="Image" fill className="object-cover" />
                                   </a>
                                 ) : (
-                                  <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-3 bg-black/10 rounded-xl hover:bg-black/20 transition-all">
-                                    <div className="h-8 w-8 rounded-lg bg-white/10 flex items-center justify-center"><FileText className="h-4 w-4" /></div>
+                                  <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 bg-black/[0.06] rounded-xl hover:bg-black/[0.1] transition-all">
+                                    <div className="h-8 w-8 rounded-lg bg-black/[0.08] flex items-center justify-center shrink-0"><FileText className="h-4 w-4" /></div>
                                     <div className="flex flex-col min-w-0">
-                                      <span className="text-xs font-semibold truncate max-w-[120px] sm:max-w-[150px]">{msg.attachment.originalName}</span>
+                                      <span className="text-xs font-semibold truncate max-w-[120px] sm:max-w-[160px]">{msg.attachment.originalName}</span>
                                       <span className="text-[10px] text-muted-foreground">Document</span>
                                     </div>
                                   </a>
@@ -555,15 +563,31 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                               </div>
                             );
                           })()}
-                          <span>{msg.content}</span>
+                          <span className="whitespace-pre-wrap break-words">{msg.content}</span>
+                          <div className={cn(
+                            "flex items-center gap-1 mt-0.5 -mb-1 select-none",
+                            isMe ? "justify-end" : "justify-start"
+                          )}>
+                            <span className={cn(
+                              "text-[10px] leading-none",
+                              isMe ? "text-primary-foreground/60" : "text-muted-foreground/70"
+                            )}>
+                              {format(new Date(msg.createdAt), "HH:mm")}
+                            </span>
+                            {msg.isEdited && <span className="text-[9px] italic opacity-50">edited</span>}
+                            {msg.isPinned && <Pin className="h-2.5 w-2.5 text-amber-400/80" />}
+                            {isMe && <span className="text-[9px] opacity-50">✓✓</span>}
+                          </div>
                         </div>
                         {msg.userId !== user?.id && (
-                          <WorkspaceReactions
-                            messageId={msg.id}
-                            reactions={msg.reactions}
-                            currentUserId={user?.id}
-                            onReactionToggle={handleReactionToggle}
-                          />
+                          <div className={cn(isMe ? "self-start" : "self-end")}>
+                            <WorkspaceReactions
+                              messageId={msg.id}
+                              reactions={msg.reactions}
+                              currentUserId={user?.id}
+                              onReactionToggle={handleReactionToggle}
+                            />
+                          </div>
                         )}
                       </div>
                     </div>
