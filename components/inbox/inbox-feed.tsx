@@ -93,12 +93,19 @@ export function InboxFeed({ workspaceId, activeTab }: InboxFeedProps) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ markAllAsRead: true }),
       });
-      if (!res.ok) throw new Error("Update failed");
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Update failed");
+      }
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["inbox", workspaceId] });
+      queryClient.invalidateQueries({ queryKey: ["inbox-counts"] });
       toast.success("All marked as read");
+    },
+    onError: (err: Error) => {
+      toast.error(err.message);
     },
   });
 
