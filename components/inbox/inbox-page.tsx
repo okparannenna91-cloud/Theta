@@ -1,8 +1,8 @@
 "use client";
 
 import React, { useState, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { useWorkspace } from "@/components/providers/workspace-provider";
-import { InboxSidebar } from "./inbox-sidebar";
 import { InboxFeed } from "./inbox-feed";
 import { InboxDm } from "./inbox-dm";
 
@@ -10,18 +10,15 @@ export type InboxTab = "all" | "unread" | "assigned" | "mentions" | "replies" | 
 
 export default function InboxPage() {
   const { activeWorkspace } = useWorkspace();
-  const [activeTab, setActiveTab] = useState<InboxTab>("all");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams.get("tab") as InboxTab | null;
+
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [showNewMessage, setShowNewMessage] = useState(false);
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
-  const handleTabChange = useCallback((tab: InboxTab) => {
-    setActiveTab(tab);
-    setMobileSidebarOpen(false);
-    if (tab !== "direct-messages") {
-      setActiveConversationId(null);
-    }
-  }, []);
+  const activeTab: InboxTab = tabParam && ["all", "unread", "assigned", "mentions", "replies", "direct-messages", "archived"].includes(tabParam)
+    ? tabParam
+    : "all";
 
   const handleSelectConversation = useCallback((id: string) => {
     setActiveConversationId(id);
@@ -35,14 +32,6 @@ export default function InboxPage() {
 
   return (
     <div className="flex h-full w-full overflow-hidden">
-      <InboxSidebar
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        workspaceId={activeWorkspace?.id}
-        mobileOpen={mobileSidebarOpen}
-        onMobileClose={() => setMobileSidebarOpen(false)}
-      />
-
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {isDmActive ? (
           <InboxDm
@@ -52,13 +41,11 @@ export default function InboxPage() {
             onBack={handleBackFromDm}
             showNewMessage={showNewMessage}
             onShowNewMessageChange={setShowNewMessage}
-            onToggleMobileSidebar={() => setMobileSidebarOpen(true)}
           />
         ) : (
           <InboxFeed
             workspaceId={activeWorkspace!.id}
             activeTab={activeTab}
-            onToggleMobileSidebar={() => setMobileSidebarOpen(true)}
           />
         )}
       </div>

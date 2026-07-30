@@ -1,8 +1,8 @@
 "use client";
 
-import { memo, useState } from "react";
+import { memo, useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
    LayoutDashboard,
@@ -19,6 +19,11 @@ import {
    Plus,
     Bot,
    CreditCard,
+   Mail,
+   AtSign,
+   UserCheck,
+   MessageSquare,
+   Archive,
  } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
@@ -72,8 +77,25 @@ function ProjectSubItem({ href, label, active, onClick }: { href: string; label:
 
 export const Sidebar = memo(function Sidebar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [inboxExpanded, setInboxExpanded] = useState(false);
+
+  const toggleInbox = useCallback(() => {
+    setInboxExpanded(prev => {
+      const next = !prev;
+      try { localStorage.setItem("sidebar_inbox_expanded", String(next)); } catch {}
+      return next;
+    });
+  }, []);
+
+  useEffect(() => {
+    const stored = typeof window !== "undefined" ? localStorage.getItem("sidebar_inbox_expanded") : null;
+    if (stored === "true" || pathname.startsWith("/inbox")) {
+      setInboxExpanded(true);
+    }
+  }, []);
   const { t } = useI18n();
   const { workspaces, activeWorkspaceId, switchWorkspace } = useWorkspace();
   const { user } = useUser();
@@ -108,6 +130,38 @@ export const Sidebar = memo(function Sidebar() {
     enabled: !!currentProjectId && !!activeWorkspaceId,
     staleTime: 60000,
   });
+
+  const { data: inboxCounts } = useQuery({
+    queryKey: ["inbox-counts", activeWorkspaceId],
+    queryFn: async () => {
+      if (!activeWorkspaceId) return {};
+      const res = await fetch(`/api/notifications/counts?workspaceId=${activeWorkspaceId}`);
+      if (!res.ok) return {};
+      return res.json();
+    },
+    enabled: !!activeWorkspaceId,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+
+  const { data: dmConversations } = useQuery({
+    queryKey: ["sidebar-dm-unread", activeWorkspaceId],
+    queryFn: async () => {
+      if (!activeWorkspaceId) return [];
+      const res = await fetch(`/api/chat/dm/conversations?workspaceId=${activeWorkspaceId}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return data.conversations ?? [];
+    },
+    enabled: !!activeWorkspaceId,
+    refetchInterval: 30_000,
+    staleTime: 15_000,
+  });
+
+  const dmUnreadCount = useMemo(
+    () => (dmConversations ?? []).reduce((sum: number, c: any) => sum + (c.unreadCount || 0), 0),
+    [dmConversations]
+  );
 
   const closeMobile = () => setIsMobileOpen(false);
 
@@ -215,7 +269,63 @@ export const Sidebar = memo(function Sidebar() {
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={isActive("/dashboard")} onClick={closeMobile} />
           <NavItem href="/my-tasks" icon={CheckSquare} label="My Tasks" active={isActive("/my-tasks")} onClick={closeMobile} />
-          <NavItem href="/inbox" icon={Bell} label="Inbox" active={isActive("/inbox")} onClick={closeMobile} />
+          <div>
+            <button
+              onClick={toggleInbox}
+              className={cn(
+                "w-full flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors relative group",
+                isActive("/inbox")
+                  ? "bg-accent/50 text-sidebar-foreground font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-4 before:w-0.5 before:rounded-full before:bg-primary"
+                  : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-accent/30"
+              )}
+            >
+              <Bell className={cn("h-4 w-4 flex-shrink-0", isActive("/inbox") ? "text-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground/80")} />
+              <span className="flex-1 text-left">Inbox</span>
+              <ChevronDown className={cn(
+                "h-3 w-3 text-sidebar-muted transition-transform duration-200",
+                inboxExpanded && "rotate-180"
+              )} />
+            </button>
+            {inboxExpanded && (
+              <div className="ml-2 space-y-0.5 border-l border-sidebar-border pl-2 mt-0.5">
+                {[
+                  { id: "all", label: "All", icon: Bell },
+                  { id: "unread", label: "Unread", icon: Mail },
+                  { id: "assigned", label: "Assigned", icon: UserCheck },
+                  { id: "mentions", label: "Mentions", icon: AtSign },
+                  { id: "replies", label: "Replies", icon: MessageSquare },
+                  { id: "direct-messages", label: "Direct Messages", icon: MessageSquare },
+                  { id: "archived", label: "Archived", icon: Archive },
+                ].map(item => {
+                  const isActiveItem = pathname === "/inbox" && (searchParams.get("tab") || "all") === item.id;
+                  const count = item.id === "direct-messages"
+                    ? dmUnreadCount
+                    : (inboxCounts as any)?.[item.id] ?? 0;
+                  return (
+                    <Link
+                      key={item.id}
+                      href={`/inbox?tab=${item.id}`}
+                      onClick={closeMobile}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-1 rounded-md text-sm transition-colors",
+                        isActiveItem
+                          ? "text-sidebar-foreground font-medium bg-accent/40"
+                          : "text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-accent/20"
+                      )}
+                    >
+                      <item.icon className="h-3.5 w-3.5 text-sidebar-muted flex-shrink-0" />
+                      <span className="flex-1 truncate">{item.label}</span>
+                      {count > 0 && (
+                        <span className="text-[10px] font-semibold tabular-nums bg-primary/15 text-primary px-1.5 py-0.5 rounded-full leading-none">
+                          {count > 99 ? "99+" : count}
+                        </span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <NavItem href="/projects" icon={LayoutList} label="Projects" active={isActive("/projects")} onClick={closeMobile} />
 

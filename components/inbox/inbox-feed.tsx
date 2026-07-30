@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { InboxTab } from "./inbox-page";
 import {
   Bell, Check, Search, Loader2, AlertTriangle,
-  Menu, ArrowUpDown, RefreshCw,
+  ArrowUpDown, RefreshCw,
 } from "lucide-react";
 import { format, isToday, isYesterday, isThisWeek, isThisMonth } from "date-fns";
 import { toast } from "sonner";
@@ -17,7 +17,6 @@ import { useInView } from "react-intersection-observer";
 interface InboxFeedProps {
   workspaceId: string;
   activeTab: InboxTab;
-  onToggleMobileSidebar: () => void;
 }
 
 function getGroupLabel(date: Date): string {
@@ -28,7 +27,7 @@ function getGroupLabel(date: Date): string {
   return "Older";
 }
 
-export function InboxFeed({ workspaceId, activeTab, onToggleMobileSidebar }: InboxFeedProps) {
+export function InboxFeed({ workspaceId, activeTab }: InboxFeedProps) {
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
   const { ref, inView } = useInView();
@@ -203,15 +202,8 @@ export function InboxFeed({ workspaceId, activeTab, onToggleMobileSidebar }: Inb
   return (
     <div className="flex flex-col h-full overflow-hidden">
       <div className="shrink-0 px-5 sm:px-7 py-3 border-b border-border/30 bg-background/60">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onToggleMobileSidebar}
-              className="md:hidden h-8 w-8 rounded-lg flex items-center justify-center text-muted-foreground/50 hover:text-foreground hover:bg-muted/60 transition-all"
-            >
-              <Menu className="h-4 w-4" />
-            </button>
-            <h1 className="text-[16px] font-semibold tracking-tight text-foreground/90 hidden sm:block">
+          <div className="flex items-center justify-between gap-4">
+            <h1 className="text-[16px] font-semibold tracking-tight text-foreground/90">
               {activeTab === "all" ? "All" :
                activeTab === "unread" ? "Unread" :
                activeTab === "assigned" ? "Assigned to Me" :
@@ -219,9 +211,8 @@ export function InboxFeed({ workspaceId, activeTab, onToggleMobileSidebar }: Inb
                activeTab === "replies" ? "Replies" :
                activeTab === "archived" ? "Archived" : "Inbox"}
             </h1>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="relative w-48 sm:w-56">
+            <div className="flex items-center gap-2">
+              <div className="relative w-48 sm:w-56">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/40" />
               <input
                 placeholder="Search..."

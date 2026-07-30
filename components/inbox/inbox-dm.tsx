@@ -5,7 +5,6 @@ import { DmSidebar } from "@/components/chat/dm-sidebar";
 import { DmChat } from "@/components/chat/dm-chat";
 import { DmNewMessage } from "@/components/chat/dm-new-message";
 import { cn } from "@/lib/utils";
-import { Menu } from "lucide-react";
 
 interface InboxDmProps {
   workspaceId: string;
@@ -14,7 +13,6 @@ interface InboxDmProps {
   onBack: () => void;
   showNewMessage: boolean;
   onShowNewMessageChange: (v: boolean) => void;
-  onToggleMobileSidebar: () => void;
 }
 
 export function InboxDm({
@@ -24,7 +22,6 @@ export function InboxDm({
   onBack,
   showNewMessage,
   onShowNewMessageChange,
-  onToggleMobileSidebar,
 }: InboxDmProps) {
   return (
     <div className="flex h-full w-full overflow-hidden">
@@ -32,13 +29,7 @@ export function InboxDm({
         "w-[300px] shrink-0 flex-col border-r border-border/40 bg-background",
         activeConversationId ? "hidden md:flex" : "flex"
       )}>
-        <div className="flex items-center gap-2 px-4 pt-4 pb-1">
-          <button
-            onClick={onToggleMobileSidebar}
-            className="md:hidden h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all"
-          >
-            <Menu className="h-4 w-4" />
-          </button>
+        <div className="px-4 pt-4 pb-1">
           <h2 className="text-[14px] font-semibold tracking-tight text-foreground">Direct Messages</h2>
         </div>
         <div className="flex-1 overflow-hidden">
