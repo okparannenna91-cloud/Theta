@@ -38,15 +38,15 @@ export function routeRequest(
       toolCategories: categoriesForIntent(intent),
       contextDepth: "full",
       timeoutMs: 60000,
-      promptSuffix: "\n[PLANNING MODE] Generate a comprehensive plan with: Objectives, Milestones, Tasks, Subtasks, Dependencies, Risks, Timeline, Success metrics. Think like an experienced project manager. Use workspace context to inform the plan.",
+      promptSuffix: "\n[PLANNING MODE] Generate a comprehensive plan with: Objectives, Milestones, Tasks, Subtasks, Dependencies, Risks, Timeline, Success metrics. Think like an experienced project manager. Use workspace context to inform the plan. Note: You are in observation mode and cannot execute the plan yourself — provide guidance for the user to implement it.",
     };
   } else if (isActionIntent(intent)) {
     decision = {
-      path: "ACTION",
+      path: "ANALYSIS",
       toolCategories: categoriesForIntent(intent),
       contextDepth: "standard",
       timeoutMs: 50000,
-      promptSuffix: "\n[ACTION MODE] Execute the requested action. Validate permissions, arguments, and dependencies before executing. Provide a clear summary of what was done.",
+      promptSuffix: "\n[OBSERVATION MODE] You are in observation mode and cannot execute workspace actions. Instead of executing the requested action, explain to the user what needs to be done and guide them to use the Theta interface. Provide clear step-by-step instructions if they want to perform the action themselves.",
     };
   } else if (isAnalysisIntent(intent)) {
     decision = {
@@ -66,11 +66,11 @@ export function routeRequest(
     };
   } else {
     decision = {
-      path: "ACTION",
+      path: "CHAT",
       toolCategories: categoriesForIntent(intent),
       contextDepth: "standard",
       timeoutMs: 50000,
-      promptSuffix: "",
+      promptSuffix: "\n[OBSERVATION MODE] You are in observation mode.",
     };
   }
 

@@ -1,5 +1,3 @@
-import { inngest } from "@/lib/inngest/client";
-import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 
 // ──────────────────────────────────────────────
@@ -47,59 +45,5 @@ export async function processAutomations(
   trigger: AutomationTrigger,
   context: Omit<TriggerContext, "workspaceId"> & { workspaceId?: string },
 ): Promise<void> {
-  const fullContext: TriggerContext = { ...context, workspaceId };
-
-  try {
-    logger.info(`[AutomationEngine] Firing trigger=${trigger} for workspace=${workspaceId}`);
-
-    const rules = await prisma.automation.findMany({
-      where: {
-        workspaceId,
-        active: true,
-        trigger,
-      },
-      select: { id: true, name: true },
-    });
-
-    // Fire each matching rule as its own Inngest event
-    if (rules.length > 0) {
-      logger.info(`[AutomationEngine] Found ${rules.length} matching rule(s) for trigger=${trigger}`);
-
-      await Promise.all(
-        rules.map((rule) =>
-          inngest.send({
-            name: "automation/triggered",
-            data: {
-              ruleId: rule.id,
-              triggerType: trigger,
-              context: fullContext,
-            },
-          })
-        )
-      );
-    }
-
-    // Always dispatch to the Nova AI agent for intelligent side-effects
-    // (auto-labeling, auto-assignment, sprint briefs, etc.)
-    await inngest.send({
-      name: "nova/agent-event",
-      data: {
-        eventType: trigger,
-        workspaceId,
-        taskId: fullContext.taskId,
-        projectId: fullContext.projectId,
-        userId: fullContext.userId,
-        metadata: {
-          taskTitle: fullContext.taskTitle,
-          taskStatus: fullContext.taskStatus,
-          taskPriority: fullContext.taskPriority,
-          assigneeId: fullContext.assigneeId,
-          oldValue: fullContext.oldValue,
-          newValue: fullContext.newValue,
-        },
-      },
-    });
-  } catch (error) {
-    logger.error("[AutomationEngine] Error firing automations:", error);
-  }
+  logger.info(`[AutomationEngine] Disabled — Nova is in observation mode. Trigger=${trigger} workspace=${workspaceId}`);
 }

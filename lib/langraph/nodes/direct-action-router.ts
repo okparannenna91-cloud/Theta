@@ -68,19 +68,6 @@ function detectAction(prompt: string): { action: string; confidence: number; par
 
 export async function tryDirectAction(prompt: string, ctx: LangGraphToolContext): Promise<DirectActionResult> {
   const start = Date.now();
-  try {
-    const match = detectAction(prompt);
-    if (!match || match.confidence < HIGH_CONFIDENCE) return { handled: false, durationMs: Date.now() - start };
-
-    logger.info("[DirectActionRouter] Matched", { action: match.action, confidence: match.confidence });
-    const result = await executeTool(ctx, match.action, match.params as Record<string, unknown>);
-
-    if (result.success) {
-      const msg = typeof result.result === "object" && result.result ? (result.result as any).message || "Done!" : "Done!";
-      return { handled: true, message: msg, actionName: match.action, durationMs: Date.now() - start };
-    }
-    return { handled: true, error: "Something went wrong with that action.", actionName: match.action, durationMs: Date.now() - start };
-  } catch (error: any) {
-    return { handled: true, error: error.message, actionName: "error", durationMs: Date.now() - start };
-  }
+  logger.info("[DirectActionRouter] Skipped — Nova is in observation mode");
+  return { handled: false, durationMs: Date.now() - start };
 }

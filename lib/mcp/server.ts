@@ -482,53 +482,19 @@ export class ThetaMCPServer {
   }
 
   private async createTask(args: Record<string, unknown>) {
-    const title = args.title as string;
-    const projectId = args.projectId as string;
-    if (!title || !projectId) throw new Error("title and projectId are required");
-
-    const task = await prisma.task.create({
-      data: {
-        title,
-        description: (args.description as string) || null,
-        status: (args.status as string) || "todo",
-        priority: (args.priority as string) || "medium",
-        taskType: (args.taskType as string) || "task",
-        dueDate: args.dueDate ? new Date(args.dueDate as string) : null,
-        assigneeIds: (args.assigneeIds as string[]) || [],
-        workspaceId: this.workspaceId,
-        projectId,
-        userId: (args.assigneeIds as string[])?.[0] || "",
-      },
-    });
-
-    logger.info(`MCP create_task: created task ${task.id} "${task.title}"`);
-    return task;
+    logger.info(`MCP create_task: blocked — Nova is in observation mode`);
+    return {
+      success: false,
+      message: "Nova is currently in observation mode and cannot create tasks. Please use the Theta interface directly.",
+    };
   }
 
   private async updateTask(args: Record<string, unknown>) {
-    const taskId = args.taskId as string;
-    if (!taskId) throw new Error("taskId is required");
-
-    const data: Record<string, unknown> = {};
-    if (args.title !== undefined) data.title = args.title;
-    if (args.description !== undefined) data.description = args.description;
-    if (args.status !== undefined) {
-      data.status = args.status;
-      if (args.status === "done") data.completedAt = new Date();
-    }
-    if (args.priority !== undefined) data.priority = args.priority;
-    if (args.dueDate !== undefined)
-      data.dueDate = args.dueDate ? new Date(args.dueDate as string) : null;
-    if (args.assigneeIds !== undefined) data.assigneeIds = args.assigneeIds;
-    if (args.progress !== undefined) data.progress = Math.min(Math.max(Number(args.progress), 0), 100);
-
-    const task = await prisma.task.update({
-      where: { id: taskId },
-      data,
-    });
-
-    logger.info(`MCP update_task: updated task ${task.id}`);
-    return task;
+    logger.info(`MCP update_task: blocked — Nova is in observation mode`);
+    return {
+      success: false,
+      message: "Nova is currently in observation mode and cannot update tasks. Please use the Theta interface directly.",
+    };
   }
 
   private async getProjectStats(args: Record<string, unknown>) {

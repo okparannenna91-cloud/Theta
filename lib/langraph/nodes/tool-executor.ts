@@ -17,6 +17,18 @@ function delay(ms: number): Promise<void> {
 
 export async function executeTool(ctx: LangGraphToolContext, toolName: string, args: Record<string, unknown>): Promise<ToolExecutionResult> {
   const start = Date.now();
+
+  const { isWriteTool } = await import("@/lib/nova/execution-guard");
+  if (isWriteTool(toolName)) {
+    logger.info(`[ToolExecutor] Blocked write tool "${toolName}" — Nova is in observation mode`);
+    return {
+      toolName,
+      success: false,
+      error: "Nova is in observation mode and cannot execute workspace actions. I can explain what needs to be done, but you'll need to perform the action through the Theta interface.",
+      durationMs: Date.now() - start,
+    };
+  }
+
   let lastError: any;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {

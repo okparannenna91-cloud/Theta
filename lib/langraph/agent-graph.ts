@@ -3,7 +3,6 @@ import { HumanMessage, SystemMessage, AIMessage, ToolMessage } from "@langchain/
 import { getLangChainModel } from "./models";
 import { routeModel, type RouterConfig } from "./model-router";
 import { buildLangGraphTools, type LangGraphToolContext } from "./tools";
-import { executeTool } from "./nodes/tool-executor";
 import { loadWorkspaceContext } from "./nodes/context-loader";
 import { loadMemory } from "./nodes/memory-loader";
 import { saveConversationMemory } from "./nodes/memory-saver";
@@ -265,43 +264,9 @@ async function routeToAgent(state: AgentStateType): Promise<Partial<AgentStateTy
 
 // Node 6: toolExecutor — execute tools from plan or direct action
 async function toolExecutor(state: AgentStateType): Promise<Partial<AgentStateType>> {
-  const toolResults: Array<{ toolName: string; result?: unknown; error?: string }> = [];
-  let fastPathHandled = false;
+  logger.info("[Graph] toolExecutor — Skipped, Nova is in observation mode");
 
-  // Execute multi-step plan
-  if (state.executionPlan && state.executionPlan.needsPlan && state.executionPlan.steps.length > 0) {
-    for (const step of state.executionPlan.steps) {
-      if (step.toolHint === "llm") continue;
-      try {
-        const result = await executeTool(state.toolContext, step.toolHint, step.params);
-        toolResults.push({ toolName: step.toolHint, result: result.result, error: result.error });
-        logger.info("[Graph] toolExecutor — plan step", { step: step.id, tool: step.toolHint, success: result.success });
-      } catch (stepError: any) {
-        toolResults.push({ toolName: step.toolHint, error: stepError.message });
-      }
-    }
-    if (toolResults.length > 0) {
-      fastPathHandled = true;
-    }
-  }
-
-  // Try direct action for ACTION route
-  if (state.route === "ACTION" && !fastPathHandled) {
-    const { tryDirectAction } = await import("./nodes/direct-action-router");
-    const directResult = await tryDirectAction(
-      state.messages[state.messages.length - 1]?.content || "",
-      state.toolContext,
-    );
-    if (directResult.handled) {
-      fastPathHandled = true;
-      toolResults.push({ toolName: directResult.actionName || "direct_action", result: directResult.message, error: directResult.error });
-      logger.info("[Graph] toolExecutor — direct action", { action: directResult.actionName });
-    }
-  }
-
-  logger.info("[Graph] toolExecutor", { toolCount: toolResults.length, fastPathHandled });
-
-  return { toolResults, fastPathHandled };
+  return { toolResults: [], fastPathHandled: false };
 }
 
 // Node 7: qualityGate — validate, sanitize, optimize response
@@ -319,28 +284,7 @@ async function qualityGate(state: AgentStateType): Promise<Partial<AgentStateTyp
 
   let finalResponse = qgResult.response;
 
-  // Re-execute any extracted tool calls
-  if (qgResult.extractedToolCalls && qgResult.extractedToolCalls.length > 0) {
-    const results: string[] = [];
-    for (const tc of qgResult.extractedToolCalls) {
-      try {
-        const result = await executeTool(state.toolContext, tc.tool, tc.params);
-        if (result.success) {
-          const msg = typeof result.result === "object" && result.result
-            ? (result.result as any).message || JSON.stringify(result.result)
-            : String(result.result);
-          results.push(msg);
-        } else {
-          results.push(`I couldn't complete that step: ${result.error}`);
-        }
-      } catch {
-        results.push(`Something went wrong with that step.`);
-      }
-    }
-    if (results.length > 0) {
-      finalResponse = results.join("\n\n");
-    }
-  }
+  // Re-execution of extracted tool calls is disabled in observation mode
 
   logger.info("[Graph] qualityGate", { passed: qgResult.passed, issues: qgResult.issues.length });
 
@@ -391,17 +335,18 @@ async function returnEarly(state: AgentStateType): Promise<Partial<AgentStateTyp
   return { response, shouldReturn: true };
 }
 
-// Call model node — LLM inference with tool binding
+// Call model node — LLM inference without tool binding (observation mode)
 async function callModel(state: AgentStateType): Promise<Partial<AgentStateType>> {
   const userContent = state.messages[state.messages.length - 1]?.content || "";
   const model = getLangChainModel(state.routerConfig.provider, state.routerConfig.model);
-  const tools = buildLangGraphTools(state.toolContext);
-  const modelWithTools = tools.length > 0 ? (model as any).bindTools(tools) : model;
+
+  const OBSERVATION_MODE_INSTRUCTION = "\n\n**IMPORTANT — OBSERVATION MODE:** You are currently in observation mode. You cannot create, edit, delete, assign, schedule, or execute any workspace actions. You can only reason, analyze, explain, summarize, recommend, coach, and observe. If the user asks you to perform an action, politely explain that you're in observation mode and guide them to use the Theta interface directly.";
 
   // Build system prompt
   const basePrompt = state.systemPrompt || "You are Nova, the intelligent operating system of Theta.";
   const systemPrompt = [
     basePrompt,
+    OBSERVATION_MODE_INSTRUCTION,
     state.workspaceContext || "",
     state.memoryContext || "",
     state.conversationContext || "",
@@ -410,16 +355,7 @@ async function callModel(state: AgentStateType): Promise<Partial<AgentStateType>
 
   // Build action prompt
   let actionPrompt = userContent;
-  if (state.fastPathHandled && state.toolResults.length > 0) {
-    const toolResultSummary = state.toolResults.map(r => {
-      if (r.error) return `Tool "${r.toolName}" failed: ${r.error}`;
-      const data = typeof r.result === "object" && r.result ? r.result : { message: String(r.result) };
-      return `Tool "${r.toolName}" result: ${JSON.stringify(data)}`;
-    }).join("\n");
-    actionPrompt = `${userContent}\n\nThe following tools were executed to fulfill your request:\n${toolResultSummary}\n\nUsing the tool results above, generate a natural, concise response. Do not reference tool names or internal systems.`;
-  } else if (state.route === "ACTION") {
-    actionPrompt = `${userContent}\n\nUse your available capabilities to fulfill this request. Do not reference tool names or internal systems.`;
-  } else if (state.route === "ANALYSIS") {
+  if (state.route === "ANALYSIS") {
     actionPrompt = `${userContent}\n\nAnalyze the available information and provide insights with evidence from the workspace.`;
   }
 
@@ -439,20 +375,13 @@ async function callModel(state: AgentStateType): Promise<Partial<AgentStateType>
   // Override last message with action prompt
   messages[messages.length - 1] = new HumanMessage(actionPrompt);
 
-  const response = await modelWithTools.invoke(messages, { signal: state.signal });
+  const response = await model.invoke(messages, { signal: state.signal });
   const content = typeof response.content === "string" ? response.content : JSON.stringify(response.content);
-  const toolCalls = response.tool_calls || [];
 
-  logger.info("[Graph] callModel", { contentLength: content.length, toolCallsCount: toolCalls.length });
+  logger.info("[Graph] callModel", { contentLength: content.length });
 
   const newMessages = [...state.messages];
   newMessages.push({ role: "assistant", content });
-
-  if (toolCalls.length > 0) {
-    for (const tc of toolCalls) {
-      newMessages.push({ role: "assistant", content: JSON.stringify({ tool_call: tc }) } as any);
-    }
-  }
 
   return { messages: newMessages, response: content };
 }

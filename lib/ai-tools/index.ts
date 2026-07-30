@@ -13,6 +13,7 @@ import { telemetry } from "@/lib/nova/telemetry";
 import { getAblyChannel } from "@/lib/ably-server";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { isWriteTool } from "@/lib/nova/execution-guard";
 
 export interface ToolContext {
   user: { id: string };
@@ -132,6 +133,21 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
 
   function wrapTool(toolName: string, execute: ToolFunction): ToolFunction {
     return async (args: Record<string, unknown>) => {
+      if (isWriteTool(toolName)) {
+        telemetry.trackToolExecution({
+          userId: user.id,
+          workspaceId,
+          toolName,
+          success: false,
+          durationMs: 0,
+          errorMessage: "Nova is in observation mode — write tools are disabled",
+        });
+        return {
+          success: false,
+          message: null,
+          error: "Nova is currently in observation mode and cannot execute workspace actions. I can explain what needs to be done, but you'll need to perform the action through the Theta interface.",
+        };
+      }
       const limited = await isToolRateLimited(user.id, toolName);
       if (limited) {
         return { error: `Rate limit exceeded for tool: ${toolName}. Max ${PER_TOOL_RATE_LIMIT} calls per ${PER_TOOL_WINDOW_SECONDS}s.` } as Record<string, unknown>;
