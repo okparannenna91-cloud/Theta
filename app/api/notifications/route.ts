@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
-import { getAccessibleProjectIds } from "@/lib/project-permissions";
 
 export async function GET(req: Request) {
     try {
@@ -24,9 +23,6 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Access denied to workspace" }, { status: 403 });
         }
 
-        // Get accessible project IDs for filtering notifications by project access
-        const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
-        
         const where: any = {
             workspaceId,
             userId: user.id
@@ -94,7 +90,7 @@ export async function GET(req: Request) {
             ];
         }
 
-        // Fetch take+1 to detect if there are more pages after post-filtering
+        // Fetch take+1 to detect if there are more pages
         const [notifications, unreadCount] = await Promise.all([
             prisma.notification.findMany({
                 where,
@@ -108,14 +104,8 @@ export async function GET(req: Request) {
             prisma.notification.count({ where: { workspaceId, userId: user.id, read: false, archived: false } })
         ]);
 
-        // Post-filter notifications whose metadata references an inaccessible project
-        const allFiltered = notifications.filter((n: any) => {
-            if (!n.metadata || !n.metadata.projectId) return true;
-            return accessibleProjectIds.includes(n.metadata.projectId);
-        });
-
-        const hasMore = allFiltered.length > take;
-        const filteredNotifications = allFiltered.slice(0, take);
+        const hasMore = notifications.length > take;
+        const filteredNotifications = notifications.slice(0, take);
 
         return NextResponse.json({ 
             notifications: filteredNotifications, 

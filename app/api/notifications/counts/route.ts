@@ -2,18 +2,6 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
-import { getAccessibleProjectIds } from "@/lib/project-permissions";
-
-async function countFiltered(where: any, accessibleProjectIds: string[]) {
-  const items = await prisma.notification.findMany({
-    where,
-    select: { id: true, metadata: true },
-  });
-  return items.filter((n: any) => {
-    if (!n.metadata || !n.metadata.projectId) return true;
-    return accessibleProjectIds.includes(n.metadata.projectId);
-  }).length;
-}
 
 export async function GET(req: Request) {
   try {
@@ -28,16 +16,15 @@ export async function GET(req: Request) {
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
-    const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
     const base = { workspaceId, userId: user.id };
 
     const [all, unread, assigned, mentions, replies, archived] = await Promise.all([
-      countFiltered({ ...base, archived: false }, accessibleProjectIds),
-      countFiltered({ ...base, read: false, archived: false }, accessibleProjectIds),
-      countFiltered({ ...base, type: "task_assigned", archived: false }, accessibleProjectIds),
-      countFiltered({ ...base, type: { in: ["mention", "task_mentioned"] }, archived: false }, accessibleProjectIds),
-      countFiltered({ ...base, type: { in: ["comment_reply", "comment"] }, archived: false }, accessibleProjectIds),
-      countFiltered({ ...base, archived: true }, accessibleProjectIds),
+      prisma.notification.count({ where: { ...base, archived: false } }),
+      prisma.notification.count({ where: { ...base, read: false, archived: false } }),
+      prisma.notification.count({ where: { ...base, type: "task_assigned", archived: false } }),
+      prisma.notification.count({ where: { ...base, type: { in: ["mention", "task_mentioned"] }, archived: false } }),
+      prisma.notification.count({ where: { ...base, type: { in: ["comment_reply", "comment"] }, archived: false } }),
+      prisma.notification.count({ where: { ...base, archived: true } }),
     ]);
 
     return NextResponse.json({ all, unread, assigned, mentions, replies, archived });
