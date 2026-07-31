@@ -74,12 +74,16 @@ function NovaPage() {
     if (inputToUse.trim().startsWith("/clear")) { chat.clearChat(); conv.setActiveConversationId(null); return; }
     if (isLimitReached) { showUpgradePrompt("nova"); return; }
     let convId = conv.activeConversationId;
+    let isNewConversation = false;
     if (!convId) {
-      const newId = await conv.createConversation(inputToUse.trim().slice(0, 60));
-      if (newId) { conv.setActiveConversationId(newId); conv.fetchConversations(); convId = newId; }
+      const newId = await conv.createConversation();
+      if (newId) { conv.setActiveConversationId(newId); conv.fetchConversations(); convId = newId; isNewConversation = true; }
     }
     await chat.sendMessage({ workspaceId: activeWorkspaceId!, conversationId: convId, projectId: currentProjectId, pageContext: { path: pathname ?? "/nova", type: "nova" }, onUsageUpdate: fetchUsage });
     if (convId) conv.fetchConversations();
+    if (isNewConversation && convId) {
+      conv.generateTitle(convId, inputToUse);
+    }
   }, [chat, conv, activeWorkspaceId, pathname, isLimitReached, showUpgradePrompt, fetchUsage]);
 
   const currentProjectId = pathname?.startsWith("/projects/") ? pathname.split("/")[2]?.split("?")[0] : undefined;
@@ -92,7 +96,7 @@ function NovaPage() {
     if (current && (!current.title || current.title === "New Conversation" || current.title === "Untitled")) {
       const firstUser = messages.find((m) => m.role === "user");
       if (firstUser) {
-        conv.renameConversation(id, firstUser.content.trim().slice(0, 60));
+        conv.generateTitle(id, firstUser.content);
       }
     }
     setView("chat");

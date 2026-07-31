@@ -63,20 +63,23 @@ export function useNovaConversations(workspaceId: string | undefined) {
     [workspaceId]
   );
 
-  const renameConversation = useCallback(
-    async (conversationId: string, title: string) => {
+  const generateTitle = useCallback(
+    async (conversationId: string, prompt: string) => {
       if (!workspaceId) return;
       try {
-        const res = await fetch(`/api/ai/conversations/${conversationId}`, {
-          method: "PATCH",
+        const res = await fetch(`/api/ai/conversations/${conversationId}/title`, {
+          method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ workspaceId, title }),
+          body: JSON.stringify({ workspaceId, prompt }),
         });
         if (res.ok) {
-          setConversations((prev) => prev.map((c) => (c.id === conversationId ? { ...c, title } : c)));
+          const data = await res.json();
+          if (data.title) {
+            setConversations((prev) => prev.map((c) => (c.id === conversationId ? { ...c, title: data.title } : c)));
+          }
         }
       } catch (error) {
-        console.error("Failed to rename conversation:", error);
+        console.error("Failed to generate conversation title:", error);
       }
     },
     [workspaceId]
@@ -91,6 +94,6 @@ export function useNovaConversations(workspaceId: string | undefined) {
     fetchConversations,
     createConversation,
     fetchMessages,
-    renameConversation,
+    generateTitle,
   };
 }
