@@ -19,7 +19,6 @@ import {
     Search, LayoutGrid, List, CheckCircle2, Calendar, AlertTriangle
 } from "lucide-react";
 import { ImageUpload } from "@/components/common/image-upload";
-import { AiGenerator } from "@/components/ai/ai-generator";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import Image from "next/image";
@@ -389,10 +388,7 @@ export default function ProjectsPage() {
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required placeholder="My Project" />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="description">Description</Label>
-                <AiGenerator onGenerate={(text) => setDescription(text)} initialPrompt={`Description for a project named "${name}"`} title="Generate Description" />
-              </div>
+              <Label htmlFor="description">Description</Label>
               <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe your project..." />
             </div>
             <div className="space-y-2">

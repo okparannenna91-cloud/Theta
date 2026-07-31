@@ -14,7 +14,6 @@ import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2 } from "lucide-rea
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { ImageUpload } from "@/components/common/image-upload";
-import { AiGenerator } from "@/components/ai/ai-generator";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
 import { useStatuses, useWorkspaceStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
@@ -266,10 +265,7 @@ export default function TasksPage() {
               <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} required />
             </div>
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label htmlFor="description">Description</Label>
-                <AiGenerator onGenerate={(text) => setDescription(text)} initialPrompt={`Description for a task titled "${title}"`} title="Generate" />
-              </div>
+              <Label htmlFor="description">Description</Label>
               <Textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} />
             </div>
             <div>

@@ -13,7 +13,6 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2, ListChecks } from "lucide-react";
-import { AiGenerator } from "@/components/ai/ai-generator";
 import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { TaskDialog } from "@/components/tasks/task-dialog";
@@ -366,10 +365,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                             <Input id="pt-title" value={title} onChange={(e) => setTitle(e.target.value)} required />
                         </div>
                         <div className="space-y-2">
-                            <div className="flex items-center justify-between">
-                                <Label htmlFor="pt-desc">Description</Label>
-                                <AiGenerator onGenerate={(text) => setDescription(text)} initialPrompt={`Description for "${title}"`} title="Generate" />
-                            </div>
+                            <Label htmlFor="pt-desc">Description</Label>
                             <Textarea id="pt-desc" value={description} onChange={(e) => setDescription(e.target.value)} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
