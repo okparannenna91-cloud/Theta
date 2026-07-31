@@ -136,6 +136,7 @@ export function NovaInput({ input, setInput, onSend, isLoading, isLimitReached, 
         <div className="relative flex-1 min-w-0">
           <textarea
             ref={inputRef}
+            data-nova-input
             placeholder={isLimitReached ? "Limit reached" : "Ask Nova... (/ for commands)"}
             value={input}
             onChange={(e) => {

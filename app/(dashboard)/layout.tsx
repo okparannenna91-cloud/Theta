@@ -3,16 +3,11 @@ import { CommandSearch } from "@/components/layout/command-search";
 import { LanguageSwitcher } from "@/components/layout/language-switcher";
 import { AuthGuard } from "@/components/auth/auth-guard";
 import { OnboardingRedirect } from "@/components/providers/onboarding-redirect";
-import dynamic from "next/dynamic";
 import { NotificationBell } from "@/components/notifications/notification-bell";
 import { AppsDropdown } from "@/components/apps/apps-dropdown";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { HeartbeatProvider } from "@/components/providers/heartbeat-provider";
-
-const NovaAssistant = dynamic(() => import("@/components/ai/nova-assistant").then(m => ({ default: m.NovaAssistant })), {
-  ssr: false,
-  loading: () => <div className="hidden" />,
-});
+import { NovaLauncher } from "@/components/ai/nova-launcher";
 
 export default function DashboardLayout({
   children,
@@ -42,7 +37,7 @@ export default function DashboardLayout({
                   </ErrorBoundary>
                 </main>
               </div>
-              <NovaAssistant />
+              <NovaLauncher />
             </div>
           </HeartbeatProvider>
         </OnboardingRedirect>

@@ -373,13 +373,17 @@ export const Sidebar = memo(function Sidebar() {
             <span>Settings</span>
           </Link>
 
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "" } }))}
-            className="flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors w-full text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-accent/30 group"
+          <Link
+            href="/nova"
+            onClick={closeMobile}
+            className={cn(
+              "flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors group",
+              isActive("/nova") ? "bg-accent/50 text-sidebar-foreground font-medium" : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-accent/30"
+            )}
           >
             <Bot className="h-4 w-4 flex-shrink-0 text-sidebar-muted group-hover:text-sidebar-foreground/80 transition-colors" />
             <span>Ask Nova</span>
-          </button>
+          </Link>
 
           <Link
             href="/profile"
