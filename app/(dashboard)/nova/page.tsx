@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
+import { useUser } from "@clerk/nextjs";
 import { History, Download, Plus, Bot, Sparkles, Zap, Brain, Trash2 } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
@@ -22,11 +23,12 @@ import { exportConversation, downloadExport } from "@/components/ai/nova/convers
 function NovaPage() {
   const { activeWorkspaceId } = useWorkspace();
   const { showUpgradePrompt } = usePopups();
+  const { user: clerkUser } = useUser();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
   const [view, setView] = useState<"chat" | "memory" | "insights" | "actions">("chat");
-  const [showHistory, setShowHistory] = useState(true);
+  const [showHistory, setShowHistory] = useState(false);
   const [usage, setUsage] = useState<{ current: number; max: number } | null>(null);
   const isLimitReached = usage ? usage.max !== -1 && usage.current >= usage.max : false;
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
@@ -73,7 +75,7 @@ function NovaPage() {
     if (isLimitReached) { showUpgradePrompt("nova"); return; }
     let convId = conv.activeConversationId;
     if (!convId) {
-      const newId = await conv.createConversation();
+      const newId = await conv.createConversation(inputToUse.trim().slice(0, 60));
       if (newId) { conv.setActiveConversationId(newId); conv.fetchConversations(); convId = newId; }
     }
     await chat.sendMessage({ workspaceId: activeWorkspaceId!, conversationId: convId, projectId: currentProjectId, pageContext: { path: pathname ?? "/nova", type: "nova" }, onUsageUpdate: fetchUsage });
@@ -86,6 +88,13 @@ function NovaPage() {
     conv.setActiveConversationId(id);
     const messages = await conv.fetchMessages(id);
     chat.setMessages(messages.length > 0 ? messages : [{ role: "nova", content: "Continuing where we left off. What would you like to work on?", timestamp: new Date() }]);
+    const current = conv.conversations.find((c) => c.id === id);
+    if (current && (!current.title || current.title === "New Conversation" || current.title === "Untitled")) {
+      const firstUser = messages.find((m) => m.role === "user");
+      if (firstUser) {
+        conv.renameConversation(id, firstUser.content.trim().slice(0, 60));
+      }
+    }
     setView("chat");
   }, [conv, chat]);
 
@@ -285,6 +294,7 @@ function NovaPage() {
                   isStreaming={chat.isStreaming}
                   isLoading={chat.isLoading}
                   lastPrompt={chat.lastPromptRef.current}
+                  userImageUrl={clerkUser?.imageUrl}
                   onRetry={(prompt) => handleSend(prompt)}
                   onSuggestedPrompt={(prompt) => {
                     chat.setInput(prompt);

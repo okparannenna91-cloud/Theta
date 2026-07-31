@@ -24,13 +24,13 @@ export function useNovaConversations(workspaceId: string | undefined) {
     }
   }, [workspaceId]);
 
-  const createConversation = useCallback(async (): Promise<string | null> => {
+  const createConversation = useCallback(async (title?: string): Promise<string | null> => {
     if (!workspaceId) return null;
     try {
       const res = await fetch("/api/ai/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ workspaceId, title: "New Conversation" }),
+        body: JSON.stringify({ workspaceId, title: title || "New Conversation" }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -63,6 +63,25 @@ export function useNovaConversations(workspaceId: string | undefined) {
     [workspaceId]
   );
 
+  const renameConversation = useCallback(
+    async (conversationId: string, title: string) => {
+      if (!workspaceId) return;
+      try {
+        const res = await fetch(`/api/ai/conversations/${conversationId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ workspaceId, title }),
+        });
+        if (res.ok) {
+          setConversations((prev) => prev.map((c) => (c.id === conversationId ? { ...c, title } : c)));
+        }
+      } catch (error) {
+        console.error("Failed to rename conversation:", error);
+      }
+    },
+    [workspaceId]
+  );
+
   return {
     conversations,
     setConversations,
@@ -72,5 +91,6 @@ export function useNovaConversations(workspaceId: string | undefined) {
     fetchConversations,
     createConversation,
     fetchMessages,
+    renameConversation,
   };
 }

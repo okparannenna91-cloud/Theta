@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { FileIcon, RotateCcw, Sparkles } from "lucide-react";
+import Image from "next/image";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { ActivityStatus } from "@/components/ai/activity-status";
@@ -16,11 +17,12 @@ interface Props {
   isStreaming: boolean;
   isLoading: boolean;
   lastPrompt: string;
+  userImageUrl?: string | null;
   onRetry?: (prompt: string) => void;
   onSuggestedPrompt?: (prompt: string) => void;
 }
 
-export function NovaMessageList({ messages, isStreaming, isLoading, lastPrompt, onRetry, onSuggestedPrompt }: Props) {
+export function NovaMessageList({ messages, isStreaming, isLoading, lastPrompt, userImageUrl, onRetry, onSuggestedPrompt }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -53,7 +55,7 @@ export function NovaMessageList({ messages, isStreaming, isLoading, lastPrompt, 
             <div className={cn("flex gap-2.5 max-w-[92%] sm:max-w-[80%]", msg.role === "user" ? "flex-row-reverse" : "flex-row")}>
               <div
                 className={cn(
-                  "h-7 w-7 rounded-full shrink-0 flex items-center justify-center mt-1 shadow-sm",
+                  "h-7 w-7 rounded-full shrink-0 flex items-center justify-center mt-1 overflow-hidden shadow-sm",
                   msg.role === "nova"
                     ? "bg-indigo-600"
                     : "bg-slate-200 dark:bg-slate-700"
@@ -61,6 +63,8 @@ export function NovaMessageList({ messages, isStreaming, isLoading, lastPrompt, 
               >
                 {msg.role === "nova" ? (
                   <Sparkles className="h-3.5 w-3.5 text-white" />
+                ) : userImageUrl ? (
+                  <Image src={userImageUrl} alt="You" width={28} height={28} className="object-cover" />
                 ) : (
                   <span className="h-2 w-2 rounded-full bg-white dark:bg-slate-300" />
                 )}
