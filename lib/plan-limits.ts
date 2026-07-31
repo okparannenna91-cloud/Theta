@@ -79,7 +79,7 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxAutomations: 0,          // NONE
         hasIntegrations: true,
         maxIntegrations: 1,         // 1 integration
-        hasAdvancedAnalytics: true,
+        hasAdvancedAnalytics: false,
         hasPrioritySupport: false,
         hasCustomFields: false,
         hasWhiteLabel: false,
@@ -113,7 +113,7 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxAutomations: 10,         // 10/month
         hasIntegrations: true,
         maxIntegrations: 3,         // 3 integrations
-        hasAdvancedAnalytics: true,
+        hasAdvancedAnalytics: false,
         hasPrioritySupport: false,
         hasCustomFields: true,
         hasWhiteLabel: false,
