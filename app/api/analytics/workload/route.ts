@@ -10,13 +10,14 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const workspaceId = searchParams.get("workspaceId");
+    const projectId = searchParams.get("projectId") || undefined;
 
     if (!workspaceId) return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
 
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
-    const data = await getWorkloadChart(workspaceId);
+    const data = await getWorkloadChart(workspaceId, projectId);
     return NextResponse.json({ data });
   } catch (error) {
     console.error("Workload API error:", error);

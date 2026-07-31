@@ -31,6 +31,7 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const workspaceId = searchParams.get("workspaceId");
+        const projectId = searchParams.get("projectId");
         const daysParam = searchParams.get("days") || "30";
         const days = parseInt(daysParam, 10);
         if (isNaN(days) || days < 1 || days > 365) {
@@ -51,18 +52,25 @@ export async function GET(req: Request) {
         // Get accessible project IDs for permission filtering
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
 
+        if (projectId && !accessibleProjectIds.includes(projectId)) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        const projectFilter = projectId ? { id: projectId } : { id: { in: accessibleProjectIds } };
+        const taskProjectFilter = projectId ? projectId : { in: accessibleProjectIds };
+
         // Fetch fundamental data (Relationship & Analytics Accuracy Fix)
         const [projects, tasks, statuses] = await Promise.all([
             prisma.project.findMany({
-                where: { workspaceId, id: { in: accessibleProjectIds } },
+                where: { workspaceId, ...projectFilter },
                 include: { _count: { select: { tasks: true } } }
             }),
             prisma.task.findMany({
-                where: { workspaceId, projectId: { in: accessibleProjectIds } },
+                where: { workspaceId, projectId: taskProjectFilter },
                 include: { project: true }
             }),
             prisma.status.findMany({
-                where: { projectId: { in: accessibleProjectIds } },
+                where: { projectId: taskProjectFilter },
                 orderBy: { order: 'asc' }
             })
         ]);

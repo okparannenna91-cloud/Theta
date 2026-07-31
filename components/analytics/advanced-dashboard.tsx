@@ -132,9 +132,9 @@ export default function AdvancedDashboard({ workspaceId, projectId }: AdvancedDa
 
       const [analyticsRes, velocityRes, workloadRes, cumulativeRes] = await Promise.all([
         fetch(`/api/analytics?${params}`),
-        fetch(`/api/analytics/velocity?workspaceId=${workspaceId}&weeks=12`),
-        fetch(`/api/analytics/workload?workspaceId=${workspaceId}`),
-        fetch(`/api/analytics/cumulative-flow?workspaceId=${workspaceId}&days=${days}`),
+        fetch(`/api/analytics/velocity?workspaceId=${workspaceId}&weeks=12${projectId ? `&projectId=${projectId}` : ""}`),
+        fetch(`/api/analytics/workload?workspaceId=${workspaceId}${projectId ? `&projectId=${projectId}` : ""}`),
+        fetch(`/api/analytics/cumulative-flow?workspaceId=${workspaceId}&days=${days}${projectId ? `&projectId=${projectId}` : ""}`),
       ]);
 
       if (!analyticsRes.ok) throw new Error("Failed to fetch analytics");
@@ -147,8 +147,10 @@ export default function AdvancedDashboard({ workspaceId, projectId }: AdvancedDa
       if (cumulativeRes.ok) setCumulativeFlowData(await cumulativeRes.json());
 
       if (projectId) {
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - days);
         const burndownRes = await fetch(
-          `/api/analytics/burndown?workspaceId=${workspaceId}&projectId=${projectId}&days=${days}`
+          `/api/analytics/burndown?workspaceId=${workspaceId}&projectId=${projectId}&startDate=${startDate.toISOString()}`
         );
         if (burndownRes.ok) setBurndownData(await burndownRes.json());
       }
