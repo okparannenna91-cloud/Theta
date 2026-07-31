@@ -1108,10 +1108,6 @@ export default function SprintBoard({ projectId, workspaceId }: SprintBoardProps
             <BarChart3 className="mr-1.5 h-3.5 w-3.5" />
             Board
           </TabsTrigger>
-          <TabsTrigger value="analytics" className="data-[state=active]:bg-slate-700 data-[state=active]:text-slate-100">
-            <TrendingUp className="mr-1.5 h-3.5 w-3.5" />
-            Analytics
-          </TabsTrigger>
         </TabsList>
 
         {/* Sprint List */}
@@ -1202,83 +1198,6 @@ export default function SprintBoard({ projectId, workspaceId }: SprintBoardProps
                 </p>
               </CardContent>
             </Card>
-          )}
-        </TabsContent>
-
-        {/* Analytics tab */}
-        <TabsContent value="analytics" className="space-y-4">
-          <div className="grid gap-4 lg:grid-cols-2">
-            {/* Burndown */}
-            {selectedSprint ? (
-              burndownLoading ? (
-                <BurndownSkeleton />
-              ) : (
-                <Card className="border-slate-700/50 bg-slate-800/50">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-sm font-medium text-slate-300">
-                        Burndown — {selectedSprint.name}
-                      </CardTitle>
-                      <Select
-                        value={selectedSprintId ?? ""}
-                        onValueChange={(val) => setSelectedSprintId(val || null)}
-                      >
-                        <SelectTrigger className="w-[160px] h-8 bg-slate-900 border-slate-700 text-xs">
-                          <SelectValue placeholder="Select sprint" />
-                        </SelectTrigger>
-                        <SelectContent className="bg-slate-800 border-slate-700">
-                          {sprints.map((s) => (
-                            <SelectItem key={s.id} value={s.id} className="text-xs text-slate-300">
-                              {s.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    <BurndownChart data={burndownData} />
-                  </CardContent>
-                </Card>
-              )
-            ) : (
-              <Card className="border-slate-700/50 bg-slate-800/50">
-                <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-                  <BarChart3 className="h-8 w-8 text-slate-600 mb-3" />
-                  <p className="text-sm text-slate-500">Select a sprint to view its burndown chart</p>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Velocity */}
-            <VelocityDisplay data={velocityData} currentVelocity={activeSprint?.completionRate} />
-          </div>
-
-          {/* Retrospective */}
-          {selectedIsCompleted && (
-            <>
-              <Separator className="bg-slate-700/50" />
-              <div>
-                <h3 className="text-sm font-semibold text-slate-200 mb-4">
-                  Retrospective — {selectedSprint?.name}
-                </h3>
-                {retroLoading ? (
-                  <div className="space-y-3">
-                    {Array.from({ length: 3 }).map((_, i) => (
-                      <Skeleton key={i} className="h-24 w-full bg-slate-700 rounded-lg" />
-                    ))}
-                  </div>
-                ) : retroData ? (
-                  <RetrospectiveView data={retroData} />
-                ) : (
-                  <Card className="border-slate-700/50 bg-slate-800/50">
-                    <CardContent className="py-8 text-center">
-                      <p className="text-sm text-slate-500">No retrospective data available</p>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </>
           )}
         </TabsContent>
       </Tabs>

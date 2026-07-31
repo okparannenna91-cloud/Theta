@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   Settings, Palette, Bell, Shield, Smartphone, Moon, Sun, Laptop,
   Calendar, ExternalLink, Check, Zap, Globe, Lock, Code, Sparkles, Rocket, Terminal,
-  Building2, Users, CreditCard, BarChart3
+  Building2, Users, CreditCard
 } from "lucide-react";
 import { usePreferences } from "@/hooks/use-preferences";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -311,24 +311,12 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-3">
                   <Users className="h-4 w-4 text-muted-foreground" />
                   <div>
-                    <Label className="text-sm font-medium">Team Members</Label>
+                    <Label className="text-sm font-medium">Manage Team</Label>
                     <p className="text-xs text-muted-foreground">Manage who has access to this workspace</p>
                   </div>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => router.push("/teams")}>
                   Manage Team
-                </Button>
-              </div>
-              <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="flex items-center gap-3">
-                  <BarChart3 className="h-4 w-4 text-muted-foreground" />
-                  <div>
-                    <Label className="text-sm font-medium">Usage & Limits</Label>
-                    <p className="text-xs text-muted-foreground">View your current resource usage</p>
-                  </div>
-                </div>
-                <Button variant="outline" size="sm" onClick={() => router.push("/analytics")}>
-                  View Analytics
                 </Button>
               </div>
             </CardContent>

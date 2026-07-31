@@ -14,7 +14,6 @@ import {
   Settings,
   Milestone,
   GanttChartSquare,
-  BarChart3,
   Zap,
   Database,
   FileText,
@@ -41,7 +40,6 @@ const coreTabs = [
 const overflowTabs = [
   { label: "Gantt", href: "gantt", icon: GanttChartSquare },
   { label: "Reports", href: "reports", icon: FileText },
-  { label: "Analytics", href: "analytics", icon: BarChart3 },
   { label: "Automations", href: "automations", icon: Zap },
   { label: "Fields", href: "fields", icon: Database },
   { label: "Settings", href: "settings", icon: Settings },

@@ -10,7 +10,6 @@ import {
   Command as CommandIcon,
   Search,
   Hash,
-  Activity,
   Terminal,
   Cpu,
   Ghost
@@ -60,12 +59,6 @@ export function CommandPalette() {
       description: "Create a new task",
       icon: Plus,
       action: () => router.push("/tasks"),
-    },
-    {
-      command: "/analyze",
-      description: "Run workspace analysis",
-      icon: Activity,
-      action: () => router.push("/analytics"),
     },
     {
       command: "/chat",
@@ -162,7 +155,6 @@ export function CommandPalette() {
               {[
                 { label: "Dashboard", route: "/dashboard", icon: Zap, color: "text-amber-500" },
                 { label: "Calendar", route: "/calendar", icon: Calendar, color: "text-primary" },
-                { label: "Analytics", route: "/analytics", icon: Activity, color: "text-emerald-500" },
                 { label: "Settings", route: "/settings", icon: Settings, color: "text-slate-500" },
               ].map((item) => (
                 <CommandItem 
