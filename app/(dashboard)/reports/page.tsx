@@ -180,7 +180,7 @@ export default function ReportsPage() {
                 <div className="flex flex-col items-center justify-center py-16 text-center">
                   <FileText className="h-8 w-8 text-slate-600 mb-3" />
                   <p className="text-sm text-slate-500">
-                    Click a report type to generate an AI-powered analysis
+                    Click a report type to generate an analysis
                   </p>
                 </div>
               )}

@@ -16,7 +16,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
     Plus, FolderKanban, Trash2, Edit2, MoreVertical,
-    Search, LayoutGrid, List, CheckCircle2, Calendar, Sparkles, AlertTriangle
+    Search, LayoutGrid, List, CheckCircle2, Calendar, AlertTriangle
 } from "lucide-react";
 import { ImageUpload } from "@/components/common/image-upload";
 import { AiGenerator } from "@/components/ai/ai-generator";
@@ -193,10 +193,6 @@ export default function ProjectsPage() {
             <Plus className="h-4 w-4 mr-2" />
             New Project
           </Button>
-          <Button variant="outline" onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "Create a new project. Help me define the name, description, and goals." } }))} className="gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            Create with AI
-          </Button>
         </div>
       </div>
 
@@ -258,10 +254,6 @@ export default function ProjectsPage() {
                 <Button onClick={() => setIsOpen(true)} variant="outline">
                   <Plus className="h-4 w-4 mr-2" />
                   New Project
-                </Button>
-                <Button onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "Create a new project. Help me define the name, description, and goals." } }))} variant="outline" className="gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  Create with AI
                 </Button>
               </div>
             </>

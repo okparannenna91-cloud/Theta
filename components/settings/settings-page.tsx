@@ -49,11 +49,7 @@ export default function SettingsPage() {
   const [dndStart, setDndStart] = useState(preferences?.dndStart ?? "22:00");
   const [dndEnd, setDndEnd] = useState(preferences?.dndEnd ?? "08:00");
   const [notificationSounds, setNotificationSounds] = useState(preferences?.notificationSounds ?? true);
-  const [proactiveSuggestions, setProactiveSuggestions] = useState(preferences?.proactiveSuggestions ?? true);
-  const [autoSummarize, setAutoSummarize] = useState(preferences?.autoSummarize ?? true);
-  const [taskIntelligence, setTaskIntelligence] = useState(preferences?.taskIntelligence ?? true);
-
-  useEffect(() => {
+        useEffect(() => {
     if (preferences) {
       setEmailNotifications(preferences.emailNotifications ?? true);
       setPushNotifications(preferences.pushNotifications ?? false);
@@ -62,9 +58,6 @@ export default function SettingsPage() {
       setDndStart(preferences.dndStart ?? "22:00");
       setDndEnd(preferences.dndEnd ?? "08:00");
       setNotificationSounds(preferences.notificationSounds ?? true);
-      setProactiveSuggestions(preferences.proactiveSuggestions ?? true);
-      setAutoSummarize(preferences.autoSummarize ?? true);
-      setTaskIntelligence(preferences.taskIntelligence ?? true);
     }
   }, [preferences]);
 
@@ -141,6 +134,24 @@ export default function SettingsPage() {
                   <p className="text-xs text-muted-foreground">High-density layout for professional workflows</p>
                 </div>
                 <Switch checked={compactMode} onCheckedChange={(val) => { setCompactMode(val); handlePreferenceChange("compactMode", val); }} />
+              </div>
+
+              <div className="flex items-center justify-between p-4 rounded-lg border">
+                <div>
+                  <Label className="text-sm font-medium">Onboarding</Label>
+                  <p className="text-xs text-muted-foreground">Re-run the onboarding setup anytime</p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    await updatePreference({ onboardingComplete: false });
+                    router.push("/onboarding");
+                  }}
+                >
+                  <Rocket className="h-3.5 w-3.5 mr-2" />
+                  Relaunch
+                </Button>
               </div>
             </CardContent>
           </Card>
@@ -318,68 +329,6 @@ export default function SettingsPage() {
                 </div>
                 <Button variant="outline" size="sm" onClick={() => router.push("/analytics")}>
                   View Analytics
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-
-        {/* Nova AI */}
-        <section>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Sparkles className="h-4 w-4 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold">Nova AI Assistant</h2>
-              <p className="text-xs text-muted-foreground">Configure your AI copilot behavior</p>
-            </div>
-          </div>
-
-          <Card className="border shadow-sm">
-            <CardContent className="p-5 space-y-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">Proactive Suggestions</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Allow Nova to surface insights and suggestions automatically</p>
-                </div>
-                <Switch checked={proactiveSuggestions} onCheckedChange={(val) => { setProactiveSuggestions(val); handlePreferenceChange("proactiveSuggestions", val); }} />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">Auto-Summarize</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">Nova summarizes completed tasks and activity changes</p>
-                </div>
-                <Switch checked={autoSummarize} onCheckedChange={(val) => { setAutoSummarize(val); handlePreferenceChange("autoSummarize", val); }} />
-              </div>
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label className="text-sm font-medium">Task Intelligence</Label>
-                  <p className="text-xs text-muted-foreground mt-0.5">AI analyzes tasks to suggest priorities and effort estimates</p>
-                </div>
-                <Switch checked={taskIntelligence} onCheckedChange={(val) => { setTaskIntelligence(val); handlePreferenceChange("taskIntelligence", val); }} />
-              </div>
-              <div className="border-t pt-4 mt-2 space-y-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-xs h-10 rounded-xl"
-                  onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "Show me your recent memories and learnings about my workspace" } }))}
-                >
-                  <Sparkles className="h-3.5 w-3.5 mr-2 text-primary" />
-                  View Nova&apos;s memory & learnings
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full justify-start text-xs h-10 rounded-xl text-muted-foreground"
-                  onClick={async () => {
-                    await updatePreference({ onboardingComplete: false });
-                    router.push("/onboarding");
-                  }}
-                >
-                  <Rocket className="h-3.5 w-3.5 mr-2" />
-                  Relaunch Onboarding
                 </Button>
               </div>
             </CardContent>

@@ -3,12 +3,17 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
-import { NovaOnboarding } from "@/components/onboarding/nova-onboarding";
+import { Loader2, ArrowRight } from "lucide-react";
+import { Logo } from "@/components/ui/logo";
+import { Button } from "@/components/ui/button";
+import { usePreferences } from "@/hooks/use-preferences";
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { userId, isLoaded } = useAuth();
+  const { updatePreference } = usePreferences();
   const [checking, setChecking] = useState(true);
+  const [starting, setStarting] = useState(false);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -28,6 +33,12 @@ export default function OnboardingPage() {
       .catch(() => setChecking(false));
   }, [isLoaded, userId, router]);
 
+  const handleStart = async () => {
+    setStarting(true);
+    await updatePreference({ onboardingComplete: true });
+    router.push("/dashboard");
+  };
+
   if (checking) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -36,5 +47,42 @@ export default function OnboardingPage() {
     );
   }
 
-  return <NovaOnboarding onComplete={() => router.push("/dashboard")} />;
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background">
+      <div className="w-full max-w-md text-center space-y-8">
+        <div className="flex justify-center">
+          <Logo className="h-10 w-10" />
+        </div>
+
+        <div className="space-y-3">
+          <h1 className="text-3xl font-bold tracking-tight text-foreground">
+            Welcome to Theta
+          </h1>
+          <p className="text-sm text-muted-foreground leading-relaxed">
+            Plan projects, track tasks, and keep your team in sync — all in one
+            workspace.
+          </p>
+        </div>
+
+        <div className="space-y-3">
+          <Button className="w-full h-11 text-sm font-semibold" onClick={handleStart} disabled={starting}>
+            {starting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Setting up...
+              </>
+            ) : (
+              <>
+                Get started
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </>
+            )}
+          </Button>
+          <p className="text-[11px] text-muted-foreground/80">
+            Smart AI teammates are coming soon.
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }

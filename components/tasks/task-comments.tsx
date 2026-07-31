@@ -3,7 +3,6 @@
 import { useState, useCallback } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { MessageSquare, Send, Trash2, Pencil, Reply } from "lucide-react";
-import { AIInlineButton } from "@/components/ai/ai-inline-button";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -441,13 +440,6 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
                     <div className="flex items-center justify-between">
                         <span className="text-[10px] font-semibold text-muted-foreground">Replying to comment</span>
                         <div className="flex items-center gap-2">
-                            <AIInlineButton
-                                workspaceId={workspaceId}
-                                context={replyContent || "Write a helpful reply to this comment"}
-                                type="reply"
-                                onResult={(text) => setReplyContent(text)}
-                                size="sm"
-                            />
                             <button
                                 onClick={() => { setReplyingTo(null); setReplyContent(""); }}
                                 className="text-[10px] text-muted-foreground hover:text-foreground transition-colors"
@@ -486,15 +478,6 @@ export function TaskComments({ taskId, workspaceId }: TaskCommentsProps) {
             )}
 
             <form onSubmit={handlePostComment} className="flex flex-col gap-3">
-                <div className="flex items-center justify-end">
-                    <AIInlineButton
-                        workspaceId={workspaceId}
-                        context={content || "Write a comment about this task"}
-                        type="description"
-                        onResult={(text) => setContent(text)}
-                        size="sm"
-                    />
-                </div>
                 <div className="relative group">
                     <Textarea
                         placeholder="Write a comment... (use @ to mention)"

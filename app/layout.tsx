@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     icon: "/Logo.png",
     apple: "/Logo.png",
   },
-  description: "Theta is the next evolution of project synchronization. Featuring real-time collaboration, AI-powered automation (Nova AI), Gantt charts, and strategic portfolio tracking for high-velocity teams.",
+  description: "Theta is the next evolution of project synchronization. Featuring real-time collaboration, Gantt charts, and strategic portfolio tracking for high-velocity teams.",
   keywords: [
     "project management software",
     "AI project management",
@@ -41,8 +41,6 @@ export const metadata: Metadata = {
     "theta",
     "Theta",
     "Theta PM",
-    "Nova AI",
-    "nova ai assistant",
     "enterprise project isolation"
   ],
   authors: [{ name: "Theta Teams", url: "https://thetapm.site" }],
@@ -64,7 +62,7 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Theta | Orchestrate Your Workflow with AI",
-    description: "Ship faster with sub-50ms real-time updates and Nova AI. The most advanced workspace for modern high-performing teams.",
+    description: "Ship faster with sub-50ms real-time updates. The most advanced workspace for modern high-performing teams.",
     url: "https://thetapm.site",
     siteName: "Theta PM",
     images: [

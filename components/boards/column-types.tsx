@@ -81,20 +81,6 @@ export const COLUMN_TYPE_CATEGORIES = {
       { type: "colorPicker" as ColumnType, icon: Star, color: "text-rainbow" },
     ]
   },
-  ai: {
-    label: "AI",
-    description: "AI-powered content columns",
-    columns: [
-      { type: "aiSummary" as ColumnType, icon: FileText, color: "text-purple-400" },
-      { type: "aiText" as ColumnType, icon: FileText, color: "text-indigo-400" },
-      { type: "aiSentiment" as ColumnType, icon: ThumbsUp, color: "text-emerald-400" },
-      { type: "aiLabel" as ColumnType, icon: Tag, color: "text-amber-400" },
-      { type: "aiExtraction" as ColumnType, icon: FileText, color: "text-cyan-400" },
-      { type: "aiPrioritization" as ColumnType, icon: Flag, color: "text-red-400" },
-      { type: "aiWriting" as ColumnType, icon: FileText, color: "text-blue-400" },
-      { type: "aiTranslation" as ColumnType, icon: Globe, color: "text-green-400" },
-    ]
-  },
   combo: {
     label: "Combo",
     description: "Combined column types",
@@ -316,7 +302,7 @@ export function ColumnValue({ column, value, task, onChange }: {
     case "aiWriting":
       return (
         <span className="text-xs italic text-purple-500/70 truncate max-w-[200px] block">
-          {value || "Generate with AI..."}
+          {value || "Summary..."}
         </span>
       );
 

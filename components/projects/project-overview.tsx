@@ -533,7 +533,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
               </div>
               <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-primary/8 border border-primary/15 text-primary/70">
                 <Zap className="h-3 w-3" />
-                <span className="text-[9px] font-semibold">Nova AI Forecast</span>
+                <span className="text-[9px] font-semibold">Forecast</span>
               </div>
             </CardContent>
           </Card>

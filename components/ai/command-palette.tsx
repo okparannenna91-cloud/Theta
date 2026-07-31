@@ -7,7 +7,6 @@ import {
   Plus,
   FileText,
   Zap,
-  Sparkles,
   Command as CommandIcon,
   Search,
   Hash,
@@ -28,10 +27,8 @@ import {
   CommandShortcut 
 } from "@/components/ui/command";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { toast } from "sonner";
 
 export function CommandPalette() {
   const [open, setOpen] = React.useState(false);
@@ -54,15 +51,6 @@ export function CommandPalette() {
     setOpen(false);
     command();
   }, []);
-
-  const handleAskNova = () => {
-    runCommand(() => {
-        window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: search } }));
-        toast.info("Nova assistant ready", {
-            description: `Asked Nova: "${search}"`
-        });
-    });
-  };
 
   const isSlashCommand = search.startsWith("/");
 
@@ -102,7 +90,7 @@ export function CommandPalette() {
         <div className="flex items-center border-b border-primary/10 px-6 py-4">
           <Terminal className="mr-4 h-5 w-5 text-primary" />
           <CommandInput 
-            placeholder="Type a command or ask Nova..." 
+            placeholder="Type a command or search..." 
             value={search}
             onValueChange={setSearch}
             className="h-12 border-none focus:ring-0 text-lg font-semibold placeholder:text-slate-400"
@@ -125,13 +113,6 @@ export function CommandPalette() {
                   <Ghost className="relative mx-auto h-12 w-12 text-primary" />
                 </div>
                 <p className="text-xs font-medium text-muted-foreground mb-6">No results found</p>
-                <Button 
-                    className="bg-primary hover:bg-primary/90 text-white font-medium text-xs h-12 px-8 rounded-lg shadow-sm transition-all hover:scale-105 active:scale-95"
-                    onClick={handleAskNova}
-                >
-                    <Sparkles className="mr-3 h-4 w-4" />
-                    Authorize Nova Search: &quot;{search}&quot;
-                </Button>
             </motion.div>
           </CommandEmpty>
           
@@ -158,27 +139,8 @@ export function CommandPalette() {
             )}
 
             {!isSlashCommand && search.length > 0 && (
-                <CommandGroup heading={<span className="text-xs font-medium text-primary px-2 py-4 block">AI</span>}>
-                    <CommandItem 
-                      onSelect={handleAskNova} 
-                      className="flex items-center gap-4 p-4 rounded-lg hover:bg-primary/10 aria-selected:bg-primary/10 cursor-pointer transition-all group mb-2"
-                    >
-                        <div className="h-10 w-10 bg-primary/10 rounded-lg flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-                          <Sparkles className="h-5 w-5" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-semibold">Ask Nova</p>
-                          <p className="text-xs font-medium text-primary line-clamp-1">&quot;{search}&quot;</p>
-                        </div>
-                        <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 rounded-full border border-emerald-500/20">
-                          <div className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                          <span className="text-[10px] font-medium text-emerald-600">Active</span>
-                        </div>
-                    </CommandItem>
-                </CommandGroup>
-            )}
-
-            <CommandGroup heading={<span className="text-xs font-medium text-muted-foreground px-2 py-4 block">Core Operations</span>}>
+              <>
+                <CommandGroup heading={<span className="text-xs font-medium text-muted-foreground px-2 py-4 block">Core Operations</span>}>
               <CommandItem 
                 onSelect={() => runCommand(() => router.push("/tasks"))}
                 className="flex items-center gap-4 p-4 rounded-lg hover:bg-slate-500/10 aria-selected:bg-slate-500/10 cursor-pointer transition-all group mb-2"
@@ -215,6 +177,8 @@ export function CommandPalette() {
                 </CommandItem>
               ))}
             </CommandGroup>
+              </>
+            )}
           </AnimatePresence>
         </CommandList>
       </div>

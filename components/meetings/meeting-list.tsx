@@ -202,7 +202,7 @@ export function MeetingList({ projectId }: MeetingListProps) {
             </div>
             <h3 className="text-sm font-semibold mb-1">No meetings yet</h3>
             <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-              Create meetings with AI-powered agenda generation and post-meeting briefs.
+              Create meetings with structured agenda generation and post-meeting briefs.
             </p>
             <Button size="sm" onClick={() => setShowCreate(true)}>
               <Plus className="h-4 w-4 mr-1.5" /> Schedule Meeting

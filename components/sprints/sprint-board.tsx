@@ -53,8 +53,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, differenceInDays, parseISO } from "date-fns";
-import { AISprintPlanDialog } from "./ai-sprint-plan-dialog";
-import { AIInlineButton } from "@/components/ai/ai-inline-button";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -734,15 +732,6 @@ function ActiveSprintBanner({
             <Badge className={cn("text-xs border", statusColor("active"))}>
               Active
             </Badge>
-            <AIInlineButton
-              workspaceId={workspaceId}
-              context={`Sprint: ${sprint.name}, Goal: ${sprint.goal || "none"}, Tasks: ${sprint.completedTasks}/${sprint.totalTasks} done, ${sprint.inProgressTasks} in progress, ${sprint.daysRemaining} days remaining, ${sprint.completionRate}% complete`}
-              type="summary"
-              onResult={(text) => {
-                toast.success("AI Summary", { description: text });
-              }}
-              size="sm"
-            />
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-200">
@@ -1090,14 +1079,6 @@ export default function SprintBoard({ projectId, workspaceId }: SprintBoardProps
         </div>
         <div className="flex items-center gap-2 shrink-0">
           <Button
-            onClick={() => setAiPlanOpen(true)}
-            variant="outline"
-            className="border-indigo-500/30 text-indigo-400 hover:bg-indigo-500/10 hover:text-indigo-300"
-          >
-            <Sparkles className="mr-2 h-4 w-4" />
-            AI Plan
-          </Button>
-          <Button
             onClick={() => setCreateOpen(true)}
             className="bg-indigo-600 hover:bg-indigo-500 text-white"
           >
@@ -1309,14 +1290,6 @@ export default function SprintBoard({ projectId, workspaceId }: SprintBoardProps
         projectId={projectId}
         workspaceId={effectiveWorkspaceId ?? ""}
         onCreated={fetchSprints}
-      />
-
-      {/* AI Sprint Planning Dialog */}
-      <AISprintPlanDialog
-        open={aiPlanOpen}
-        onOpenChange={setAiPlanOpen}
-        projectId={projectId}
-        workspaceId={effectiveWorkspaceId ?? ""}
       />
     </div>
   );

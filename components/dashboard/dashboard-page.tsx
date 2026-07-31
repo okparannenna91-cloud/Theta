@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FolderKanban, CheckSquare, Users, TrendingUp, Target, Activity, Clock, ArrowRight, ArrowUp, ArrowDown, Minus, Sparkles, Brain } from "lucide-react";
+import { FolderKanban, CheckSquare, Users, TrendingUp, Target, Activity, Clock, ArrowRight, ArrowUp, ArrowDown, Minus, Sparkles } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useI18n } from "@/lib/i18n";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -409,41 +409,25 @@ export default function DashboardPage() {
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
-                <Brain className="h-4 w-4" />
+                <Sparkles className="h-4 w-4" />
               </div>
               <div>
-                <CardTitle className="text-base font-semibold">Nova Brief</CardTitle>
-                <p className="text-xs text-muted-foreground">AI-powered workspace insights</p>
+                <CardTitle className="text-base font-semibold">Workspace Snapshot</CardTitle>
+                <p className="text-xs text-muted-foreground">Current workspace overview</p>
               </div>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              <div className="p-4 rounded-xl bg-muted/50 border border-primary/10">
-                <div className="flex items-start gap-3">
-                  <Sparkles className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="text-sm font-medium text-foreground">Workspace Snapshot</p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {data?.projectsCount || 0} projects, {data?.tasksCount || 0} tasks, {data?.membersCount || 0} members
-                      &mdash; {data?.completionRate || 0}% completion rate.
-                    </p>
-                  </div>
+            <div className="p-4 rounded-xl bg-muted/50 border border-primary/10">
+              <div className="flex items-start gap-3">
+                <Sparkles className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="text-sm font-medium text-foreground">Overview</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {data?.projectsCount || 0} projects, {data?.tasksCount || 0} tasks, {data?.membersCount || 0} members
+                    &mdash; {data?.completionRate || 0}% completion rate.
+                  </p>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Button variant="outline" size="sm" className="w-full justify-start text-xs h-10 rounded-xl" onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "Summarize what happened this week in my workspace" } }))}>
-                  <Sparkles className="h-3.5 w-3.5 mr-2 text-primary" />
-                  Summarize this week
-                </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start text-xs h-10 rounded-xl" onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "Suggest next actions for my workspace based on recent activity" } }))}>
-                  <Sparkles className="h-3.5 w-3.5 mr-2 text-primary" />
-                  Suggest next actions
-                </Button>
-                <Button variant="outline" size="sm" className="w-full justify-start text-xs h-10 rounded-xl" onClick={() => window.dispatchEvent(new CustomEvent("nova:open", { detail: { prompt: "Generate a status report for my workspace" } }))}>
-                  <Sparkles className="h-3.5 w-3.5 mr-2 text-primary" />
-                  Generate status report
-                </Button>
               </div>
             </div>
           </CardContent>

@@ -122,7 +122,7 @@ export default function RiskDashboardPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-100 tracking-tight">Risk Dashboard</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            AI-powered risk analysis across all projects
+            Risk analysis across all projects
           </p>
         </div>
         <button
