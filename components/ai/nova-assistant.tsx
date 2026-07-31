@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { MessageSquare, History, Zap, Download, X } from "lucide-react";
+import { MessageSquare, History, Zap, Download, X, Sparkles } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
 import { usePathname } from "next/navigation";
@@ -16,6 +16,7 @@ import { NovaMessageList } from "./nova/nova-message-list";
 import { NovaInput } from "./nova/nova-input";
 import { NovaRecall } from "./nova/nova-recall";
 import { NovaActions } from "./nova/nova-actions";
+import { NovaInsights } from "./nova/nova-insights";
 import { useNovaChat } from "@/hooks/nova/useNovaChat";
 import { useNovaConversations } from "@/hooks/nova/useNovaConversations";
 import { useNovaMemory } from "@/hooks/nova/useNovaMemory";
@@ -163,12 +164,15 @@ export function NovaAssistant() {
             {!isMinimized && (
               <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col overflow-hidden">
                 <div className="px-4 sm:px-6 pt-4 sm:pt-5 pb-2 border-b border-slate-100 dark:border-slate-800 bg-white/50 dark:bg-transparent">
-                  <TabsList className="grid w-full grid-cols-3 bg-slate-100/50 dark:bg-slate-900/50 rounded-lg p-1 border border-slate-200/50 dark:border-slate-800/50">
+                  <TabsList className="grid w-full grid-cols-4 bg-slate-100/50 dark:bg-slate-900/50 rounded-lg p-1 border border-slate-200/50 dark:border-slate-800/50">
                     <TabsTrigger value="chat" className="rounded-lg text-[11px] sm:text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
                       <MessageSquare className="w-3.5 h-3.5 mr-1.5 inline-block" />Chat
                     </TabsTrigger>
                     <TabsTrigger value="history" className="rounded-lg text-[11px] sm:text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
                       <History className="w-3.5 h-3.5 mr-1.5 inline-block" />Recall
+                    </TabsTrigger>
+                    <TabsTrigger value="insights" className="rounded-lg text-[11px] sm:text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
+                      <Sparkles className="w-3.5 h-3.5 mr-1.5 inline-block" />Insights
                     </TabsTrigger>
                     <TabsTrigger value="workflows" className="rounded-lg text-[11px] sm:text-xs font-medium py-2 data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all">
                       <Zap className="w-3.5 h-3.5 mr-1.5 inline-block" />Actions
@@ -194,6 +198,9 @@ export function NovaAssistant() {
                 </TabsContent>
                 <TabsContent value="history" className="flex-1 flex flex-col overflow-hidden m-0">
                   <NovaRecall conversations={conv.conversations} loading={conv.loading} activeConversationId={conv.activeConversationId} memories={mem.memories} onSelectConversation={handleSelectConversation} onDeleteMemory={mem.deleteMemory} onRefreshConversations={conv.fetchConversations} onRefreshMemories={mem.fetchMemories} onSetInput={chat.setInput} onSetActiveTab={setActiveTab} />
+                </TabsContent>
+                <TabsContent value="insights" className="flex-1 flex flex-col overflow-hidden m-0">
+                  <NovaInsights />
                 </TabsContent>
                 <TabsContent value="workflows" className="flex-1 overflow-y-auto m-0">
                   <NovaActions auditLogs={auditLogs} onSetInput={chat.setInput} onSetActiveTab={setActiveTab} />

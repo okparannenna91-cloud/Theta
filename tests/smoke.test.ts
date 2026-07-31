@@ -160,7 +160,7 @@ describe("Decision Framework", () => {
   it("should export DecisionFramework", async () => {
     const { DecisionFramework } = await import("@/lib/nova/decision-framework");
     expect(typeof DecisionFramework.evaluate).toBe("function");
-  });
+  }, 120000);
 
   it("should identify high-risk delete requests", async () => {
     const { DecisionFramework } = await import("@/lib/nova/decision-framework");

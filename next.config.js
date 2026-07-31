@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  experimental: {
+    instrumentationHook: true,
+  },
   output: process.env.ANALYZE === 'true' ? 'standalone' : undefined,
   images: {
     remotePatterns: [

@@ -19,7 +19,7 @@ export class ObservationPipeline {
   private static heartbeatIntervalMs = 600000;
   private static heartbeatTimers = new Map<string, ReturnType<typeof setInterval>>();
 
-  static initialize(): void {
+  static initialize(options?: { startGlobalHeartbeat?: boolean }): void {
     if (this.initialized) return;
     this.initialized = true;
 
@@ -30,7 +30,7 @@ export class ObservationPipeline {
       });
     });
 
-    if (typeof globalThis.setInterval !== "undefined") {
+    if (options?.startGlobalHeartbeat !== false && typeof globalThis.setInterval !== "undefined") {
       this.startGlobalHeartbeat().catch(() => {});
     }
 

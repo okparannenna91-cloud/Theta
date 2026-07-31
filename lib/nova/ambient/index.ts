@@ -34,8 +34,11 @@ export type {
 import { ObservationPipeline } from "./observation-pipeline";
 import { BackgroundAmbientAgent } from "./background-agent";
 
-export function initializeAmbientNova(options?: { autoStartBackgroundAgent?: boolean }): void {
-  ObservationPipeline.initialize();
+export function initializeAmbientNova(options?: {
+  autoStartBackgroundAgent?: boolean;
+  startGlobalHeartbeat?: boolean;
+}): void {
+  ObservationPipeline.initialize({ startGlobalHeartbeat: options?.startGlobalHeartbeat });
 
   if (options?.autoStartBackgroundAgent !== false) {
     BackgroundAmbientAgent.start();

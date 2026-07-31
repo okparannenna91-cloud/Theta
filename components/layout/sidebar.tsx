@@ -19,12 +19,12 @@ import {
    Plus,
     Bot,
    CreditCard,
-   Mail,
-   AtSign,
-   UserCheck,
-   MessageSquare,
-   Archive,
- } from "lucide-react";
+    Mail,
+    AtSign,
+    UserCheck,
+    MessageSquare,
+    Archive,
+  } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
 import { useWorkspace } from "@/hooks/use-workspace";
