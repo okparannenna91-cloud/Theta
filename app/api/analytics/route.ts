@@ -118,11 +118,28 @@ export async function GET(req: Request) {
 
         const tasksOverTime = Array.from(dateMap.values());
 
+        // Tasks by status and priority (used by advanced dashboard)
+        const statusMap = new Map<string, number>();
+        const priorityMap = new Map<string, number>();
+        tasks.forEach((task: TaskWithProject) => {
+            statusMap.set(task.status, (statusMap.get(task.status) || 0) + 1);
+            priorityMap.set(task.priority, (priorityMap.get(task.priority) || 0) + 1);
+        });
+
+        const tasksByStatus = Array.from(statusMap.entries()).map(([status, count]) => ({ status, count }));
+        const tasksByPriority = Array.from(priorityMap.entries()).map(([priority, count]) => ({ priority, count }));
+
         // Team Productivity (Tasks completed per user)
         const productivityMap = new Map<string, number>();
+        const assignedTasksMap = new Map<string, number>();
         completedTasks.forEach((task: TaskWithProject) => {
             if (task.userId) {
                 productivityMap.set(task.userId, (productivityMap.get(task.userId) || 0) + 1);
+            }
+        });
+        tasks.forEach((task: TaskWithProject) => {
+            if (task.userId) {
+                assignedTasksMap.set(task.userId, (assignedTasksMap.get(task.userId) || 0) + 1);
             }
         });
 
@@ -134,26 +151,38 @@ export async function GET(req: Request) {
         });
 
         const teamProductivity = users
-            .map((u: { id: string; name: string | null; imageUrl: string | null }) => ({
-                name: u.name,
-                imageUrl: u.imageUrl,
-                tasksCompleted: productivityMap.get(u.id) || 0
-            }))
+            .map((u: { id: string; name: string | null; imageUrl: string | null }) => {
+                const completed = productivityMap.get(u.id) || 0;
+                return {
+                    userId: u.id,
+                    name: u.name,
+                    imageUrl: u.imageUrl,
+                    tasksCompleted: completed,
+                    completed,
+                    total: assignedTasksMap.get(u.id) || 0
+                };
+            })
             .sort((a, b) => b.tasksCompleted - a.tasksCompleted);
 
         // Most Active Projects
         const projectActivityMap = new Map<string, number>();
+        const projectCompletedMap = new Map<string, number>();
         tasks.forEach((task: TaskWithProject) => {
             if (isAfter(new Date(task.updatedAt), cutoffDate)) {
                 projectActivityMap.set(task.projectId ?? '', (projectActivityMap.get(task.projectId ?? '') || 0) + 1);
             }
+            if (isTaskCompleted(task)) {
+                projectCompletedMap.set(task.projectId ?? '', (projectCompletedMap.get(task.projectId ?? '') || 0) + 1);
+            }
         });
 
         const mostActiveProjects = projects
-            .map((p: { id: string; name: string }) => ({
+            .map((p: { id: string; name: string; _count: { tasks: number } }) => ({
                 id: p.id,
                 name: p.name,
-                activityCount: projectActivityMap.get(p.id) || 0
+                activityCount: projectActivityMap.get(p.id) || 0,
+                taskCount: p._count.tasks || 0,
+                completedCount: projectCompletedMap.get(p.id) || 0
             }))
             .sort((a, b) => b.activityCount - a.activityCount)
             .slice(0, 5);
@@ -174,6 +203,8 @@ export async function GET(req: Request) {
                 projectCompletionRate: Math.round(projectCompletionRate)
             },
             tasksOverTime,
+            tasksByStatus,
+            tasksByPriority,
             teamProductivity,
             mostActiveProjects,
             limits: {

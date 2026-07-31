@@ -220,8 +220,14 @@ export default function AdvancedDashboard({ workspaceId, projectId }: AdvancedDa
     );
   }
 
-  const { totals, tasksByStatus, tasksByPriority, tasksOverTime, teamProductivity, mostActiveProjects } =
-    dashboardData;
+  const {
+    totals = { tasks: 0, completedTasks: 0, overdueTasks: 0, pendingTasks: 0, projects: 0, projectCompletionRate: 0 },
+    tasksByStatus = [],
+    tasksByPriority = [],
+    tasksOverTime = [],
+    teamProductivity = [],
+    mostActiveProjects = [],
+  } = dashboardData;
 
   const completionRate = totals.projectCompletionRate;
   const prevCompletionRate = completionRate;
