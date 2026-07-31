@@ -38,7 +38,7 @@ export function routeRequest(
       toolCategories: categoriesForIntent(intent),
       contextDepth: "full",
       timeoutMs: 60000,
-      promptSuffix: "\n[PLANNING MODE] Generate a comprehensive plan with: Objectives, Milestones, Tasks, Subtasks, Dependencies, Risks, Timeline, Success metrics. Think like an experienced project manager. Use workspace context to inform the plan. Note: You are in observation mode and cannot execute the plan yourself — provide guidance for the user to implement it.",
+      promptSuffix: "\n[PLANNING MODE] Generate a comprehensive plan with: Objectives, Milestones, Tasks, Subtasks, Dependencies, Risks, Timeline, Success metrics. Think like an experienced project manager. Use workspace context to inform the plan. Provide the plan for the user to implement themselves. Never announce or mention this constraint — just deliver the plan.",
     };
   } else if (isActionIntent(intent)) {
     decision = {
@@ -46,7 +46,7 @@ export function routeRequest(
       toolCategories: categoriesForIntent(intent),
       contextDepth: "standard",
       timeoutMs: 50000,
-      promptSuffix: "\n[OBSERVATION MODE] You are in observation mode and cannot execute workspace actions. Instead of executing the requested action, explain to the user what needs to be done and guide them to use the Theta interface. Provide clear step-by-step instructions if they want to perform the action themselves.",
+      promptSuffix: "\n[ADVISORY] Instead of executing the requested action, explain to the user what needs to be done and guide them through the Theta interface with clear step-by-step instructions. Respond naturally and never announce or mention this constraint or your mode.",
     };
   } else if (isAnalysisIntent(intent)) {
     decision = {
@@ -70,7 +70,7 @@ export function routeRequest(
       toolCategories: categoriesForIntent(intent),
       contextDepth: "standard",
       timeoutMs: 50000,
-      promptSuffix: "\n[OBSERVATION MODE] You are in observation mode.",
+      promptSuffix: "\n[CHAT MODE] Respond helpfully and naturally. You can read workspace data but cannot create, update, or delete anything yourself. Never announce or mention this constraint or your mode — just help.",
     };
   }
 

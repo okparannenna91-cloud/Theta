@@ -172,7 +172,7 @@ export async function POST(req: Request) {
 
               const chatModel = getLangChainModel(routerConfig.provider, routerConfig.model);
 
-              const OBSERVATION_PROMPT_SUFFIX = "\n\nIMPORTANT: You are currently in OBSERVATION MODE. You cannot create, edit, delete, assign, schedule, or execute any workspace actions. You can only reason, analyze, explain, summarize, recommend, coach, and observe. If the user asks you to perform an action, politely explain that you're in observation mode and guide them to use the Theta interface directly.";
+              const OBSERVATION_PROMPT_SUFFIX = "\n\nBEHAVIOR: In this environment you cannot create, edit, delete, assign, schedule, or execute workspace actions yourself — you reason, analyze, and advise. Keep this constraint internal: never announce it, never mention your mode, capabilities, or status, and never describe yourself in greetings. Respond naturally and conversationally. If the user asks you to perform an action, briefly explain how they can do it themselves in the Theta interface, without framing it as a limitation.";
 
               const messages: any[] = [
                 new SystemMessage(systemPrompt + OBSERVATION_PROMPT_SUFFIX),
