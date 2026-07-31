@@ -1,30 +1,36 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DecisionFramework } from "@/lib/nova/decision-framework";
 
-describe("Audit Fix: Rate Limiter — Fail Closed", () => {
-  it("rate limiter rejects when Redis errors (fail closed)", async () => {
-    const { rateLimit } = await import("@/lib/rate-limit");
-    const mockRedis = { eval: vi.fn().mockRejectedValue(new Error("ECONNREFUSED")) };
-    vi.doMock("@/lib/redis/client", () => ({ redis: mockRedis }));
+const mockRedis = vi.hoisted(() => ({
+  eval: vi.fn().mockResolvedValue(1),
+}));
 
+vi.mock("@/lib/redis/client", () => ({
+  redis: mockRedis,
+}));
+
+describe("Audit Fix: Rate Limiter — Fail Closed", () => {
+  beforeEach(() => {
+    mockRedis.eval.mockReset();
+    mockRedis.eval.mockResolvedValue(1);
+  });
+
+  it("rate limiter rejects when Redis errors (fail closed)", async () => {
+    mockRedis.eval.mockRejectedValue(new Error("ECONNREFUSED"));
+    const { rateLimit } = await import("@/lib/rate-limit");
     const limiter = rateLimit({ interval: 60000, uniqueTokenPerInterval: 100 });
     await expect(limiter.check({} as any, 10, "user-1")).rejects.toThrow("Rate limit service unavailable");
   });
 
   it("rate limiter allows normal requests", async () => {
     const { rateLimit } = await import("@/lib/rate-limit");
-    const mockRedis = { eval: vi.fn().mockResolvedValue(1) };
-    vi.doMock("@/lib/redis/client", () => ({ redis: mockRedis }));
-
     const limiter = rateLimit({ interval: 60000, uniqueTokenPerInterval: 100 });
     await expect(limiter.check({} as any, 10, "user-1")).resolves.toBeUndefined();
   });
 
   it("rate limiter rejects when limit exceeded", async () => {
+    mockRedis.eval.mockResolvedValue(0);
     const { rateLimit } = await import("@/lib/rate-limit");
-    const mockRedis = { eval: vi.fn().mockResolvedValue(0) };
-    vi.doMock("@/lib/redis/client", () => ({ redis: mockRedis }));
-
     const limiter = rateLimit({ interval: 60000, uniqueTokenPerInterval: 100 });
     await expect(limiter.check({} as any, 10, "user-1")).rejects.toThrow("Rate limit exceeded");
   });

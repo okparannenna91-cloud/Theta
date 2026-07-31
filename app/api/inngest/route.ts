@@ -4,7 +4,7 @@ import { activityRetentionCleanup, archiveReadNotifications, activityDigestEmail
 import { proactiveMonitor } from "@/lib/inngest/functions/proactive-monitor";
 import { executeAutomation, dueDatePassedCron } from "@/lib/inngest/functions/automation-executor";
 import { taskDeadlineReminders, overdueTaskDetection, calendarEventReminders, missedCalendarEvents, smartAlerts, dailyDigest, weeklyDigest, novaSuggestions, insightDigestEmail } from "@/lib/inngest/functions/notifications";
-import { backgroundAgentCron, eventTriggeredAgent } from "@/lib/nova/agents/background-agent";
+import { backgroundAgentCron, eventTriggeredAgent, morningBriefingCron, eveningSummaryCron } from "@/lib/nova/agents/background-agent";
 import { serve } from "inngest/next";
 
 export const { GET, POST, PUT } = serve({
@@ -39,5 +39,7 @@ export const { GET, POST, PUT } = serve({
     // Nova Agents
     backgroundAgentCron,
     eventTriggeredAgent,
+    morningBriefingCron,
+    eveningSummaryCron,
   ],
 });

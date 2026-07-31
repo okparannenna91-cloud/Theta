@@ -32,9 +32,9 @@ describe("Nova Evaluation Suite — Routing", () => {
   });
 
   describe("Task management", () => {
-    it("routes 'create a task' to ACTION", () => {
+    it("routes 'create a task' to ANALYSIS (observation mode)", () => {
       const route = routeRequest("create a task called 'Fix login bug'", "CREATE");
-      expect(route.path).toBe("ACTION");
+      expect(route.path).toBe("ANALYSIS");
     });
 
     it("routes 'list my tasks' to CHAT", () => {
@@ -47,21 +47,21 @@ describe("Nova Evaluation Suite — Routing", () => {
       expect(route.path).toBe("CHAT");
     });
 
-    it("routes 'break down this task' to ACTION", () => {
+    it("routes 'break down this task' to ANALYSIS (observation mode)", () => {
       const route = routeRequest("break down this task into subtasks", "CREATE");
-      expect(route.path).toBe("ACTION");
+      expect(route.path).toBe("ANALYSIS");
     });
 
-    it("routes 'set priority to high' to ACTION", () => {
+    it("routes 'set priority to high' to ANALYSIS (observation mode)", () => {
       const route = routeRequest("set priority to high", "UPDATE");
-      expect(route.path).toBe("ACTION");
+      expect(route.path).toBe("ANALYSIS");
     });
   });
 
   describe("Project management", () => {
-    it("routes 'create project' to ACTION", () => {
+    it("routes 'create project' to ANALYSIS (observation mode)", () => {
       const route = routeRequest("create project 'Website Redesign'", "CREATE");
-      expect(route.path).toBe("ACTION");
+      expect(route.path).toBe("ANALYSIS");
     });
 
     it("routes 'how is my project doing' to CHAT", () => {
@@ -98,9 +98,9 @@ describe("Nova Evaluation Suite — Routing", () => {
       expect(route.path).toBe("CHAT");
     });
 
-    it("routes 'invite member' to ACTION", () => {
+    it("routes 'invite member' to ANALYSIS (observation mode)", () => {
       const route = routeRequest("invite member john@example.com", "CREATE");
-      expect(route.path).toBe("ACTION");
+      expect(route.path).toBe("ANALYSIS");
     });
   });
 
@@ -141,9 +141,9 @@ describe("Nova Evaluation Suite — Routing", () => {
   });
 
   describe("Planning", () => {
-    it("routes 'plan a sprint' to ACTION", () => {
+    it("routes 'plan a sprint' to ANALYSIS (observation mode)", () => {
       const route = routeRequest("plan a sprint for next week", "CREATE");
-      expect(route.path).toBe("ACTION");
+      expect(route.path).toBe("ANALYSIS");
     });
   });
 
