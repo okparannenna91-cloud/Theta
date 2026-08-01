@@ -16,13 +16,14 @@ export function useAbly(channelName: string | null, eventName: string, callback:
         if (!user || !ablyClient || !channelName) return;
 
         const channel = ablyClient.channels.get(channelName);
-
-        channel.subscribe(eventName, (message) => {
+        const listener = (message: any) => {
             callback(message.data);
-        });
+        };
+
+        channel.subscribe(eventName, listener);
 
         return () => {
-            channel.unsubscribe(eventName);
+            channel.unsubscribe(eventName, listener);
         };
     }, [channelName, eventName, callback, user, ablyClient]);
 

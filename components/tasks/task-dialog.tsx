@@ -62,7 +62,6 @@ const TASK_COLORS = ["", "#ef4444", "#f59e0b", "#10b981", "#3b82f6", "#8b5cf6", 
 export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogProps) {
     const queryClient = useQueryClient();
     const taskIdRef = useRef(task?.id);
-    const lastPropUpdateRef = useRef(Date.now());
     const [title, setTitle] = useState(task?.title || "");
     const [description, setDescription] = useState(task?.description || "");
     const [status, setStatus] = useState(task?.status || "todo");
@@ -132,21 +131,22 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
 
     const handleAblyTaskUpdate = useCallback((updatedTask: any) => {
         if (!taskIdRef.current || updatedTask.id !== taskIdRef.current) return;
-        const now = Date.now();
-        if (now < lastPropUpdateRef.current) return;
-        setTitle(updatedTask.title);
-        setDescription(updatedTask.description || "");
-        setStatus(updatedTask.status);
-        setPriority(updatedTask.priority);
-        setTaskType(updatedTask.taskType || "task");
-        setDueDate(updatedTask.dueDate ? new Date(updatedTask.dueDate) : undefined);
-        setStartDate(updatedTask.startDate ? new Date(updatedTask.startDate) : undefined);
-        setEstimatedHours(updatedTask.estimatedHours || 0);
-        setProgress(updatedTask.progress || 0);
-        setColor(updatedTask.color || "");
-        setAssigneeIds(updatedTask.assigneeIds || []);
-        syncCommitted(updatedTask);
-    }, [syncCommitted]);
+        const committed = lastCommittedRef.current;
+        if (committed.title !== updatedTask.title) setTitle(updatedTask.title);
+        if (committed.description !== (updatedTask.description || "")) setDescription(updatedTask.description || "");
+        if (committed.status !== updatedTask.status) setStatus(updatedTask.status);
+        if (committed.priority !== updatedTask.priority) setPriority(updatedTask.priority);
+        if (committed.taskType !== (updatedTask.taskType || "task")) setTaskType(updatedTask.taskType || "task");
+        if (committed.dueDate !== (updatedTask.dueDate || null))
+            setDueDate(updatedTask.dueDate ? new Date(updatedTask.dueDate) : undefined);
+        if (committed.startDate !== (updatedTask.startDate || null))
+            setStartDate(updatedTask.startDate ? new Date(updatedTask.startDate) : undefined);
+        if (committed.estimatedHours !== (updatedTask.estimatedHours || 0)) setEstimatedHours(updatedTask.estimatedHours || 0);
+        if (committed.progress !== (updatedTask.progress || 0)) setProgress(updatedTask.progress || 0);
+        if (committed.color !== (updatedTask.color || "")) setColor(updatedTask.color || "");
+        if (committed.assigneeIds?.join(",") !== (updatedTask.assigneeIds || []).join(","))
+            setAssigneeIds(updatedTask.assigneeIds || []);
+    }, []);
 
     useAbly(taskChannel, "task:updated", handleAblyTaskUpdate);
 
@@ -187,9 +187,8 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     }, [dbStatuses]);
 
     useEffect(() => {
-        if (task) {
+        if (task && taskIdRef.current !== task.id) {
             taskIdRef.current = task.id;
-            lastPropUpdateRef.current = Date.now();
             setTitle(task.title);
             setDescription(task.description || "");
             setStatus(task.status);
@@ -851,6 +850,15 @@ const TaskDialogSidebar = React.memo(function TaskDialogSidebar({
 function ProgressSection({ progress, status, statuses, onProgressChange }: { progress: number; status: string; statuses: any[]; onProgressChange: (val: number) => void }) {
     const statusIdx = statuses.findIndex((s: any) => s.id === status);
     const statusProgress = statusIdx >= 0 ? Math.round((statusIdx / Math.max(1, statuses.length - 1)) * 100) : 0;
+    const [draft, setDraft] = useState<number | null>(null);
+    const value = draft ?? progress;
+
+    const commitDraft = useCallback(() => {
+        setDraft((d) => {
+            if (d !== null) onProgressChange(d);
+            return null;
+        });
+    }, [onProgressChange]);
 
     return (
         <div className="space-y-3">
@@ -860,11 +868,14 @@ function ProgressSection({ progress, status, statuses, onProgressChange }: { pro
                     type="range"
                     min="0"
                     max="100"
-                    value={progress}
-                    onChange={(e) => onProgressChange(parseInt(e.target.value))}
+                    value={value}
+                    onChange={(e) => setDraft(parseInt(e.target.value))}
+                    onPointerUp={commitDraft}
+                    onKeyUp={commitDraft}
+                    onBlur={commitDraft}
                     className="flex-1 h-1.5 accent-primary cursor-pointer"
                 />
-                <span className="text-xs font-medium w-8 text-right tabular-nums">{progress}%</span>
+                <span className="text-xs font-medium w-8 text-right tabular-nums">{value}%</span>
             </div>
             {statuses.length > 2 && (
                 <div className="flex justify-between px-0.5">
@@ -875,10 +886,10 @@ function ProgressSection({ progress, status, statuses, onProgressChange }: { pro
             )}
             <div className="flex items-center gap-2">
                 <div className="flex-1 h-1.5 bg-secondary rounded-full overflow-hidden">
-                    <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, progress))}%` }} />
+                    <div className="h-full rounded-full bg-primary transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, value))}%` }} />
                 </div>
                 <span className="text-[10px] text-muted-foreground w-8 text-right">
-                    {statusProgress > 0 && progress !== statusProgress ? `${statusProgress}% from status` : ""}
+                    {statusProgress > 0 && value !== statusProgress ? `${statusProgress}% from status` : ""}
                 </span>
             </div>
         </div>
