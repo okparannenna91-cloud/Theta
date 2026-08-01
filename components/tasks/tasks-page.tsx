@@ -35,7 +35,7 @@ interface TaskFilters {
 
 async function fetchTasks(workspaceId: string | null, filters: TaskFilters = {}) {
   if (!workspaceId) return { tasks: [], pagination: { total: 0 }, limits: { max: -1, current: 0, hasAccess: true } };
-  const params = new URLSearchParams({ workspaceId });
+  const params = new URLSearchParams({ workspaceId, limit: "500" });
   if (filters.search) params.set("search", filters.search);
   if (filters.status) params.set("status", filters.status);
   if (filters.priority) params.set("priority", filters.priority);

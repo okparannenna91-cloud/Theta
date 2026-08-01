@@ -96,8 +96,22 @@ export async function GET(req: Request) {
 
     const taskWhere: any = {
       workspaceId: workspaceId as string,
-      project: projectWhere,
     };
+
+    // Scope tasks the same way the board does:
+    // - explicit projectId → direct field filter
+    // - teamId → project relation filter (team membership already verified above)
+    // - workspace-wide → any accessible project, plus legacy tasks without a projectId
+    if (projectId) {
+      taskWhere.projectId = projectId;
+    } else if (teamId) {
+      taskWhere.project = projectWhere;
+    } else {
+      taskWhere.OR = [
+        { projectId: { in: accessibleProjectIds } },
+        { projectId: null },
+      ];
+    }
 
     // Subtask scoping:
     // - parentId=<id>  → only children of that parent (subtask section)
