@@ -17,16 +17,12 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Calendar as CalendarIcon, Clock, Sparkles, X, Trash2, Palette, AlertCircle, MessageSquare, CheckSquare, Link2, ArrowUpLeft, ChevronRight } from "lucide-react";
+import { Clock, Sparkles, X, Trash2, Palette, AlertCircle, MessageSquare, CheckSquare, Link2, ArrowUpLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 
 import { useAbly } from "@/hooks/use-ably";
 import { getTaskChannel } from "@/lib/ably";
-import {
-    Popover,
-    PopoverContent,
-    PopoverTrigger,
-} from "@/components/ui/popover";
+import { DateField } from "@/components/ui/date-field";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
@@ -693,48 +689,20 @@ const TaskDialogSidebar = React.memo(function TaskDialogSidebar({
 
                     <div className="space-y-3">
                         <Label className="text-xs font-medium text-muted-foreground ml-1">Start Date</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className={cn("w-full h-11 justify-start text-left font-medium text-xs bg-background border rounded-lg shadow-sm hover:border-primary/30 transition-colors", !startDate && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
-                                    {startDate ? format(startDate, "PPP") : <span>Set start date</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-6 bg-background/95 border rounded-xl shadow-2xl" align="start">
-                                <div className="flex flex-col gap-4">
-                                    <Label className="text-xs font-medium text-muted-foreground">Start Date</Label>
-                                    <Input
-                                        type="date"
-                                        className="w-full h-12 px-5 bg-muted border-none rounded-lg text-xs focus:ring-2 focus:ring-primary/20"
-                                        value={startDate ? format(startDate, "yyyy-MM-dd") : ""}
-                                        onChange={(e) => onStartDateChange(e.target.value ? new Date(e.target.value) : undefined)}
-                                    />
-                                </div>
-                            </PopoverContent>
-                        </Popover>
+                        <DateField
+                            value={startDate}
+                            onChange={onStartDateChange}
+                            placeholder="Set start date"
+                        />
                     </div>
 
                     <div className="space-y-3">
                         <Label className="text-xs font-medium text-muted-foreground ml-1">Due Date</Label>
-                        <Popover>
-                            <PopoverTrigger asChild>
-                                <Button variant="outline" className={cn("w-full h-11 justify-start text-left font-medium text-xs bg-background border rounded-lg shadow-sm hover:border-primary/30 transition-colors", !dueDate && "text-muted-foreground")}>
-                                    <CalendarIcon className="mr-3 h-4 w-4 text-primary" />
-                                    {dueDate ? format(dueDate, "PPP") : <span>Set date</span>}
-                                </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-auto p-6 bg-background/95 border rounded-xl shadow-2xl" align="start">
-                                <div className="flex flex-col gap-4">
-                                    <Label className="text-xs font-medium text-muted-foreground">Date</Label>
-                                    <Input
-                                        type="date"
-                                        className="w-full h-12 px-5 bg-muted border-none rounded-lg text-xs focus:ring-2 focus:ring-primary/20"
-                                        value={dueDate ? format(dueDate, "yyyy-MM-dd") : ""}
-                                        onChange={(e) => onDueDateChange(e.target.value ? new Date(e.target.value) : undefined)}
-                                    />
-                                </div>
-                            </PopoverContent>
-                        </Popover>
+                        <DateField
+                            value={dueDate}
+                            onChange={onDueDateChange}
+                            placeholder="Set date"
+                        />
                     </div>
 
                     <div className="space-y-3">
