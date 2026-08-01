@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { DateField } from "@/components/ui/date-field";
 import { ImageUpload } from "@/components/common/image-upload";
 import { Sparkles } from "lucide-react";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -25,6 +26,12 @@ interface CreateTaskDialogProps {
   defaultDueDate?: string;
 }
 
+function parseDateValue(iso?: string): Date | undefined {
+  if (!iso) return undefined;
+  const d = new Date(iso);
+  return isNaN(d.getTime()) ? undefined : d;
+}
+
 export function CreateTaskDialog({
   isOpen,
   onOpenChange,
@@ -38,9 +45,15 @@ export function CreateTaskDialog({
   const [status, setStatus] = useState(defaultStatus);
   const [priority, setPriority] = useState("medium");
   const [projectId, setProjectId] = useState(defaultProjectId);
-  const [startDate, setStartDate] = useState(defaultStartDate || "");
-  const [dueDate, setDueDate] = useState(defaultDueDate || "");
+  const [startDate, setStartDate] = useState<Date | undefined>(() => parseDateValue(defaultStartDate));
+  const [dueDate, setDueDate] = useState<Date | undefined>(() => parseDateValue(defaultDueDate));
   const [coverImage, setCoverImage] = useState("");
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setStartDate(parseDateValue(defaultStartDate));
+    setDueDate(parseDateValue(defaultDueDate));
+  }, [isOpen, defaultStartDate, defaultDueDate]);
 
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
@@ -99,8 +112,8 @@ export function CreateTaskDialog({
       setStatus(defaultStatus);
       setPriority("medium");
       setProjectId(defaultProjectId);
-      setStartDate("");
-      setDueDate("");
+      setStartDate(undefined);
+      setDueDate(undefined);
       setCoverImage("");
       toast.success("Task created successfully");
     },
@@ -123,8 +136,8 @@ export function CreateTaskDialog({
       description,
       status,
       priority,
-      startDate: startDate || undefined,
-      dueDate: dueDate || undefined,
+      startDate: startDate?.toISOString(),
+      dueDate: dueDate?.toISOString(),
       projectId: projectId && projectId !== "no-project" ? projectId : undefined,
       coverImage,
     });
@@ -191,20 +204,18 @@ export function CreateTaskDialog({
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
+              <DateField
                 value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
+                onChange={setStartDate}
+                placeholder="Set start date"
               />
             </div>
             <div>
               <Label htmlFor="dueDate">Due Date</Label>
-              <Input
-                id="dueDate"
-                type="date"
+              <DateField
                 value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
+                onChange={setDueDate}
+                placeholder="Set due date"
               />
             </div>
           </div>

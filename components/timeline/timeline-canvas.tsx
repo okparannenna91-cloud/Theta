@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { format, addDays, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, eachMonthOfInterval, isToday, differenceInDays, differenceInMinutes, isWeekend, addHours, startOfWeek, endOfWeek, startOfQuarter, endOfQuarter, startOfYear, endOfYear, eachHourOfInterval, eachWeekOfInterval, eachQuarterOfInterval, eachYearOfInterval, startOfDay, endOfDay } from "date-fns";
 import { detectCriticalPath, calculateProgressRollup } from "@/lib/scheduling/scheduling-engine";
+import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { cn } from "@/lib/utils";
 import TaskBar from "./task-bar";
 import DependencyEngine from "./dependency-engine";
@@ -24,6 +26,7 @@ interface TimelineCanvasProps {
     onTaskClick?: (task: any) => void;
     showWeekends?: boolean;
     enableRollup?: boolean;
+    workspaceId?: string | null;
 }
 
 export default function TimelineCanvas({
@@ -40,7 +43,10 @@ export default function TimelineCanvas({
     onTaskClick,
     showWeekends = true,
     enableRollup = false,
+    workspaceId,
 }: TimelineCanvasProps) {
+    const queryClient = useQueryClient();
+    const activeWorkspace = workspaceId || undefined;
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
     const timelineRef = useRef<HTMLDivElement>(null);
@@ -361,6 +367,9 @@ export default function TimelineCanvas({
                 body: JSON.stringify(updates)
             });
             if (!res.ok) throw new Error("Update failed");
+            if (activeWorkspace) {
+                invalidateTaskCaches({ queryClient, workspaceId: activeWorkspace });
+            }
             if (onUndoPush && prevState) {
                 onUndoPush({
                     type: updates.type === "resize" ? "resize" : "drag",
@@ -373,7 +382,7 @@ export default function TimelineCanvas({
         } catch (error) {
             console.error(error);
         }
-    }, [onUndoPush]);
+    }, [activeWorkspace, queryClient, onUndoPush]);
 
     const handleDependencyCreate = useCallback(async (sourceId: string, targetId: string, type: "FS" | "SS" | "FF" | "SF" = "FS") => {
         try {

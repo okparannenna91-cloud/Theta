@@ -271,29 +271,33 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
         const cmd = undoStack[undoStack.length - 1];
         if (!cmd) return;
         try {
-            await fetch(`/api/tasks/${cmd.taskId}`, {
+            const res = await fetch(`/api/tasks/${cmd.taskId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(cmd.previous)
             });
+            if (!res.ok) throw new Error("Undo failed");
             setUndoStack(prev => prev.slice(0, -1));
             setRedoStack(prev => [...prev, cmd]);
+            invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
         } catch {}
-    }, [undoStack]);
+    }, [undoStack, queryClient, activeWorkspaceId]);
 
     const handleRedo = useCallback(async () => {
         const cmd = redoStack[redoStack.length - 1];
         if (!cmd) return;
         try {
-            await fetch(`/api/tasks/${cmd.taskId}`, {
+            const res = await fetch(`/api/tasks/${cmd.taskId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(cmd.next)
             });
+            if (!res.ok) throw new Error("Redo failed");
             setRedoStack(prev => prev.slice(0, -1));
             setUndoStack(prev => [...prev, cmd]);
+            invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
         } catch {}
-    }, [redoStack]);
+    }, [redoStack, queryClient, activeWorkspaceId]);
 
     const handleSaveBaseline = useCallback(() => {
         if (!baselineLabel.trim()) return;
@@ -799,6 +803,7 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
                     onTaskClick={handleTaskClick}
                     showWeekends={showWeekends}
                     enableRollup={enableRollup}
+                    workspaceId={activeWorkspaceId}
                 />
             </div>
 

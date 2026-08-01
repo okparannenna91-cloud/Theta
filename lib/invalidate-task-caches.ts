@@ -20,6 +20,7 @@ export function invalidateTaskCaches({
         // Invalidate workspace-scoped task queries
         queryClient.invalidateQueries({ queryKey: ["tasks", workspaceId] });
         queryClient.invalidateQueries({ queryKey: ["timeline-tasks", workspaceId] });
+        queryClient.invalidateQueries({ queryKey: ["gantt-tasks", workspaceId] });
         queryClient.invalidateQueries({ queryKey: ["calendar-tasks", workspaceId] });
         queryClient.invalidateQueries({ queryKey: ["workspace-statuses", workspaceId] });
     }
