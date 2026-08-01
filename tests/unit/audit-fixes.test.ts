@@ -9,17 +9,17 @@ vi.mock("@/lib/redis/client", () => ({
   redis: mockRedis,
 }));
 
-describe("Audit Fix: Rate Limiter — Fail Closed", () => {
+describe("Audit Fix: Rate Limiter — Fail Open", () => {
   beforeEach(() => {
     mockRedis.eval.mockReset();
     mockRedis.eval.mockResolvedValue(1);
   });
 
-  it("rate limiter rejects when Redis errors (fail closed)", async () => {
+  it("rate limiter allows requests when Redis errors (fail open)", async () => {
     mockRedis.eval.mockRejectedValue(new Error("ECONNREFUSED"));
     const { rateLimit } = await import("@/lib/rate-limit");
     const limiter = rateLimit({ interval: 60000, uniqueTokenPerInterval: 100 });
-    await expect(limiter.check({} as any, 10, "user-1")).rejects.toThrow("Rate limit service unavailable");
+    await expect(limiter.check({} as any, 10, "user-1")).resolves.toBeUndefined();
   });
 
   it("rate limiter allows normal requests", async () => {

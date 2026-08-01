@@ -38,18 +38,27 @@ export default clerkMiddleware(async (auth, req) => {
   }
   // ────────────────────────────────────────────────────────────────────────
 
+  const session = auth();
+
   // Rate limiting for API routes
+  // Writes are limited per user (or per IP when unauthenticated) at a generous
+  // burst budget. Reads get a very high limit — a single dialog/view load
+  // fires many GETs and low limits break normal usage.
   if (isApiRoute(req)) {
     const ip = req.ip || req.headers.get('x-forwarded-for') || '127.0.0.1';
+    const method = req.method || 'GET';
+    const isWrite = method === 'POST' || method === 'PATCH' || method === 'PUT' || method === 'DELETE';
+    const token = isWrite
+      ? (session?.userId ? `user:${session.userId}` : `ip:${ip}`)
+      : `read:${ip}`;
     try {
-      await limiter.check(null, 30, ip);
+      await limiter.check(null, isWrite ? 120 : 600, token);
     } catch {
       return NextResponse.json({ error: 'Too Many Requests' }, { status: 429 });
     }
   }
 
   if (!isPublicRoute(req)) {
-    const session = auth();
     if (!session.userId) {
       // API routes → return JSON 401 so the client can handle it gracefully
       if (isApiRoute(req)) {

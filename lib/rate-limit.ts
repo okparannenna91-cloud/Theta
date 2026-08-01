@@ -49,9 +49,10 @@ export function rateLimit(options: RateLimitOptions) {
                 if (error.message === 'Rate limit exceeded') {
                     return Promise.reject(error);
                 }
-                // Fail closed: Block requests when Redis is unavailable to prevent abuse
-                logger.error("[RateLimit] Redis unavailable, blocking request:", error);
-                return Promise.reject(new Error('Rate limit service unavailable'));
+                // Fail open: allow requests when Redis is unavailable so the app
+                // keeps working (rate limiting is a safeguard, not a hard dependency)
+                logger.error("[RateLimit] Redis unavailable, allowing request:", error);
+                return Promise.resolve();
             }
         },
     };
