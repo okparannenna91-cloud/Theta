@@ -39,6 +39,33 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(request.url);
 
   if (request.method !== "GET") return;
+
+  // Document navigations (page loads AND OAuth popups like
+  // /api/integrations/*/connect) must let redirects reach the browser.
+  // Following cross-origin redirects here (GitHub/Google/etc.) returns an
+  // opaque response that browsers can't render as a navigation → ERR_FAILED.
+  if (request.destination === "document") {
+    event.respondWith(
+      fetch(request, { redirect: "manual" })
+        .then((response) => {
+          if (response.type === "basic" && response.ok) {
+            const clone = response.clone();
+            caches.open(DYNAMIC_CACHE).then((cache) => {
+              cache.put(request, clone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          return caches.match(request).then((cached) => {
+            if (cached) return cached;
+            return caches.match("/dashboard");
+          });
+        })
+    );
+    return;
+  }
+
   if (url.pathname.startsWith("/api/")) {
     event.respondWith(
       fetch(request, { redirect: "follow" })
@@ -59,7 +86,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    fetch(request, { redirect: "follow" })
+    fetch(request, { redirect: "manual" })
       .then((response) => {
         if (!response || response.status !== 200) {
           return response;
