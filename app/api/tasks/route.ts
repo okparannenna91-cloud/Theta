@@ -101,16 +101,13 @@ export async function GET(req: Request) {
     // Scope tasks the same way the board does:
     // - explicit projectId → direct field filter
     // - teamId → project relation filter (team membership already verified above)
-    // - workspace-wide → any accessible project, plus legacy tasks without a projectId
+    // - workspace-wide → any accessible project (projectId is required on every task)
     if (projectId) {
       taskWhere.projectId = projectId;
     } else if (teamId) {
       taskWhere.project = projectWhere;
     } else {
-      taskWhere.OR = [
-        { projectId: { in: accessibleProjectIds } },
-        { projectId: null },
-      ];
+      taskWhere.projectId = { in: accessibleProjectIds };
     }
 
     // Subtask scoping:
@@ -373,7 +370,7 @@ export async function POST(req: Request) {
         startDate: data.startDate ? new Date(data.startDate) : null,
         isMilestone: data.isMilestone || false,
         color: data.color,
-        parentId: data.parentId,
+        parentId: data.parentId ?? null,
         order: childOrder,
         isSummary: data.isSummary || false,
         coverImage: data.coverImage,
