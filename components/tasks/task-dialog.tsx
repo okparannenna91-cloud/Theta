@@ -311,7 +311,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
 
     return (
         <Sheet open={isOpen} onOpenChange={(open) => !open && onClose()}>
-            <SheetContent side="right" className="fixed left-auto right-0 top-0 translate-x-0 translate-y-0 h-[100dvh] w-full sm:w-[95vw] md:w-[85vw] lg:w-[1100px] sm:max-w-none p-0 border-l bg-background/95 shadow-2xl rounded-none sm:rounded-l-xl overflow-hidden flex flex-col">
+            <SheetContent side="right" className="fixed left-auto right-0 top-0 translate-x-0 translate-y-0 h-[100dvh] w-full sm:w-[95vw] md:w-[85vw] lg:w-[1100px] sm:max-w-none p-0 border-l bg-background shadow-2xl rounded-none sm:rounded-l-xl overflow-hidden flex flex-col">
                 <TaskDialogHeader
                     title={task.title || "Untitled"}
                     parentTitle={task.parentId ? parentTitle : undefined}
@@ -465,7 +465,7 @@ const TaskDialogHeader = React.memo(function TaskDialogHeader({ title, parentTit
     onOpenParent: () => void;
 }) {
     return (
-        <div className="h-16 border-b px-6 sm:px-8 flex items-center justify-between shrink-0 bg-background/50 backdrop-blur-md sticky top-0 z-20">
+        <div className="h-16 border-b px-6 sm:px-8 flex items-center justify-between shrink-0 bg-background sticky top-0 z-20">
             <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground min-w-0">
                 <span className="hover:text-primary transition-colors cursor-pointer">Workspace</span>
                 <span>/</span>

@@ -332,99 +332,106 @@ export async function PATCH(
       },
     });
 
-    // Notify via Ably
+    // Notify via Ably (all channels in parallel so realtime updates arrive fast)
     const workspaceChannel = getWorkspaceChannel(updated.workspaceId);
-    await publishToChannel(workspaceChannel, "task:updated", updated);
+    const sideEffects: Promise<unknown>[] = [];
+    sideEffects.push(publishToChannel(workspaceChannel, "task:updated", updated));
 
     if (updated.boardId) {
       const boardChannel = getBoardChannel(updated.workspaceId, updated.boardId);
-      await publishToChannel(boardChannel, "task:updated", updated);
+      sideEffects.push(publishToChannel(boardChannel, "task:updated", updated));
     }
 
     if (updated.projectId) {
       const projectChannel = getProjectChannel(updated.workspaceId, updated.projectId);
-      await publishToChannel(projectChannel, "task:updated", updated);
+      sideEffects.push(publishToChannel(projectChannel, "task:updated", updated));
     }
 
     // Per-task channels: keep any open task/subtask dialog in sync instantly
     const taskChannel = getTaskChannel(updated.workspaceId, updated.id);
-    await publishToChannel(taskChannel, "task:updated", updated);
+    sideEffects.push(publishToChannel(taskChannel, "task:updated", updated));
     if (updated.parentId) {
       const parentChannel = getTaskChannel(updated.workspaceId, updated.parentId);
-      await publishToChannel(parentChannel, "task:updated", updated);
+      sideEffects.push(publishToChannel(parentChannel, "task:updated", updated));
     }
 
     if (updated.parentId) {
-      await updateParentTask(updated.parentId, task.workspaceId);
+      sideEffects.push(updateParentTask(updated.parentId, task.workspaceId));
     }
 
     // If parentId was changed or removed, recalculate the old parent's progress
     if (data.parentId !== undefined && task.parentId && data.parentId !== task.parentId) {
-      await updateParentTask(task.parentId, task.workspaceId);
+      sideEffects.push(updateParentTask(task.parentId, task.workspaceId));
     } else if (data.parentId === null && task.parentId) {
-      await updateParentTask(task.parentId, task.workspaceId);
+      sideEffects.push(updateParentTask(task.parentId, task.workspaceId));
     }
 
     // Log Activity
-    const { createActivity } = await import("@/lib/activity");
-    await createActivity(
-      user.id,
-      task.workspaceId,
-      "updated",
-      "task",
-      task.id,
-      {
-        taskTitle: updated.title,
-        entityName: updated.title,
-        changes,
-      },
-      updated.projectId
-    );
+    sideEffects.push((async () => {
+      const { createActivity } = await import("@/lib/activity");
+      await createActivity(
+        user.id,
+        task.workspaceId,
+        "updated",
+        "task",
+        task.id,
+        {
+          taskTitle: updated.title,
+          entityName: updated.title,
+          changes,
+        },
+        updated.projectId
+      );
+    })());
 
     // Notify members if status changed
     if (data.status && data.status !== task.status) {
-      const { notifyWorkspaceMembers } = await import("@/lib/notification-engine");
-      await notifyWorkspaceMembers(
-        task.workspaceId,
-        user.id,
-        "task_updated",
-        "Task Status Updated",
-        `${user.name || "A member"} updated status of "${updated.title}" from ${task.status} to ${updated.status}`,
-        { taskId: updated.id, projectId: updated.projectId }
-      );
+      sideEffects.push((async () => {
+        const { notifyWorkspaceMembers } = await import("@/lib/notification-engine");
+        await notifyWorkspaceMembers(
+          task.workspaceId,
+          user.id,
+          "task_updated",
+          "Task Status Updated",
+          `${user.name || "A member"} updated status of "${updated.title}" from ${task.status} to ${updated.status}`,
+          { taskId: updated.id, projectId: updated.projectId }
+        );
+      })());
     }
 
     // Notify assignees if assignee list changed
     if (data.assigneeIds && JSON.stringify(data.assigneeIds.sort()) !== JSON.stringify((task.assigneeIds || []).sort())) {
-      const { notifyWorkspaceMembers } = await import("@/lib/notification-engine");
-      const addedIds = (data.assigneeIds || []).filter((id: string) => !(task.assigneeIds || []).includes(id));
-      const removedIds = (task.assigneeIds || []).filter((id: string) => !(data.assigneeIds || []).includes(id));
-      if (addedIds.length > 0) {
-        for (const assigneeId of addedIds) {
-          const { createNotification } = await import("@/lib/notification-engine");
-          await createNotification(
-            assigneeId,
-            task.workspaceId,
-            "task_assigned",
-            "Task Assigned",
-            `${user.name || "A member"} assigned you to: ${updated.title}`,
-            { taskId: updated.id, projectId: updated.projectId }
-          );
+      sideEffects.push((async () => {
+        const { notifyWorkspaceMembers } = await import("@/lib/notification-engine");
+        const addedIds = (data.assigneeIds || []).filter((id: string) => !(task.assigneeIds || []).includes(id));
+        const removedIds = (task.assigneeIds || []).filter((id: string) => !(data.assigneeIds || []).includes(id));
+        if (addedIds.length > 0) {
+          for (const assigneeId of addedIds) {
+            const { createNotification } = await import("@/lib/notification-engine");
+            await createNotification(
+              assigneeId,
+              task.workspaceId,
+              "task_assigned",
+              "Task Assigned",
+              `${user.name || "A member"} assigned you to: ${updated.title}`,
+              { taskId: updated.id, projectId: updated.projectId }
+            );
+          }
         }
-      }
-      if (removedIds.length > 0) {
-        for (const assigneeId of removedIds) {
-          const { createNotification } = await import("@/lib/notification-engine");
-          await createNotification(
-            assigneeId,
-            task.workspaceId,
-            "task_updated",
-            "Task Unassigned",
-            `${user.name || "A member"} removed you from: ${updated.title}`,
-            { taskId: updated.id, projectId: updated.projectId }
-          );
+        if (removedIds.length > 0) {
+          for (const assigneeId of removedIds) {
+            const { createNotification } = await import("@/lib/notification-engine");
+            await createNotification(
+              assigneeId,
+              task.workspaceId,
+              "task_updated",
+              "Task Unassigned",
+              `${user.name || "A member"} removed you from: ${updated.title}`,
+              { taskId: updated.id, projectId: updated.projectId }
+            );
+          }
         }
-      }
+      })());
     }
 
     // Sub-task completion notifications + parent activity (task_completed)
@@ -433,61 +440,65 @@ export async function PATCH(
     const wasCompleted = completionKeywords.some((kw) => (task.status || "").toLowerCase().includes(kw));
 
     if (isNowCompleted && !wasCompleted && updated.parentId) {
-      const { createNotification } = await import("@/lib/notification-engine");
-      // Notify child assignees
-      for (const assigneeId of updated.assigneeIds || []) {
-        if (assigneeId === user.id) continue;
-        await createNotification(
-          assigneeId,
-          task.workspaceId,
-          "task_completed",
-          "Subtask Completed",
-          `Subtask completed: "${updated.title}"`,
-          { taskId: updated.id, parentTaskId: updated.parentId, projectId: updated.projectId }
-        );
-      }
-      // Notify parent assignees
-      const parentTask = await prisma.task.findUnique({
-        where: { id: updated.parentId },
-        select: { id: true, title: true, assigneeIds: true },
-      });
-      if (parentTask) {
-        for (const assigneeId of parentTask.assigneeIds || []) {
+      const completedParentId = updated.parentId;
+      sideEffects.push((async () => {
+        const { createNotification } = await import("@/lib/notification-engine");
+        // Notify child assignees
+        for (const assigneeId of updated.assigneeIds || []) {
           if (assigneeId === user.id) continue;
           await createNotification(
             assigneeId,
             task.workspaceId,
             "task_completed",
             "Subtask Completed",
-            `Subtask "${updated.title}" of "${parentTask.title}" was completed`,
-            { taskId: parentTask.id, childTaskId: updated.id, projectId: updated.projectId }
+            `Subtask completed: "${updated.title}"`,
+            { taskId: updated.id, parentTaskId: completedParentId, projectId: updated.projectId }
           );
         }
-      }
+        // Notify parent assignees
+        const parentTask = await prisma.task.findUnique({
+          where: { id: completedParentId },
+          select: { id: true, title: true, assigneeIds: true },
+        });
+        if (parentTask) {
+          for (const assigneeId of parentTask.assigneeIds || []) {
+            if (assigneeId === user.id) continue;
+            await createNotification(
+              assigneeId,
+              task.workspaceId,
+              "task_completed",
+              "Subtask Completed",
+              `Subtask "${updated.title}" of "${parentTask.title}" was completed`,
+              { taskId: parentTask.id, childTaskId: updated.id, projectId: updated.projectId }
+            );
+          }
+        }
+      })());
     }
 
     // Due-date change notification to assignees
     if (data.dueDate !== undefined && data.dueDate !== (task.dueDate ? task.dueDate.toISOString() : null) && (updated.assigneeIds || []).length > 0) {
-      const { createNotification } = await import("@/lib/notification-engine");
-      const dueLabel = updated.dueDate
-        ? new Date(updated.dueDate).toLocaleDateString()
-        : "no due date";
-      for (const assigneeId of updated.assigneeIds) {
-        if (assigneeId === user.id) continue;
-        await createNotification(
-          assigneeId,
-          task.workspaceId,
-          "task_updated",
-          "Due Date Changed",
-          `Due date for "${updated.title}" changed to ${dueLabel}`,
-          { taskId: updated.id, parentTaskId: updated.parentId || undefined, projectId: updated.projectId }
-        );
-      }
+      sideEffects.push((async () => {
+        const { createNotification } = await import("@/lib/notification-engine");
+        const dueLabel = updated.dueDate
+          ? new Date(updated.dueDate).toLocaleDateString()
+          : "no due date";
+        for (const assigneeId of updated.assigneeIds) {
+          if (assigneeId === user.id) continue;
+          await createNotification(
+            assigneeId,
+            task.workspaceId,
+            "task_updated",
+            "Due Date Changed",
+            `Due date for "${updated.title}" changed to ${dueLabel}`,
+            { taskId: updated.id, parentTaskId: updated.parentId || undefined, projectId: updated.projectId }
+          );
+        }
+      })());
     }
 
     // Parent activity entries for key child-task events
     if (updated.parentId && task.parentId) {
-      const { createActivity } = await import("@/lib/activity");
       const parentLog: { action: string; title: string } | null =
         isNowCompleted && !wasCompleted
           ? { action: "completed", title: `Subtask "${updated.title}" completed` }
@@ -501,129 +512,142 @@ export async function PATCH(
                   ? { action: "updated", title: `Subtask "${updated.title}" status changed ${task.status} → ${updated.status}` }
                   : null;
       if (parentLog) {
-        await createActivity(
-          user.id,
-          task.workspaceId,
-          parentLog.action,
-          "task",
-          updated.parentId,
-          { taskTitle: updated.title, entityName: parentLog.title, childTaskId: updated.id, changes: {} },
-          task.projectId
-        );
+        const parentLogTaskId = updated.parentId;
+        sideEffects.push((async () => {
+          const { createActivity } = await import("@/lib/activity");
+          await createActivity(
+            user.id,
+            task.workspaceId,
+            parentLog.action,
+            "task",
+            parentLogTaskId,
+            { taskTitle: updated.title, entityName: parentLog.title, childTaskId: updated.id, changes: {} },
+            task.projectId
+          );
+        })());
       }
     }
 
     // Auto-populate AI columns when fieldValues change
     if (data.fieldValues !== undefined && updated.boardId) {
-      try {
-        const { autoPopulateAIColumns } = await import("@/lib/nova/column-ai-processor");
-        const aiResults = await autoPopulateAIColumns(params.id, task.workspaceId);
-        if (Object.keys(aiResults).length > 0) {
-          const currentFV = (typeof updated.fieldValues === "object" && updated.fieldValues !== null)
-            ? updated.fieldValues as Record<string, any>
-            : {};
-          const merged = { ...currentFV, ...aiResults };
-          await prisma.task.update({
-            where: { id: params.id },
-            data: { fieldValues: merged as any },
-          });
-          const updatedWithAI = await prisma.task.findUnique({ where: { id: params.id } });
-          if (updatedWithAI) {
-            await publishToChannel(workspaceChannel, "task:updated", updatedWithAI);
-            const aiBoardChannel = getBoardChannel(updated.workspaceId, updated.boardId);
-            await publishToChannel(aiBoardChannel, "task:updated", updatedWithAI);
+      const aiBoardId = updated.boardId;
+      sideEffects.push((async () => {
+        try {
+          const { autoPopulateAIColumns } = await import("@/lib/nova/column-ai-processor");
+          const aiResults = await autoPopulateAIColumns(params.id, task.workspaceId);
+          if (Object.keys(aiResults).length > 0) {
+            const currentFV = (typeof updated.fieldValues === "object" && updated.fieldValues !== null)
+              ? updated.fieldValues as Record<string, any>
+              : {};
+            const merged = { ...currentFV, ...aiResults };
+            await prisma.task.update({
+              where: { id: params.id },
+              data: { fieldValues: merged as any },
+            });
+            const updatedWithAI = await prisma.task.findUnique({ where: { id: params.id } });
+            if (updatedWithAI) {
+              await publishToChannel(workspaceChannel, "task:updated", updatedWithAI);
+              const aiBoardChannel = getBoardChannel(updated.workspaceId, aiBoardId);
+              await publishToChannel(aiBoardChannel, "task:updated", updatedWithAI);
+            }
           }
+        } catch (aiError) {
+          console.error("AI column processing failed:", aiError);
         }
-      } catch (aiError) {
-        console.error("AI column processing failed:", aiError);
-      }
+      })());
     }
 
     // Trigger Automations — fire all relevant triggers
-    try {
-        const { processAutomations } = await import("@/lib/automations/engine");
-        const baseCtx = { taskId: updated.id, projectId: updated.projectId, userId: user.id };
+    sideEffects.push((async () => {
+      try {
+          const { processAutomations } = await import("@/lib/automations/engine");
+          const baseCtx = { taskId: updated.id, projectId: updated.projectId, userId: user.id };
 
-        // TASK_STATUS_UPDATED always fires when status changes
-        if (data.status && data.status !== task.status) {
-            await processAutomations(task.workspaceId, "TASK_STATUS_UPDATED", {
-                ...baseCtx,
-                taskTitle: updated.title,
-                oldValue: task.status,
-                newValue: data.status,
-            });
+          // TASK_STATUS_UPDATED always fires when status changes
+          if (data.status && data.status !== task.status) {
+              await processAutomations(task.workspaceId, "TASK_STATUS_UPDATED", {
+                  ...baseCtx,
+                  taskTitle: updated.title,
+                  oldValue: task.status,
+                  newValue: data.status,
+              });
 
-            // TASK_COMPLETED fires when status moves to a completion state
-            const completionKeywords = ['done', 'complete', 'finished', 'approved'];
-            const isNowCompleted = completionKeywords.includes(data.status.toLowerCase());
-            const wasCompleted = completionKeywords.includes(task.status.toLowerCase());
-            if (isNowCompleted && !wasCompleted) {
-                await processAutomations(task.workspaceId, "TASK_COMPLETED", {
-                    ...baseCtx,
-                    taskTitle: updated.title,
-                });
-            }
-        }
+              // TASK_COMPLETED fires when status moves to a completion state
+              const completionKeywords = ['done', 'complete', 'finished', 'approved'];
+              const isNowCompleted = completionKeywords.includes(data.status.toLowerCase());
+              const wasCompleted = completionKeywords.includes(task.status.toLowerCase());
+              if (isNowCompleted && !wasCompleted) {
+                  await processAutomations(task.workspaceId, "TASK_COMPLETED", {
+                      ...baseCtx,
+                      taskTitle: updated.title,
+                  });
+              }
+          }
 
-        // TASK_ASSIGNED fires when assignee list changes
-        if (data.assigneeIds !== undefined) {
-            const oldIds = JSON.stringify(task.assigneeIds?.sort() || []);
-            const newIds = JSON.stringify((data.assigneeIds as string[]).sort());
-            if (oldIds !== newIds) {
-                await processAutomations(task.workspaceId, "TASK_ASSIGNED", {
-                    ...baseCtx,
-                    taskTitle: updated.title,
-                    oldValue: task.assigneeIds,
-                    newValue: data.assigneeIds,
-                });
-            }
-        }
+          // TASK_ASSIGNED fires when assignee list changes
+          if (data.assigneeIds !== undefined) {
+              const oldIds = JSON.stringify(task.assigneeIds?.sort() || []);
+              const newIds = JSON.stringify((data.assigneeIds as string[]).sort());
+              if (oldIds !== newIds) {
+                  await processAutomations(task.workspaceId, "TASK_ASSIGNED", {
+                      ...baseCtx,
+                      taskTitle: updated.title,
+                      oldValue: task.assigneeIds,
+                      newValue: data.assigneeIds,
+                  });
+              }
+          }
 
-        // TASK_PRIORITY_CHANGED fires when priority changes
-        if (data.priority && data.priority !== task.priority) {
-            await processAutomations(task.workspaceId, "TASK_PRIORITY_CHANGED", {
-                ...baseCtx,
-                taskTitle: updated.title,
-                taskPriority: data.priority as string,
-                oldValue: task.priority,
-                newValue: data.priority,
-            });
-        }
-    } catch (automationError) {
-        console.error("Failed to trigger automations:", automationError);
-    }
+          // TASK_PRIORITY_CHANGED fires when priority changes
+          if (data.priority && data.priority !== task.priority) {
+              await processAutomations(task.workspaceId, "TASK_PRIORITY_CHANGED", {
+                  ...baseCtx,
+                  taskTitle: updated.title,
+                  taskPriority: data.priority as string,
+                  oldValue: task.priority,
+                  newValue: data.priority,
+              });
+          }
+      } catch (automationError) {
+          console.error("Failed to trigger automations:", automationError);
+      }
+    })());
 
     // Notify blocked task assignees when a blocking task completes
     if (data.status && data.status !== task.status) {
         const completionKeywords = ['done', 'complete', 'finished', 'approved'];
         const isNowCompleted = completionKeywords.includes(data.status.toLowerCase());
         if (isNowCompleted) {
-            try {
-                const blockedDeps = await prisma.taskDependency.findMany({
-                    where: { predecessorId: params.id },
-                    include: { task: { select: { id: true, title: true, assigneeIds: true } } },
-                });
-                const { createNotification } = await import("@/lib/notification-engine");
-                for (const dep of blockedDeps) {
-                    const blockedTask = dep.task;
-                    if (!blockedTask?.assigneeIds?.length) continue;
-                    for (const assigneeId of blockedTask.assigneeIds) {
-                        if (assigneeId === user.id) continue;
-                        await createNotification(
-                            assigneeId,
-                            task.workspaceId,
-                            "dependency_unblocked",
-                            "Dependency Unblocked",
-                            `"${updated.title}" is now complete — "${blockedTask.title}" is unblocked`,
-                            { taskId: blockedTask.id, projectId: updated.projectId }
-                        );
+            sideEffects.push((async () => {
+                try {
+                    const blockedDeps = await prisma.taskDependency.findMany({
+                        where: { predecessorId: params.id },
+                        include: { task: { select: { id: true, title: true, assigneeIds: true } } },
+                    });
+                    const { createNotification } = await import("@/lib/notification-engine");
+                    for (const dep of blockedDeps) {
+                        const blockedTask = dep.task;
+                        if (!blockedTask?.assigneeIds?.length) continue;
+                        for (const assigneeId of blockedTask.assigneeIds) {
+                            if (assigneeId === user.id) continue;
+                            await createNotification(
+                                assigneeId,
+                                task.workspaceId,
+                                "dependency_unblocked",
+                                "Dependency Unblocked",
+                                `"${updated.title}" is now complete — "${blockedTask.title}" is unblocked`,
+                                { taskId: blockedTask.id, projectId: updated.projectId }
+                            );
+                        }
                     }
+                } catch (depError) {
+                    console.error("Failed to notify blocked tasks:", depError);
                 }
-            } catch (depError) {
-                console.error("Failed to notify blocked tasks:", depError);
-            }
+            })());
         }
     }
+
+    await Promise.allSettled(sideEffects);
 
     return NextResponse.json(updated);
   } catch (error) {
