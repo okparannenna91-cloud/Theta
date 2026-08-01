@@ -69,12 +69,13 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
     const [filter, setFilter] = useState<Filter>("all");
 
     const invalidateRelated = useCallback(() => {
+        queryClient.invalidateQueries({ queryKey: ["task-children", taskId] });
         queryClient.invalidateQueries({ queryKey: ["task-detail", taskId] });
         invalidateTaskCaches({ queryClient, workspaceId });
     }, [queryClient, taskId, workspaceId]);
 
     const { data: children, isLoading, error: subtasksError } = useQuery<SubtaskChild[]>({
-        queryKey: ["task-detail", taskId],
+        queryKey: ["task-children", taskId],
         queryFn: async () => {
             const res = await fetch(`/api/tasks/${taskId}`);
             if (!res.ok) throw new Error("Failed to fetch subtasks");
@@ -114,7 +115,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
     const handleWorkspaceUpdate = useCallback(
         (msg: any) => {
             if (!msg?.id) return;
-            queryClient.setQueryData<SubtaskChild[]>(["task-detail", taskId], (prev = []) =>
+            queryClient.setQueryData<SubtaskChild[]>(["task-children", taskId], (prev = []) =>
                 msg.parentId === taskId
                     ? upsertChild(prev, msg)
                     : msg.id === taskId
@@ -128,7 +129,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
     const handleWorkspaceDelete = useCallback(
         (msg: any) => {
             if (!msg?.id) return;
-            queryClient.setQueryData<SubtaskChild[]>(["task-detail", taskId], (prev = []) =>
+            queryClient.setQueryData<SubtaskChild[]>(["task-children", taskId], (prev = []) =>
                 prev.filter((c) => c.id !== msg.id)
             );
         },
@@ -136,13 +137,13 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
     );
 
     const handleParentUpdate = useCallback(() => {
-        queryClient.invalidateQueries({ queryKey: ["task-detail", taskId] });
+        queryClient.invalidateQueries({ queryKey: ["task-children", taskId] });
     }, [queryClient, taskId]);
 
     const handleTaskChannelChildCreated = useCallback(
         (msg: any) => {
             if (!msg?.id || msg.parentId !== taskId) return;
-            queryClient.setQueryData<SubtaskChild[]>(["task-detail", taskId], (prev = []) =>
+            queryClient.setQueryData<SubtaskChild[]>(["task-children", taskId], (prev = []) =>
                 upsertChild(prev, msg)
             );
         },
@@ -152,7 +153,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
     const handleTaskChannelChildDeleted = useCallback(
         (msg: any) => {
             if (!msg?.id) return;
-            queryClient.setQueryData<SubtaskChild[]>(["task-detail", taskId], (prev = []) =>
+            queryClient.setQueryData<SubtaskChild[]>(["task-children", taskId], (prev = []) =>
                 prev.filter((c) => c.id !== msg.id)
             );
         },
@@ -162,7 +163,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
     const handleSubtasksReordered = useCallback(
         (msg: any) => {
             if (!msg || msg.parentTaskId !== taskId || !Array.isArray(msg.items)) return;
-            queryClient.setQueryData<SubtaskChild[]>(["task-detail", taskId], (prev = []) => {
+            queryClient.setQueryData<SubtaskChild[]>(["task-children", taskId], (prev = []) => {
                 const orderMap = new Map<string, number>(
                     msg.items.map((i: any) => [String(i.id), Number(i.order)] as [string, number])
                 );
@@ -205,7 +206,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
             return res.json();
         },
         onSuccess: (task) => {
-            queryClient.setQueryData<SubtaskChild[]>(["task-detail", taskId], (prev = []) =>
+            queryClient.setQueryData<SubtaskChild[]>(["task-children", taskId], (prev = []) =>
                 upsertChild(prev, task)
             );
             setNewSubtaskTitle("");
@@ -230,7 +231,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
             return res.json();
         },
         onMutate: async ({ id, data }: { id: string; data: any }) => {
-            queryClient.setQueryData<SubtaskChild[]>(["task-detail", taskId], (prev = []) =>
+            queryClient.setQueryData<SubtaskChild[]>(["task-children", taskId], (prev = []) =>
                 (prev || []).map((c) => (c.id === id ? { ...c, ...data } : c))
             );
         },
@@ -260,7 +261,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
             return res.json();
         },
         onMutate: async ({ id, completed }) => {
-            queryClient.setQueryData<SubtaskChild[]>(["task-detail", taskId], (prev = []) =>
+            queryClient.setQueryData<SubtaskChild[]>(["task-children", taskId], (prev = []) =>
                 prev.map((c) =>
                     c.id === id
                         ? { ...c, status: completed ? "completed" : "todo", progress: completed ? 100 : 0 }
@@ -283,7 +284,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
             return res.json();
         },
         onSuccess: () => {
-            queryClient.setQueryData<SubtaskChild[]>(["task-detail", taskId], (prev = []) =>
+            queryClient.setQueryData<SubtaskChild[]>(["task-children", taskId], (prev = []) =>
                 (prev || []).filter((c) => c.id !== deleteSubtaskMutation.variables)
             );
             invalidateRelated();
@@ -317,7 +318,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
         (event: any) => {
             const { active, over } = event;
             if (!over || active.id === over.id) return;
-            queryClient.setQueryData<SubtaskChild[]>(["task-detail", taskId], (prev = []) => {
+            queryClient.setQueryData<SubtaskChild[]>(["task-children", taskId], (prev = []) => {
                 const oldIndex = prev.findIndex((c) => c.id === active.id);
                 const newIndex = prev.findIndex((c) => c.id === over.id);
                 if (oldIndex < 0 || newIndex < 0) return prev;
@@ -332,14 +333,15 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
     );
 
     const filtered = useMemo(() => {
-        const list = children || [];
+        const list = Array.isArray(children) ? children : [];
         if (filter === "active") return list.filter((c) => c.status !== "completed");
         if (filter === "done") return list.filter((c) => c.status === "completed");
         return list;
     }, [children, filter]);
 
-    const completedCount = (children || []).filter((c) => c.status === "completed").length;
-    const totalCount = children?.length || 0;
+    const childList = Array.isArray(children) ? children : [];
+    const completedCount = childList.filter((c) => c.status === "completed").length;
+    const totalCount = childList.length;
     const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
     const handleCreateSubtask = (e: React.FormEvent) => {
