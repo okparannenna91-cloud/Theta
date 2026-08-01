@@ -30,11 +30,14 @@ export default function DashboardPage() {
   const router = useRouter();
   const { showAISuggestion } = usePopups();
   const [timeRange, setTimeRange] = useState<"7" | "30">("7");
+  const [includeSubtasks, setIncludeSubtasks] = useState(false);
   const hasSuggested = useRef(false);
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ["dashboard", activeWorkspaceId, timeRange],
+    queryKey: ["dashboard", activeWorkspaceId, timeRange, includeSubtasks],
     queryFn: async () => {
-      const url = activeWorkspaceId ? `/api/dashboard?workspaceId=${activeWorkspaceId}&days=${timeRange}` : "/api/dashboard";
+      const url = activeWorkspaceId
+        ? `/api/dashboard?workspaceId=${activeWorkspaceId}&days=${timeRange}${includeSubtasks ? "&includeSubtasks=1" : ""}`
+        : "/api/dashboard";
       const res = await fetch(url);
       if (!res.ok) {
         const errorBody = await res.json().catch(() => ({}));
@@ -180,11 +183,22 @@ export default function DashboardPage() {
 
   return (
     <div className="pb-10">
-      <div className="mb-8">
-        <h1 className="text-2xl font-semibold text-foreground">{t("dashboard")}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {t("welcome_back")}
-          </p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">{t("dashboard")}</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {t("welcome_back")}
+            </p>
+        </div>
+        <label className="flex items-center gap-2 cursor-pointer self-start sm:self-auto">
+          <input
+            type="checkbox"
+            checked={includeSubtasks}
+            onChange={(e) => setIncludeSubtasks(e.target.checked)}
+            className="h-3.5 w-3.5 accent-primary"
+          />
+          <span className="text-xs text-muted-foreground">Include subtasks in metrics</span>
+        </label>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">

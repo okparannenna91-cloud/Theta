@@ -3,7 +3,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { canAccessProjectResource } from "@/lib/project-permissions";
-import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel } from "@/lib/ably";
+import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel, getTaskChannel } from "@/lib/ably";
+import { updateParentTask } from "@/lib/task-utils";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -37,6 +38,82 @@ const updateSchema = z.object({
   timeSpent: z.number().optional(),
   estimatedHours: z.number().optional(),
 });
+
+export async function GET(
+  req: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const user = await getCurrentUser();
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const task = await prisma.task.findUnique({ where: { id: params.id } });
+
+    if (!task) {
+      return NextResponse.json({ error: "Task not found" }, { status: 404 });
+    }
+
+    const membership = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: task.workspaceId,
+          userId: user.id,
+        },
+      },
+    });
+
+    if (!membership) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
+    const hasProjectAccess = await canAccessProjectResource(user.id, task.workspaceId, task.projectId);
+    if (!hasProjectAccess) {
+      return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
+    }
+
+    const [parent, children, timeLogs, commentsCount] = await Promise.all([
+      task.parentId
+        ? prisma.task.findUnique({
+            where: { id: task.parentId },
+            select: {
+              id: true, title: true, status: true, progress: true, color: true, dueDate: true,
+            },
+          })
+        : Promise.resolve(null),
+      prisma.task.findMany({
+        where: { parentId: task.id },
+        select: {
+          id: true, title: true, status: true, priority: true, progress: true, taskType: true,
+          assigneeIds: true, dueDate: true, startDate: true, order: true, color: true,
+          tagIds: true, estimatedHours: true, timeSpent: true, parentId: true,
+          completedAt: true, createdAt: true, updatedAt: true,
+        },
+        orderBy: { order: "asc" },
+      }),
+      prisma.timeLog.findMany({
+        where: { taskId: task.id },
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.comment.count({ where: { taskId: task.id } }),
+    ]);
+
+    return NextResponse.json({
+      task,
+      parent,
+      children,
+      timeLogs,
+      commentsCount,
+    });
+  } catch (error) {
+    console.error("Fetch task detail error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
 
 export async function PATCH(
   req: Request,
@@ -141,6 +218,7 @@ export async function PATCH(
                 updateData.progress = 100;
             } else if (!isNowCompleted && wasCompleted) {
                 updateData.completedAt = null;
+                updateData.progress = 0;
             }
         }
 
@@ -195,6 +273,52 @@ export async function PATCH(
         }
     }
 
+    // Dependency blocking guard: advancing to In Progress/Done with unmet FS predecessors is rejected
+    const finalStatus = updateData.status || task.status;
+    if (data.status && finalStatus !== task.status && data.status !== task.status) {
+        const doneKeywords = ['done', 'complete', 'finished', 'approved'];
+        const advanceKeywords = ['in_progress', 'in-progress', 'in progress', ...doneKeywords];
+        const advanceMatch = advanceKeywords.some((kw) => finalStatus.toLowerCase().includes(kw));
+        if (advanceMatch) {
+            const dependencies = await prisma.taskDependency.findMany({
+                where: { taskId: params.id, type: "FS" },
+                include: { predecessor: { select: { id: true, title: true, status: true } } },
+            });
+            const blockedBy = dependencies.filter(
+                (dep) => !doneKeywords.some((kw) => dep.predecessor.status.toLowerCase().includes(kw))
+            );
+            if (blockedBy.length > 0) {
+                // Notify the task's assignees that the move was blocked (production UX: surface
+                // why a subtask cannot advance instead of silently rejecting)
+                try {
+                    const { createNotification } = await import("@/lib/notification-engine");
+                    for (const assigneeId of task.assigneeIds || []) {
+                        if (assigneeId === user.id) continue;
+                        await createNotification(
+                            assigneeId,
+                            task.workspaceId,
+                            "dependency_blocked",
+                            "Dependency Blocked",
+                            `"${task.title}" cannot move to ${finalStatus} — ${blockedBy
+                                .map((d) => `"${d.predecessor.title}"`)
+                                .join(", ")} must be completed first`,
+                            { taskId: params.id, projectId: task.projectId }
+                        );
+                    }
+                } catch (notifyError) {
+                    console.error("Failed to notify blocked dependency:", notifyError);
+                }
+                return NextResponse.json(
+                    {
+                        error: `Blocked by dependencies: ${blockedBy.map((d) => `"${d.predecessor.title}"`).join(", ")} must be completed first`,
+                        blockedBy: blockedBy.map((d) => d.predecessor.id),
+                    },
+                    { status: 409 }
+                );
+            }
+        }
+    }
+
     const updated = await prisma.task.update({
       where: { id: params.id },
       data: updateData,
@@ -220,6 +344,14 @@ export async function PATCH(
     if (updated.projectId) {
       const projectChannel = getProjectChannel(updated.workspaceId, updated.projectId);
       await publishToChannel(projectChannel, "task:updated", updated);
+    }
+
+    // Per-task channels: keep any open task/subtask dialog in sync instantly
+    const taskChannel = getTaskChannel(updated.workspaceId, updated.id);
+    await publishToChannel(taskChannel, "task:updated", updated);
+    if (updated.parentId) {
+      const parentChannel = getTaskChannel(updated.workspaceId, updated.parentId);
+      await publishToChannel(parentChannel, "task:updated", updated);
     }
 
     if (updated.parentId) {
@@ -292,6 +424,92 @@ export async function PATCH(
             { taskId: updated.id, projectId: updated.projectId }
           );
         }
+      }
+    }
+
+    // Sub-task completion notifications + parent activity (task_completed)
+    const completionKeywords = ['done', 'complete', 'finished', 'approved'];
+    const isNowCompleted = completionKeywords.some((kw) => (updated.status || "").toLowerCase().includes(kw));
+    const wasCompleted = completionKeywords.some((kw) => (task.status || "").toLowerCase().includes(kw));
+
+    if (isNowCompleted && !wasCompleted && updated.parentId) {
+      const { createNotification } = await import("@/lib/notification-engine");
+      // Notify child assignees
+      for (const assigneeId of updated.assigneeIds || []) {
+        if (assigneeId === user.id) continue;
+        await createNotification(
+          assigneeId,
+          task.workspaceId,
+          "task_completed",
+          "Subtask Completed",
+          `Subtask completed: "${updated.title}"`,
+          { taskId: updated.id, parentTaskId: updated.parentId, projectId: updated.projectId }
+        );
+      }
+      // Notify parent assignees
+      const parentTask = await prisma.task.findUnique({
+        where: { id: updated.parentId },
+        select: { id: true, title: true, assigneeIds: true },
+      });
+      if (parentTask) {
+        for (const assigneeId of parentTask.assigneeIds || []) {
+          if (assigneeId === user.id) continue;
+          await createNotification(
+            assigneeId,
+            task.workspaceId,
+            "task_completed",
+            "Subtask Completed",
+            `Subtask "${updated.title}" of "${parentTask.title}" was completed`,
+            { taskId: parentTask.id, childTaskId: updated.id, projectId: updated.projectId }
+          );
+        }
+      }
+    }
+
+    // Due-date change notification to assignees
+    if (data.dueDate !== undefined && data.dueDate !== (task.dueDate ? task.dueDate.toISOString() : null) && (updated.assigneeIds || []).length > 0) {
+      const { createNotification } = await import("@/lib/notification-engine");
+      const dueLabel = updated.dueDate
+        ? new Date(updated.dueDate).toLocaleDateString()
+        : "no due date";
+      for (const assigneeId of updated.assigneeIds) {
+        if (assigneeId === user.id) continue;
+        await createNotification(
+          assigneeId,
+          task.workspaceId,
+          "task_updated",
+          "Due Date Changed",
+          `Due date for "${updated.title}" changed to ${dueLabel}`,
+          { taskId: updated.id, parentTaskId: updated.parentId || undefined, projectId: updated.projectId }
+        );
+      }
+    }
+
+    // Parent activity entries for key child-task events
+    if (updated.parentId && task.parentId) {
+      const { createActivity } = await import("@/lib/activity");
+      const parentLog: { action: string; title: string } | null =
+        isNowCompleted && !wasCompleted
+          ? { action: "completed", title: `Subtask "${updated.title}" completed` }
+          : data.title && data.title !== task.title
+            ? { action: "updated", title: `Subtask renamed to "${updated.title}"` }
+            : data.assigneeIds && JSON.stringify(data.assigneeIds.sort()) !== JSON.stringify((task.assigneeIds || []).sort())
+              ? { action: "updated", title: `Subtask "${updated.title}" assignees updated` }
+              : data.dueDate !== undefined && data.dueDate !== (task.dueDate ? task.dueDate.toISOString() : null)
+                ? { action: "updated", title: `Due date for subtask "${updated.title}" changed` }
+                : data.status && data.status !== task.status
+                  ? { action: "updated", title: `Subtask "${updated.title}" status changed ${task.status} → ${updated.status}` }
+                  : null;
+      if (parentLog) {
+        await createActivity(
+          user.id,
+          task.workspaceId,
+          parentLog.action,
+          "task",
+          updated.parentId,
+          { taskTitle: updated.title, entityName: parentLog.title, childTaskId: updated.id, changes: {} },
+          task.projectId
+        );
       }
     }
 
@@ -394,8 +612,8 @@ export async function PATCH(
                         await createNotification(
                             assigneeId,
                             task.workspaceId,
-                            "task_updated",
-                            "Dependency Resolved",
+                            "dependency_unblocked",
+                            "Dependency Unblocked",
                             `"${updated.title}" is now complete — "${blockedTask.title}" is unblocked`,
                             { taskId: blockedTask.id, projectId: updated.projectId }
                         );
@@ -495,6 +713,14 @@ export async function DELETE(
       await publishToChannel(boardChannel, "task:deleted", { id: params.id });
     }
 
+    // Per-task channels: close/open dialogs on both sides of the hierarchy
+    const taskChannel = getTaskChannel(task.workspaceId, task.id);
+    await publishToChannel(taskChannel, "task:deleted", { id: params.id });
+    if (task.parentId) {
+      const parentChannel = getTaskChannel(task.workspaceId, task.parentId);
+      await publishToChannel(parentChannel, "subtask:deleted", { id: params.id, parentTaskId: task.parentId });
+    }
+
     // Log Activity
     const { createActivity } = await import("@/lib/activity");
     await createActivity(
@@ -507,6 +733,19 @@ export async function DELETE(
       task.projectId
     );
 
+    // Log parent-level activity when a subtask is deleted
+    if (task.parentId) {
+      await createActivity(
+        user.id,
+        task.workspaceId,
+        "deleted",
+        "task",
+        task.parentId,
+        { taskTitle: task.title, entityName: `Subtask "${task.title}" deleted`, childTaskId: task.id, changes: {} },
+        task.projectId
+      );
+    }
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("Delete task error:", error);
@@ -514,44 +753,6 @@ export async function DELETE(
       { error: "Internal server error" },
       { status: 500 }
     );
-  }
-}
-
-async function updateParentTask(parentId: string, workspaceId: string) {
-  const children = await prisma.task.findMany({
-    where: { parentId },
-    select: { progress: true, startDate: true, dueDate: true }
-  });
-
-  if (children.length === 0) return;
-
-  const avgProgress = Math.round(
-    children.reduce((acc: number, child: any) => acc + (child.progress || 0), 0) / children.length
-  );
-
-  let minStart = children[0].startDate;
-  let maxEnd = children[0].dueDate;
-
-  for (const child of children) {
-    if (child.startDate && (!minStart || child.startDate < minStart)) minStart = child.startDate;
-    if (child.dueDate && (!maxEnd || child.dueDate > maxEnd)) maxEnd = child.dueDate;
-  }
-
-  const updatedParent = await prisma.task.update({
-    where: { id: parentId },
-    data: {
-      progress: avgProgress,
-      startDate: minStart,
-      dueDate: maxEnd,
-      isSummary: true
-    }
-  });
-
-  const workspaceChannel = getWorkspaceChannel(workspaceId);
-  await publishToChannel(workspaceChannel, "task:updated", updatedParent);
-
-  if (updatedParent.parentId) {
-    await updateParentTask(updatedParent.parentId, workspaceId);
   }
 }
 

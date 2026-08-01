@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { publishToChannel, getWorkspaceChannel } from "@/lib/ably";
-import { recalculateTaskProgress, updateParentTask } from "@/lib/task-utils";
+import { updateParentTask } from "@/lib/task-utils";
 
 const updateSchema = z.object({
     title: z.string().min(1).optional(),
@@ -56,8 +56,6 @@ export async function PATCH(
             where: { id: params.id },
             data,
         });
-
-        await recalculateTaskProgress(subtask.taskId);
 
         // Cascade progress update to grandparent tasks
         if (task.parentId) {
@@ -123,8 +121,6 @@ export async function DELETE(
         await prisma.subtask.delete({
             where: { id: params.id },
         });
-
-        await recalculateTaskProgress(taskId);
 
         // Cascade progress update to grandparent tasks
         if (taskToUpdate.parentId) {

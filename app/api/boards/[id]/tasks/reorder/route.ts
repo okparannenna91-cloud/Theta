@@ -56,6 +56,20 @@ export async function PATCH(
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    // Subtasks are managed through their parent task — never through board drag
+    const childCount = await prisma.task.count({
+      where: {
+        id: { in: updates.map((u) => u.id) },
+        parentId: { not: null },
+      },
+    });
+    if (childCount > 0) {
+      return NextResponse.json(
+        { error: "Subtasks cannot be moved on the board" },
+        { status: 400 }
+      );
+    }
+
     // Resolve the status for each target column
     const columnIds = [...new Set(updates.map((u) => u.columnId))];
     const columns = await prisma.column.findMany({
@@ -84,7 +98,10 @@ export async function PATCH(
           },
           include: {
             project: { select: { id: true, name: true } },
-            subtasks: { orderBy: { order: "asc" } },
+            children: {
+              select: { id: true, status: true, progress: true },
+              orderBy: { order: "asc" },
+            },
             tags: true,
             _count: { select: { comments: true } },
           },

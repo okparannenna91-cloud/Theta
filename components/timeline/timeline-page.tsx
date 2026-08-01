@@ -67,7 +67,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
   const { data: tasksData, isLoading, isError } = useQuery({
     queryKey: ["timeline-tasks", activeWorkspaceId, projectId],
     queryFn: async () => {
-      const params = new URLSearchParams({ workspaceId: activeWorkspaceId!, limit: "500" });
+      const params = new URLSearchParams({ workspaceId: activeWorkspaceId!, limit: "500", includeSubtasks: "1" });
       if (projectId) params.set("projectId", projectId);
       const res = await fetch(`/api/tasks?${params}`);
       if (!res.ok) throw new Error("Failed to fetch tasks");

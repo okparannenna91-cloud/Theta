@@ -18,6 +18,9 @@ interface TaskResult {
   title: string;
   description?: string | null;
   project?: { id: string; name: string } | null;
+  parentId?: string | null;
+  parent?: { id: string; title: string } | null;
+  status?: string;
   [key: string]: unknown;
 }
 
@@ -130,19 +133,29 @@ export async function GET(req: Request) {
                 title: t.title || "",
                 description: t.description || "",
                 projectId: extractId(t.projectId ?? t.project_id ?? ""),
+                parentId: extractId(t.parentId ?? t.parent_id ?? ""),
+                status: t.status || "todo",
             }));
 
             const projectIds = [...new Set(rawTasks.map(t => t.projectId).filter(Boolean))];
-            const resolvedProjects = projectIds.length > 0 ? await prisma.project.findMany({
-                where: { id: { in: projectIds } },
-                select: { id: true, name: true }
-            }) : [];
+            const parentIds = [...new Set(rawTasks.map(t => t.parentId).filter(Boolean))];
+            const [resolvedProjects, resolvedParents] = await Promise.all([
+                projectIds.length > 0 ? prisma.project.findMany({
+                    where: { id: { in: projectIds } },
+                    select: { id: true, name: true }
+                }) : Promise.resolve([]),
+                parentIds.length > 0 ? prisma.task.findMany({
+                    where: { id: { in: parentIds } },
+                    select: { id: true, title: true }
+                }) : Promise.resolve([]),
+            ]);
 
             tasks = rawTasks
                 .filter(t => accessibleProjectIds.includes(t.projectId))
                 .map(t => ({
                     ...t,
                     project: resolvedProjects.find(p => p.id === t.projectId) || null,
+                    parent: t.parentId ? (resolvedParents.find(p => p.id === t.parentId) || null) : null,
                 }));
         } catch {
             tasks = await prisma.task.findMany({
@@ -155,7 +168,10 @@ export async function GET(req: Request) {
                     ],
                 },
                 take: 10,
-                include: { project: { select: { id: true, name: true } } },
+                include: {
+                    project: { select: { id: true, name: true } },
+                    parent: { select: { id: true, title: true } },
+                },
             });
         }
 

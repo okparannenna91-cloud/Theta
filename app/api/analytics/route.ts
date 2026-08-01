@@ -32,6 +32,7 @@ export async function GET(req: Request) {
         const { searchParams } = new URL(req.url);
         const workspaceId = searchParams.get("workspaceId");
         const projectId = searchParams.get("projectId");
+        const includeSubtasks = searchParams.get("includeSubtasks") === "1";
         const daysParam = searchParams.get("days") || "30";
         const days = parseInt(daysParam, 10);
         if (isNaN(days) || days < 1 || days > 365) {
@@ -66,7 +67,7 @@ export async function GET(req: Request) {
                 include: { _count: { select: { tasks: true } } }
             }),
             prisma.task.findMany({
-                where: { workspaceId, projectId: taskProjectFilter },
+                where: { workspaceId, projectId: taskProjectFilter, ...(includeSubtasks ? {} : { parentId: { equals: null } }) },
                 include: { project: true }
             }),
             prisma.status.findMany({

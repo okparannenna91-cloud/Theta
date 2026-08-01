@@ -180,6 +180,7 @@ export default function MyTasksPage() {
     queryFn: async () => {
       const params = new URLSearchParams({ workspaceId: activeWorkspaceId! });
       if (userId) params.set("assigneeId", userId);
+      params.set("includeSubtasks", "1");
       params.set("limit", "200");
       const res = await fetch(`/api/tasks?${params}`);
       if (!res.ok) throw new Error("Failed to fetch tasks");

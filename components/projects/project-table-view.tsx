@@ -19,7 +19,7 @@ async function fetchProject(id: string, workspaceId: string | null) {
 }
 
 async function fetchProjectTasks(projectId: string, workspaceId: string) {
-  const res = await fetch(`/api/tasks?workspaceId=${workspaceId}&projectId=${projectId}&limit=500`);
+  const res = await fetch(`/api/tasks?workspaceId=${workspaceId}&projectId=${projectId}&includeSubtasks=1&limit=500`);
   if (!res.ok) throw new Error("Failed to fetch tasks");
   return res.json();
 }

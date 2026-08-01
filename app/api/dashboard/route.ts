@@ -13,6 +13,7 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const teamId = searchParams.get("teamId");
+    const includeSubtasks = searchParams.get("includeSubtasks") === "1";
     workspaceId = searchParams.get("workspaceId");
 
     const user = await prisma.user.findUnique({
@@ -66,7 +67,7 @@ export async function GET(req: Request) {
     const whereProject: Record<string, unknown> = { workspaceId, id: { in: accessibleProjectIds } };
     if (teamId) whereProject.teamId = teamId;
 
-    const whereTask: Record<string, unknown> = { workspaceId, projectId: { in: accessibleProjectIds } };
+    const whereTask: Record<string, unknown> = { workspaceId, projectId: { in: accessibleProjectIds }, ...(includeSubtasks ? {} : { parentId: { equals: null } }) };
     if (teamId) whereTask.project = { teamId };
 
     const daysParam = searchParams.get("days");
@@ -107,9 +108,9 @@ export async function GET(req: Request) {
       prisma.task.count({ where: { ...whereTask, status: { in: ["done", "completed"] } } }),
       // Previous period counts for trend calculation
       prisma.project.count({ where: { workspaceId, id: { in: accessibleProjectIds }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
-      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, status: { notIn: ["done"] }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
-      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, status: { in: ["done", "completed"] }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
-      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
+      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, ...(includeSubtasks ? {} : { parentId: { equals: null } }), status: { notIn: ["done"] }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
+      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, ...(includeSubtasks ? {} : { parentId: { equals: null } }), status: { in: ["done", "completed"] }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
+      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, ...(includeSubtasks ? {} : { parentId: { equals: null } }), createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
     ]);
 
     const completionRate = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;

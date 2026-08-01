@@ -12,6 +12,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const workspaceId = searchParams.get("workspaceId");
     const projectId = searchParams.get("projectId");
+    const includeSubtasks = searchParams.get("includeSubtasks") === "1";
 
     if (!workspaceId || !projectId) {
       return NextResponse.json({ error: "workspaceId and projectId are required" }, { status: 400 });
@@ -20,7 +21,7 @@ export async function GET(req: Request) {
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
-    const data = await getProjectAnalytics(workspaceId, projectId);
+    const data = await getProjectAnalytics(workspaceId, projectId, includeSubtasks);
     return NextResponse.json(data);
   } catch (error) {
     console.error("Project analytics API error:", error);

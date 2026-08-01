@@ -11,6 +11,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const workspaceId = searchParams.get("workspaceId");
     const projectId = searchParams.get("projectId") || undefined;
+    const includeSubtasks = searchParams.get("includeSubtasks") === "1";
     const days = parseInt(searchParams.get("days") || "30", 10);
 
     if (!workspaceId) return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
@@ -18,7 +19,7 @@ export async function GET(req: Request) {
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: "Access denied" }, { status: 403 });
 
-    const data = await getCumulativeFlow(workspaceId, days, projectId);
+    const data = await getCumulativeFlow(workspaceId, days, projectId, includeSubtasks);
     return NextResponse.json({ data });
   } catch (error) {
     console.error("Cumulative flow API error:", error);

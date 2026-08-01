@@ -202,7 +202,7 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
     const { data: tasksData, isLoading, isError } = useQuery({
         queryKey: ["gantt-tasks", activeWorkspaceId, projectId],
         queryFn: async () => {
-            const params = new URLSearchParams({ workspaceId: activeWorkspaceId! });
+            const params = new URLSearchParams({ workspaceId: activeWorkspaceId!, includeSubtasks: "1" });
             if (projectId) params.set("projectId", projectId);
             const res = await fetch(`/api/tasks?${params}`);
             if (!res.ok) throw new Error("Failed to fetch tasks");

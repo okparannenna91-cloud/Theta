@@ -29,6 +29,7 @@ export async function GET(
           orderBy: { order: "asc" },
         },
         tasks: {
+          where: { parentId: { equals: null } },
           orderBy: { order: "asc" },
           include: {
             project: {
@@ -37,7 +38,12 @@ export async function GET(
                 name: true,
               },
             },
-            subtasks: {
+            children: {
+              select: {
+                id: true,
+                status: true,
+                progress: true,
+              },
               orderBy: { order: "asc" },
             },
             tags: true,

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { canAccessProjectResource } from "@/lib/project-permissions";
-import { recalculateTaskProgress, updateParentTask } from "@/lib/task-utils";
+import { updateParentTask } from "@/lib/task-utils";
 import { z } from "zod";
 
 const subtaskSchema = z.object({
@@ -96,8 +96,6 @@ export async function POST(
                 taskId: params.id,
             },
         });
-
-        await recalculateTaskProgress(params.id);
 
         // Cascade progress update to grandparent tasks
         if (task.parentId) {

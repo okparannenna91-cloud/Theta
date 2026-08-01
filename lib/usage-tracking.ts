@@ -41,7 +41,7 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
         const limits = getPlanLimits(plan);
 
         const projectCount = await prisma.project.count({ where: { workspaceId } });
-        const taskCount = await prisma.task.count({ where: { workspaceId } });
+        const taskCount = await prisma.task.count({ where: { workspaceId, parentId: { equals: null } } });
         const teamCount = await prisma.team.count({ where: { workspaceId } });
         const boardCount = await prisma.board.count({ where: { workspaceId } });
         const calendarEventCount = await prisma.calendarEvent.count({ where: { workspaceId } });
@@ -125,8 +125,9 @@ export async function getProjectCount(workspaceId: string): Promise<number> {
 }
 
 export async function getTaskCount(workspaceId: string): Promise<number> {
+    // Subtasks (child tasks) are work-breakdown and don't consume the plan task quota
     return await prisma.task.count({
-        where: { workspaceId },
+        where: { workspaceId, parentId: { equals: null } },
     });
 }
 

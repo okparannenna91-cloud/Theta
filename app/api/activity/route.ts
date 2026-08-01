@@ -21,6 +21,7 @@ const querySchema = z.object({
 
 const ENTITY_TYPE_MAP: Record<string, string[]> = {
   tasks: ["task"],
+  subtasks: ["subtask", "task"],
   projects: ["project"],
   boards: ["board"],
   comments: ["comment"],

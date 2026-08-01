@@ -6,7 +6,7 @@ import { getAccessibleProjectIds, canAccessProjectResource } from "@/lib/project
 import { getTaskCount } from "@/lib/usage-tracking";
 import { getPlanLimits } from "@/lib/plan-limits";
 import { z } from "zod";
-import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel } from "@/lib/ably";
+import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel, getTaskChannel } from "@/lib/ably";
 
 const taskSchema = z.object({
   title: z.string().min(1),
@@ -46,6 +46,11 @@ export async function GET(req: Request) {
     const status = searchParams.get("status");
     const priority = searchParams.get("priority");
     const assigneeId = searchParams.get("assigneeId");
+    const parentId = searchParams.get("parentId");
+    const includeSubtasks = searchParams.get("includeSubtasks") === "1";
+    const dueDateFrom = searchParams.get("dueDateFrom");
+    const dueDateTo = searchParams.get("dueDateTo");
+    const tagIds = searchParams.get("tagIds");
     const page = parseInt(searchParams.get("page") || "1", 10);
     const limit = parseInt(searchParams.get("limit") || "50", 10);
 
@@ -94,6 +99,16 @@ export async function GET(req: Request) {
       project: projectWhere,
     };
 
+    // Subtask scoping:
+    // - parentId=<id>  → only children of that parent (subtask section)
+    // - includeSubtasks=1 → include child tasks in results (e.g. My Tasks)
+    // - default → top-level tasks only (children are managed inside the parent dialog)
+    if (parentId) {
+      taskWhere.parentId = parentId;
+    } else if (!includeSubtasks) {
+      taskWhere.parentId = { equals: null };
+    }
+
     // Search/filter params
     const conditions: any[] = [];
     if (search) {
@@ -111,6 +126,16 @@ export async function GET(req: Request) {
           { assigneeIds: { has: assigneeId } },
         ],
       });
+    }
+    if (dueDateFrom || dueDateTo) {
+      const dueWhere: any = {};
+      if (dueDateFrom) dueWhere.gte = new Date(dueDateFrom);
+      if (dueDateTo) dueWhere.lte = new Date(dueDateTo);
+      conditions.push({ dueDate: dueWhere });
+    }
+    if (tagIds) {
+      const ids = tagIds.split(",").filter(Boolean);
+      if (ids.length > 0) conditions.push({ tagIds: { hasSome: ids } });
     }
     if (conditions.length > 0) {
       taskWhere.AND = conditions;
@@ -135,7 +160,7 @@ export async function GET(req: Request) {
           predecessors: true,
           successors: true,
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: parentId ? { order: "asc" } : { createdAt: "desc" },
         skip: (page - 1) * limit,
         take: limit,
       }),
@@ -194,11 +219,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // Auto-assign board + column from status if not provided (Kanban ↔ Tasks sync)
-    let autoBoardId = data.boardId || null;
-    let autoColumnId = data.columnId || null;
+    // Auto-assign board + column from status if not provided (Kanban ↔ Tasks sync).
+    // Child tasks (subtasks) are never placed on boards — they live inside the parent dialog.
+    let autoBoardId = data.parentId ? null : (data.boardId || null);
+    let autoColumnId = data.parentId ? null : (data.columnId || null);
 
-    if (data.projectId && !autoBoardId) {
+    if (!data.parentId && data.projectId && !autoBoardId) {
         const board = await prisma.board.findFirst({
             where: { projectId: data.projectId },
             orderBy: { createdAt: 'asc' },
@@ -286,21 +312,33 @@ export async function POST(req: Request) {
       }
     }
 
-    // Check plan limits strictly
-    try {
-      const workspace = await prisma.workspace.findUnique({
-        where: { id: data.workspaceId },
-        select: { plan: true }
+    // Check plan limits strictly (subtasks are work-breakdown, they don't consume the task quota)
+    if (!data.parentId) {
+      try {
+        const workspace = await prisma.workspace.findUnique({
+          where: { id: data.workspaceId },
+          select: { plan: true }
+        });
+        if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+
+        const { getTaskCount } = await import("@/lib/usage-tracking");
+        const taskCount = await getTaskCount(data.workspaceId);
+
+        const { enforcePlanLimit } = await import("@/lib/plan-limits");
+        await enforcePlanLimit(data.workspaceId, "tasks", taskCount);
+      } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 403 });
+      }
+    }
+
+    // Child tasks (subtasks) are ordered among their siblings
+    let childOrder: number | undefined;
+    if (data.parentId) {
+      const maxOrder = await prisma.task.aggregate({
+        where: { parentId: data.parentId },
+        _max: { order: true },
       });
-      if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
-
-      const { getTaskCount } = await import("@/lib/usage-tracking");
-      const taskCount = await getTaskCount(data.workspaceId);
-
-      const { enforcePlanLimit } = await import("@/lib/plan-limits");
-      await enforcePlanLimit(data.workspaceId, "tasks", taskCount);
-    } catch (error: any) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
+      childOrder = (maxOrder._max.order ?? -1) + 1;
     }
 
     const task = await prisma.task.create({
@@ -322,6 +360,7 @@ export async function POST(req: Request) {
         isMilestone: data.isMilestone || false,
         color: data.color,
         parentId: data.parentId,
+        order: childOrder,
         isSummary: data.isSummary || false,
         coverImage: data.coverImage,
         schedulingMode: data.schedulingMode,
@@ -352,6 +391,12 @@ export async function POST(req: Request) {
       await publishToChannel(projectChannel, "task:created", task);
     }
 
+    // Per-task channel: parent dialog's subtask list updates instantly when a child is created
+    if (task.parentId) {
+      const parentChannel = getTaskChannel(task.workspaceId, task.parentId);
+      await publishToChannel(parentChannel, "subtask:created", task);
+    }
+
     // Trigger Automations
     try {
         const { processAutomations } = await import("@/lib/automations/engine");
@@ -371,12 +416,27 @@ export async function POST(req: Request) {
     await createActivity(
       user.id,
       data.workspaceId,
-      "created",
-      "task",
+      data.parentId ? "created" : "created",
+      data.parentId ? "subtask" : "task",
       task.id,
       { taskTitle: task.title, entityName: task.title },
       task.projectId
     );
+
+    // Child task: roll up parent progress/hours and log "Subtask created" on the parent
+    if (data.parentId) {
+      const { updateParentTask } = await import("@/lib/task-utils");
+      await updateParentTask(data.parentId, data.workspaceId);
+      await createActivity(
+        user.id,
+        data.workspaceId,
+        "created",
+        "task",
+        data.parentId,
+        { taskTitle: task.title, entityName: `Subtask "${task.title}" created`, childTaskId: task.id, changes: {} },
+        task.projectId
+      );
+    }
 
     // Notify workspace members
     const { notifyWorkspaceMembers } = await import("@/lib/notification-engine");

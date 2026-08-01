@@ -409,6 +409,12 @@ model Task {
   parent         Task?     @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children       Task[]    @relation("TaskHierarchy")
   isSummary      Boolean   @default(false)
+
+  /// Rolled-up subtask stats (maintained by updateParentTask): number of direct children
+  /// and how many are in a completion state. Lets parents render "Subtasks (3/7)" without
+  /// loading every child record.
+  subtaskCount          Int     @default(0)
+  subtaskCompletedCount Int     @default(0)
   
   timeLogs       TimeLog[]
   

@@ -32,16 +32,29 @@ export type CumulativeFlowPoint = {
   done: number;
 };
 
+/**
+ * Builds the task-scope where clause for analytics queries.
+ * Subtasks are excluded by default (parents aggregate their children via
+ * updateParentTask); pass includeSubtasks to count them directly.
+ */
+function taskScope(workspaceId: string, projectId?: string, includeSubtasks = false) {
+  return {
+    workspaceId,
+    ...(projectId ? { projectId } : {}),
+    ...(includeSubtasks ? {} : { parentId: { equals: null } }),
+  };
+}
+
 export async function getBurndownChart(
   workspaceId: string,
   startDate: Date,
   endDate: Date,
-  projectId?: string
+  projectId?: string,
+  includeSubtasks = false
 ): Promise<BurndownPoint[]> {
   const tasks = await prisma.task.findMany({
     where: {
-      workspaceId,
-      ...(projectId ? { projectId } : {}),
+      ...taskScope(workspaceId, projectId, includeSubtasks),
       createdAt: { lte: endDate },
     },
     select: {
@@ -80,15 +93,15 @@ export async function getBurndownChart(
 export async function getVelocityChart(
   workspaceId: string,
   weeks: number = 12,
-  projectId?: string
+  projectId?: string,
+  includeSubtasks = false
 ): Promise<VelocityPoint[]> {
   const now = new Date();
   const startDate = new Date(now.getTime() - weeks * 7 * 24 * 60 * 60 * 1000);
 
   const tasks = await prisma.task.findMany({
     where: {
-      workspaceId,
-      ...(projectId ? { projectId } : {}),
+      ...taskScope(workspaceId, projectId, includeSubtasks),
       createdAt: { gte: startDate },
     },
     select: {
@@ -128,12 +141,12 @@ export async function getVelocityChart(
 
 export async function getWorkloadChart(
   workspaceId: string,
-  projectId?: string
+  projectId?: string,
+  includeSubtasks = false
 ): Promise<WorkloadItem[]> {
   const tasks = await prisma.task.findMany({
     where: {
-      workspaceId,
-      ...(projectId ? { projectId } : {}),
+      ...taskScope(workspaceId, projectId, includeSubtasks),
       status: { notIn: ["completed", "cancelled"] },
     },
     select: {
@@ -200,15 +213,15 @@ export async function getWorkloadChart(
 export async function getCumulativeFlow(
   workspaceId: string,
   days: number = 30,
-  projectId?: string
+  projectId?: string,
+  includeSubtasks = false
 ): Promise<CumulativeFlowPoint[]> {
   const now = new Date();
   const startDate = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
 
   const tasks = await prisma.task.findMany({
     where: {
-      workspaceId,
-      ...(projectId ? { projectId } : {}),
+      ...taskScope(workspaceId, projectId, includeSubtasks),
       createdAt: { lte: now },
     },
     select: {
@@ -268,10 +281,11 @@ export async function getCumulativeFlow(
 
 export async function getProjectAnalytics(
   workspaceId: string,
-  projectId: string
+  projectId: string,
+  includeSubtasks = false
 ) {
   const tasks = await prisma.task.findMany({
-    where: { workspaceId, projectId },
+    where: taskScope(workspaceId, projectId, includeSubtasks),
     select: {
       status: true,
       priority: true,

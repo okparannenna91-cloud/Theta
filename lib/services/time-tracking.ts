@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { cacheGet, cacheSet, cacheInvalidate, cacheKey } from "@/lib/cache";
+import { updateParentTask } from "@/lib/task-utils";
 
 export interface StartTimerInput {
   taskId: string;
@@ -101,6 +102,25 @@ export async function startTimer(input: StartTimerInput): Promise<TimeEntry> {
   return mapToTimeEntry(timeLog);
 }
 
+/**
+ * Parent totals aggregate subtask values (spec: parent Logged Hours = sum of children).
+ * Called after any timeSpent mutation so parent rollups stay current even when a timer
+ * is stopped — not just when the task itself is PATCHed.
+ */
+async function rollupParentIfSubtask(taskId: string) {
+  try {
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { parentId: true, workspaceId: true },
+    });
+    if (task?.parentId) {
+      await updateParentTask(task.parentId, task.workspaceId);
+    }
+  } catch (error) {
+    logger.error(`Parent rollup failed after time change on task ${taskId}:`, error);
+  }
+}
+
 export async function stopTimer(timerId: string): Promise<TimeEntry> {
   const timeLog = await prisma.timeLog.findUnique({
     where: { id: timerId },
@@ -133,6 +153,8 @@ export async function stopTimer(timerId: string): Promise<TimeEntry> {
 
   await cacheInvalidate(cacheKey("active-timer", timeLog.userId));
   await cacheInvalidate(cacheKey("task-time", timeLog.taskId));
+
+  await rollupParentIfSubtask(timeLog.taskId);
 
   return mapToTimeEntry(updated);
 }
@@ -189,6 +211,8 @@ export async function logTimeManual(
   logger.info(`Manual time logged: ${durationSeconds}s for task ${taskId} by user ${userId}`);
 
   await cacheInvalidate(cacheKey("task-time", taskId));
+
+  await rollupParentIfSubtask(taskId);
 
   return mapToTimeEntry(timeLog);
 }
@@ -354,4 +378,6 @@ export async function deleteTimeEntry(entryId: string): Promise<void> {
   logger.info(`Time entry ${entryId} deleted (${timeLog.duration}s removed from task ${timeLog.taskId})`);
 
   await cacheInvalidate(cacheKey("task-time", timeLog.taskId));
+
+  await rollupParentIfSubtask(timeLog.taskId);
 }

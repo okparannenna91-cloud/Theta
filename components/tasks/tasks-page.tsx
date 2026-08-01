@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2 } from "lucide-react";
+import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2, Filter } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader } from "@/components/ui/card";
 import { ImageUpload } from "@/components/common/image-upload";
@@ -22,9 +22,29 @@ import { TaskDialog } from "./task-dialog";
 import { TableView } from "@/components/table/table-view";
 import { toast } from "sonner";
 
-async function fetchTasks(workspaceId: string | null) {
-  const url = workspaceId ? `/api/tasks?workspaceId=${workspaceId}` : "/api/tasks";
-  const res = await fetch(url);
+interface TaskFilters {
+  search?: string;
+  status?: string;
+  priority?: string;
+  assigneeId?: string;
+  dueDateFrom?: string;
+  dueDateTo?: string;
+  tagId?: string;
+  includeSubtasks?: boolean;
+}
+
+async function fetchTasks(workspaceId: string | null, filters: TaskFilters = {}) {
+  if (!workspaceId) return { tasks: [], pagination: { total: 0 }, limits: { max: -1, current: 0, hasAccess: true } };
+  const params = new URLSearchParams({ workspaceId });
+  if (filters.search) params.set("search", filters.search);
+  if (filters.status) params.set("status", filters.status);
+  if (filters.priority) params.set("priority", filters.priority);
+  if (filters.assigneeId) params.set("assigneeId", filters.assigneeId);
+  if (filters.dueDateFrom) params.set("dueDateFrom", filters.dueDateFrom);
+  if (filters.dueDateTo) params.set("dueDateTo", filters.dueDateTo);
+  if (filters.tagId) params.set("tagIds", filters.tagId);
+  if (filters.includeSubtasks) params.set("includeSubtasks", "1");
+  const res = await fetch(`/api/tasks?${params.toString()}`);
   if (!res.ok) throw new Error("Failed to fetch tasks");
   return res.json();
 }
@@ -72,11 +92,55 @@ export default function TasksPage() {
   const activeWorkspaceIdRef = useRef(activeWorkspaceId);
   useEffect(() => { activeWorkspaceIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
 
+  const [filters, setFilters] = useState<TaskFilters>({});
+  const [searchInput, setSearchInput] = useState("");
+  const [showFilters, setShowFilters] = useState(false);
+
   const { data: tasksData, isLoading } = useQuery({
-    queryKey: ["tasks", activeWorkspaceId],
-    queryFn: () => fetchTasks(activeWorkspaceId),
+    queryKey: ["tasks", activeWorkspaceId, filters],
+    queryFn: () => fetchTasks(activeWorkspaceId, filters),
     enabled: !!activeWorkspaceId,
   });
+
+  const { data: membersData } = useQuery({
+    queryKey: ["members", activeWorkspaceId],
+    queryFn: async () => {
+      const res = await fetch(`/api/workspaces/${activeWorkspaceId}/members`);
+      if (!res.ok) throw new Error("Failed to fetch members");
+      return res.json();
+    },
+    enabled: !!activeWorkspaceId,
+  });
+  const members = Array.isArray(membersData) ? membersData : [];
+
+  const { data: tagsData } = useQuery({
+    queryKey: ["workspace-tags", activeWorkspaceId],
+    queryFn: async () => {
+      const res = await fetch(`/api/workspaces/${activeWorkspaceId}/tags`);
+      if (!res.ok) throw new Error("Failed to fetch tags");
+      return res.json();
+    },
+    enabled: !!activeWorkspaceId,
+  });
+  const tags = Array.isArray(tagsData) ? tagsData : [];
+
+  const hasActiveFilters = Boolean(
+    filters.search || filters.status || filters.priority || filters.assigneeId ||
+    filters.dueDateFrom || filters.dueDateTo || filters.tagId || filters.includeSubtasks
+  );
+
+  const applySearch = () => {
+    setFilters((prev) => ({ ...prev, search: searchInput.trim() || undefined }));
+  };
+
+  const clearFilters = () => {
+    setSearchInput("");
+    setFilters({});
+  };
+
+  const setFilter = (key: keyof TaskFilters, value: string | boolean | undefined) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
 
   const tasks = Array.isArray(tasksData?.tasks) ? tasksData.tasks : Array.isArray(tasksData) ? tasksData : [];
   const taskLimits = tasksData?.limits || { max: -1, current: 0, hasAccess: true };
@@ -176,6 +240,112 @@ export default function TasksPage() {
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-2 mb-4">
+        <form
+          onSubmit={(e) => { e.preventDefault(); applySearch(); }}
+          className="flex items-center gap-2 min-w-[220px]"
+        >
+          <Input
+            placeholder="Search tasks..."
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="h-9 bg-card border text-xs"
+            aria-label="Search tasks"
+          />
+          <Button type="submit" size="sm" variant="secondary" className="h-9 text-xs">Search</Button>
+        </form>
+        <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setShowFilters((s) => !s)}>
+          <Filter className="h-3.5 w-3.5 mr-1.5" /> Filters
+          {hasActiveFilters && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-primary" />}
+        </Button>
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" className="h-9 text-xs text-muted-foreground" onClick={clearFilters}>
+            Clear
+          </Button>
+        )}
+        <label className="flex items-center gap-2 cursor-pointer ml-auto">
+          <input
+            type="checkbox"
+            checked={!!filters.includeSubtasks}
+            onChange={(e) => setFilter("includeSubtasks", e.target.checked || undefined)}
+            className="h-3.5 w-3.5 accent-primary"
+          />
+          <span className="text-xs text-muted-foreground">Include subtasks</span>
+        </label>
+      </div>
+
+      {showFilters && (
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4 p-4 rounded-xl border bg-card">
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-medium text-muted-foreground">Status</Label>
+            <Select value={filters.status || "all"} onValueChange={(v) => setFilter("status", v === "all" ? undefined : v)}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-medium text-muted-foreground">Priority</Label>
+            <Select value={filters.priority || "all"} onValueChange={(v) => setFilter("priority", v === "all" ? undefined : v)}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All priorities</SelectItem>
+                <SelectItem value="low">Low</SelectItem>
+                <SelectItem value="medium">Medium</SelectItem>
+                <SelectItem value="high">High</SelectItem>
+                <SelectItem value="urgent">Urgent</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-medium text-muted-foreground">Assignee</Label>
+            <Select value={filters.assigneeId || "all"} onValueChange={(v) => setFilter("assigneeId", v === "all" ? undefined : v)}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Everyone</SelectItem>
+                {members.map((m: any) => (
+                  <SelectItem key={m.id} value={m.id}>{m.name || "Unnamed"}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-medium text-muted-foreground">Due from</Label>
+            <Input
+              type="date"
+              className="h-9 text-xs"
+              value={filters.dueDateFrom || ""}
+              onChange={(e) => setFilter("dueDateFrom", e.target.value || undefined)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-medium text-muted-foreground">Due to</Label>
+            <Input
+              type="date"
+              className="h-9 text-xs"
+              value={filters.dueDateTo || ""}
+              onChange={(e) => setFilter("dueDateTo", e.target.value || undefined)}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-[10px] font-medium text-muted-foreground">Tag</Label>
+            <Select value={filters.tagId || "all"} onValueChange={(v) => setFilter("tagId", v === "all" ? undefined : v)}>
+              <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All tags</SelectItem>
+                {tags.map((t: any) => (
+                  <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+      )}
+
       {view === "list" ? (
         <div className="space-y-2">
           {tasks?.map((task: any) => (
@@ -241,10 +411,21 @@ export default function TasksPage() {
 
       {activeWorkspaceId && tasks?.length === 0 && (
         <div className="text-center py-12 border-subtle rounded-lg">
-          <p className="text-sm text-muted-foreground mb-4">No tasks yet. Create your first task!</p>
-          <Button onClick={() => setIsOpen(true)} variant="outline">
-            <Plus className="h-4 w-4 mr-2" /> Create Task
-          </Button>
+          {hasActiveFilters ? (
+            <>
+              <p className="text-sm text-muted-foreground mb-4">No tasks match your filters.</p>
+              <Button onClick={clearFilters} variant="outline">
+                Clear Filters
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground mb-4">No tasks yet. Create your first task!</p>
+              <Button onClick={() => setIsOpen(true)} variant="outline">
+                <Plus className="h-4 w-4 mr-2" /> Create Task
+              </Button>
+            </>
+          )}
         </div>
       )}
 

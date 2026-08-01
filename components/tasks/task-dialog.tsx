@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     Sheet,
     SheetContent,
@@ -17,7 +17,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { Calendar as CalendarIcon, Clock, Sparkles, X, Trash2, Palette, AlertCircle, MessageSquare, CheckSquare, Link2 } from "lucide-react";
+import { Calendar as CalendarIcon, Clock, Sparkles, X, Trash2, Palette, AlertCircle, MessageSquare, CheckSquare, Link2, ArrowUpLeft, ChevronRight } from "lucide-react";
 import { format } from "date-fns";
 
 import { useAbly } from "@/hooks/use-ably";
@@ -80,6 +80,8 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     const [color, setColor] = useState(task?.color || "");
     const [lastSaved, setLastSaved] = useState<Date | null>(null);
     const [assigneeIds, setAssigneeIds] = useState<string[]>(task?.assigneeIds || []);
+    const [openChild, setOpenChild] = useState<any>(null);
+    const [openParent, setOpenParent] = useState<any>(null);
 
     const titleRef = useRef<HTMLInputElement>(null);
     const hasAutoFocusedRef = useRef(false);
@@ -147,6 +149,32 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
     }, [syncCommitted]);
 
     useAbly(taskChannel, "task:updated", handleAblyTaskUpdate);
+
+    const { data: taskDetail } = useQuery({
+        queryKey: ["task-detail", task?.id],
+        queryFn: async () => {
+            const res = await fetch(`/api/tasks/${task.id}`);
+            if (!res.ok) throw new Error("Failed to fetch task");
+            return res.json();
+        },
+        enabled: Boolean(task?.id),
+    });
+
+    const parentTitle = taskDetail?.parent?.title;
+
+    const handleOpenParent = useCallback(() => {
+        if (!taskDetail?.parent || !task) return;
+        setOpenParent({
+            id: taskDetail.parent.id,
+            title: taskDetail.parent.title,
+            status: taskDetail.parent.status,
+            progress: taskDetail.parent.progress,
+            color: taskDetail.parent.color,
+            dueDate: taskDetail.parent.dueDate,
+            projectId: task.projectId,
+            workspaceId: task.workspaceId,
+        });
+    }, [taskDetail, task]);
 
     const { data: dbStatuses } = useStatuses(workspaceId, task?.projectId);
     const statuses = useMemo(() => {
@@ -287,16 +315,55 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             <SheetContent side="right" className="fixed left-auto right-0 top-0 translate-x-0 translate-y-0 h-[100dvh] w-full sm:w-[95vw] md:w-[85vw] lg:w-[1100px] sm:max-w-none p-0 border-l bg-background/95 shadow-2xl rounded-none sm:rounded-l-xl overflow-hidden flex flex-col">
                 <TaskDialogHeader
                     title={task.title || "Untitled"}
+                    parentTitle={task.parentId ? parentTitle : undefined}
                     isPending={updateMutation.isPending}
                     lastSaved={lastSaved}
                     onDelete={handleDeleteRequest}
                     onClose={onClose}
+                    onOpenParent={handleOpenParent}
                 />
 
                 <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
                     <div className="flex flex-col lg:flex-row min-h-full">
                         <div className="flex-1 p-8 sm:p-12 lg:p-16 space-y-12 lg:border-r">
                             <div className="space-y-8">
+                                {task.parentId && taskDetail?.parent && (
+                                    <button
+                                        onClick={handleOpenParent}
+                                        className="w-full flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-muted/40 hover:bg-muted/70 hover:border-primary/30 transition-colors text-left group"
+                                        aria-label={`Open parent task ${taskDetail.parent.title}`}
+                                    >
+                                        <span className="h-8 w-8 shrink-0 rounded-lg bg-primary/10 text-primary inline-flex items-center justify-center">
+                                            <ArrowUpLeft className="h-4 w-4" />
+                                        </span>
+                                        <span className="flex-1 min-w-0">
+                                            <span className="block text-[10px] font-medium text-muted-foreground uppercase tracking-wider">
+                                                Parent Task
+                                            </span>
+                                            <span className="block text-sm font-semibold truncate group-hover:text-primary transition-colors">
+                                                {taskDetail.parent.title}
+                                            </span>
+                                        </span>
+                                        {taskDetail.parent.status && (
+                                            <span
+                                                className="text-[10px] font-medium px-2 py-0.5 rounded-full border shrink-0"
+                                                style={{
+                                                    color: taskDetail.parent.color || "#64748b",
+                                                    backgroundColor: `${taskDetail.parent.color || "#64748b"}14`,
+                                                    borderColor: `${taskDetail.parent.color || "#64748b"}33`,
+                                                }}
+                                            >
+                                                {taskDetail.parent.status.replace(/_/g, " ")}
+                                            </span>
+                                        )}
+                                        {typeof taskDetail.parent.progress === "number" && (
+                                            <span className="text-[10px] font-semibold text-muted-foreground tabular-nums shrink-0">
+                                                {taskDetail.parent.progress}%
+                                            </span>
+                                        )}
+                                        <ChevronRight className="h-4 w-4 text-muted-foreground/50 shrink-0 group-hover:text-primary transition-colors" />
+                                    </button>
+                                )}
                                 <div className="flex items-center gap-3 flex-wrap">
                                     <span className={cn("text-[10px] font-semibold px-2.5 py-1 rounded-full", typeInfo.color)}>
                                         {typeInfo.label}
@@ -328,7 +395,9 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
                             <LazySections
                                 taskId={task.id}
                                 workspaceId={workspaceId}
+                                projectId={task.projectId}
                                 attachments={task.fieldValues?.attachments || []}
+                                onOpenChild={setOpenChild}
                             />
                         </div>
 
@@ -365,23 +434,54 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
                     </div>
                 </div>
             </SheetContent>
+
+            {openChild && (
+                <TaskDialog
+                    task={openChild}
+                    isOpen
+                    onClose={() => setOpenChild(null)}
+                    workspaceId={workspaceId}
+                />
+            )}
+
+            {openParent && (
+                <TaskDialog
+                    task={openParent}
+                    isOpen
+                    onClose={() => setOpenParent(null)}
+                    workspaceId={workspaceId}
+                />
+            )}
         </Sheet>
     );
 }
 
-const TaskDialogHeader = React.memo(function TaskDialogHeader({ title, isPending, lastSaved, onDelete, onClose }: {
+const TaskDialogHeader = React.memo(function TaskDialogHeader({ title, parentTitle, isPending, lastSaved, onDelete, onClose, onOpenParent }: {
     title: string;
+    parentTitle?: string;
     isPending: boolean;
     lastSaved: Date | null;
     onDelete: () => void;
     onClose: () => void;
+    onOpenParent: () => void;
 }) {
     return (
         <div className="h-16 border-b px-6 sm:px-8 flex items-center justify-between shrink-0 bg-background/50 backdrop-blur-md sticky top-0 z-20">
-            <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground">
+            <div className="flex items-center gap-3 text-xs font-medium text-muted-foreground min-w-0">
                 <span className="hover:text-primary transition-colors cursor-pointer">Workspace</span>
                 <span>/</span>
                 <span className="hover:text-primary transition-colors cursor-pointer">Tasks</span>
+                {parentTitle && (
+                    <>
+                        <span>/</span>
+                        <span
+                            className="text-muted-foreground/70 truncate max-w-[150px] hover:text-primary cursor-pointer transition-colors"
+                            onClick={onOpenParent}
+                        >
+                            {parentTitle}
+                        </span>
+                    </>
+                )}
                 <span>/</span>
                 <span className="text-foreground truncate max-w-[150px] sm:max-w-[300px]">
                     {title}
@@ -427,8 +527,8 @@ function LazySection({ icon: Icon, title, children }: { icon: any; title: string
     );
 }
 
-const SubtasksContent = React.memo(function SubtasksContent({ taskId, workspaceId }: { taskId: string; workspaceId: string }) {
-    return <TaskSubtasks taskId={taskId} workspaceId={workspaceId} />;
+const SubtasksContent = React.memo(function SubtasksContent({ taskId, workspaceId, projectId, onOpenChild }: { taskId: string; workspaceId: string; projectId?: string; onOpenChild: (child: any) => void }) {
+    return <TaskSubtasks taskId={taskId} workspaceId={workspaceId} projectId={projectId} onOpenChild={onOpenChild} />;
 });
 const ChecklistContent = React.memo(function ChecklistContent({ taskId, workspaceId }: { taskId: string; workspaceId: string }) {
     return <TaskChecklist taskId={taskId} workspaceId={workspaceId} />;
@@ -446,11 +546,11 @@ const ActivityContent = React.memo(function ActivityContent({ taskId, workspaceI
     return <TaskActivity taskId={taskId} workspaceId={workspaceId} />;
 });
 
-const LazySections = React.memo(function LazySections({ taskId, workspaceId, attachments }: { taskId: string; workspaceId: string; attachments?: any[] }) {
+const LazySections = React.memo(function LazySections({ taskId, workspaceId, projectId, attachments, onOpenChild }: { taskId: string; workspaceId: string; projectId?: string; attachments?: any[]; onOpenChild: (child: any) => void }) {
     return (
         <>
             <LazySection icon={Sparkles} title="Subtasks">
-                <SubtasksContent taskId={taskId} workspaceId={workspaceId} />
+                <SubtasksContent taskId={taskId} workspaceId={workspaceId} projectId={projectId} onOpenChild={onOpenChild} />
             </LazySection>
 
             <LazySection icon={CheckSquare} title="Checklist">

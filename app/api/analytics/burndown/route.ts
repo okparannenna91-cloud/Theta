@@ -11,6 +11,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const workspaceId = searchParams.get("workspaceId");
     const projectId = searchParams.get("projectId") || undefined;
+    const includeSubtasks = searchParams.get("includeSubtasks") === "1";
     const startDate = searchParams.get("startDate");
     const endDate = searchParams.get("endDate");
 
@@ -22,7 +23,7 @@ export async function GET(req: Request) {
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
 
-    const data = await getBurndownChart(workspaceId, start, end, projectId);
+    const data = await getBurndownChart(workspaceId, start, end, projectId, includeSubtasks);
     return NextResponse.json({ data });
   } catch (error) {
     console.error("Burndown API error:", error);

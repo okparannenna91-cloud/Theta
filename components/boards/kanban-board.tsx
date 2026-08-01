@@ -164,10 +164,10 @@ function TaskCardContent({ task, memberMap }: { task: any; memberMap: Record<str
   }, [task.dueDate]);
 
   const subtaskProgress = useMemo(() => {
-    if (!task.subtasks?.length) return null;
-    const done = task.subtasks.filter((s: any) => s.completed).length;
-    return { done, total: task.subtasks.length };
-  }, [task.subtasks]);
+    if (!task.children?.length) return null;
+    const done = task.children.filter((c: any) => c.status === "completed").length;
+    return { done, total: task.children.length };
+  }, [task.children]);
 
   const commentCount = useMemo(() => task._count?.comments ?? 0, [task._count?.comments]);
 
@@ -195,14 +195,6 @@ function TaskCardContent({ task, memberMap }: { task: any; memberMap: Record<str
       <h4 className="text-sm font-semibold leading-snug line-clamp-2 text-foreground">
         {task.title}
       </h4>
-
-      {/* Parent-child indicator */}
-      {task.parentId && (
-        <div className="flex items-center gap-1 text-[10px] text-muted-foreground/60">
-          <GitBranch className="h-2.5 w-2.5 -rotate-90" />
-          <span>Subtask</span>
-        </div>
-      )}
 
       {/* Tags — max 2 pills, +N overflow, hidden when empty */}
       {visibleTags && (
