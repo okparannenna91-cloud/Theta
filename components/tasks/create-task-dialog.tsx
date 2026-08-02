@@ -24,6 +24,8 @@ interface CreateTaskDialogProps {
   defaultStatus?: string;
   defaultStartDate?: string;
   defaultDueDate?: string;
+  defaultParentId?: string;
+  defaultParentTitle?: string;
 }
 
 function parseDateValue(iso?: string): Date | undefined {
@@ -39,12 +41,15 @@ export function CreateTaskDialog({
   defaultStatus = "todo",
   defaultStartDate,
   defaultDueDate,
+  defaultParentId,
+  defaultParentTitle,
 }: CreateTaskDialogProps) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState(defaultStatus);
   const [priority, setPriority] = useState("medium");
   const [projectId, setProjectId] = useState(defaultProjectId);
+  const [parentId, setParentId] = useState(defaultParentId);
   const [startDate, setStartDate] = useState<Date | undefined>(() => parseDateValue(defaultStartDate));
   const [dueDate, setDueDate] = useState<Date | undefined>(() => parseDateValue(defaultDueDate));
   const [coverImage, setCoverImage] = useState("");
@@ -53,7 +58,8 @@ export function CreateTaskDialog({
     if (!isOpen) return;
     setStartDate(parseDateValue(defaultStartDate));
     setDueDate(parseDateValue(defaultDueDate));
-  }, [isOpen, defaultStartDate, defaultDueDate]);
+    setParentId(defaultParentId);
+  }, [isOpen, defaultStartDate, defaultDueDate, defaultParentId]);
 
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
@@ -112,6 +118,7 @@ export function CreateTaskDialog({
       setStatus(defaultStatus);
       setPriority("medium");
       setProjectId(defaultProjectId);
+      setParentId(defaultParentId);
       setStartDate(undefined);
       setDueDate(undefined);
       setCoverImage("");
@@ -139,6 +146,7 @@ export function CreateTaskDialog({
       startDate: startDate?.toISOString(),
       dueDate: dueDate?.toISOString(),
       projectId: projectId && projectId !== "no-project" ? projectId : undefined,
+      parentId: parentId || undefined,
       coverImage,
     });
   };
@@ -146,10 +154,19 @@ export function CreateTaskDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create New Task</DialogTitle>
-        </DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{parentId ? "Create Subtask" : "Create New Task"}</DialogTitle>
+          </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {parentId && (
+            <div className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2">
+              <div className="h-2 w-2 rounded-full bg-amber-500" />
+              <span className="text-[11px] text-muted-foreground truncate">
+                Subtask under <span className="font-medium text-foreground">{defaultParentTitle || "parent task"}</span>
+              </span>
+            </div>
+          )}
+
           <div>
             <Label>Cover Image</Label>
             <div className="mt-2">
@@ -182,25 +199,27 @@ export function CreateTaskDialog({
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-          <div>
-            <Label htmlFor="project">Project</Label>
-            <Select
-              value={projectId}
-              onValueChange={(val) => setProjectId(val)}
-            >
-              <SelectTrigger id="project">
-                <SelectValue placeholder="Select a project" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="no-project">No Project</SelectItem>
-                {projects?.map((project: any) => (
-                  <SelectItem key={project.id} value={project.id}>
-                    {project.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          {!parentId && (
+            <div>
+              <Label htmlFor="project">Project</Label>
+              <Select
+                value={projectId}
+                onValueChange={(val) => setProjectId(val)}
+              >
+                <SelectTrigger id="project">
+                  <SelectValue placeholder="Select a project" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="no-project">No Project</SelectItem>
+                  {projects?.map((project: any) => (
+                    <SelectItem key={project.id} value={project.id}>
+                      {project.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="startDate">Start Date</Label>

@@ -233,29 +233,59 @@ export default function TaskBar({
     }
 
     if (isSummary) {
-        const collapsed = task.children?.length > 0 && task.children.every((c: any) => c.isSummary || !c.children || c.children.length === 0);
         return (
-        <div
-            data-task-id={task.id}
-            style={{ left, pointerEvents: "auto" }}
-            className="absolute h-8 flex flex-col justify-end z-10 pointer-events-none"
-        >
-                <div className={cn(
-                    "h-2 w-full rounded-sm relative",
-                    task.isCritical ? "bg-red-500/60" : "bg-slate-900 dark:bg-slate-200"
-                )}>
-                    <div className={cn(
-                        "absolute left-0 bottom-0 w-1 h-3 rounded-sm",
-                        task.isCritical ? "bg-red-500/60" : "bg-slate-900 dark:bg-slate-200"
-                    )} />
-                    <div className={cn(
-                        "absolute right-0 bottom-0 w-1 h-3 rounded-sm",
-                        task.isCritical ? "bg-red-500/60" : "bg-slate-900 dark:bg-slate-200"
-                    )} />
+            <div className="relative h-10 w-full pointer-events-none">
+                <div
+                    data-task-id={task.id}
+                    onMouseDown={handleMouseDown}
+                    onMouseEnter={(e) => {
+                        setIsHovered(true);
+                        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                        setTooltipPos({ x: Math.min(rect.right + 8, window.innerWidth - 300), y: rect.top });
+                    }}
+                    onMouseLeave={() => setIsHovered(false)}
+                    style={{
+                        left: visualLeft,
+                        width: visualWidth,
+                        pointerEvents: "auto",
+                        zIndex: isDragging ? 50 : 10,
+                    }}
+                    className={cn(
+                        "absolute h-10 rounded-lg border flex items-center px-3 cursor-grab active:cursor-grabbing group backdrop-blur-xl shadow-lg bg-gradient-to-r",
+                        task.isCritical ? criticalStyle : "from-violet-500/40 to-indigo-500/25 border-violet-500/40 shadow-violet-500/10",
+                        isDragging && "ring-2 ring-primary/50 shadow-2xl scale-y-110",
+                        resizeDrag && "ring-2 ring-primary/50"
+                    )}
+                >
+                    <div className="absolute inset-0 bg-black/5 dark:bg-white/5 rounded-lg overflow-hidden pointer-events-none">
+                        <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${task.progress || 0}%` }}
+                            transition={{ duration: 0.5, ease: "easeOut" }}
+                            className="h-full bg-white/20 dark:bg-white/10"
+                        />
+                    </div>
+                    <div className="flex items-center justify-between w-full gap-2 overflow-hidden pointer-events-none">
+                        <div className="flex items-center gap-1.5 overflow-hidden min-w-0">
+                            <span className="text-[10px] font-semibold truncate">{task.title}</span>
+                        </div>
+                        <span className="text-[9px] font-semibold opacity-60 flex-shrink-0">{Math.round(task.progress || 0)}%</span>
+                    </div>
+                    <div
+                        onMouseDown={(e) => handleResizeStart(e, "left")}
+                        className="absolute left-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30 rounded-l-lg z-20 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                    />
+                    <div
+                        onMouseDown={(e) => handleResizeStart(e, "right")}
+                        className="absolute right-0 top-0 bottom-0 w-2 cursor-ew-resize hover:bg-white/30 rounded-r-lg z-20 pointer-events-auto opacity-0 group-hover:opacity-100 transition-opacity"
+                    />
                 </div>
-                {task.progress > 0 && (
-                    <div className="text-[9px] font-semibold text-muted-foreground/80 mb-1 px-1">
-                        {Math.round(task.progress)}%
+                {isHovered && !isDragging && !resizeDrag && (
+                    <div
+                        className="fixed z-[100] pointer-events-none"
+                        style={{ left: tooltipPos.x, top: tooltipPos.y }}
+                    >
+                        <GanttTooltip task={task} />
                     </div>
                 )}
             </div>

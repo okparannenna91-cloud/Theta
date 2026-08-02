@@ -1,14 +1,9 @@
 "use client";
 
 import { useState, useMemo, useCallback, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useUser } from "@clerk/nextjs";
+import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
-import {
-  CalendarDays, Filter, Plus, Search, ChevronLeft, ChevronRight,
-  ZoomIn, ZoomOut, GripHorizontal, MousePointer2, LayoutList, Flag,
-  Tag as TagIcon, Milestone as MilestoneIcon, CalendarRange, Users,
-} from "lucide-react";
+import { CalendarDays, Filter, Plus, Search, ChevronLeft, ChevronRight, LayoutList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,18 +17,15 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
-import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
-import { exportTimeline } from "@/lib/export/export-service";
-import { TimelineView } from "./timeline-view";
+import TimelineCanvas from "./timeline-canvas";
 import { TimelineSavedViews, type SavedView } from "./timeline-saved-views";
 import { PRIORITY_OPTIONS, STATUS_OPTIONS, GROUP_BY_OPTIONS, GroupByKey } from "./timeline-utils";
 import type { ZoomLevel } from "@/components/shared/timeline/types";
-import { addDays, subDays, format, startOfWeek, endOfWeek, startOfMonth, endOfMonth, startOfQuarter, endOfQuarter } from "date-fns";
+import { addDays } from "date-fns";
+import { useTaskRealtime } from "@/hooks/use-task-realtime";
 
 export default function TimelinePage({ projectId }: { projectId?: string }) {
-  const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
-  const { user } = useUser();
 
   // View state
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("day");
@@ -49,7 +41,6 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
 
   // Group settings
   const [groupBy, setGroupBy] = useState<GroupByKey | "none">("none");
-  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [showMilestones, setShowMilestones] = useState(true);
   const [showWeekends, setShowWeekends] = useState(true);
 
@@ -58,6 +49,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [createDialogDefaults, setCreateDialogDefaults] = useState<{ startDate?: string; dueDate?: string }>({});
+  const [createParent, setCreateParent] = useState<{ id: string; title: string } | null>(null);
 
   // Saved views
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
@@ -65,7 +57,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
 
   // Data
   const { data: tasksData, isLoading, isError } = useQuery({
-    queryKey: ["timeline-tasks", activeWorkspaceId, projectId],
+    queryKey: ["tasks", activeWorkspaceId, projectId],
     queryFn: async () => {
       const params = new URLSearchParams({ workspaceId: activeWorkspaceId!, limit: "500", includeSubtasks: "1" });
       if (projectId) params.set("projectId", projectId);
@@ -150,68 +142,22 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
     });
   }, [allTasks, filterStatus, filterPriority, filterAssignee, filterProject, filterTags]);
 
-  // Task update mutation with optimistic updates
-  const updateMutation = useMutation({
-    mutationFn: async ({ taskId, updates }: { taskId: string; updates: any }) => {
-      const res = await fetch(`/api/tasks/${taskId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(updates),
-      });
-      if (!res.ok) throw new Error("Failed to update task");
-      return res.json();
-    },
-    onMutate: async ({ taskId, updates }) => {
-      await queryClient.cancelQueries({ queryKey: ["timeline-tasks", activeWorkspaceId] });
-      const prev = queryClient.getQueriesData({ queryKey: ["timeline-tasks", activeWorkspaceId] });
-      queryClient.setQueriesData({ queryKey: ["timeline-tasks", activeWorkspaceId] }, (old: any) => {
-        if (!Array.isArray(old)) return old;
-        return old.map((t: any) => t.id === taskId ? { ...t, ...updates } : t);
-      });
-      return { prev };
-    },
-    onSuccess: () => {
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId });
-    },
-    onError: (error, _vars, context) => {
-      if (context?.prev) {
-        for (const [key, data] of context.prev) {
-          queryClient.setQueryData(key, data);
-        }
-      }
-      console.error("Task update error:", error);
-    },
-  });
-
-  const handleTaskUpdate = useCallback((taskId: string, updates: any) => {
-    updateMutation.mutate({ taskId, updates });
-  }, [updateMutation]);
-
   const handleTaskClick = useCallback((task: any) => {
     setSelectedTask(task);
     setIsTaskDialogOpen(true);
   }, []);
 
-  const handleCreateFromTimeline = useCallback((startDate: string, endDate: string) => {
-    setCreateDialogDefaults({ startDate, dueDate: endDate });
+  const handleCreateSubtask = useCallback((parent: any) => {
+    setCreateParent({ id: parent.id, title: parent.title });
+    setCreateDialogDefaults({});
     setIsCreateDialogOpen(true);
   }, []);
 
-  const handleLogActivity = useCallback((action: string, taskId: string, metadata?: any) => {
-    if (!user?.id || !activeWorkspaceId) return;
-    fetch("/api/activity", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        userId: user.id,
-        workspaceId: activeWorkspaceId,
-        action,
-        entityType: "task",
-        entityId: taskId,
-        metadata: metadata || {},
-      }),
-    }).catch(() => {});
-  }, [user?.id, activeWorkspaceId]);
+  const handleEmptyCreate = useCallback(() => {
+    setCreateParent(null);
+    setCreateDialogDefaults({});
+    setIsCreateDialogOpen(true);
+  }, []);
 
   const handleNavigate = useCallback((direction: "prev" | "next") => {
     setDateOffset(prev => prev + (direction === "next" ? 1 : -1));
@@ -222,6 +168,10 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
 
   const isLoadingState = isLoading;
   const isErrorState = isError;
+
+  useTaskRealtime(activeWorkspaceId, "tasks");
+
+  const centerDate = useMemo(() => addDays(new Date(), dateOffset * 7), [dateOffset]);
 
   if (isLoadingState) {
     return (
@@ -372,7 +322,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
             <Input placeholder="Search..." className="h-6 md:h-7 pl-6 text-[10px] md:text-[11px] rounded-md" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           </div>
 
-          <Button className="h-6 md:h-7 text-[10px] md:text-[11px] rounded-md px-1.5 md:px-2.5" onClick={() => { setCreateDialogDefaults({}); setIsCreateDialogOpen(true); }}>
+          <Button className="h-6 md:h-7 text-[10px] md:text-[11px] rounded-md px-1.5 md:px-2.5" onClick={handleEmptyCreate}>
             <Plus className="h-2.5 md:h-3 w-2.5 md:w-3 mr-0.5 md:mr-1" /> <span className="hidden xs:inline">New</span>
           </Button>
         </div>
@@ -386,7 +336,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
           <span className="text-muted-foreground/20">·</span>
           <span>drag to reschedule</span>
           <span className="text-muted-foreground/20">·</span>
-          <span>double-click to rename</span>
+          <span>Alt+drag to pan</span>
         </div>
         <div className="text-[9px] text-muted-foreground/40">
           {scheduleCount} task{scheduleCount !== 1 ? "s" : ""}
@@ -394,27 +344,18 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
       </div>
 
       <div className="flex-1 overflow-hidden">
-        <TimelineView
+        <TimelineCanvas
           tasks={filteredTasks}
           zoomLevel={zoomLevel}
           searchQuery={searchQuery}
           groupBy={groupBy}
-          collapsedGroups={collapsedGroups}
-          onToggleGroup={(key) => {
-            setCollapsedGroups(prev => {
-              const next = new Set(prev);
-              if (next.has(key)) next.delete(key);
-              else next.add(key);
-              return next;
-            });
-          }}
-          showMilestones={showMilestones}
           showWeekends={showWeekends}
-          onTaskUpdate={handleTaskUpdate}
+          enableRollup
+          workspaceId={activeWorkspaceId}
+          centerDate={centerDate}
           onTaskClick={handleTaskClick}
-          onCreateTask={handleCreateFromTimeline}
-          onLogActivity={handleLogActivity}
-          dateOffset={dateOffset}
+          onCreateSubtask={handleCreateSubtask}
+          onEmptyCreate={handleEmptyCreate}
         />
       </div>
 
@@ -431,6 +372,8 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
         defaultStatus="todo"
         defaultStartDate={createDialogDefaults.startDate}
         defaultDueDate={createDialogDefaults.dueDate}
+        defaultParentId={createParent?.id}
+        defaultParentTitle={createParent?.title}
       />
     </div>
   );

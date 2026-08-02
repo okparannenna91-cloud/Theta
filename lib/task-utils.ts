@@ -18,6 +18,11 @@ function isCompletedStatus(status: string): boolean {
  * parent's per-task channel (open dialogs), then cascades up the hierarchy.
  */
 export async function updateParentTask(parentId: string, workspaceId: string) {
+  const parent = await prisma.task.findUnique({
+    where: { id: parentId },
+    select: { syncParentDates: true },
+  });
+
   const children = await prisma.task.findMany({
     where: { parentId },
     select: {
@@ -38,29 +43,36 @@ export async function updateParentTask(parentId: string, workspaceId: string) {
 
   const completedCount = children.filter((c: any) => isCompletedStatus(c.status)).length;
 
-  let minStart = children[0].startDate;
-  let maxEnd = children[0].dueDate;
-
-  for (const child of children) {
-    if (child.startDate && (!minStart || child.startDate < minStart)) minStart = child.startDate;
-    if (child.dueDate && (!maxEnd || child.dueDate > maxEnd)) maxEnd = child.dueDate;
-  }
-
   const totalEstimated = children.reduce((acc: number, child: any) => acc + (child.estimatedHours || 0), 0);
   const totalLogged = children.reduce((acc: number, child: any) => acc + (child.timeSpent || 0), 0);
 
+  const data: any = {
+    progress: avgProgress,
+    estimatedHours: totalEstimated,
+    timeSpent: totalLogged,
+    isSummary: true,
+    subtaskCount: children.length,
+    subtaskCompletedCount: completedCount,
+  };
+
+  // When syncParentDates is enabled (default), the parent's dates roll up from its
+  // subtasks (min start / max due). When disabled, parent dates stay independent.
+  if (parent?.syncParentDates !== false) {
+    let minStart = children[0].startDate;
+    let maxEnd = children[0].dueDate;
+
+    for (const child of children) {
+      if (child.startDate && (!minStart || child.startDate < minStart)) minStart = child.startDate;
+      if (child.dueDate && (!maxEnd || child.dueDate > maxEnd)) maxEnd = child.dueDate;
+    }
+
+    data.startDate = minStart;
+    data.dueDate = maxEnd;
+  }
+
   const updatedParent = await prisma.task.update({
     where: { id: parentId },
-    data: {
-      progress: avgProgress,
-      startDate: minStart,
-      dueDate: maxEnd,
-      estimatedHours: totalEstimated,
-      timeSpent: totalLogged,
-      isSummary: true,
-      subtaskCount: children.length,
-      subtaskCompletedCount: completedCount,
-    },
+    data,
   });
 
   // Workspace channel keeps boards, lists and dashboards in sync

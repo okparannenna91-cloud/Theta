@@ -410,6 +410,11 @@ model Task {
   children       Task[]    @relation("TaskHierarchy")
   isSummary      Boolean   @default(false)
 
+  /// When true (default), the parent's start/due dates roll up from its subtasks
+  /// (min start / max due). When false, the parent keeps its own independent dates
+  /// and only progress/statistics roll up.
+  syncParentDates Boolean   @default(true)
+
   /// Rolled-up subtask stats (maintained by updateParentTask): number of direct children
   /// and how many are in a completion state. Lets parents render "Subtasks (3/7)" without
   /// loading every child record.

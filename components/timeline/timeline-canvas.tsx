@@ -2,15 +2,20 @@
 
 import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { format, addDays, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, eachMonthOfInterval, isToday, differenceInDays, differenceInMinutes, isWeekend, addHours, startOfWeek, endOfWeek, startOfQuarter, endOfQuarter, startOfYear, endOfYear, eachHourOfInterval, eachWeekOfInterval, eachQuarterOfInterval, eachYearOfInterval, startOfDay, endOfDay } from "date-fns";
+import { format, addDays, eachDayOfInterval, isSameDay, startOfMonth, endOfMonth, eachMonthOfInterval, isToday, differenceInDays, differenceInMinutes, differenceInCalendarDays, isWeekend, addHours, startOfWeek, endOfWeek, startOfQuarter, endOfQuarter, startOfYear, endOfYear, eachHourOfInterval, eachWeekOfInterval, eachQuarterOfInterval, eachYearOfInterval, startOfDay, endOfDay } from "date-fns";
 import { detectCriticalPath, calculateProgressRollup } from "@/lib/scheduling/scheduling-engine";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { cn } from "@/lib/utils";
 import TaskBar from "./task-bar";
 import DependencyEngine from "./dependency-engine";
-import { ChevronRight, ChevronDown, Folder, FileText, Users, GripVertical } from "lucide-react";
+import { ChevronRight, ChevronDown, Folder, FileText, Users, GripVertical, Flag, Plus, Link2, Link2Off, CalendarDays, GitBranch } from "lucide-react";
 import { ZoomLevel, TimelineVariant, ROW_HEIGHT, VISIBLE_BUFFER, SIDEBAR_WIDTH, GANTT_SIDEBAR_WIDTH, ZOOM_CELL_WIDTHS, ZOOM_CONFIG_MAP, DragState } from "@/components/shared/timeline/types";
 import type { UndoCommand } from "@/components/shared/timeline/types";
+import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
+import { UserAvatar } from "@/components/ui/user-avatar";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { getStatusColor, getPriorityColor } from "./timeline-utils";
 
 interface TimelineCanvasProps {
     tasks: any[];
@@ -27,6 +32,9 @@ interface TimelineCanvasProps {
     showWeekends?: boolean;
     enableRollup?: boolean;
     workspaceId?: string | null;
+    centerDate?: Date;
+    onCreateSubtask?: (parentTask: any) => void;
+    onEmptyCreate?: () => void;
 }
 
 export default function TimelineCanvas({
@@ -44,13 +52,28 @@ export default function TimelineCanvas({
     showWeekends = true,
     enableRollup = false,
     workspaceId,
+    centerDate,
+    onCreateSubtask,
+    onEmptyCreate,
 }: TimelineCanvasProps) {
     const queryClient = useQueryClient();
     const activeWorkspace = workspaceId || undefined;
+    const { memberMap } = useWorkspaceMembers(activeWorkspace || null);
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const sidebarRef = useRef<HTMLDivElement>(null);
     const timelineRef = useRef<HTMLDivElement>(null);
-    const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+    const selectedRowRef = useRef<HTMLDivElement>(null);
+    const collapseStorageKey = useMemo(() => `theta-timeline-collapsed-${workspaceId || "global"}`, [workspaceId]);
+    const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => {
+        if (typeof window === "undefined") return new Set();
+        try {
+            const raw = window.localStorage.getItem(collapseStorageKey);
+            if (raw) return new Set(JSON.parse(raw));
+        } catch {}
+        return new Set();
+    });
+    const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+    const [pendingParentMove, setPendingParentMove] = useState<{ taskId: string; updates: any; prevState?: any; offset: number; children: any[] } | null>(null);
     const [scrollTop, setScrollTop] = useState(0);
     const [scrollLeft, setScrollLeft] = useState(0);
     const [viewportHeight, setViewportHeight] = useState(800);
@@ -59,6 +82,12 @@ export default function TimelineCanvas({
     const isGantt = variant === "gantt";
     const [dragPan, setDragPan] = useState<{ startX: number; startScrollLeft: number } | null>(null);
     const [isDragging, setIsDragging] = useState(false);
+
+    useEffect(() => {
+        try {
+            window.localStorage.setItem(collapseStorageKey, JSON.stringify(Array.from(collapsedIds)));
+        } catch {}
+    }, [collapsedIds, collapseStorageKey]);
 
     const cellWidth = ZOOM_CELL_WIDTHS[zoomLevel] || 140;
 
@@ -120,24 +149,38 @@ export default function TimelineCanvas({
                 node.children.forEach(rollup);
                 const total = node.children.reduce((sum: number, c: any) => sum + (c.progress || 0), 0);
                 node.progress = Math.round(total / node.children.length);
-                if (node.isSummary) {
-                    node.isSummary = true;
+                node.isSummary = true;
+                // Only roll dates up when the parent has date-sync enabled
+                if (node.syncParentDates !== false) {
+                    const earliestStart = node.children.reduce((min: Date | null, c: any) => {
+                        const d = c.startDate ? new Date(c.startDate) : null;
+                        return d && (!min || d < min) ? d : min;
+                    }, null);
+                    const latestDue = node.children.reduce((max: Date | null, c: any) => {
+                        const d = c.dueDate ? new Date(c.dueDate) : null;
+                        return d && (!max || d > max) ? d : max;
+                    }, null);
+                    if (earliestStart) node.startDate = earliestStart.toISOString();
+                    if (latestDue) node.dueDate = latestDue.toISOString();
                 }
-                const earliestStart = node.children.reduce((min: Date | null, c: any) => {
-                    const d = c.startDate ? new Date(c.startDate) : null;
-                    return d && (!min || d < min) ? d : min;
-                }, null);
-                const latestDue = node.children.reduce((max: Date | null, c: any) => {
-                    const d = c.dueDate ? new Date(c.dueDate) : null;
-                    return d && (!max || d > max) ? d : max;
-                }, null);
-                if (earliestStart) node.startDate = earliestStart.toISOString();
-                if (latestDue) node.dueDate = latestDue.toISOString();
             }
             roots.forEach(rollup);
         }
         return roots;
     }, [tasks, enableRollup]);
+
+    const childrenMap = useMemo(() => {
+        const map = new Map<string, any[]>();
+        function walk(nodes: any[]) {
+            if (!Array.isArray(nodes)) return;
+            nodes.forEach((n) => {
+                if (Array.isArray(n.children) && n.children.length > 0) map.set(n.id, n.children);
+                walk(n.children);
+            });
+        }
+        walk(taskTree);
+        return map;
+    }, [taskTree]);
 
     const allFlattenedTasks = useMemo(() => {
         const flattened: any[] = [];
@@ -220,7 +263,7 @@ export default function TimelineCanvas({
         return flattened.filter(t =>
             !searchQuery || t.title?.toLowerCase().includes(searchQuery.toLowerCase()) || t._isGroupHeader
         );
-    }, [taskTree, collapsedIds, searchQuery, groupBy, enableRollup]);
+    }, [taskTree, collapsedIds, searchQuery, groupBy]);
 
     const visibleRange = useMemo(() => {
         const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - VISIBLE_BUFFER);
@@ -239,6 +282,71 @@ export default function TimelineCanvas({
         });
     }, []);
 
+    const selectableTasks = useMemo(() => allFlattenedTasks.filter(t => !t._isGroupHeader), [allFlattenedTasks]);
+    const selectedIndex = useMemo(() => {
+        if (!selectedTaskId) return -1;
+        return selectableTasks.findIndex(t => t.id === selectedTaskId);
+    }, [selectableTasks, selectedTaskId]);
+
+    useEffect(() => {
+        if (selectedRowRef.current) {
+            selectedRowRef.current.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        }
+    }, [selectedTaskId]);
+
+    useEffect(() => {
+        const handleKeyDown = (e: KeyboardEvent) => {
+            const tag = (e.target as HTMLElement)?.tagName;
+            if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+            const sel = selectedIndex >= 0 ? selectableTasks[selectedIndex] : null;
+            switch (e.key) {
+                case "j":
+                case "J": {
+                    e.preventDefault();
+                    if (selectableTasks.length === 0) return;
+                    const next = selectedIndex < selectableTasks.length - 1 ? selectedIndex + 1 : 0;
+                    setSelectedTaskId(selectableTasks[next].id);
+                    break;
+                }
+                case "k":
+                case "K": {
+                    e.preventDefault();
+                    if (selectableTasks.length === 0) return;
+                    const prev = selectedIndex > 0 ? selectedIndex - 1 : selectableTasks.length - 1;
+                    setSelectedTaskId(selectableTasks[prev].id);
+                    break;
+                }
+                case "Enter": {
+                    if (sel) {
+                        e.preventDefault();
+                        onTaskClick?.(sel);
+                    }
+                    break;
+                }
+                case "ArrowRight": {
+                    if (sel?.children?.length && collapsedIds.has(sel.id)) {
+                        e.preventDefault();
+                        toggleCollapse(sel.id);
+                    }
+                    break;
+                }
+                case "ArrowLeft": {
+                    if (sel?.children?.length && !collapsedIds.has(sel.id)) {
+                        e.preventDefault();
+                        toggleCollapse(sel.id);
+                    }
+                    break;
+                }
+                case "Escape": {
+                    setSelectedTaskId(null);
+                    break;
+                }
+            }
+        };
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+    }, [selectableTasks, selectedIndex, onTaskClick, collapsedIds, toggleCollapse]);
+
     const groupedCollapsedIds = useMemo(() => {
         if (groupBy === "none") return collapsedIds;
         const result = new Set(collapsedIds);
@@ -253,7 +361,7 @@ export default function TimelineCanvas({
     }, [collapsedIds, groupBy, allFlattenedTasks]);
 
     const { startDate, endDate, timeUnits, headerLevels } = useMemo(() => {
-        const now = new Date();
+        const now = centerDate || new Date();
         let start: Date;
         let end: Date;
         let units: { date: Date; isWeekend: boolean }[];
@@ -331,7 +439,7 @@ export default function TimelineCanvas({
         }
 
         return { startDate: start, endDate: end, timeUnits: units, headerLevels: levels };
-    }, [zoomLevel, cellWidth]);
+    }, [zoomLevel, cellWidth, centerDate]);
 
     const criticalPath = useMemo(() => {
         if (!isGantt || !showCriticalPath) return new Set<string>();
@@ -359,7 +467,7 @@ export default function TimelineCanvas({
         return detectCriticalPath(schedulingTasks);
     }, [taskTree, isGantt, showCriticalPath]);
 
-    const handleTaskUpdate = useCallback(async (taskId: string, updates: any, prevState?: any) => {
+    const applyTaskUpdate = useCallback(async (taskId: string, updates: any, prevState?: any, type: "drag" | "resize" = "drag") => {
         try {
             const res = await fetch(`/api/tasks/${taskId}`, {
                 method: "PATCH",
@@ -372,7 +480,7 @@ export default function TimelineCanvas({
             }
             if (onUndoPush && prevState) {
                 onUndoPush({
-                    type: updates.type === "resize" ? "resize" : "drag",
+                    type,
                     taskId,
                     previous: prevState,
                     next: updates,
@@ -383,6 +491,80 @@ export default function TimelineCanvas({
             console.error(error);
         }
     }, [activeWorkspace, queryClient, onUndoPush]);
+
+    const handleTaskUpdate = useCallback(async (taskId: string, updates: any, prevState?: any) => {
+        const children = childrenMap.get(taskId);
+        const isMove = !!(updates.startDate && updates.dueDate);
+        // Dragging a parent asks whether to move its subtasks together.
+        if (isMove && children?.length) {
+            const anchorOld = prevState?.startDate || prevState?.dueDate;
+            if (anchorOld) {
+                const offset = differenceInCalendarDays(new Date(updates.startDate), new Date(anchorOld));
+                setPendingParentMove({ taskId, updates, prevState, offset, children });
+                return;
+            }
+        }
+        await applyTaskUpdate(taskId, updates, prevState, isMove ? "drag" : "resize");
+    }, [childrenMap, applyTaskUpdate]);
+
+    const confirmParentMove = useCallback(async (withChildren: boolean) => {
+        if (!pendingParentMove) return;
+        const { taskId, updates, prevState, offset, children } = pendingParentMove;
+        const headers = { "Content-Type": "application/json" };
+        try {
+            const patches: { taskId: string; previous: any; next: any }[] = [];
+            if (withChildren) {
+                for (const child of children) {
+                    if (!child.startDate && !child.dueDate) continue;
+                    const childNext: any = {};
+                    if (child.startDate) childNext.startDate = addDays(new Date(child.startDate), offset).toISOString();
+                    if (child.dueDate) childNext.dueDate = addDays(new Date(child.dueDate), offset).toISOString();
+                    patches.push({
+                        taskId: child.id,
+                        previous: { startDate: child.startDate, dueDate: child.dueDate },
+                        next: childNext,
+                    });
+                }
+            }
+            patches.push({ taskId, previous: prevState, next: updates });
+
+            const results = await Promise.all(
+                patches.map(p => fetch(`/api/tasks/${p.taskId}`, {
+                    method: "PATCH",
+                    headers,
+                    body: JSON.stringify(p.next),
+                }))
+            );
+            if (!results.every(r => r.ok)) throw new Error("Move failed");
+            if (activeWorkspace) {
+                invalidateTaskCaches({ queryClient, workspaceId: activeWorkspace });
+            }
+            if (onUndoPush) {
+                for (const p of patches) {
+                    onUndoPush({ type: "drag", taskId: p.taskId, previous: p.previous, next: p.next, timestamp: Date.now() });
+                }
+            }
+        } catch (error) {
+            console.error(error);
+        }
+        setPendingParentMove(null);
+    }, [pendingParentMove, activeWorkspace, queryClient, onUndoPush]);
+
+    const handleSyncToggle = useCallback(async (taskId: string, current: boolean) => {
+        try {
+            const res = await fetch(`/api/tasks/${taskId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ syncParentDates: !current })
+            });
+            if (!res.ok) throw new Error("Update failed");
+            if (activeWorkspace) {
+                invalidateTaskCaches({ queryClient, workspaceId: activeWorkspace });
+            }
+        } catch (error) {
+            console.error(error);
+        }
+    }, [activeWorkspace, queryClient]);
 
     const handleDependencyCreate = useCallback(async (sourceId: string, targetId: string, type: "FS" | "SS" | "FF" | "SF" = "FS") => {
         try {
@@ -414,12 +596,17 @@ export default function TimelineCanvas({
 
     useEffect(() => {
         if (scrollContainerRef.current) {
-            const todayIdx = timeUnits.findIndex(u => isToday(u.date));
-            if (todayIdx !== -1) {
-                scrollContainerRef.current.scrollLeft = todayIdx * cellWidth - viewportWidth / 3;
+            const anchor = centerDate || new Date();
+            const anchorIdx = timeUnits.findIndex((u, i) => {
+                const next = timeUnits[i + 1]?.date;
+                if (!next) return i === timeUnits.length - 1;
+                return u.date <= anchor && anchor < next;
+            });
+            if (anchorIdx !== -1) {
+                scrollContainerRef.current.scrollLeft = anchorIdx * cellWidth - viewportWidth / 3;
             }
         }
-    }, [cellWidth, timeUnits, viewportWidth]);
+    }, [cellWidth, timeUnits, viewportWidth, centerDate]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -431,7 +618,27 @@ export default function TimelineCanvas({
         return () => window.removeEventListener("resize", handleResize);
     }, [sidebarWidth]);
 
+    if (!Array.isArray(tasks) || tasks.length === 0) {
+        return (
+            <div className="flex h-full flex-col items-center justify-center gap-4 p-6">
+                <div className="rounded-full bg-muted p-4">
+                    <CalendarDays className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h2 className="text-lg font-semibold">No tasks yet</h2>
+                <p className="text-sm text-muted-foreground text-center max-w-sm">
+                    Create your first task to begin planning your timeline.
+                </p>
+                {onEmptyCreate && (
+                    <Button size="sm" className="text-xs" onClick={onEmptyCreate}>
+                        <Plus className="h-3.5 w-3.5 mr-1.5" /> New Task
+                    </Button>
+                )}
+            </div>
+        );
+    }
+
     return (
+        <>
         <div className="flex h-full border-t overflow-hidden flex-col">
             <div className="flex flex-1 overflow-hidden">
                 <div
@@ -476,45 +683,102 @@ export default function TimelineCanvas({
                                 ) : (
                                 <div
                                     key={task.id}
+                                    ref={selectedTaskId === task.id ? selectedRowRef : undefined}
                                     style={{
                                         position: "absolute",
                                         top: (visibleRange.start + index) * ROW_HEIGHT,
                                         width: "100%",
-                                        paddingLeft: `${task.depth * 16 + 16}px`,
+                                        paddingLeft: `${task.depth * 14 + 12}px`,
+                                        paddingRight: 8,
                                         height: ROW_HEIGHT,
                                     }}
-                                    className="flex items-center pr-3 border-b hover:bg-primary/5 transition-all group cursor-pointer"
+                                    role="row"
+                                    aria-expanded={task.children.length > 0 ? !collapsedIds.has(task.id) : undefined}
+                                    aria-selected={selectedTaskId === task.id}
+                                    tabIndex={0}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") { e.preventDefault(); onTaskClick?.(task); }
+                                        if (e.key === " ") { e.preventDefault(); if (task.children.length > 0) toggleCollapse(task.id); }
+                                    }}
+                                    className={cn(
+                                        "flex items-center border-b transition-all group cursor-pointer",
+                                        selectedTaskId === task.id ? "bg-primary/8 ring-1 ring-inset ring-primary/20" : "hover:bg-primary/5"
+                                    )}
                                     onClick={() => {
+                                        setSelectedTaskId(task.id);
                                         if (task.children.length > 0) {
                                             toggleCollapse(task.id);
                                         }
                                         onTaskClick?.(task);
                                     }}
                                 >
-                                    <div className="flex items-center gap-2 w-full min-w-0">
+                                    <div className="flex items-start gap-1.5 w-full min-w-0 py-1.5">
                                         {task.children.length > 0 ? (
-                                            collapsedIds.has(task.id) ? <ChevronRight className="h-3.5 w-3.5 text-primary flex-shrink-0" /> : <ChevronDown className="h-3.5 w-3.5 text-primary flex-shrink-0" />
+                                            collapsedIds.has(task.id) ? <ChevronRight className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" /> : <ChevronDown className="h-3.5 w-3.5 text-primary flex-shrink-0 mt-0.5" />
                                         ) : (
                                             <div className="w-3.5 flex-shrink-0" />
                                         )}
                                         {task.isSummary ? (
-                                            <Folder className={cn("h-4 w-4 flex-shrink-0", task.isCritical ? "text-red-500" : "text-amber-500 fill-amber-500/20")} />
+                                            <Folder className={cn("h-4 w-4 flex-shrink-0 mt-0.5", task.isCritical ? "text-red-500" : "text-amber-500 fill-amber-500/20")} />
                                         ) : (
-                                            <FileText className={cn("h-4 w-4 flex-shrink-0", task.isCritical ? "text-red-500" : "text-blue-500/60")} />
+                                            <FileText className={cn("h-4 w-4 flex-shrink-0 mt-0.5", task.isCritical ? "text-red-500" : "text-blue-500/60")} />
                                         )}
-                                        <span className={cn(
-                                            "text-xs truncate transition-all",
-                                            task.isSummary ? "font-semibold" : "font-medium",
-                                            task.isCritical && "text-red-500"
-                                        )}>
-                                            {task.title}
-                                        </span>
-                                        {task.assigneeIds && task.assigneeIds.length > 0 && (
-                                            <span className="flex-shrink-0 flex items-center gap-1 ml-auto">
-                                                <Users className="h-3 w-3 text-muted-foreground/40" />
-                                                <span className="text-[9px] text-muted-foreground/40">{task.assigneeIds.length}</span>
-                                            </span>
-                                        )}
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-1.5 min-w-0">
+                                                <span className={cn(
+                                                    "text-xs truncate",
+                                                    task.isSummary ? "font-semibold" : "font-medium",
+                                                    task.isCritical && "text-red-500"
+                                                )}>
+                                                    {task.title}
+                                                </span>
+                                                {task.isSummary && task.progress > 0 && (
+                                                    <span className="text-[9px] font-semibold text-muted-foreground/60 flex-shrink-0">{Math.round(task.progress)}%</span>
+                                                )}
+                                                {task.children.length > 0 && (
+                                                    <span className="ml-auto flex items-center gap-0.5 flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <button
+                                                            type="button"
+                                                            title={task.syncParentDates === false ? "Parent dates are independent — click to sync from subtasks" : "Sync parent dates with subtasks — click to make independent"}
+                                                            className="h-5 w-5 rounded flex items-center justify-center hover:bg-primary/10 text-muted-foreground hover:text-primary"
+                                                            onClick={(e) => { e.stopPropagation(); handleSyncToggle(task.id, task.syncParentDates !== false); }}
+                                                        >
+                                                            {task.syncParentDates === false ? <Link2Off className="h-3 w-3" /> : <Link2 className="h-3 w-3" />}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            title="Add subtask"
+                                                            className="h-5 w-5 rounded flex items-center justify-center hover:bg-primary/10 text-muted-foreground hover:text-primary"
+                                                            onClick={(e) => { e.stopPropagation(); onCreateSubtask?.(task); }}
+                                                        >
+                                                            <Plus className="h-3 w-3" />
+                                                        </button>
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <div className="flex items-center gap-1.5 text-[9px] text-muted-foreground/70 mt-0.5 min-w-0">
+                                                <span className="h-1.5 w-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: getStatusColor(task.status) }} />
+                                                {task.priority && task.priority !== "none" && (
+                                                    <Flag className="h-2.5 w-2.5 flex-shrink-0" style={{ color: getPriorityColor(task.priority) }} />
+                                                )}
+                                                <span className="truncate">
+                                                    {(task.startDate || task.dueDate)
+                                                        ? `${task.startDate ? format(new Date(task.startDate), "MMM d") : "—"} – ${task.dueDate ? format(new Date(task.dueDate), "MMM d") : "—"}`
+                                                        : "No dates"}
+                                                </span>
+                                                {Array.isArray(task.assigneeIds) && task.assigneeIds.length > 0 && (
+                                                    <span className="ml-auto flex items-center gap-0.5 flex-shrink-0">
+                                                        {task.assigneeIds.slice(0, 3).map((id: string) => {
+                                                            const m = memberMap[id];
+                                                            return <UserAvatar key={id} imageUrl={m?.imageUrl} name={m?.name || "?"} size="sm" />;
+                                                        })}
+                                                        {task.assigneeIds.length > 3 && (
+                                                            <span className="text-[8px] text-muted-foreground/50">+{task.assigneeIds.length - 3}</span>
+                                                        )}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                                 )
@@ -616,7 +880,11 @@ export default function TimelineCanvas({
                                                 width: totalTimelineWidth,
                                                 height: ROW_HEIGHT,
                                             }}
-                                            className="flex items-center relative group border-b"
+                                            onClick={() => setSelectedTaskId(task.id)}
+                                            className={cn(
+                                                "flex items-center relative group border-b",
+                                                selectedTaskId === task.id && "bg-primary/[0.04]"
+                                            )}
                                         >
                                             <TaskBar
                                                 task={{
@@ -654,5 +922,31 @@ export default function TimelineCanvas({
                 </div>
             </div>
         </div>
+
+            <Dialog open={!!pendingParentMove} onOpenChange={(open) => { if (!open) setPendingParentMove(null); }}>
+                <DialogContent className="sm:max-w-[420px] rounded-xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-sm flex items-center gap-2">
+                            <GitBranch className="h-4 w-4 text-primary" />
+                            Move all subtasks together?
+                        </DialogTitle>
+                        <DialogDescription className="text-xs">
+                            This parent has {pendingParentMove?.children?.length || 0} subtask{pendingParentMove?.children?.length !== 1 ? "s" : ""}. Move the subtasks along with it, or move only this parent?
+                        </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter className="flex-col sm:flex-row gap-2">
+                        <Button variant="ghost" size="sm" className="text-xs" onClick={() => setPendingParentMove(null)}>
+                            Cancel
+                        </Button>
+                        <Button variant="outline" size="sm" className="text-xs" onClick={() => confirmParentMove(false)}>
+                            Move Parent Only
+                        </Button>
+                        <Button size="sm" className="text-xs" onClick={() => confirmParentMove(true)}>
+                            Move Parent + All Subtasks
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        </>
     );
 }

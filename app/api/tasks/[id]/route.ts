@@ -22,6 +22,7 @@ const updateSchema = z.object({
   color: z.string().nullable().optional(),
   parentId: z.string().nullable().optional(),
   isSummary: z.boolean().optional(),
+  syncParentDates: z.boolean().optional(),
   progress: z.number().min(0).max(100).optional(),
   schedulingMode: z.string().optional(),
   baselineStartDate: z.string().optional(),
