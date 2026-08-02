@@ -139,7 +139,7 @@ export async function POST(req: Request) {
     return NextResponse.json(dependency);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      return NextResponse.json({ error: error.errors.map((e) => e.message).join(", ") }, { status: 400 });
     }
     console.error("Create dependency error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });

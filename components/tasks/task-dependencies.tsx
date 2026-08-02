@@ -66,11 +66,17 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
             const res = await fetch(`/api/tasks/dependencies`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ taskId, predecessorId, type: "FS" }),
+                body: JSON.stringify({ taskId, predecessorId, type: "FS", workspaceId }),
             });
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
-                throw new Error(errData.error || "Failed to add dependency");
+                let message: string = "Failed to add dependency";
+                if (typeof errData?.error === "string") {
+                    message = errData.error;
+                } else if (Array.isArray(errData?.error)) {
+                    message = errData.error.map((e: any) => e?.message || e?.path?.join(".") || JSON.stringify(e)).join(", ") || message;
+                }
+                throw new Error(message);
             }
             return res.json();
         },
