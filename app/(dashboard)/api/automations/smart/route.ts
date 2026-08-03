@@ -19,7 +19,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const access = await verifyWorkspaceAccess(workspaceId, user.id);
+    const access = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!access) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const access = await verifyWorkspaceAccess(workspaceId, user.id);
+    const access = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!access) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

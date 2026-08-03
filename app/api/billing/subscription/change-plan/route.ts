@@ -37,6 +37,6 @@ export async function POST(req: Request) {
     return NextResponse.json(result);
   } catch (error: any) {
     logger.error("[Change Plan] Error:", error);
-    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

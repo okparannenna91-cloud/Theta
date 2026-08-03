@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { canAccessProjectResource } from "@/lib/project-permissions";
+import { publishToChannel, getWorkspaceChannel, getBoardChannel, getTaskChannel } from "@/lib/ably";
 
 export async function PATCH(req: Request) {
     try {
@@ -30,7 +33,19 @@ export async function PATCH(req: Request) {
                     continue;
                 }
 
-                await prisma.task.update({
+                const hasWorkspaceAccess = await verifyWorkspaceAccess(user.id, existing.workspaceId);
+                if (!hasWorkspaceAccess) {
+                    results.push({ id, success: false, error: "Access denied" });
+                    continue;
+                }
+
+                const hasProjectAccess = await canAccessProjectResource(user.id, existing.workspaceId, existing.projectId);
+                if (!hasProjectAccess) {
+                    results.push({ id, success: false, error: "Access denied to this project" });
+                    continue;
+                }
+
+                const updated = await prisma.task.update({
                     where: { id },
                     data: {
                         ...(data.startDate !== undefined ? { startDate: data.startDate ? new Date(data.startDate) : null } : {}),
@@ -44,6 +59,16 @@ export async function PATCH(req: Request) {
                         ...(data.schedulingMode !== undefined ? { schedulingMode: data.schedulingMode } : {}),
                     },
                 });
+
+                const workspaceChannel = getWorkspaceChannel(updated.workspaceId);
+                const sideEffects: Promise<unknown>[] = [
+                    publishToChannel(workspaceChannel, "task:updated", updated),
+                ];
+                if (existing.boardId) {
+                    sideEffects.push(publishToChannel(getBoardChannel(updated.workspaceId, existing.boardId), "task:updated", updated));
+                }
+                sideEffects.push(publishToChannel(getTaskChannel(updated.workspaceId, updated.id), "task:updated", updated));
+                await Promise.all(sideEffects);
 
                 results.push({ id, success: true });
             } catch (err: any) {

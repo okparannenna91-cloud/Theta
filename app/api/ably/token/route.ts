@@ -35,7 +35,7 @@ export async function GET(req: Request) {
             capabilities[`workspace:${workspaceId}`] = ["subscribe", "history"];
             capabilities[`workspace:${workspaceId}:chat`] = ["subscribe", "publish", "history"];
             capabilities[`workspace:${workspaceId}:board:*`] = ["subscribe", "history", "presence"];
-            capabilities[`workspace:${workspaceId}:gantt:*`] = ["subscribe", "publish", "history"];
+            capabilities[`workspace:${workspaceId}:gantt:*`] = ["subscribe", "publish", "history", "presence"];
             capabilities[`workspace:${workspaceId}:task:*`] = ["subscribe", "history"];
 
             // Grant access to project-specific channels the user can access
@@ -87,7 +87,7 @@ export async function GET(req: Request) {
                 capabilities[`workspace:${wsId}`] = ["subscribe", "history"];
                 capabilities[`workspace:${wsId}:chat`] = ["subscribe", "publish", "history"];
                 capabilities[`workspace:${wsId}:board:*`] = ["subscribe", "history", "presence"];
-                capabilities[`workspace:${wsId}:gantt:*`] = ["subscribe", "publish", "history"];
+                capabilities[`workspace:${wsId}:gantt:*`] = ["subscribe", "publish", "history", "presence"];
                 capabilities[`workspace:${wsId}:task:*`] = ["subscribe", "history"];
             } else {
                 return NextResponse.json({ error: "Team not found" }, { status: 404 });
@@ -99,18 +99,28 @@ export async function GET(req: Request) {
             });
             for (const m of memberships) {
                 capabilities[`workspace:${m.workspaceId}`] = ["subscribe", "history"];
+                capabilities[`workspace:${m.workspaceId}:chat`] = ["subscribe", "publish", "history"];
                 capabilities[`workspace:${m.workspaceId}:board:*`] = ["subscribe", "history", "presence"];
-                capabilities[`workspace:${m.workspaceId}:gantt:*`] = ["subscribe", "publish", "history"];
+                capabilities[`workspace:${m.workspaceId}:gantt:*`] = ["subscribe", "publish", "history", "presence"];
                 capabilities[`workspace:${m.workspaceId}:task:*`] = ["subscribe", "history"];
+            }
+
+            const teamMemberships = await prisma.teamMember.findMany({
+                where: { userId: user.id },
+                select: { teamId: true },
+            });
+            for (const tm of teamMemberships) {
+                capabilities[`team:${tm.teamId}:chat`] = ["subscribe", "publish", "history", "presence"];
             }
         }
 
         const ably = new Ably.Rest({ key: process.env.ABLY_API_KEY });
 
-        // Generate token with capability restrictions
+        // Generate token with capability restrictions (1h TTL)
         const tokenRequest = await ably.auth.createTokenRequest({
             clientId: user.clerkId,
             capability: capabilities,
+            ttl: 60 * 60 * 1000,
         });
 
         return NextResponse.json(tokenRequest);

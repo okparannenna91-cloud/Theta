@@ -33,6 +33,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ status: "active", cancelAtPeriodEnd: false });
   } catch (error: any) {
     logger.error("[Reactivate Subscription] Error:", error);
-    return NextResponse.json({ error: error.message || "Internal server error" }, { status: 500 });
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { canAccessProject } from "@/lib/project-permissions";
 import { getProjectAnalytics } from "@/lib/analytics/task-analytics";
 
 export async function GET(req: Request) {
@@ -20,6 +21,9 @@ export async function GET(req: Request) {
 
     const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!hasAccess) return NextResponse.json({ error: "Access denied" }, { status: 403 });
+
+    const projectAccess = await canAccessProject(user.id, projectId, workspaceId);
+    if (!projectAccess.hasAccess) return NextResponse.json({ error: "Access denied to this project" }, { status: 403 });
 
     const data = await getProjectAnalytics(workspaceId, projectId, includeSubtasks);
     return NextResponse.json(data);

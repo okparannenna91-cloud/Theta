@@ -20,7 +20,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "workspaceId required" }, { status: 400 });
     }
 
-    const access = await verifyWorkspaceAccess(workspaceId, user.id);
+    const access = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!access) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

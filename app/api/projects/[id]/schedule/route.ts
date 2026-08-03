@@ -22,7 +22,7 @@ export async function GET(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const access = await verifyWorkspaceAccess(project.workspaceId, user.id);
+    const access = await verifyWorkspaceAccess(user.id, project.workspaceId);
     if (!access) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -70,7 +70,7 @@ export async function PATCH(
       return NextResponse.json({ error: "Project not found" }, { status: 404 });
     }
 
-    const access = await verifyWorkspaceAccess(project.workspaceId, user.id);
+    const access = await verifyWorkspaceAccess(user.id, project.workspaceId);
     if (!access) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }

@@ -281,9 +281,11 @@ export class FlutterwaveProvider implements BillingProvider {
 
   async verifyWebhookSignature(payload: string, signature: string, secret: string): Promise<boolean> {
     try {
-      const expected = crypto.createHmac("sha256", secret).update(payload).digest("hex");
-      const actual = signature.startsWith("sha256=") ? signature.slice(7) : signature;
-      return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(actual));
+      if (!signature || !secret) return false;
+      const expected = Buffer.from(secret);
+      const actual = Buffer.from(signature);
+      if (expected.length !== actual.length) return false;
+      return crypto.timingSafeEqual(expected, actual);
     } catch {
       return false;
     }

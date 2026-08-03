@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { paystack } from "@/lib/paystack";
+import { verifyWorkspaceAccess, requireWorkspaceAdmin } from "@/lib/workspace";
 import { BILLING_PLAN_LOOKUP, BillingInterval, getPlanPrice, Currency } from "@/lib/billing-plans";
 
 export async function POST(req: Request) {
@@ -20,6 +21,16 @@ export async function POST(req: Request) {
 
         if (!planId || !workspaceId) {
             return NextResponse.json({ error: "planId and workspaceId are required" }, { status: 400 });
+        }
+
+        const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        const isAdmin = await requireWorkspaceAdmin(user.id, workspaceId);
+        if (!isAdmin) {
+            return NextResponse.json({ error: "Only workspace owners and admins can manage billing" }, { status: 403 });
         }
 
         const plan = BILLING_PLAN_LOOKUP[planId];

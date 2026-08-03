@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { webhookService } from "@/lib/billing/services/webhook-service";
 import { registerProviders } from "@/lib/billing/providers/register";
+import { WebhookSignatureError } from "@/lib/billing/errors";
 import { logger } from "@/lib/logger";
 
 registerProviders();
@@ -15,6 +16,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true });
   } catch (error: any) {
     logger.error("[Paystack Webhook] Error:", error);
-    return NextResponse.json({ received: true, error: error.message });
+    if (error instanceof WebhookSignatureError) {
+      return NextResponse.json({ received: false, error: "Invalid signature" }, { status: 401 });
+    }
+    return NextResponse.json({ received: false, error: "Webhook processing failed" }, { status: 500 });
   }
 }

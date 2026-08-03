@@ -156,6 +156,9 @@ export async function GET(req: Request) {
     const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
 
     if (projectId) {
+      if (!accessibleProjectIds.includes(projectId)) {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       where.projectId = projectId;
     } else {
       where.OR = [

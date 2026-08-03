@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { webhookService } from "@/lib/billing/services/webhook-service";
 import { providerRegistry } from "@/lib/billing/providers/registry";
 import { registerProviders } from "@/lib/billing/providers/register";
+import { WebhookSignatureError } from "@/lib/billing/errors";
 import { logger } from "@/lib/logger";
 
 registerProviders();
@@ -20,20 +21,13 @@ export async function POST(req: Request) {
         const detectedProvider = detectProviderFromPayload(body, verifHash);
         if (!detectedProvider) {
           logger.warn("[Webhook] Could not detect provider from payload");
-          return NextResponse.json({ received: true, warning: "Unknown provider" });
+          return NextResponse.json({ received: false, error: "Unknown provider" }, { status: 400 });
         }
 
-        const sigHeader = verifHash
-          ? "flutterwave"
-          : req.headers.get("x-paystack-signature")
-            ? "paystack"
-            : req.headers.get("x-ivno-signature-256") || req.headers.get("x-signature-256")
-              ? "ivno"
-              : "";
-        const signature = verifHash
+        const sig = verifHash
           ? verifHash
           : req.headers.get("x-paystack-signature") || req.headers.get("x-ivno-signature-256") || req.headers.get("x-signature-256") || "";
-        await webhookService.processEvent(detectedProvider, rawBody, signature);
+        await webhookService.processEvent(detectedProvider, rawBody, sig);
         return NextResponse.json({ received: true });
       }
 
@@ -44,7 +38,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ received: true });
   } catch (error: any) {
     logger.error("[Webhook] Error:", error);
-    return NextResponse.json({ received: true, error: error.message });
+    if (error instanceof WebhookSignatureError) {
+      return NextResponse.json({ received: false, error: "Invalid signature" }, { status: 401 });
+    }
+    return NextResponse.json({ received: false, error: "Webhook processing failed" }, { status: 500 });
   }
 }
 

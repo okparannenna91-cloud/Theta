@@ -12,8 +12,8 @@ function verifyWebhookSignature(
   svixSignature: string
 ): boolean {
   if (!CLERK_WEBHOOK_SECRET) {
-    logger.warn("[Clerk Webhook] CLERK_WEBHOOK_SECRET not set — skipping signature verification");
-    return true;
+    logger.warn("[Clerk Webhook] CLERK_WEBHOOK_SECRET not set — rejecting signature verification");
+    return false;
   }
 
   const signedContent = `${svixId}.${svixTimestamp}.${payload}`;

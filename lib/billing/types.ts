@@ -46,6 +46,7 @@ export interface DunningLevel {
 
 export interface CronSummary {
   dunning: { processed: number; succeeded: number; deactivated: number; failed: number };
+  renewals: { processed: number; succeeded: number; failed: number };
   trialExpiration: number;
   subscriptionExpiration: number;
   dataRetentionCleaned: number;

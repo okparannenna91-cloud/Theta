@@ -142,6 +142,7 @@ class BillingOrchestrator {
 
   async runBillingCron(): Promise<CronSummary> {
     const dunningResult = await this.dunningService.runDunningCron();
+    const renewalsResult = await this.processRenewals();
     const trialExpired = await this.trialService.expireTrials();
     const subsExpired = await this.expireCanceledSubscriptions();
     const downgradesProcessed = await this.processScheduledDowngrades();
@@ -149,10 +150,77 @@ class BillingOrchestrator {
 
     return {
       dunning: dunningResult,
+      renewals: renewalsResult,
       trialExpiration: trialExpired,
       subscriptionExpiration: subsExpired + downgradesProcessed,
       dataRetentionCleaned,
     };
+  }
+
+  /**
+   * Charge active workspaces whose billing period has ended.
+   * Ivno is skipped because it requires a manual payment URL (no off-session charging).
+   */
+  async processRenewals(): Promise<{ processed: number; succeeded: number; failed: number }> {
+    const now = new Date();
+    const dueWorkspaces = await prisma.workspace.findMany({
+      where: {
+        subscriptionStatus: "active",
+        plan: { not: "free" },
+        billingProvider: { not: "ivno" },
+        currentPeriodEnd: { lte: now },
+      },
+    });
+
+    let processed = 0;
+    let succeeded = 0;
+    let failed = 0;
+
+    for (const workspace of dueWorkspaces) {
+      processed++;
+      try {
+        const provider = providerRegistry.get(workspace.billingProvider ?? "");
+        const memberCount = await prisma.workspaceMember.count({ where: { workspaceId: workspace.id } });
+        const amount = await getPlanPriceDynamic(
+          workspace.plan,
+          (workspace.billingInterval as BillingInterval) ?? "monthly",
+          memberCount,
+          (workspace.currency as any) ?? "USD"
+        );
+
+        const chargeResult = await provider.chargeCustomer(
+          workspace.providerCustomerId ?? "",
+          amount,
+          workspace.currency ?? "USD",
+          { offSession: true, description: `Theta ${workspace.plan} renewal` }
+        );
+
+        if (chargeResult.paid) {
+          await this.subscriptionService.handlePaymentSuccess(
+            workspace.id,
+            chargeResult.amount,
+            chargeResult.currency,
+            chargeResult.id,
+            provider.id,
+            { source: "renewal", planKey: workspace.plan, interval: workspace.billingInterval ?? "monthly" }
+          );
+          succeeded++;
+        } else {
+          await this.subscriptionService.handlePaymentFailure(
+            workspace.id,
+            provider.id,
+            new Error(chargeResult.failureMessage ?? "Recurring charge failed")
+          );
+          await this.dunningService.startDunning(workspace.id);
+          failed++;
+        }
+      } catch (error) {
+        logger.error(`[Billing] Renewal failed for workspace ${workspace.id}: ${error}`);
+        failed++;
+      }
+    }
+
+    return { processed, succeeded, failed };
   }
 
   async expireCanceledSubscriptions(): Promise<number> {

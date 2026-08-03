@@ -1,6 +1,20 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { canAccessProjectResource } from "@/lib/project-permissions";
 import { getTimeEntries, logTimeManual, deleteTimeEntry } from "@/lib/services/time-tracking";
+
+async function canAccessTask(userId: string, taskId: string): Promise<boolean> {
+  const task = await prisma.task.findUnique({
+    where: { id: taskId },
+    select: { id: true, workspaceId: true, projectId: true },
+  });
+  if (!task) return false;
+  const hasWorkspaceAccess = await verifyWorkspaceAccess(userId, task.workspaceId);
+  if (!hasWorkspaceAccess) return false;
+  return canAccessProjectResource(userId, task.workspaceId, task.projectId);
+}
 
 export async function GET(req: Request) {
   try {
@@ -14,6 +28,10 @@ export async function GET(req: Request) {
 
     if (!taskId) {
       return NextResponse.json({ error: "taskId is required" }, { status: 400 });
+    }
+
+    if (!(await canAccessTask(user.id, taskId))) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     const entries = await getTimeEntries(taskId);
@@ -45,6 +63,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "duration must be a positive number (seconds)" }, { status: 400 });
     }
 
+    if (!(await canAccessTask(user.id, taskId))) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
+    }
+
     const entry = await logTimeManual(taskId, user.id, duration, description);
     return NextResponse.json(entry, { status: 201 });
   } catch (error) {
@@ -68,6 +90,18 @@ export async function DELETE(req: Request) {
 
     if (!entryId) {
       return NextResponse.json({ error: "entryId is required" }, { status: 400 });
+    }
+
+    const entry = await prisma.timeLog.findUnique({
+      where: { id: entryId },
+      select: { taskId: true },
+    });
+    if (!entry) {
+      return NextResponse.json({ error: "Time entry not found" }, { status: 404 });
+    }
+
+    if (!(await canAccessTask(user.id, entry.taskId))) {
+      return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
     await deleteTimeEntry(entryId);

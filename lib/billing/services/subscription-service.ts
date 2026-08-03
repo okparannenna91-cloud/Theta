@@ -98,7 +98,10 @@ export class SubscriptionService {
     }
 
     const now = new Date();
-    const currentPeriodEnd = workspace.billingInterval === "annual"
+    const planKey = metadata?.planKey ?? workspace.plan;
+    const interval = (metadata?.interval as BillingInterval) ?? workspace.billingInterval ?? "monthly";
+    const providerSubscriptionId = metadata?.subscriptionId ?? workspace.providerSubscriptionId ?? chargeId;
+    const currentPeriodEnd = interval === "annual"
       ? addYears(now, 1)
       : addMonths(now, 1);
 
@@ -106,10 +109,19 @@ export class SubscriptionService {
       where: { id: workspaceId },
       data: {
         subscriptionStatus: newStatus,
+        plan: planKey,
+        billingInterval: interval,
+        billingProvider: provider,
+        providerSubscriptionId,
         currentPeriodStart: now,
         currentPeriodEnd,
+        subscribedAt: now,
         retryCount: 0,
         dunningLevel: 0,
+        dunningStartedAt: null,
+        lastRetryAt: null,
+        cancelAtPeriodEnd: false,
+        canceledAt: null,
       },
     });
 

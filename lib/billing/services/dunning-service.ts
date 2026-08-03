@@ -72,10 +72,12 @@ export class DunningService {
     try {
       const provider = providerRegistry.get(workspace.billingProvider ?? "");
 
+      const memberCount = await prisma.workspaceMember.count({ where: { workspaceId } });
+
       const planPrice = await getPlanPriceDynamic(
         workspace.plan,
         (workspace.billingInterval as any) ?? "monthly",
-        0,
+        memberCount,
         (workspace.currency as any) ?? "USD"
       );
 

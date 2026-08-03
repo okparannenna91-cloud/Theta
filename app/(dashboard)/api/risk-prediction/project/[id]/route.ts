@@ -23,7 +23,7 @@ export async function GET(
       );
     }
 
-    const access = await verifyWorkspaceAccess(workspaceId, user.id);
+    const access = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!access) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
