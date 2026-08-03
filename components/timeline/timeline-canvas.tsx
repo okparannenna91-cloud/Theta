@@ -182,6 +182,29 @@ export default function TimelineCanvas({
         return map;
     }, [taskTree]);
 
+    const findRangeEdge = useCallback((taskId: string, edge: "start" | "due"): any | null => {
+        const direct = childrenMap.get(taskId);
+        if (!direct || direct.length === 0) return null;
+        function walk(children: any[]): any | null {
+            let best: any | null = null;
+            for (const c of children) {
+                const sub = childrenMap.get(c.id);
+                const leaf = sub && sub.length > 0 ? walk(sub) : c;
+                if (!leaf) continue;
+                const leafDate = edge === "start" ? leaf.startDate : leaf.dueDate;
+                if (!leafDate) continue;
+                if (!best) {
+                    best = leaf;
+                    continue;
+                }
+                const bestDate = edge === "start" ? best.startDate : best.dueDate;
+                if (edge === "start" ? leafDate < bestDate : leafDate > bestDate) best = leaf;
+            }
+            return best;
+        }
+        return walk(direct);
+    }, [childrenMap]);
+
     const allFlattenedTasks = useMemo(() => {
         const flattened: any[] = [];
 
@@ -505,7 +528,7 @@ export default function TimelineCanvas({
         }
     }, [activeWorkspace, queryClient, onUndoPush, setTaskDates]);
 
-    const handleTaskUpdate = useCallback(async (taskId: string, updates: any, prevState?: any) => {
+    const handleTaskUpdate = useCallback(async (taskId: string, updates: any, prevState?: any, isRolledSummary = false) => {
         const children = childrenMap.get(taskId);
         const isMove = !!(updates.startDate && updates.dueDate);
         // Dragging a parent asks whether to move its subtasks together.
@@ -517,8 +540,31 @@ export default function TimelineCanvas({
                 return;
             }
         }
+        // Rolled-up summary bars derive their range from subtasks, so a resize has to be
+        // applied to the edge child (leaf) that drives the range instead of the parent itself.
+        if (!isMove && isRolledSummary && children?.length && prevState) {
+            const edge = updates.dueDate ? "due" : "start";
+            const leaf = findRangeEdge(taskId, edge);
+            const oldEdgeDate = edge === "due" ? prevState.dueDate : prevState.startDate;
+            const newEdgeDate = edge === "due" ? updates.dueDate : updates.startDate;
+            if (leaf && oldEdgeDate && newEdgeDate) {
+                const daysDelta = differenceInCalendarDays(new Date(newEdgeDate), new Date(oldEdgeDate));
+                const leafOldDate = edge === "due" ? leaf.dueDate : leaf.startDate;
+                if (daysDelta !== 0 && leafOldDate) {
+                    const leafNext: any = {};
+                    if (edge === "due") leafNext.dueDate = addDays(new Date(leafOldDate), daysDelta).toISOString();
+                    else leafNext.startDate = addDays(new Date(leafOldDate), daysDelta).toISOString();
+                    return applyTaskUpdate(
+                        leaf.id,
+                        leafNext,
+                        { startDate: leaf.startDate, dueDate: leaf.dueDate },
+                        "resize"
+                    );
+                }
+            }
+        }
         await applyTaskUpdate(taskId, updates, prevState, isMove ? "drag" : "resize");
-    }, [childrenMap, applyTaskUpdate]);
+    }, [childrenMap, applyTaskUpdate, findRangeEdge]);
 
     const confirmParentMove = useCallback(async (withChildren: boolean) => {
         if (!pendingParentMove) return;
@@ -663,7 +709,7 @@ export default function TimelineCanvas({
                     )}
                     style={{ minWidth: sidebarWidth }}
                 >
-                    <div className="h-24 border-b flex items-center px-6 bg-secondary/20 font-semibold text-[10px] text-muted-foreground/60">
+                    <div className="h-12 border-b flex items-center px-4 bg-secondary/20 font-semibold text-[10px] text-muted-foreground/60">
                         {isGantt ? "Project Tasks" : "Timeline Tasks"}
                     </div>
                     <div
@@ -911,7 +957,7 @@ export default function TimelineCanvas({
                                                 snapUnit={ZOOM_CONFIG_MAP[zoomLevel].snapUnit}
                                                 showBaseline={isGantt}
                                                 highlightVariance={isGantt}
-                                                onUpdate={(updates) => handleTaskUpdate(task.id, updates, prevState)}
+                                                onUpdate={(updates) => handleTaskUpdate(task.id, updates, prevState, task.isSummary && task.syncParentDates !== false)}
                                                 onDragStart={() => setIsDragging(true)}
                                                 onDragEnd={() => setIsDragging(false)}
                                             />

@@ -19,7 +19,6 @@ import PresenceAvatars from "./presence-avatars";
 import { toPng } from "html-to-image";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
 import { TaskDialog } from "@/components/tasks/task-dialog";
-import { Tooltip, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
@@ -447,6 +446,22 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
                             <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={() => setSchedulingMode(m => m === "auto" ? "manual" : "auto")}>
                                 <Workflow className="h-3.5 w-3.5" /> {schedulingMode === "auto" ? "Auto scheduling" : "Manual scheduling"}
                             </DropdownMenuItem>
+                            <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={() => setShowCriticalPath(!showCriticalPath)}>
+                                <GitBranch className="h-3.5 w-3.5" /> {showCriticalPath ? "Hide" : "Show"} critical path
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={() => setShowWeekends(!showWeekends)}>
+                                {showWeekends ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />} {showWeekends ? "Hide" : "Show"} weekends
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={() => setEnableRollup(!enableRollup)}>
+                                <Layers className="h-3.5 w-3.5" /> {enableRollup ? "Disable" : "Enable"} roll-up
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={() => setShowBaselines(!showBaselines)}>
+                                <RotateCcw className="h-3.5 w-3.5" /> {showBaselines ? "Hide" : "Show"} baselines
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={() => setBaselineDialog(true)}>
+                                <Save className="h-3.5 w-3.5" /> Save baseline...
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
                             <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={() => setIsFullScreen(!isFullScreen)}>
                                 {isFullScreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />} {isFullScreen ? "Exit full screen" : "Full screen"}
                             </DropdownMenuItem>
@@ -461,57 +476,6 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
             {/* Toolbar */}
             <div className="flex items-center justify-between px-8 py-2 border-b border-subtle">
                 <div className="flex items-center gap-3 text-[10px]">
-                    {/* Critical Path toggle */}
-                    <TooltipProvider>
-                        <Tooltip content="Highlight critical path tasks">
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant={showCriticalPath ? "secondary" : "ghost"}
-                                    size="sm"
-                                    className="h-6 text-[10px] px-2 rounded-sm"
-                                    onClick={() => setShowCriticalPath(!showCriticalPath)}
-                                >
-                                    <GitBranch className="h-3 w-3 mr-1" /> Critical Path
-                                </Button>
-                            </TooltipTrigger>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    {/* Weekend toggle */}
-                    <TooltipProvider>
-                        <Tooltip content="Show/hide weekend highlighting">
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant={showWeekends ? "secondary" : "ghost"}
-                                    size="sm"
-                                    className="h-6 text-[10px] px-2 rounded-sm"
-                                    onClick={() => setShowWeekends(!showWeekends)}
-                                >
-                                    {showWeekends ? <Eye className="h-3 w-3 mr-1" /> : <EyeOff className="h-3 w-3 mr-1" />}
-                                    Weekends
-                                </Button>
-                            </TooltipTrigger>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    {/* Roll-up toggle */}
-                    <TooltipProvider>
-                        <Tooltip content="Roll-up progress and dates from subtasks">
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant={enableRollup ? "secondary" : "ghost"}
-                                    size="sm"
-                                    className="h-6 text-[10px] px-2 rounded-sm"
-                                    onClick={() => setEnableRollup(!enableRollup)}
-                                >
-                                    <Layers className="h-3 w-3 mr-1" /> Roll-up
-                                </Button>
-                            </TooltipTrigger>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    <span className="text-muted-foreground/30">|</span>
-
                     {/* Legend */}
                     <span className="flex items-center gap-1 text-muted-foreground">
                         <Link2 className="h-3 w-3 text-violet-400" /> Dependencies
