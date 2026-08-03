@@ -67,9 +67,9 @@ export const GANTT_ZOOM_OPTIONS: { label: string; value: ZoomLevel }[] = [
 
 export const ROW_HEIGHT = 56;
 export const VISIBLE_BUFFER = 10;
-export const SIDEBAR_WIDTH = 320;
+export const SIDEBAR_WIDTH = 280;
 
-export const GANTT_SIDEBAR_WIDTH = 360;
+export const GANTT_SIDEBAR_WIDTH = 320;
 
 export interface UndoCommand {
   type: "drag" | "resize" | "dependency" | "milestone" | "create" | "delete" | "baseline";

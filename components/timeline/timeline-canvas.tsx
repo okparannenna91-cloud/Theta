@@ -659,7 +659,7 @@ export default function TimelineCanvas({
                 <div
                     className={cn(
                         "border-r bg-background/80 backdrop-blur-xl flex flex-col z-10 shadow-2xl relative",
-                        isGantt ? "w-[360px]" : "w-[320px]"
+                        isGantt ? "w-[320px]" : "w-[280px]"
                     )}
                     style={{ minWidth: sidebarWidth }}
                 >
@@ -703,8 +703,8 @@ export default function TimelineCanvas({
                                         position: "absolute",
                                         top: (visibleRange.start + index) * ROW_HEIGHT,
                                         width: "100%",
-                                        paddingLeft: `${task.depth * 14 + 12}px`,
-                                        paddingRight: 8,
+                                        paddingLeft: `${task.depth * 14 + 16}px`,
+                                        paddingRight: 12,
                                         height: ROW_HEIGHT,
                                     }}
                                     role="row"

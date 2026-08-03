@@ -51,7 +51,7 @@ function StatCard({ icon: Icon, label, value, sub, color, bg, trend, delay = 0 }
         style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.06)" }}
       >
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
-        <CardContent className="p-5 relative">
+        <CardContent className="p-6 relative">
           <div className="flex items-start justify-between">
             <div className="space-y-1.5">
               <p className="text-[11px] font-medium text-muted-foreground/40 tracking-wide uppercase">{label}</p>
@@ -187,10 +187,10 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
   );
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-      <div className="lg:col-span-2 space-y-6">
+    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <div className="lg:col-span-2 space-y-8">
         {/* Stats row */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           <StatCard
             icon={ListChecks}
             label="Total Tasks"
@@ -220,14 +220,14 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
         </div>
 
         {/* Burndown + Summary row */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-5">
           {/* Burndown */}
           <motion.div {...springUp} transition={{ ...springUp.transition, delay: 0.15 }} className="md:col-span-3">
             <Card className="h-full bg-card/40 border-0 shadow-sm rounded-2xl overflow-hidden relative"
               style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.06)" }}
             >
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
-              <div className="p-5 pb-3 relative">
+              <div className="p-6 pb-4 relative">
                 <div className="flex items-center justify-between mb-1">
                   <h3 className="text-[11px] font-medium text-muted-foreground/40 tracking-wide uppercase">Burndown</h3>
                   <span className="text-[10px] text-muted-foreground/30">{weeksSinceStart} weeks</span>
@@ -245,7 +245,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
               style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.06)" }}
             >
               <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
-              <div className="p-5 relative">
+              <div className="p-6 relative">
                 <h3 className="text-[11px] font-medium text-muted-foreground/40 tracking-wide uppercase mb-3">Sprint Health</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -286,7 +286,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
             style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.06)" }}
           >
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
-            <div className="p-5 relative">
+            <div className="p-6 relative">
               <div className="flex items-start justify-between mb-3">
                 <div>
                   <h2 className="text-sm font-semibold tracking-tight">About</h2>
@@ -316,7 +316,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
         </motion.div>
 
         {/* Milestones */}
-        <motion.div {...springUp} transition={{ ...springUp.transition, delay: 0.3 }} className="space-y-3">
+        <motion.div {...springUp} transition={{ ...springUp.transition, delay: 0.3 }} className="space-y-4">
           <div className="flex items-center gap-2.5 px-1">
             <Flag className="h-4 w-4 text-muted-foreground/40" />
             <h3 className="text-xs font-semibold tracking-tight text-muted-foreground/70">Milestones</h3>
@@ -324,7 +324,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
           </div>
 
           {milestones.length > 0 ? (
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {milestones.slice(0, 5).map((ms: any) => (
                 <MilestoneRow key={ms.id} milestone={ms} />
               ))}
@@ -351,7 +351,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
             style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.06)" }}
           >
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
-            <div className="p-5 relative">
+            <div className="p-6 relative">
               <h3 className="text-[11px] font-medium text-muted-foreground/40 tracking-wide uppercase mb-3">Priority Distribution</h3>
               <div className="space-y-2">
                 {[
@@ -384,13 +384,13 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
 
         {/* Teams */}
         {(project.projectTeams?.length > 0 || project.team) && (
-          <motion.div {...springUp} transition={{ ...springUp.transition, delay: 0.4 }} className="space-y-3">
+          <motion.div {...springUp} transition={{ ...springUp.transition, delay: 0.4 }} className="space-y-4">
             <div className="flex items-center gap-2.5 px-1">
               <Layers className="h-4 w-4 text-muted-foreground/40" />
               <h3 className="text-xs font-semibold tracking-tight text-muted-foreground/70">Teams</h3>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-4">
               {(project.projectTeams?.length > 0 ? project.projectTeams : [project.team].filter(Boolean)).map((pt: any, idx: number) => {
                 const team = pt.team || pt;
                 const role = pt.role;
@@ -400,7 +400,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
                     style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.06)" }}
                   >
                     <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
-                    <div className="p-4 relative">
+                    <div className="p-5 relative">
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-semibold tracking-tight">{team.name}</span>
@@ -439,14 +439,14 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
       </div>
 
       {/* Right sidebar */}
-      <div className="space-y-4">
+      <div className="space-y-5">
         {/* Health */}
         <motion.div {...springUp} transition={{ ...springUp.transition, delay: 0.2 }}>
           <Card className="bg-card/40 border-0 shadow-sm rounded-2xl overflow-hidden relative"
             style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.06)" }}
           >
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
-            <div className="p-5 relative">
+            <div className="p-6 relative">
               <HealthIndicator score={healthScore} status={healthStatus} />
 
               <div className="mt-4 pt-4 border-t border-border/10 space-y-2.5">
@@ -477,10 +477,10 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
             style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.06)" }}
           >
             <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/[0.04] to-transparent pointer-events-none" />
-            <div className="p-4 border-b border-border/10 relative">
+            <div className="p-5 border-b border-border/10 relative">
               <h3 className="text-[10px] font-semibold text-muted-foreground/40 tracking-wide uppercase">Details</h3>
             </div>
-            <div className="p-4 space-y-3.5 relative">
+            <div className="p-5 space-y-4 relative">
               <div className="flex items-center gap-3">
                 <div className="h-7 w-7 rounded-lg bg-primary/8 flex items-center justify-center text-primary shrink-0">
                   <User className="h-3.5 w-3.5" />
@@ -522,7 +522,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
             style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.06)" }}
           >
             <div className="absolute top-0 right-0 w-48 h-48 bg-primary/[0.03] rounded-full -translate-y-1/3 translate-x-1/4 blur-3xl pointer-events-none" />
-            <CardContent className="p-5 relative">
+            <CardContent className="p-6 relative">
               <div className="flex items-center gap-2 mb-3">
                 <TrendingUp className="h-4 w-4 text-primary" />
                 <span className="text-[10px] font-semibold text-muted-foreground/40 tracking-wide uppercase">Velocity</span>
