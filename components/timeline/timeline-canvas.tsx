@@ -467,7 +467,19 @@ export default function TimelineCanvas({
         return detectCriticalPath(schedulingTasks);
     }, [taskTree, isGantt, showCriticalPath]);
 
+    const setTaskDates = useCallback((taskId: string, patch: any) => {
+        if (!activeWorkspace) return;
+        const apply = (old: unknown) => {
+            if (!Array.isArray(old)) return old;
+            return old.map((t: any) => (t && t.id === taskId ? { ...t, ...patch } : t));
+        };
+        for (const key of ["tasks", "gantt-tasks", "timeline-tasks"] as const) {
+            queryClient.setQueriesData({ queryKey: [key, activeWorkspace] }, apply);
+        }
+    }, [activeWorkspace, queryClient]);
+
     const applyTaskUpdate = useCallback(async (taskId: string, updates: any, prevState?: any, type: "drag" | "resize" = "drag") => {
+        setTaskDates(taskId, updates);
         try {
             const res = await fetch(`/api/tasks/${taskId}`, {
                 method: "PATCH",
@@ -488,9 +500,10 @@ export default function TimelineCanvas({
                 });
             }
         } catch (error) {
+            if (prevState) setTaskDates(taskId, prevState);
             console.error(error);
         }
-    }, [activeWorkspace, queryClient, onUndoPush]);
+    }, [activeWorkspace, queryClient, onUndoPush, setTaskDates]);
 
     const handleTaskUpdate = useCallback(async (taskId: string, updates: any, prevState?: any) => {
         const children = childrenMap.get(taskId);
@@ -511,23 +524,24 @@ export default function TimelineCanvas({
         if (!pendingParentMove) return;
         const { taskId, updates, prevState, offset, children } = pendingParentMove;
         const headers = { "Content-Type": "application/json" };
-        try {
-            const patches: { taskId: string; previous: any; next: any }[] = [];
-            if (withChildren) {
-                for (const child of children) {
-                    if (!child.startDate && !child.dueDate) continue;
-                    const childNext: any = {};
-                    if (child.startDate) childNext.startDate = addDays(new Date(child.startDate), offset).toISOString();
-                    if (child.dueDate) childNext.dueDate = addDays(new Date(child.dueDate), offset).toISOString();
-                    patches.push({
-                        taskId: child.id,
-                        previous: { startDate: child.startDate, dueDate: child.dueDate },
-                        next: childNext,
-                    });
-                }
+        const patches: { taskId: string; previous: any; next: any }[] = [];
+        if (withChildren) {
+            for (const child of children) {
+                if (!child.startDate && !child.dueDate) continue;
+                const childNext: any = {};
+                if (child.startDate) childNext.startDate = addDays(new Date(child.startDate), offset).toISOString();
+                if (child.dueDate) childNext.dueDate = addDays(new Date(child.dueDate), offset).toISOString();
+                patches.push({
+                    taskId: child.id,
+                    previous: { startDate: child.startDate, dueDate: child.dueDate },
+                    next: childNext,
+                });
             }
-            patches.push({ taskId, previous: prevState, next: updates });
+        }
+        patches.push({ taskId, previous: prevState, next: updates });
 
+        patches.forEach(p => setTaskDates(p.taskId, p.next));
+        try {
             const results = await Promise.all(
                 patches.map(p => fetch(`/api/tasks/${p.taskId}`, {
                     method: "PATCH",
@@ -545,10 +559,11 @@ export default function TimelineCanvas({
                 }
             }
         } catch (error) {
+            patches.forEach(p => setTaskDates(p.taskId, p.previous));
             console.error(error);
         }
         setPendingParentMove(null);
-    }, [pendingParentMove, activeWorkspace, queryClient, onUndoPush]);
+    }, [pendingParentMove, activeWorkspace, queryClient, onUndoPush, setTaskDates]);
 
     const handleSyncToggle = useCallback(async (taskId: string, current: boolean) => {
         try {
@@ -818,7 +833,7 @@ export default function TimelineCanvas({
                             ))}
                         </div>
 
-                        <div className="relative">
+                        <div className="relative" style={{ height: totalContentHeight }}>
                             {/* Grid background */}
                             <div className="absolute inset-0 pointer-events-none flex" style={{ top: 0 }}>
                                 {timeUnits.map((unit, i) => (
