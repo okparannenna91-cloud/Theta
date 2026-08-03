@@ -12,7 +12,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import TimelineCanvas from "@/components/timeline/timeline-canvas";
 import { ZoomController } from "@/components/shared/timeline/zoom-controller";
@@ -407,18 +406,12 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
     return (
         <div className={`flex flex-col overflow-hidden transition-all duration-500 ${isFullScreen ? "fixed inset-0 z-[100] bg-background" : "h-[calc(100vh-100px)]"}`}>
             <header className="flex items-center justify-between px-8 py-3">
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-3">
                     <div className="p-1.5 bg-primary/10 rounded-lg">
                         <BarChart3 className="h-5 w-5 text-primary" />
                     </div>
-                    <div>
-                        <h1 className="text-lg font-semibold flex items-center gap-2">
-                            Gantt Chart
-                            <Badge variant="outline" className="text-[10px] rounded-md px-2 py-0 font-normal">Enterprise</Badge>
-                        </h1>
-                        <p className="text-[11px] text-muted-foreground">Project scheduling &mdash; plan and execute</p>
-                    </div>
-                    <div className="h-7 w-px bg-border mx-2" />
+                    <h1 className="text-base font-semibold tracking-tight">Gantt Chart</h1>
+                    <div className="h-6 w-px bg-border mx-1" />
                     <ZoomController zoomLevel={zoomLevel} onZoomChange={setZoomLevel} variant="gantt" />
                 </div>
 
