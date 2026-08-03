@@ -403,7 +403,7 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
     }
 
     return (
-        <div className={`flex flex-col overflow-hidden transition-all duration-500 ${isFullScreen ? "fixed inset-0 z-[100] bg-background" : "h-[calc(100vh-100px)]"}`}>
+        <div className={`flex flex-col overflow-hidden transition-all duration-500 ${isFullScreen ? "fixed inset-0 z-[100] bg-background" : "h-full"}`}>
             <header className="flex items-center justify-between px-8 py-3">
                 <div className="flex items-center gap-3">
                     <div className="p-1.5 bg-primary/10 rounded-lg">

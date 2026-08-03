@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState, useCallback, useRef } from "react";
+import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { differenceInDays, startOfDay, addMinutes, addDays, parseISO } from "date-fns";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
@@ -38,10 +38,30 @@ export default function TaskBar({
     const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 });
     const dragStartRef = useRef<{ mouseX: number; startDate: string; dueDate: string } | null>(null);
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const [pendingVisual, setPendingVisual] = useState<{ startDate?: string; dueDate?: string } | null>(null);
+
+    // Once the committed data catches up to the dragged/resized dates, drop the local
+    // visual override so the bar stays glued to the pointer until the server confirms.
+    useEffect(() => {
+        if (!pendingVisual) return;
+        const matches =
+            (pendingVisual.startDate === undefined || task.startDate === pendingVisual.startDate) &&
+            (pendingVisual.dueDate === undefined || task.dueDate === pendingVisual.dueDate);
+        if (matches) setPendingVisual(null);
+    }, [task.startDate, task.dueDate, pendingVisual]);
+
+    // Safety net: never leave the bar pinned if the update never reconciles.
+    useEffect(() => {
+        if (!pendingVisual) return;
+        const t = setTimeout(() => setPendingVisual(null), 5000);
+        return () => clearTimeout(t);
+    }, [pendingVisual]);
 
     const { left, width, isMilestone, isSummary, baselineLeft, baselineWidth, hasVariance } = useMemo(() => {
-        const start = task.startDate ? new Date(task.startDate) : (task.dueDate ? new Date(task.dueDate) : new Date());
-        const end = task.dueDate ? new Date(task.dueDate) : start;
+        const effStartDate = pendingVisual?.startDate || task.startDate || task.dueDate || new Date().toISOString();
+        const effDueDate = pendingVisual?.dueDate || (pendingVisual?.startDate && !task.dueDate ? pendingVisual.startDate : task.dueDate || task.startDate || effStartDate);
+        const start = new Date(effStartDate);
+        const end = new Date(effDueDate);
 
         const daysFromStart = differenceInDays(startOfDay(start), startOfDay(timelineStart));
         const duration = Math.max(1, differenceInDays(startOfDay(end), startOfDay(start)) + 1);
@@ -66,7 +86,7 @@ export default function TaskBar({
             baselineWidth: bWidth,
             hasVariance: hasVarianceVal,
         };
-    }, [task, timelineStart, cellWidth]);
+    }, [task, timelineStart, cellWidth, pendingVisual]);
 
     const snapToUnit = useCallback((value: number, unit: string): number => {
         switch (unit) {
@@ -78,10 +98,10 @@ export default function TaskBar({
         }
     }, []);
 
-    const visualLeft = dragOffset !== 0 ? left + dragOffset : (resizeDrag?.direction === "left" ? left + resizeDrag.deltaX : left);
-    const visualWidth = resizeDrag ? (
+    const visualLeft = pendingVisual ? left : (dragOffset !== 0 ? left + dragOffset : (resizeDrag?.direction === "left" ? left + resizeDrag.deltaX : left));
+    const visualWidth = pendingVisual ? width : (resizeDrag ? (
         resizeDrag.direction === "left" ? width - resizeDrag.deltaX : width + resizeDrag.deltaX
-    ) : width;
+    ) : width);
 
     const handleMouseDown = useCallback((e: React.MouseEvent) => {
         if (e.button !== 0 || e.shiftKey) return;
@@ -106,9 +126,9 @@ export default function TaskBar({
             document.removeEventListener("mousemove", onMouseMove);
             document.removeEventListener("mouseup", onMouseUp);
             setIsDragging(false);
-            setDragOffset(0);
 
             if (!onUpdate || !dragStartRef.current) {
+                setDragOffset(0);
                 onDragEnd?.();
                 dragStartRef.current = null;
                 return;
@@ -117,10 +137,18 @@ export default function TaskBar({
             const rawDelta = ue.clientX - dragStartRef.current.mouseX;
             const unitsMoved = snapToUnit(Math.round(rawDelta / cellWidth) * 1440, snapUnit) / 1440;
             if (unitsMoved !== 0) {
-                onUpdate({
-                    startDate: addMinutes(parseISO(dragStartRef.current.startDate), unitsMoved * 1440).toISOString(),
-                    dueDate: addMinutes(parseISO(dragStartRef.current.dueDate), unitsMoved * 1440).toISOString(),
-                });
+                const targetStart = addMinutes(parseISO(dragStartRef.current.startDate), unitsMoved * 1440).toISOString();
+                const targetDue = addMinutes(parseISO(dragStartRef.current.dueDate), unitsMoved * 1440).toISOString();
+                setDragOffset(0);
+                setPendingVisual({ startDate: targetStart, dueDate: targetDue });
+                const result = onUpdate({ startDate: targetStart, dueDate: targetDue }) as unknown;
+                if (result && typeof (result as Promise<string>).then === "function") {
+                    (result as Promise<string>).then((r) => {
+                        if (r === "dialog") setPendingVisual(null);
+                    });
+                }
+            } else {
+                setDragOffset(0);
             }
             dragStartRef.current = null;
             onDragEnd?.();
@@ -155,9 +183,11 @@ export default function TaskBar({
 
             if (direction === "left") {
                 const newStart = addMinutes(new Date(task.startDate || task.dueDate), snappedMinutes);
+                setPendingVisual({ startDate: newStart.toISOString(), dueDate: task.dueDate || undefined });
                 onUpdate?.({ startDate: newStart.toISOString() });
             } else {
                 const newEnd = addMinutes(new Date(task.dueDate || task.startDate), snappedMinutes);
+                setPendingVisual({ startDate: task.startDate || undefined, dueDate: newEnd.toISOString() });
                 onUpdate?.({ dueDate: newEnd.toISOString() });
             }
         };

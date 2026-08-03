@@ -537,7 +537,7 @@ export default function TimelineCanvas({
             if (anchorOld) {
                 const offset = differenceInCalendarDays(new Date(updates.startDate), new Date(anchorOld));
                 setPendingParentMove({ taskId, updates, prevState, offset, children });
-                return;
+                return "dialog";
             }
         }
         // Rolled-up summary bars derive their range from subtasks, so a resize has to be
@@ -671,8 +671,11 @@ export default function TimelineCanvas({
 
     useEffect(() => {
         const handleResize = () => {
-            setViewportHeight(window.innerHeight - 240);
-            setViewportWidth(window.innerWidth - sidebarWidth - 40);
+            const el = scrollContainerRef.current;
+            if (el && el.clientHeight > 0) {
+                setViewportHeight(el.clientHeight);
+                setViewportWidth(el.clientWidth);
+            }
         };
         handleResize();
         window.addEventListener("resize", handleResize);
@@ -709,7 +712,7 @@ export default function TimelineCanvas({
                     )}
                     style={{ minWidth: sidebarWidth }}
                 >
-                    <div className="h-12 border-b flex items-center px-4 bg-secondary/20 font-semibold text-[10px] text-muted-foreground/60">
+                    <div className="h-16 border-b flex items-center px-5 bg-secondary/20 font-semibold text-[10px] text-muted-foreground/60">
                         {isGantt ? "Project Tasks" : "Timeline Tasks"}
                     </div>
                     <div

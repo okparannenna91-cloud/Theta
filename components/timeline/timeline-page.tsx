@@ -205,7 +205,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
   }
 
   return (
-    <div className="h-[calc(100vh-100px)] flex flex-col overflow-hidden">
+    <div className="h-full flex flex-col overflow-hidden">
       <header className="flex items-start sm:items-center justify-between gap-2 px-6 sm:px-8 py-3 border-b border-subtle bg-background/95 backdrop-blur-xl">
         <div className="flex items-center gap-2 min-w-0 shrink-0">
           <div className="p-1 bg-primary/10 rounded-lg shrink-0 hidden xs:block">
