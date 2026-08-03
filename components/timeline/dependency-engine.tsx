@@ -17,6 +17,13 @@ interface DependencyEngineProps {
     onDependencyDelete?: (sourceId: string, targetId: string) => void;
 }
 
+const DEPENDENCY_OPTIONS: { type: DependencyType; label: string; color: string }[] = [
+    { type: "FS", label: "Finish → Start", color: "#8b5cf6" },
+    { type: "SS", label: "Start → Start", color: "#3b82f6" },
+    { type: "FF", label: "Finish → Finish", color: "#10b981" },
+    { type: "SF", label: "Start → Finish", color: "#f59e0b" },
+];
+
 export default function DependencyEngine({
     tasks,
     timelineStart,
@@ -27,6 +34,7 @@ export default function DependencyEngine({
 }: DependencyEngineProps) {
     const instanceId = useRef(`dep-arrow-${Math.random().toString(36).slice(2, 10)}`).current;
     const [dragDep, setDragDep] = useState<{ sourceId: string; sourceX: number; sourceY: number; currentX: number; currentY: number } | null>(null);
+    const [pendingDep, setPendingDep] = useState<{ sourceId: string; targetId: string; x: number; y: number } | null>(null);
     const [hoveredTask, setHoveredTask] = useState<string | null>(null);
 
     const ROW_HEIGHT = 60;
@@ -121,7 +129,7 @@ export default function DependencyEngine({
             const el = document.elementFromPoint(me.clientX, me.clientY);
             const targetId = el?.closest?.("[data-task-id]")?.getAttribute("data-task-id");
             if (targetId && targetId !== sourceId && onDependencyCreate) {
-                onDependencyCreate(sourceId, targetId, "FS");
+                setPendingDep({ sourceId, targetId, x: me.clientX, y: me.clientY });
             }
             setDragDep(null);
         };
@@ -205,7 +213,7 @@ export default function DependencyEngine({
             <div className="absolute left-0 top-0 bottom-0 w-2 z-20 pointer-events-none">
                 {Array.isArray(tasks) && tasks.map((task, index) => (
                     <TooltipProvider key={task.id}>
-                        <Tooltip content="Drag to create dependency">
+                        <Tooltip content="Drag to link tasks, pick type on release">
                             <TooltipTrigger asChild>
                                 <div
                     onMouseDown={(e) => handleConnectorMouseDown(e, task.id)}
@@ -224,6 +232,37 @@ export default function DependencyEngine({
                     </TooltipProvider>
                 ))}
             </div>
+
+            {pendingDep && (
+                <>
+                    <div className="fixed inset-0 z-[90]" onMouseDown={() => setPendingDep(null)} />
+                    <div
+                        className="fixed z-[100] w-44 bg-popover border rounded-lg shadow-2xl p-1.5"
+                        style={{
+                            left: Math.min(pendingDep.x, window.innerWidth - 190),
+                            top: Math.min(pendingDep.y, window.innerHeight - 210),
+                        }}
+                    >
+                        <div className="px-2 pt-1 pb-1.5 text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                            Link type
+                        </div>
+                        {DEPENDENCY_OPTIONS.map((opt) => (
+                            <button
+                                key={opt.type}
+                                onClick={() => {
+                                    onDependencyCreate?.(pendingDep.sourceId, pendingDep.targetId, opt.type);
+                                    setPendingDep(null);
+                                }}
+                                className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-xs font-medium hover:bg-accent transition-colors"
+                            >
+                                <span className="h-2 w-2 rounded-full flex-shrink-0" style={{ backgroundColor: opt.color }} />
+                                <span className="font-semibold">{opt.type}</span>
+                                <span className="text-muted-foreground/70 text-[10px]">{opt.label}</span>
+                            </button>
+                        ))}
+                    </div>
+                </>
+            )}
         </>
     );
 }

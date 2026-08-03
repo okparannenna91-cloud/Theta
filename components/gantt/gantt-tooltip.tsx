@@ -129,6 +129,11 @@ export function GanttTooltip({ task, style }: GanttTooltipProps) {
             <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
               <Link2 className="h-3 w-3" />
               <span>{task.predecessors.length} predecessor{task.predecessors.length !== 1 ? "s" : ""}</span>
+              <span className="flex gap-1">
+                {Array.from(new Set(task.predecessors.map((p: any) => p.type).filter(Boolean))).map((t) => (
+                  <span key={t as string} className="px-1 rounded bg-muted text-[8px] font-semibold text-muted-foreground">{t as string}</span>
+                ))}
+              </span>
             </div>
           )}
 

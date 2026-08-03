@@ -9,6 +9,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
+const DEPENDENCY_TYPE_META: Record<string, { label: string; dot: string; className: string }> = {
+    FS: { label: "Finish → Start", dot: "bg-violet-500", className: "bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400" },
+    SS: { label: "Start → Start", dot: "bg-blue-500", className: "bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400" },
+    FF: { label: "Finish → Finish", dot: "bg-emerald-500", className: "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400" },
+    SF: { label: "Start → Finish", dot: "bg-amber-500", className: "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400" },
+};
+
 interface TaskDependency {
     taskId: string;
     predecessorId: string;
@@ -34,6 +41,7 @@ interface TaskDependenciesProps {
 export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [showSearch, setShowSearch] = useState(false);
+    const [depType, setDepType] = useState<keyof typeof DEPENDENCY_TYPE_META>("FS");
     const queryClient = useQueryClient();
 
     const invalidateRelated = () => {
@@ -62,11 +70,11 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
     });
 
     const addDependencyMutation = useMutation({
-        mutationFn: async (predecessorId: string) => {
+        mutationFn: async ({ predecessorId, type }: { predecessorId: string; type: string }) => {
             const res = await fetch(`/api/tasks/dependencies`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ taskId, predecessorId, type: "FS", workspaceId }),
+                body: JSON.stringify({ taskId, predecessorId, type, workspaceId }),
             });
             if (!res.ok) {
                 const errData = await res.json().catch(() => ({}));
@@ -163,6 +171,23 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
                             autoFocus
                         />
                     </div>
+                    <div className="flex items-center gap-1 p-1 bg-muted/40 rounded-lg">
+                        {(Object.keys(DEPENDENCY_TYPE_META) as Array<keyof typeof DEPENDENCY_TYPE_META>).map((key) => (
+                            <button
+                                key={key}
+                                type="button"
+                                onClick={() => setDepType(key)}
+                                title={DEPENDENCY_TYPE_META[key].label}
+                                className={cn(
+                                    "flex-1 flex items-center justify-center gap-1.5 h-7 rounded-md text-[10px] font-semibold transition-colors",
+                                    depType === key ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                                )}
+                            >
+                                <span className={cn("h-1.5 w-1.5 rounded-full flex-shrink-0", DEPENDENCY_TYPE_META[key].dot)} />
+                                {key}
+                            </button>
+                        ))}
+                    </div>
                     <div className="border rounded-lg max-h-40 overflow-y-auto">
                         {isSearching ? (
                             <div className="flex items-center justify-center p-3">
@@ -176,7 +201,7 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
                             searchResults?.map((task) => (
                                 <button
                                     key={task.id}
-                                    onClick={() => addDependencyMutation.mutate(task.id)}
+                                    onClick={() => addDependencyMutation.mutate({ predecessorId: task.id, type: depType })}
                                     disabled={addDependencyMutation.isPending}
                                     className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left transition-colors border-b last:border-b-0"
                                 >
@@ -206,6 +231,14 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
                                 <span className="text-xs font-medium text-indigo-600 hover:underline cursor-pointer truncate flex-1">
                                     {dep.predecessor?.title || dep.predecessorId}
                                 </span>
+                                {DEPENDENCY_TYPE_META[dep.type] && (
+                                    <span
+                                        title={DEPENDENCY_TYPE_META[dep.type].label}
+                                        className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-semibold", DEPENDENCY_TYPE_META[dep.type].className)}
+                                    >
+                                        {dep.type}
+                                    </span>
+                                )}
                                 <span className={cn(
                                     "text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize",
                                     dep.predecessor?.status === "done"
@@ -241,6 +274,14 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
                                 <span className="text-xs font-medium text-indigo-600 hover:underline cursor-pointer truncate flex-1">
                                     {dep.predecessor?.title || dep.taskId}
                                 </span>
+                                {DEPENDENCY_TYPE_META[dep.type] && (
+                                    <span
+                                        title={DEPENDENCY_TYPE_META[dep.type].label}
+                                        className={cn("text-[9px] px-1.5 py-0.5 rounded-full font-semibold", DEPENDENCY_TYPE_META[dep.type].className)}
+                                    >
+                                        {dep.type}
+                                    </span>
+                                )}
                                 <button
                                     onClick={() => removeDependencyMutation.mutate(dep.taskId)}
                                     className="h-5 w-5 text-muted-foreground hover:text-red-600 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20 inline-flex items-center justify-center transition-colors opacity-0 group-hover:opacity-100"
