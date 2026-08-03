@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +67,11 @@ import {
   TrendingUp,
   CircleDot,
   Globe,
+  Search,
+  X,
+  Pin,
+  PinOff,
+  Info,
 } from "lucide-react";
 
 type FieldType =
@@ -332,6 +337,7 @@ export default function CustomFieldsEditor({
   const [editingField, setEditingField] = useState<CustomField | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   const [fieldName, setFieldName] = useState("");
   const [fieldType, setFieldType] = useState<FieldType>("text");
@@ -567,6 +573,43 @@ export default function CustomFieldsEditor({
     }
   };
 
+  const sortedFields = useMemo(
+    () =>
+      [...fields].sort(
+        (a, b) =>
+          Number(b.settings?.pinned ?? false) - Number(a.settings?.pinned ?? false) ||
+          a.order - b.order
+      ),
+    [fields]
+  );
+
+  const filteredFields = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return sortedFields;
+    return sortedFields.filter((f) => f.name.toLowerCase().includes(q));
+  }, [sortedFields, search]);
+
+  const pinnedCount = fields.filter((f) => f.settings?.pinned).length;
+  const hiddenCount = fields.filter((f) => !f.visible).length;
+
+  const toggleFieldPinned = async (field: CustomField) => {
+    const next = !(field.settings?.pinned ?? false);
+    setFields((prev) =>
+      prev.map((f) =>
+        f.id === field.id ? { ...f, settings: { ...f.settings, pinned: next } } : f
+      )
+    );
+    try {
+      await fetch(`/api/custom-fields/${field.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings: { ...field.settings, pinned: next } }),
+      });
+    } catch {
+      fetchFields();
+    }
+  };
+
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -661,13 +704,13 @@ export default function CustomFieldsEditor({
 
   if (loading) {
     return (
-      <Card className="bg-slate-900 border-slate-700/50">
+      <Card className="border-border/40">
         <CardHeader>
-          <Skeleton className="h-6 w-48 bg-slate-800" />
+          <Skeleton className="h-6 w-48 bg-muted" />
         </CardHeader>
         <CardContent className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-14 w-full bg-slate-800" />
+            <Skeleton key={i} className="h-14 w-full bg-muted" />
           ))}
         </CardContent>
       </Card>
@@ -676,48 +719,90 @@ export default function CustomFieldsEditor({
 
   return (
     <TooltipProvider>
-      <Card className="bg-slate-900 border-slate-700/50">
+      <Card className="border-border/40">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-          <CardTitle className="text-slate-100 text-lg font-semibold">
+          <CardTitle className="text-foreground text-lg font-semibold">
             Custom Fields
-            <Badge variant="secondary" className="ml-2 bg-slate-700 text-slate-300">
+            <Badge variant="secondary" className="ml-2 bg-muted text-muted-foreground">
               {fields.length}
             </Badge>
           </CardTitle>
-          <Button
-            size="sm"
-            onClick={openCreateDialog}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white"
-          >
-            <Plus className="h-4 w-4 mr-1" />
-            Add Field
-          </Button>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search fields…"
+                className="h-8 w-44 pl-8 pr-7 text-xs bg-muted border-border placeholder:text-muted-foreground/60"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/60 hover:text-foreground"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <Button
+              size="sm"
+              onClick={openCreateDialog}
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add Field
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           {fields.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-12 text-slate-400">
+            <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
               <Settings className="h-10 w-10 mb-3 opacity-40" />
               <p className="text-sm">No custom fields yet</p>
               <Button
                 variant="link"
                 size="sm"
                 onClick={openCreateDialog}
-                className="mt-1 text-indigo-400 hover:text-indigo-300"
+                className="mt-1 text-primary hover:text-primary/80"
               >
                 Create your first field
               </Button>
             </div>
           ) : (
             <>
+              <div className="flex items-center gap-1.5 mb-3 flex-wrap">
+                <span className="text-[11px] text-muted-foreground/70 font-medium">
+                  {sortedFields.length} field{sortedFields.length !== 1 && "s"}
+                </span>
+                {pinnedCount > 0 && (
+                  <Badge variant="secondary" className="text-[10px] bg-muted text-muted-foreground border-border/60 gap-0.5">
+                    <Pin className="h-2.5 w-2.5" />
+                    {pinnedCount} pinned
+                  </Badge>
+                )}
+                {hiddenCount > 0 && (
+                  <Badge variant="secondary" className="text-[10px] bg-muted text-muted-foreground/70 border-border/60 gap-0.5">
+                    <EyeOff className="h-2.5 w-2.5" />
+                    {hiddenCount} hidden
+                  </Badge>
+                )}
+                <span className="text-[11px] text-muted-foreground/40">·</span>
+                <span className="text-[11px] text-muted-foreground/70">
+                  Pinned fields sort to the top
+                </span>
+              </div>
+
               {selectedIds.size > 0 && (
-                <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-slate-800/60 border border-slate-700/50">
-                  <span className="text-xs text-slate-400">
+                <div className="flex items-center gap-2 mb-3 p-2 rounded-lg bg-muted/60 border border-border/50">
+                  <span className="text-xs text-muted-foreground">
                     {selectedIds.size} selected
                   </span>
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs text-slate-300 hover:text-slate-100"
+                    className="h-7 text-xs text-foreground hover:text-foreground"
                     onClick={() => handleBulkVisibility(true)}
                   >
                     <Eye className="h-3 w-3 mr-1" />
@@ -726,7 +811,7 @@ export default function CustomFieldsEditor({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs text-slate-300 hover:text-slate-100"
+                    className="h-7 text-xs text-foreground hover:text-foreground"
                     onClick={() => handleBulkVisibility(false)}
                   >
                     <EyeOff className="h-3 w-3 mr-1" />
@@ -735,7 +820,7 @@ export default function CustomFieldsEditor({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs text-red-400 hover:text-red-300"
+                    className="h-7 text-xs text-destructive hover:text-destructive/80"
                     onClick={handleBulkDelete}
                   >
                     <Trash2 className="h-3 w-3 mr-1" />
@@ -744,7 +829,7 @@ export default function CustomFieldsEditor({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs text-slate-400 ml-auto"
+                    className="h-7 text-xs text-muted-foreground ml-auto"
                     onClick={() => setSelectedIds(new Set())}
                   >
                     Clear
@@ -752,29 +837,43 @@ export default function CustomFieldsEditor({
                 </div>
               )}
 
-              <ScrollArea className="max-h-[480px]">
-                <div className="space-y-1">
-                  {fields.map((field) => {
+              {filteredFields.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-10 text-muted-foreground">
+                  <Search className="h-8 w-8 mb-2 opacity-40" />
+                  <p className="text-sm">No fields match “{search}”</p>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    onClick={() => setSearch("")}
+                    className="mt-1 text-primary hover:text-primary/80"
+                  >
+                    Clear search
+                  </Button>
+                </div>
+              ) : (
+                <ScrollArea className="max-h-[480px]">
+                  <div className="space-y-1">
+                    {filteredFields.map((field) => {
                     const config = getFieldTypeConfig(field.type);
                     return (
                       <div
                         key={field.id}
                         className={`flex items-center gap-2 p-2 rounded-lg transition-colors group ${
                           selectedIds.has(field.id)
-                            ? "bg-indigo-600/10 border border-indigo-500/30"
-                            : "hover:bg-slate-800/60 border border-transparent"
+                            ? "bg-primary/10 border border-primary/30"
+                            : "hover:bg-muted/60 border border-transparent"
                         }`}
                       >
                         <Checkbox
                           checked={selectedIds.has(field.id)}
                           onCheckedChange={() => toggleSelect(field.id)}
-                          className="border-slate-600 data-[state=checked]:bg-indigo-600"
+                          className="border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
                         />
 
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <button
-                              className="cursor-grab text-slate-500 hover:text-slate-300"
+                              className="cursor-grab text-muted-foreground/70 hover:text-foreground"
                               disabled
                             >
                               <GripVertical className="h-4 w-4" />
@@ -789,22 +888,25 @@ export default function CustomFieldsEditor({
                         />
 
                         <div className="flex items-center gap-2 min-w-0 flex-1">
-                          <span className="text-slate-400 flex-shrink-0">
+                          <span className="text-muted-foreground flex-shrink-0">
                             {config.icon}
                           </span>
-                          <span className="text-sm text-slate-200 truncate">
+                          <span className="text-sm text-foreground truncate">
                             {field.name}
                           </span>
                           <Badge
                             variant="secondary"
-                            className="text-[10px] bg-slate-800 text-slate-400 border-slate-700 flex-shrink-0"
+                            className="text-[10px] bg-muted text-muted-foreground border-border/60 flex-shrink-0"
                           >
                             {config.label}
                           </Badge>
+                          {field.settings?.pinned && (
+                            <Pin className="h-3 w-3 text-primary flex-shrink-0" />
+                          )}
                           {!field.visible && (
                             <Badge
                               variant="secondary"
-                              className="text-[10px] bg-slate-800 text-slate-500 border-slate-700 flex-shrink-0"
+                              className="text-[10px] bg-muted text-muted-foreground/70 border-border/60 flex-shrink-0"
                             >
                               Hidden
                             </Badge>
@@ -817,7 +919,7 @@ export default function CustomFieldsEditor({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-slate-400 hover:text-slate-200"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                 onClick={() => moveField(field.id, "up")}
                                 disabled={fields.indexOf(field) === 0}
                               >
@@ -832,7 +934,7 @@ export default function CustomFieldsEditor({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-slate-400 hover:text-slate-200"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                 onClick={() => moveField(field.id, "down")}
                                 disabled={
                                   fields.indexOf(field) === fields.length - 1
@@ -849,7 +951,7 @@ export default function CustomFieldsEditor({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-slate-400 hover:text-slate-200"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                 onClick={() => toggleFieldVisibility(field)}
                               >
                                 {field.visible ? (
@@ -869,7 +971,31 @@ export default function CustomFieldsEditor({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-slate-400 hover:text-slate-200"
+                                className={`h-7 w-7 ${
+                                  field.settings?.pinned
+                                    ? "text-primary hover:text-primary/80"
+                                    : "text-muted-foreground hover:text-foreground"
+                                }`}
+                                onClick={() => toggleFieldPinned(field)}
+                              >
+                                {field.settings?.pinned ? (
+                                  <Pin className="h-3 w-3" />
+                                ) : (
+                                  <PinOff className="h-3 w-3" />
+                                )}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              {field.settings?.pinned ? "Unpin" : "Pin to top"}
+                            </TooltipContent>
+                          </Tooltip>
+
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
                                 onClick={() => openEditDialog(field)}
                               >
                                 <Edit className="h-3 w-3" />
@@ -883,24 +1009,24 @@ export default function CustomFieldsEditor({
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-7 w-7 text-slate-400 hover:text-slate-200"
+                                className="h-7 w-7 text-muted-foreground hover:text-foreground"
                               >
                                 <Settings className="h-3 w-3" />
                               </Button>
                             </DropdownMenuTrigger>
                             <DropdownMenuContent
                               align="end"
-                              className="bg-slate-800 border-slate-700"
+                              className="border-border/40"
                             >
                               <DropdownMenuItem
-                                className="text-slate-300 focus:bg-slate-700"
+                                className="text-foreground focus:bg-muted"
                                 onClick={() => openEditDialog(field)}
                               >
                                 <Edit className="h-3 w-3 mr-2" />
                                 Edit
                               </DropdownMenuItem>
                               <DropdownMenuItem
-                                className="text-red-400 focus:bg-red-500/10"
+                                className="text-destructive focus:bg-destructive/10"
                                 onClick={() => setDeleteConfirmId(field.id)}
                               >
                                 <Trash2 className="h-3 w-3 mr-2" />
@@ -912,8 +1038,9 @@ export default function CustomFieldsEditor({
                       </div>
                     );
                   })}
-                </div>
-              </ScrollArea>
+                  </div>
+                </ScrollArea>
+              )}
             </>
           )}
         </CardContent>
@@ -930,32 +1057,40 @@ export default function CustomFieldsEditor({
           }
         }}
       >
-        <DialogContent className="bg-slate-900 border-slate-700/50 max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="border-border/40 max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
           <DialogHeader>
-            <DialogTitle className="text-slate-100">
+            <DialogTitle className="text-foreground">
               {editingField ? "Edit Field" : "Create Custom Field"}
             </DialogTitle>
           </DialogHeader>
+
+          <div className="flex items-start gap-2 border border-border/40 rounded-lg px-3 py-2 bg-muted/20 text-muted-foreground">
+            <Info className="h-3.5 w-3.5 mt-0.5 text-primary/70 flex-shrink-0" />
+            <p className="text-[11px] leading-relaxed">
+              Fields appear as columns on the board and table, and can be shown on the
+              calendar and Gantt views. Pinned fields stay visible when you scroll.
+            </p>
+          </div>
 
           <ScrollArea className="flex-1 pr-2">
             <div className="space-y-6 py-2">
               {/* Field Name */}
               <div className="space-y-2">
-                <Label className="text-slate-300 text-sm">Field Name</Label>
+                <Label className="text-foreground text-sm">Field Name</Label>
                 <Input
                   value={fieldName}
                   onChange={(e) => setFieldName(e.target.value)}
                   placeholder="e.g. Priority, Sprint, Budget"
-                  className="bg-slate-800 border-slate-700 text-slate-100 placeholder:text-slate-500"
+                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground/70"
                 />
               </div>
 
               {/* Field Type Selector */}
               <div className="space-y-3">
-                <Label className="text-slate-300 text-sm">Field Type</Label>
+                <Label className="text-foreground text-sm">Field Type</Label>
                 {categories.map((cat) => (
                   <div key={cat.key}>
-                    <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">
+                    <p className="text-xs text-muted-foreground/70 uppercase tracking-wider mb-2">
                       {cat.label}
                     </p>
                     <div className="grid grid-cols-3 gap-2">
@@ -974,8 +1109,8 @@ export default function CustomFieldsEditor({
                           }}
                           className={`flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all ${
                             fieldType === ft.type
-                              ? "bg-indigo-600/15 border-indigo-500/50 text-indigo-300"
-                              : "bg-slate-800/40 border-slate-700/50 text-slate-400 hover:border-slate-600 hover:text-slate-300"
+                              ? "bg-primary/10 border-primary/50 text-primary"
+                              : "bg-muted/40 border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground"
                           }`}
                         >
                           {ft.icon}
@@ -983,7 +1118,7 @@ export default function CustomFieldsEditor({
                             <p className="text-xs font-medium truncate">
                               {ft.label}
                             </p>
-                            <p className="text-[10px] text-slate-500 truncate">
+                            <p className="text-[10px] text-muted-foreground/70 truncate">
                               {ft.description}
                             </p>
                           </div>
@@ -994,14 +1129,14 @@ export default function CustomFieldsEditor({
                 ))}
               </div>
 
-              <Separator className="bg-slate-700/50" />
+              <Separator className="bg-border" />
 
               {/* Appearance */}
               <div className="space-y-3">
-                <Label className="text-slate-300 text-sm">Appearance</Label>
+                <Label className="text-foreground text-sm">Appearance</Label>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-400 text-xs">Color</Label>
+                  <Label className="text-muted-foreground text-xs">Color</Label>
                   <div className="flex flex-wrap gap-2">
                     {PRESET_COLORS.map((color) => (
                       <button
@@ -1010,7 +1145,7 @@ export default function CustomFieldsEditor({
                         onClick={() => setFieldColor(color)}
                         className={`w-7 h-7 rounded-full transition-all ${
                           fieldColor === color
-                            ? "ring-2 ring-white ring-offset-2 ring-offset-slate-900 scale-110"
+                            ? "ring-2 ring-foreground ring-offset-2 ring-offset-background scale-110"
                             : "hover:scale-110"
                         }`}
                         style={{ backgroundColor: color }}
@@ -1020,7 +1155,7 @@ export default function CustomFieldsEditor({
                 </div>
 
                 <div className="space-y-2">
-                  <Label className="text-slate-400 text-xs">Width</Label>
+                  <Label className="text-muted-foreground text-xs">Width</Label>
                   <div className="flex gap-2">
                     {(["narrow", "medium", "wide"] as FieldWidth[]).map((w) => (
                       <Button
@@ -1031,8 +1166,8 @@ export default function CustomFieldsEditor({
                         onClick={() => setFieldWidth(w)}
                         className={`capitalize text-xs ${
                           fieldWidth === w
-                            ? "border-indigo-500 bg-indigo-600/15 text-indigo-300"
-                            : "border-slate-700 bg-slate-800 text-slate-400 hover:text-slate-300"
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-muted text-muted-foreground hover:text-foreground"
                         }`}
                       >
                         {w}
@@ -1042,12 +1177,12 @@ export default function CustomFieldsEditor({
                 </div>
               </div>
 
-              <Separator className="bg-slate-700/50" />
+              <Separator className="bg-border" />
 
               {/* Type-specific settings */}
               {showTypeSettings && (
                 <div className="space-y-3">
-                  <Label className="text-slate-300 text-sm">
+                  <Label className="text-foreground text-sm">
                     Type Settings
                   </Label>
 
@@ -1055,7 +1190,7 @@ export default function CustomFieldsEditor({
                     <div className="space-y-2">
                       {dropdownOptions.map((opt, idx) => (
                         <div key={opt.id} className="flex items-center gap-2">
-                          <span className="text-xs text-slate-500 w-5 text-center">
+                          <span className="text-xs text-muted-foreground/70 w-5 text-center">
                             {idx + 1}
                           </span>
                           <div
@@ -1079,12 +1214,12 @@ export default function CustomFieldsEditor({
                               })
                             }
                             placeholder="Option label"
-                            className="bg-slate-800 border-slate-700 text-slate-100 text-sm h-8 placeholder:text-slate-600"
+                            className="bg-muted border-border text-foreground text-sm h-8 placeholder:text-muted-foreground/50"
                           />
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-500 hover:text-red-400 flex-shrink-0"
+                            className="h-8 w-8 text-muted-foreground/70 hover:text-destructive flex-shrink-0"
                             onClick={() => removeDropdownOption(opt.id)}
                             disabled={dropdownOptions.length <= 1}
                           >
@@ -1097,7 +1232,7 @@ export default function CustomFieldsEditor({
                         size="sm"
                         type="button"
                         onClick={addDropdownOption}
-                        className="text-indigo-400 hover:text-indigo-300 text-xs"
+                        className="text-primary hover:text-primary/80 text-xs"
                       >
                         <Plus className="h-3 w-3 mr-1" />
                         Add option
@@ -1129,12 +1264,12 @@ export default function CustomFieldsEditor({
                               })
                             }
                             placeholder="Status label"
-                            className="bg-slate-800 border-slate-700 text-slate-100 text-sm h-8 placeholder:text-slate-600"
+                            className="bg-muted border-border text-foreground text-sm h-8 placeholder:text-muted-foreground/50"
                           />
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-slate-500 hover:text-red-400 flex-shrink-0"
+                            className="h-8 w-8 text-muted-foreground/70 hover:text-destructive flex-shrink-0"
                             onClick={() => removeStatusOption(opt.id)}
                             disabled={statusOptions.length <= 1}
                           >
@@ -1147,7 +1282,7 @@ export default function CustomFieldsEditor({
                         size="sm"
                         type="button"
                         onClick={addStatusOption}
-                        className="text-indigo-400 hover:text-indigo-300 text-xs"
+                        className="text-primary hover:text-primary/80 text-xs"
                       >
                         <Plus className="h-3 w-3 mr-1" />
                         Add status
@@ -1158,27 +1293,27 @@ export default function CustomFieldsEditor({
                   {fieldType === "number" && (
                     <div className="grid grid-cols-3 gap-3">
                       <div className="space-y-1">
-                        <Label className="text-slate-400 text-xs">Min</Label>
+                        <Label className="text-muted-foreground text-xs">Min</Label>
                         <Input
                           type="number"
                           value={numberMin}
                           onChange={(e) => setNumberMin(e.target.value)}
                           placeholder="No min"
-                          className="bg-slate-800 border-slate-700 text-slate-100 text-sm h-8 placeholder:text-slate-600"
+                          className="bg-muted border-border text-foreground text-sm h-8 placeholder:text-muted-foreground/50"
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-slate-400 text-xs">Max</Label>
+                        <Label className="text-muted-foreground text-xs">Max</Label>
                         <Input
                           type="number"
                           value={numberMax}
                           onChange={(e) => setNumberMax(e.target.value)}
                           placeholder="No max"
-                          className="bg-slate-800 border-slate-700 text-slate-100 text-sm h-8 placeholder:text-slate-600"
+                          className="bg-muted border-border text-foreground text-sm h-8 placeholder:text-muted-foreground/50"
                         />
                       </div>
                       <div className="space-y-1">
-                        <Label className="text-slate-400 text-xs">
+                        <Label className="text-muted-foreground text-xs">
                           Decimals
                         </Label>
                         <Input
@@ -1187,7 +1322,7 @@ export default function CustomFieldsEditor({
                           max={10}
                           value={numberDecimals}
                           onChange={(e) => setNumberDecimals(e.target.value)}
-                          className="bg-slate-800 border-slate-700 text-slate-100 text-sm h-8"
+                          className="bg-muted border-border text-foreground text-sm h-8"
                         />
                       </div>
                     </div>
@@ -1195,7 +1330,7 @@ export default function CustomFieldsEditor({
 
                   {fieldType === "rating" && (
                     <div className="space-y-1">
-                      <Label className="text-slate-400 text-xs">
+                      <Label className="text-muted-foreground text-xs">
                         Max Stars
                       </Label>
                       <Input
@@ -1204,75 +1339,75 @@ export default function CustomFieldsEditor({
                         max={10}
                         value={maxStars}
                         onChange={(e) => setMaxStars(e.target.value)}
-                        className="bg-slate-800 border-slate-700 text-slate-100 text-sm h-8 w-24"
+                        className="bg-muted border-border text-foreground text-sm h-8 w-24"
                       />
                     </div>
                   )}
 
                   {fieldType === "formula" && (
                     <div className="space-y-1">
-                      <Label className="text-slate-400 text-xs">Formula</Label>
+                      <Label className="text-muted-foreground text-xs">Formula</Label>
                       <Textarea
                         value={formula}
                         onChange={(e) => setFormula(e.target.value)}
                         placeholder="e.g. field1 + field2 * 0.1"
                         rows={3}
-                        className="bg-slate-800 border-slate-700 text-slate-100 text-sm placeholder:text-slate-600 resize-none"
+                        className="bg-muted border-border text-foreground text-sm placeholder:text-muted-foreground/50 resize-none"
                       />
                     </div>
                   )}
                 </div>
               )}
 
-              <Separator className="bg-slate-700/50" />
+              <Separator className="bg-border" />
 
               {/* Options */}
               <div className="space-y-3">
-                <Label className="text-slate-300 text-sm">Options</Label>
+                <Label className="text-foreground text-sm">Options</Label>
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-slate-400 text-xs">Visible</Label>
+                    <Label className="text-muted-foreground text-xs">Visible</Label>
                     <Switch
                       checked={fieldVisible}
                       onCheckedChange={setFieldVisible}
-                      className="data-[state=checked]:bg-indigo-600"
+                      className="data-[state=checked]:bg-primary"
                     />
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label className="text-slate-400 text-xs">Required</Label>
+                    <Label className="text-muted-foreground text-xs">Required</Label>
                     <Switch
                       checked={fieldRequired}
                       onCheckedChange={setFieldRequired}
-                      className="data-[state=checked]:bg-indigo-600"
+                      className="data-[state=checked]:bg-primary"
                     />
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label className="text-slate-400 text-xs">Pinned</Label>
+                    <Label className="text-muted-foreground text-xs">Pinned</Label>
                     <Switch
                       checked={fieldPinned}
                       onCheckedChange={setFieldPinned}
-                      className="data-[state=checked]:bg-indigo-600"
+                      className="data-[state=checked]:bg-primary"
                     />
                   </div>
                 </div>
 
                 <div className="space-y-1">
-                  <Label className="text-slate-400 text-xs">Default Value</Label>
+                  <Label className="text-muted-foreground text-xs">Default Value</Label>
                   <Input
                     value={fieldDefaultValue}
                     onChange={(e) => setFieldDefaultValue(e.target.value)}
                     placeholder="Optional default"
-                    className="bg-slate-800 border-slate-700 text-slate-100 text-sm h-8 placeholder:text-slate-600"
+                    className="bg-muted border-border text-foreground text-sm h-8 placeholder:text-muted-foreground/50"
                   />
                 </div>
               </div>
             </div>
           </ScrollArea>
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-slate-700/50">
+          <div className="flex justify-end gap-2 pt-4 border-t border-border">
             <Button
               variant="ghost"
               onClick={() => {
@@ -1280,14 +1415,14 @@ export default function CustomFieldsEditor({
                 resetForm();
                 setEditingField(null);
               }}
-              className="text-slate-400 hover:text-slate-200"
+              className="text-muted-foreground hover:text-foreground"
             >
               Cancel
             </Button>
             <Button
               onClick={handleSave}
               disabled={!fieldName.trim()}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white disabled:opacity-50"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
             >
               {editingField ? "Save Changes" : "Create Field"}
             </Button>
@@ -1302,11 +1437,11 @@ export default function CustomFieldsEditor({
           if (!open) setDeleteConfirmId(null);
         }}
       >
-        <DialogContent className="bg-slate-900 border-slate-700/50 max-w-sm">
+        <DialogContent className="border-border/40 max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-slate-100">Delete Field</DialogTitle>
+            <DialogTitle className="text-foreground">Delete Field</DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-muted-foreground">
             Are you sure you want to delete this field? This action cannot be
             undone and all associated data will be lost.
           </p>
@@ -1314,14 +1449,14 @@ export default function CustomFieldsEditor({
             <Button
               variant="ghost"
               onClick={() => setDeleteConfirmId(null)}
-              className="text-slate-400 hover:text-slate-200"
+              className="text-muted-foreground hover:text-foreground"
             >
               Cancel
             </Button>
             <Button
               variant="destructive"
               onClick={() => deleteConfirmId && handleDelete(deleteConfirmId)}
-              className="bg-red-600 hover:bg-red-500"
+              className="bg-destructive"
             >
               Delete
             </Button>
