@@ -10,13 +10,13 @@ export function OnboardingRedirect({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { userId, isLoaded: isAuthLoaded } = useAuth();
-  const { workspaces, isLoading: isWorkspacesLoading } = useWorkspace();
+  const { workspaces, isLoading: isWorkspacesLoading, error: workspaceError } = useWorkspace();
 
-  const { data: preferences, isLoading: isPrefsLoading } = useQuery({
+  const { data: preferences, isLoading: isPrefsLoading, isError: isPrefsError } = useQuery({
     queryKey: ["user-preferences"],
     queryFn: async () => {
       const res = await fetch("/api/user/preferences");
-      if (!res.ok) return null;
+      if (!res.ok) throw new Error("Failed to load preferences");
       return res.json();
     },
     enabled: !!userId,
@@ -31,14 +31,18 @@ export function OnboardingRedirect({ children }: { children: ReactNode }) {
       setDecision("show");
       return;
     }
+    if (isPrefsError || workspaceError) {
+      setDecision("show");
+      return;
+    }
     const onboardingComplete = preferences?.onboardingComplete;
-    const hasWorkspaces = workspaces && workspaces.length > 0;
+    const hasWorkspaces = Array.isArray(workspaces) && workspaces.length > 0;
     if (!onboardingComplete && !hasWorkspaces) {
       setDecision("redirect");
     } else {
       setDecision("show");
     }
-  }, [isAuthLoaded, isPrefsLoading, isWorkspacesLoading, userId, preferences, workspaces]);
+  }, [isAuthLoaded, isPrefsLoading, isWorkspacesLoading, userId, preferences, workspaces, isPrefsError, workspaceError]);
 
   useEffect(() => {
     if (decision === "redirect" && pathname !== "/onboarding") {

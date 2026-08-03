@@ -11,7 +11,7 @@ import { usePreferences } from "@/hooks/use-preferences";
 export default function OnboardingPage() {
   const router = useRouter();
   const { userId, isLoaded } = useAuth();
-  const { updatePreference } = usePreferences();
+  const { updatePreferenceAsync } = usePreferences();
   const [checking, setChecking] = useState(true);
   const [starting, setStarting] = useState(false);
 
@@ -22,7 +22,10 @@ export default function OnboardingPage() {
       return;
     }
     fetch("/api/user/preferences")
-      .then((res) => res.json())
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load preferences");
+        return res.json();
+      })
       .then((data) => {
         if (data?.onboardingComplete) {
           router.replace("/dashboard");
@@ -30,13 +33,17 @@ export default function OnboardingPage() {
           setChecking(false);
         }
       })
-      .catch(() => setChecking(false));
+      .catch(() => router.replace("/dashboard"));
   }, [isLoaded, userId, router]);
 
   const handleStart = async () => {
     setStarting(true);
-    await updatePreference({ onboardingComplete: true });
-    router.push("/dashboard");
+    try {
+      await updatePreferenceAsync({ onboardingComplete: true });
+      router.replace("/dashboard");
+    } catch {
+      setStarting(false);
+    }
   };
 
   if (checking) {

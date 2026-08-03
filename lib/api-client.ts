@@ -29,6 +29,29 @@ function handleSessionExpired(): void {
   window.location.href = redirectUrl;
 }
 
+async function refreshClerkToken(): Promise<boolean> {
+  try {
+    const clerk = (window as unknown as {
+      Clerk?: { session?: { getToken: () => Promise<string | null> } };
+    }).Clerk;
+    if (!clerk?.session) return false;
+    await clerk.session.getToken();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchWithSessionRetry(url: string, init: RequestInit): Promise<Response> {
+  let response = await fetch(url, init);
+  if (response.status !== 401) return response;
+
+  const refreshed = await refreshClerkToken();
+  if (!refreshed) return response;
+
+  return await fetch(url, init);
+}
+
 export async function apiClient<T = any>(
   url: string,
   options: ApiClientOptions = {}
@@ -61,7 +84,7 @@ export async function apiClient<T = any>(
     headers["Content-Type"] = "application/json";
   }
 
-  const response = await fetch(resolvedUrl, {
+  const response = await fetchWithSessionRetry(resolvedUrl, {
     ...fetchOptions,
     headers,
     body:

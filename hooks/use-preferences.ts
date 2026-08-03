@@ -41,6 +41,7 @@ export function usePreferences() {
         preferences,
         isLoading,
         updatePreference: updatePreferenceMutation.mutate,
+        updatePreferenceAsync: updatePreferenceMutation.mutateAsync,
         isUpdating: updatePreferenceMutation.isPending,
     };
 }
