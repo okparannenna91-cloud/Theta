@@ -40,6 +40,12 @@ self.addEventListener("fetch", (event) => {
 
   if (request.method !== "GET") return;
 
+  // Never intercept cross-origin requests (Clerk CDN scripts, Vercel Live
+  // Feedback, Google, etc.). Following their redirects here returns opaque
+  // responses the browser can't use for scripts → ERR_FAILED / "Failed to
+  // load Clerk". Let them go straight to the network.
+  if (url.origin !== self.location.origin) return;
+
   // Document navigations (page loads AND OAuth popups like
   // /api/integrations/*/connect) must let redirects reach the browser.
   // Following cross-origin redirects here (GitHub/Google/etc.) returns an
@@ -86,7 +92,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   event.respondWith(
-    fetch(request, { redirect: "manual" })
+    fetch(request, { redirect: "follow" })
       .then((response) => {
         if (!response || response.status !== 200) {
           return response;
