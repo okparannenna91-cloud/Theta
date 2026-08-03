@@ -29,7 +29,7 @@ export default function DependencyEngine({
     const [dragDep, setDragDep] = useState<{ sourceId: string; sourceX: number; sourceY: number; currentX: number; currentY: number } | null>(null);
     const [hoveredTask, setHoveredTask] = useState<string | null>(null);
 
-    const ROW_HEIGHT = 56;
+    const ROW_HEIGHT = 60;
 
     const lines: DependencyLine[] = useMemo(() => {
         if (!isGantt || !Array.isArray(tasks)) return [];

@@ -206,7 +206,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
 
   return (
     <div className="h-[calc(100vh-100px)] flex flex-col overflow-hidden">
-      <header className="flex items-start sm:items-center justify-between gap-2 px-4 sm:px-6 py-2 border-b border-subtle bg-background/95 backdrop-blur-xl">
+      <header className="flex items-start sm:items-center justify-between gap-2 px-6 sm:px-8 py-3 border-b border-subtle bg-background/95 backdrop-blur-xl">
         <div className="flex items-center gap-2 min-w-0 shrink-0">
           <div className="p-1 bg-primary/10 rounded-lg shrink-0 hidden xs:block">
             <CalendarDays className="h-3.5 w-3.5 text-primary" />
@@ -328,7 +328,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
         </div>
       </header>
 
-      <div className="flex items-center justify-between px-6 py-1 border-b border-subtle bg-muted/10">
+      <div className="flex items-center justify-between px-6 sm:px-8 py-2 border-b border-subtle bg-muted/10">
         <div className="flex items-center gap-2 text-[9px] text-muted-foreground/60">
           <span>j/k navigate</span>
           <span className="text-muted-foreground/20">·</span>

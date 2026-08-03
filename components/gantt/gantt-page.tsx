@@ -8,7 +8,7 @@ import {
     Settings2, Clock, Maximize2, Minimize2, Undo2, Redo2, Link2,
     GitBranch, CalendarDays, Users, Workflow, Milestone, Save,
     RotateCcw, Flag, Activity,
-    LayoutList, Eye, EyeOff, Layers,
+    LayoutList, Eye, EyeOff, Layers, MoreHorizontal,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -423,78 +423,50 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
                 </div>
 
                 <div className="flex items-center gap-2">
-                    {/* Undo/Redo */}
-                    <div className="flex items-center gap-0.5 border rounded-md p-0.5 bg-muted/30">
-                        <TooltipProvider>
-                            <Tooltip content="Undo (Ctrl+Z)">
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-sm" onClick={handleUndo} disabled={undoStack.length === 0}>
-                                        <Undo2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                </TooltipTrigger>
-                            </Tooltip>
-                        </TooltipProvider>
-                        <TooltipProvider>
-                            <Tooltip content="Redo (Ctrl+Shift+Z)">
-                                <TooltipTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-7 w-7 rounded-sm" onClick={handleRedo} disabled={redoStack.length === 0}>
-                                        <Redo2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                </TooltipTrigger>
-                            </Tooltip>
-                        </TooltipProvider>
-                    </div>
-
-                    {/* Scheduling mode toggle */}
-                    <TooltipProvider>
-                        <Tooltip content={schedulingMode === "auto" ? "Auto-scheduling enabled" : "Manual scheduling"}>
-                            <TooltipTrigger asChild>
-                                <Button
-                                    variant={schedulingMode === "auto" ? "default" : "outline"}
-                                    size="sm"
-                                    className="h-8 text-xs rounded-md px-2.5"
-                                    onClick={() => setSchedulingMode(m => m === "auto" ? "manual" : "auto")}
-                                >
-                                    <Workflow className="h-3.5 w-3.5 mr-1" />
-                                    {schedulingMode === "auto" ? "Auto" : "Manual"}
-                                </Button>
-                            </TooltipTrigger>
-                        </Tooltip>
-                    </TooltipProvider>
-
                     {/* Presence */}
                     {activeWorkspaceId && <PresenceAvatars workspaceId={activeWorkspaceId} />}
 
                     {/* Search */}
-                    <div className="relative w-44">
+                    <div className="relative w-40 hidden md:block">
                         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                         <Input placeholder="Filter tasks..." className="h-8 pl-8 text-xs rounded-md" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                     </div>
 
-                    {/* Full screen */}
-                    <TooltipProvider>
-                        <Tooltip content="Full screen">
-                            <TooltipTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-md" onClick={() => setIsFullScreen(!isFullScreen)}>
-                                    {isFullScreen ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-                                </Button>
-                            </TooltipTrigger>
-                        </Tooltip>
-                    </TooltipProvider>
-
-                    {/* Export */}
-                    <Button variant="outline" size="sm" className="h-8 text-xs rounded-md px-2.5" disabled={isExporting} onClick={handleExport}>
-                        <Download className="h-3.5 w-3.5 mr-1" /> {isExporting ? "..." : "PNG"}
-                    </Button>
-
                     <Button className="h-8 text-xs rounded-md px-3" onClick={() => setIsCreateTaskOpen(true)}>
                         <Plus className="h-3.5 w-3.5 mr-1" /> Add
                     </Button>
+
+                    {/* More */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" size="icon" className="h-8 w-8 rounded-md" aria-label="More options">
+                                <MoreHorizontal className="h-4 w-4" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-56 rounded-lg">
+                            <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={handleUndo} disabled={undoStack.length === 0}>
+                                <Undo2 className="h-3.5 w-3.5" /> Undo
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={handleRedo} disabled={redoStack.length === 0}>
+                                <Redo2 className="h-3.5 w-3.5" /> Redo
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={() => setSchedulingMode(m => m === "auto" ? "manual" : "auto")}>
+                                <Workflow className="h-3.5 w-3.5" /> {schedulingMode === "auto" ? "Auto scheduling" : "Manual scheduling"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={() => setIsFullScreen(!isFullScreen)}>
+                                {isFullScreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />} {isFullScreen ? "Exit full screen" : "Full screen"}
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="text-xs gap-2.5 py-1.5" onClick={handleExport} disabled={isExporting}>
+                                <Download className="h-3.5 w-3.5" /> {isExporting ? "Exporting..." : "Export PNG"}
+                            </DropdownMenuItem>
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                 </div>
             </header>
 
             {/* Toolbar */}
-            <div className="flex items-center justify-between px-8 py-1.5 border-b border-subtle">
+            <div className="flex items-center justify-between px-8 py-2 border-b border-subtle">
                 <div className="flex items-center gap-3 text-[10px]">
                     {/* Critical Path toggle */}
                     <TooltipProvider>

@@ -65,7 +65,7 @@ export const GANTT_ZOOM_OPTIONS: { label: string; value: ZoomLevel }[] = [
   { label: "Year", value: "year" },
 ];
 
-export const ROW_HEIGHT = 56;
+export const ROW_HEIGHT = 60;
 export const VISIBLE_BUFFER = 10;
 export const SIDEBAR_WIDTH = 280;
 
