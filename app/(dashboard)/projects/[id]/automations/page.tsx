@@ -1,15 +1,20 @@
 "use client";
 
-import { AutomationList } from "@/components/automations/automation-list";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { ProjectAutomations } from "@/components/automations/project-automations";
 
-export default function Page() {
-  return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold">Automations</h2>
-        <p className="text-sm text-muted-foreground">Automate repetitive workflows with triggers and actions</p>
+export default function ProjectAutomationsPage({ params }: { params: { id: string } }) {
+  const { activeWorkspaceId } = useWorkspace();
+
+  if (!activeWorkspaceId) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-sm text-muted-foreground">Select a workspace first</p>
       </div>
-      <AutomationList />
-    </div>
+    );
+  }
+
+  return (
+    <ProjectAutomations workspaceId={activeWorkspaceId} projectId={params.id} />
   );
 }

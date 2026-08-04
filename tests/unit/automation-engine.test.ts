@@ -25,6 +25,7 @@ const prismaMock = vi.hoisted(() => ({
     count: vi.fn().mockResolvedValue(0),
   },
   workspaceMember: {
+    findFirst: vi.fn().mockResolvedValue(null),
     findUnique: vi.fn().mockResolvedValue(null),
     findMany: vi.fn().mockResolvedValue([]),
     count: vi.fn().mockResolvedValue(0),
@@ -53,6 +54,9 @@ const prismaMock = vi.hoisted(() => ({
   },
   automation: {
     findMany: vi.fn().mockResolvedValue([]),
+  },
+  automationLog: {
+    create: vi.fn().mockResolvedValue({}),
   },
 }));
 
@@ -90,14 +94,24 @@ vi.mock("@/lib/langraph/model-router", () => ({
 
 vi.mock("@/lib/notification-engine", () => ({
   createNotification: vi.fn().mockResolvedValue({ id: "notif-1" }),
+  notifyWorkspaceMembers: vi.fn().mockResolvedValue(undefined),
 }));
 
 vi.mock("@/lib/ably", () => ({
   publishToChannel: vi.fn().mockResolvedValue(undefined),
 }));
 
+vi.mock("@/lib/project-permissions", () => ({
+  canAccessProject: vi.fn().mockResolvedValue({ hasAccess: true }),
+}));
+
+vi.mock("@/lib/inngest/functions/automation-executor", () => ({
+  triggerAutomation: vi.fn().mockResolvedValue(undefined),
+}));
+
 import { processAutomations, type AutomationTrigger } from "@/lib/automations/engine";
 import { inngest } from "@/lib/inngest/client";
+import { triggerAutomation } from "@/lib/inngest/functions/automation-executor";
 import { NovaEventBus } from "@/lib/nova/ambient/event-bus";
 
 const TRIGGER_TO_EVENT: Record<AutomationTrigger, string> = {
@@ -116,13 +130,13 @@ const TRIGGER_TO_EVENT: Record<AutomationTrigger, string> = {
   MEMBER_ADDED: "member:joined",
 };
 
-describe("Automation Engine — processAutomations (observation mode)", () => {
+describe("Automation Engine — processAutomations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     NovaEventBus.getInstance().clearHistory();
   });
 
-  it("emits a mapped event to the Nova event bus instead of executing rules", async () => {
+  it("emits a mapped event to the Nova event bus", async () => {
     await processAutomations("ws1", "TASK_CREATED", { userId: "u1", taskId: "t1" });
 
     const events = NovaEventBus.getInstance().getHistory("task:created");
@@ -133,12 +147,81 @@ describe("Automation Engine — processAutomations (observation mode)", () => {
     expect(events[0].metadata?.trigger).toBe("TASK_CREATED");
   });
 
-  it("never fires automation rule executions (observation only)", async () => {
-    await processAutomations("ws1", "TASK_CREATED", { userId: "u1" });
-    await processAutomations("ws1", "SPRINT_COMPLETED", { userId: "u1" });
+  it("queries active rules and dispatches matching ones via inngest", async () => {
+    prismaMock.automation.findMany.mockResolvedValueOnce([
+      { id: "rule-1", trigger: "TASK_CREATED", projectId: null, condition: null },
+      { id: "rule-2", trigger: "TASK_CREATED", projectId: null, condition: null },
+    ]);
 
-    expect(inngest.send).not.toHaveBeenCalled();
-    expect(prismaMock.automation.findMany).not.toHaveBeenCalled();
+    await processAutomations("ws1", "TASK_CREATED", { userId: "u1", taskId: "t1" });
+
+    expect(prismaMock.automation.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { workspaceId: "ws1", active: true, trigger: "TASK_CREATED" } })
+    );
+    expect(triggerAutomation).toHaveBeenCalledTimes(2);
+    expect(triggerAutomation).toHaveBeenCalledWith(
+      "rule-1", "TASK_CREATED", expect.objectContaining({ userId: "u1", taskId: "t1" })
+    );
+    expect(triggerAutomation).toHaveBeenCalledWith(
+      "rule-2", "TASK_CREATED", expect.objectContaining({ userId: "u1", taskId: "t1" })
+    );
+  });
+
+  it("does not dispatch when no rules match", async () => {
+    prismaMock.automation.findMany.mockResolvedValueOnce([]);
+
+    await processAutomations("ws1", "TASK_CREATED", { userId: "u1" });
+
+    expect(triggerAutomation).not.toHaveBeenCalled();
+  });
+
+  it("respects project scoping — workspace-wide rule fires in any project", async () => {
+    prismaMock.automation.findMany.mockResolvedValueOnce([
+      { id: "rule-ws", trigger: "TASK_CREATED", projectId: null, condition: null },
+    ]);
+
+    await processAutomations("ws1", "TASK_CREATED", { userId: "u1", projectId: "proj-1" });
+
+    expect(triggerAutomation).toHaveBeenCalledTimes(1);
+    expect(triggerAutomation).toHaveBeenCalledWith(
+      "rule-ws", "TASK_CREATED", expect.objectContaining({ projectId: "proj-1" })
+    );
+  });
+
+  it("respects project scoping — project-scoped rule only fires for matching project", async () => {
+    prismaMock.automation.findMany.mockResolvedValueOnce([
+      { id: "rule-matching", trigger: "TASK_CREATED", projectId: "proj-1", condition: null },
+      { id: "rule-other", trigger: "TASK_CREATED", projectId: "proj-2", condition: null },
+    ]);
+
+    await processAutomations("ws1", "TASK_CREATED", { userId: "u1", projectId: "proj-1" });
+
+    expect(triggerAutomation).toHaveBeenCalledTimes(1);
+    expect(triggerAutomation).toHaveBeenCalledWith(
+      "rule-matching", "TASK_CREATED", expect.objectContaining({ projectId: "proj-1" })
+    );
+  });
+
+  it("evaluates conditions — non-matching conditions are skipped", async () => {
+    prismaMock.automation.findMany.mockResolvedValueOnce([
+      { id: "rule-cond", trigger: "TASK_CREATED", projectId: null,
+        condition: JSON.stringify([{ field: "taskPriority", operator: "equals", value: "high" }]) },
+    ]);
+
+    await processAutomations("ws1", "TASK_CREATED", { userId: "u1", taskPriority: "low" });
+
+    expect(triggerAutomation).not.toHaveBeenCalled();
+  });
+
+  it("evaluates conditions — matching conditions are dispatched", async () => {
+    prismaMock.automation.findMany.mockResolvedValueOnce([
+      { id: "rule-cond", trigger: "TASK_CREATED", projectId: null,
+        condition: JSON.stringify([{ field: "taskPriority", operator: "equals", value: "high" }]) },
+    ]);
+
+    await processAutomations("ws1", "TASK_CREATED", { userId: "u1", taskPriority: "high" });
+
+    expect(triggerAutomation).toHaveBeenCalledTimes(1);
   });
 
   it("maps each legacy trigger to its canonical event type", async () => {
@@ -186,7 +269,7 @@ describe("Automation Engine — processAutomations (observation mode)", () => {
   });
 
   it("catches and logs errors without throwing", async () => {
-    prismaMock.workspace.findUnique.mockRejectedValueOnce(new Error("DB error"));
+    prismaMock.automation.findMany.mockRejectedValueOnce(new Error("DB error"));
 
     await expect(
       processAutomations("ws1", "TASK_CREATED", { userId: "u1" })

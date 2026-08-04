@@ -1,7 +1,9 @@
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
 import { NovaEventBus } from "@/lib/nova/ambient/event-bus";
 import { ObservationPipeline } from "@/lib/nova/ambient/observation-pipeline";
 import type { WorkspaceEvent, EventType } from "@/lib/nova/ambient/types";
+import { evaluateConditions, matchesProjectScope } from "@/lib/automations/conditions";
 
 let _initialized = false;
 function ensurePipelineInitialized(): void {
@@ -14,8 +16,9 @@ function ensurePipelineInitialized(): void {
 // ──────────────────────────────────────────────
 //  UNIFIED AUTOMATION ENGINE
 //  Single entry point for all trigger firing.
-//  Now feeds the Nova ambient observation pipeline
-//  instead of executing automation rules.
+//  1) Feeds the Nova ambient observation pipeline.
+//  2) Dispatches matching automation rules to the
+//     Inngest executor (project-scoped + condition-aware).
 // ──────────────────────────────────────────────
 
 export type AutomationTrigger =
@@ -64,8 +67,8 @@ export interface TriggerContext {
 }
 
 /**
- * Emit a workspace event to the Nova ambient observation pipeline.
- * Automation rule execution is permanently disabled — Nova only observes.
+ * Emit a workspace event to the Nova ambient observation pipeline and dispatch
+ * matching automation rules to the Inngest executor for execution.
  */
 export async function processAutomations(
   workspaceId: string,
@@ -94,4 +97,39 @@ export async function processAutomations(
     },
   };
   await bus.emit(event);
+
+  await dispatchRules(workspaceId, trigger, context);
+}
+
+async function dispatchRules(
+  workspaceId: string,
+  trigger: AutomationTrigger,
+  context: Omit<TriggerContext, "workspaceId"> & { workspaceId?: string },
+): Promise<void> {
+  try {
+    const rules = await prisma.automation.findMany({
+      where: { workspaceId, active: true, trigger },
+    });
+
+    const matched: Array<{ id: string }> = [];
+    for (const rule of rules) {
+      if (!matchesProjectScope(rule.projectId, context.projectId as string | null | undefined)) continue;
+      if (!evaluateConditions(rule.condition, context as Record<string, unknown>)) continue;
+      matched.push({ id: rule.id });
+    }
+
+    if (matched.length === 0) return;
+
+    const { triggerAutomation } = await import("@/lib/inngest/functions/automation-executor");
+    await Promise.allSettled(
+      matched.map((rule) => triggerAutomation(rule.id, trigger, context))
+    );
+
+    logger.info(`[AutomationEngine] Dispatched ${matched.length} rule(s) for ${trigger}`, {
+      workspaceId,
+      projectId: context.projectId,
+    });
+  } catch (error) {
+    logger.warn("[AutomationEngine] Rule dispatch failed:", error);
+  }
 }

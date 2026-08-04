@@ -1,17 +1,15 @@
 import { inngest } from "@/lib/inngest/client";
 import { logger } from "@/lib/logger";
+import { prisma } from "@/lib/prisma";
+import { evaluateConditions } from "@/lib/automations/conditions";
+import { createNotification, notifyWorkspaceMembers } from "@/lib/notification-engine";
+import type { NotificationType } from "@/lib/notification-types";
 
 // ──────────────────────────────────────────────
 //  TYPES
 // ──────────────────────────────────────────────
 
-interface AutomationCondition {
-  field: string;
-  operator: "equals" | "not_equals" | "contains" | "greater_than" | "less_than" | "in";
-  value: string | number | boolean;
-}
-
-interface AutomationAction {
+export interface AutomationAction {
   type:
     | "create_task"
     | "update_task"
@@ -19,13 +17,20 @@ interface AutomationAction {
     | "send_message"
     | "move_task"
     | "add_comment"
-    | "update_custom_field";
+    | "update_custom_field"
+    | "assign_task"
+    | "set_status"
+    | "set_priority"
+    | "notify_channel"
+    | "create_project"
+    | "send_email"
+    | "generate_report";
   params: Record<string, unknown>;
 }
 
-interface TriggerContext {
+export interface TriggerContext {
   workspaceId: string;
-  userId: string;
+  userId?: string;
   taskId?: string;
   projectId?: string;
   taskTitle?: string;
@@ -38,67 +43,269 @@ interface TriggerContext {
 }
 
 // ──────────────────────────────────────────────
-//  CONDITION EVALUATION
+//  HELPERS
 // ──────────────────────────────────────────────
 
-function evaluateConditions(
-  conditionsRaw: string | null,
-  context: TriggerContext
-): boolean {
-  if (!conditionsRaw) return true;
+function str(value: unknown): string {
+  return value == null ? "" : String(value);
+}
 
-  let conditions: AutomationCondition[];
+async function resolveActorUserId(
+  workspaceId: string,
+  fallbackUserId?: string
+): Promise<string | null> {
+  if (fallbackUserId) return fallbackUserId;
   try {
-    conditions = JSON.parse(conditionsRaw);
+    const owner = await prisma.workspaceMember.findFirst({
+      where: { workspaceId, role: { in: ["owner", "admin"] } },
+      orderBy: { createdAt: "asc" },
+      select: { userId: true },
+    });
+    return owner?.userId ?? null;
   } catch {
-    logger.warn("[AutomationExecutor] Failed to parse conditions JSON");
-    return false;
+    return null;
   }
+}
 
-  if (!Array.isArray(conditions) || conditions.length === 0) return true;
-
-  for (const condition of conditions) {
-    const fieldValue = context[condition.field];
-
-    switch (condition.operator) {
-      case "equals":
-        if (String(fieldValue) !== String(condition.value)) return false;
-        break;
-      case "not_equals":
-        if (String(fieldValue) === String(condition.value)) return false;
-        break;
-      case "contains":
-        if (!String(fieldValue).includes(String(condition.value))) return false;
-        break;
-      case "greater_than":
-        if (Number(fieldValue) <= Number(condition.value)) return false;
-        break;
-      case "less_than":
-        if (Number(fieldValue) >= Number(condition.value)) return false;
-        break;
-      case "in": {
-        const values = Array.isArray(condition.value)
-          ? condition.value
-          : String(condition.value).split(",").map((s) => s.trim());
-        if (!values.includes(String(fieldValue))) return false;
-        break;
+function normalizeActions(
+  ruleAction: string,
+  ruleActionValue: string | null
+): AutomationAction[] {
+  if (ruleActionValue) {
+    try {
+      const parsed = JSON.parse(ruleActionValue);
+      if (
+        Array.isArray(parsed) &&
+        parsed.length > 0 &&
+        parsed.every((a) => a && typeof a.type === "string")
+      ) {
+        return parsed as AutomationAction[];
       }
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return [{ type: legacyActionToType(ruleAction), params: parsed as Record<string, unknown> }];
+      }
+    } catch {
+      // fall through to legacy single-action normalization
     }
   }
 
-  return true;
+  // Legacy API-created rules: a single action code + a scalar value.
+  const value = ruleActionValue ?? undefined;
+  const type: AutomationAction["type"] = legacyActionToType(ruleAction);
+  return [{ type, params: value !== undefined ? { value } : {} }];
+}
+
+function legacyActionToType(action: string): AutomationAction["type"] {
+  switch (action) {
+    case "CREATE_TASK":
+      return "create_task";
+    case "ASSIGN_USER":
+    case "SET_ASSIGNEE":
+      return "assign_task";
+    case "UPDATE_STATUS":
+    case "SET_STATUS":
+    case "MOVE_TASK":
+      return "set_status";
+    case "SET_PRIORITY":
+      return "set_priority";
+    case "SEND_EMAIL":
+      return "send_email";
+    case "NOTIFY_TEAM":
+    case "NOTIFY_CHANNEL":
+      return "notify_channel";
+    case "CREATE_PROJECT":
+      return "create_project";
+    case "GENERATE_REPORT":
+      return "generate_report";
+    case "ADD_COMMENT":
+      return "add_comment";
+    case "UPDATE_CUSTOM_FIELD":
+      return "update_custom_field";
+    case "SEND_NOTIFICATION":
+    default:
+      return "send_notification";
+  }
+}
+
+const COMPLETION_KEYWORDS = ["done", "complete", "completed", "finished", "approved"];
+
+function isCompletionStatus(status: string): boolean {
+  return COMPLETION_KEYWORDS.includes(status.toLowerCase());
 }
 
 // ──────────────────────────────────────────────
-//  ACTION EXECUTION — DISABLED IN OBSERVATION MODE
+//  ACTION EXECUTION
 // ──────────────────────────────────────────────
 
 async function executeAction(
   action: AutomationAction,
   context: TriggerContext
-): Promise<unknown> {
-  logger.info("[AutomationExecutor] Action disabled — Nova is in observation mode", { action: action.type });
-  return { success: false, message: "Automation actions are disabled while Nova is in observation mode." };
+): Promise<{ ok: boolean; detail?: string }> {
+  const { workspaceId } = context;
+  const targetTaskId = str(action.params.taskId) || context.taskId || undefined;
+  const actorId = (await resolveActorUserId(workspaceId, context.userId)) || "";
+
+  switch (action.type) {
+    case "create_task": {
+      const title = str(action.params.title || action.params.name || action.params.value);
+      if (!title) return { ok: false, detail: "create_task requires a title" };
+      if (!context.projectId && !action.params.projectId) {
+        return { ok: false, detail: "create_task requires a project" };
+      }
+      const priority = str(action.params.priority ?? action.params.value ?? "medium");
+      const task = await prisma.task.create({
+        data: {
+          title,
+          description: action.params.description ? str(action.params.description) : undefined,
+          status: str(action.params.status ?? "todo"),
+          priority,
+          taskType: str(action.params.taskType ?? "task"),
+          dueDate: action.params.dueDate ? new Date(str(action.params.dueDate)) : undefined,
+          workspaceId,
+          projectId: str(action.params.projectId) || context.projectId!,
+          userId: str(action.params.assigneeId || actorId),
+          assigneeIds: action.params.assigneeId ? [str(action.params.assigneeId)] : [],
+        },
+      });
+      return { ok: true, detail: `Created task "${task.title}"` };
+    }
+
+    case "update_task":
+    case "set_status":
+    case "move_task": {
+      if (!targetTaskId) return { ok: false, detail: `${action.type} requires a target task` };
+      const status =
+        action.type === "set_status" || action.type === "move_task"
+          ? str(action.params.status ?? action.params.columnId ?? action.params.value)
+          : action.params.status
+            ? str(action.params.status)
+            : undefined;
+
+      const data: Record<string, unknown> = {};
+      if (status) {
+        data.status = status;
+        if (isCompletionStatus(status)) data.completedAt = new Date();
+        else data.completedAt = null;
+      }
+      if (action.params.priority) data.priority = str(action.params.priority);
+      if (action.params.assigneeId) data.assigneeIds = [str(action.params.assigneeId)];
+      if (action.params.description !== undefined) data.description = str(action.params.description);
+
+      if (Object.keys(data).length === 0) return { ok: false, detail: "No fields to update" };
+
+      const task = await prisma.task.findUnique({ where: { id: targetTaskId } });
+      if (!task) return { ok: false, detail: "Target task not found" };
+
+      await prisma.task.update({ where: { id: targetTaskId }, data });
+      return { ok: true, detail: `Updated task ${targetTaskId}` };
+    }
+
+    case "set_priority": {
+      if (!targetTaskId) return { ok: false, detail: "set_priority requires a target task" };
+      const task = await prisma.task.findUnique({ where: { id: targetTaskId } });
+      if (!task) return { ok: false, detail: "Target task not found" };
+      const priority = str(action.params.priority ?? action.params.value ?? "medium");
+      await prisma.task.update({ where: { id: targetTaskId }, data: { priority } });
+      return { ok: true, detail: `Set priority to ${priority}` };
+    }
+
+    case "assign_task": {
+      if (!targetTaskId) return { ok: false, detail: "assign_task requires a target task" };
+      const task = await prisma.task.findUnique({ where: { id: targetTaskId } });
+      if (!task) return { ok: false, detail: "Target task not found" };
+      const assigneeId = str(action.params.assigneeId ?? action.params.userId ?? action.params.value);
+      if (!assigneeId) return { ok: false, detail: "assign_task requires an assignee" };
+      const assigneeIds = Array.isArray(task.assigneeIds) && !task.assigneeIds.includes(assigneeId)
+        ? [...task.assigneeIds, assigneeId]
+        : task.assigneeIds || [];
+      await prisma.task.update({ where: { id: targetTaskId }, data: { assigneeIds } });
+      return { ok: true, detail: `Assigned ${assigneeId}` };
+    }
+
+    case "send_notification": {
+      const targetUserId = str(
+        action.params.userId || action.params.assigneeId || context.assigneeId || actorId
+      );
+      if (!targetUserId) return { ok: false, detail: "send_notification requires a recipient" };
+      await createNotification(
+        targetUserId,
+        workspaceId,
+        "reminder" as NotificationType,
+        str(action.params.title ?? "Automation notification"),
+        str(action.params.message ?? action.params.value ?? context.taskTitle ?? ""),
+        { taskId: targetTaskId, projectId: context.projectId }
+      );
+      return { ok: true, detail: `Notification sent to ${targetUserId}` };
+    }
+
+    case "send_message":
+    case "notify_channel":
+    case "send_email": {
+      const title = str(action.params.title ?? "Automation message");
+      const message = str(
+        action.params.message ??
+          action.params.content ??
+          action.params.value ??
+          `Automation "${action.params.ruleName ?? ""}" fired${context.taskTitle ? ` on "${context.taskTitle}"` : ""}.`
+      );
+      await notifyWorkspaceMembers(
+        workspaceId,
+        actorId,
+        "smart_alert" as NotificationType,
+        title,
+        message,
+        { projectId: context.projectId }
+      );
+      return { ok: true, detail: "Workspace members notified" };
+    }
+
+    case "add_comment": {
+      if (!targetTaskId) return { ok: false, detail: "add_comment requires a target task" };
+      const content = str(action.params.content ?? action.params.message);
+      if (!content) return { ok: false, detail: "add_comment requires content" };
+      if (!actorId) return { ok: false, detail: "No actor available for comment" };
+      await prisma.comment.create({
+        data: { content, userId: actorId, taskId: targetTaskId },
+      });
+      return { ok: true, detail: "Comment added" };
+    }
+
+    case "update_custom_field": {
+      if (!targetTaskId) return { ok: false, detail: "update_custom_field requires a target task" };
+      const task = await prisma.task.findUnique({ where: { id: targetTaskId } });
+      if (!task) return { ok: false, detail: "Target task not found" };
+      const fieldKey = str(action.params.fieldKey ?? action.params.field ?? action.params.key);
+      if (!fieldKey) return { ok: false, detail: "update_custom_field requires a field key" };
+      const current = (task.fieldValues as Record<string, unknown> | null) || {};
+      await prisma.task.update({
+        where: { id: targetTaskId },
+        data: { fieldValues: { ...current, [fieldKey]: action.params.value } as any },
+      });
+      return { ok: true, detail: `Custom field ${fieldKey} updated` };
+    }
+
+    case "create_project": {
+      const name = str(action.params.name ?? action.params.title);
+      if (!name) return { ok: false, detail: "create_project requires a name" };
+      if (!actorId) return { ok: false, detail: "No actor available to create project" };
+      const project = await prisma.project.create({
+        data: {
+          name,
+          description: action.params.description ? str(action.params.description) : null,
+          workspaceId,
+          userId: actorId,
+          color: action.params.color ? str(action.params.color) : undefined,
+        },
+      });
+      return { ok: true, detail: `Created project "${project.name}"` };
+    }
+
+    case "generate_report":
+      return { ok: false, detail: "generate_report is not implemented" };
+
+    default:
+      return { ok: false, detail: `Unknown action type` };
+  }
 }
 
 // ──────────────────────────────────────────────
@@ -108,14 +315,80 @@ async function executeAction(
 export const executeAutomation = inngest.createFunction(
   { id: "nova-execute-automation", triggers: [{ event: "automation/triggered" }] },
   async ({ event, step }) => {
-    const { ruleId, triggerType } = event.data as {
+    const { ruleId, triggerType, context } = event.data as {
       ruleId: string;
       triggerType: string;
       context: TriggerContext;
     };
 
-    logger.info("[AutomationExecutor] Disabled — Nova is in observation mode", { ruleId, triggerType });
-    return { executed: false, reason: "observation_mode" };
+    const rule = await step.run("load-rule", async () =>
+      prisma.automation.findUnique({ where: { id: ruleId } })
+    );
+
+    if (!rule || !rule.active) {
+      logger.info("[AutomationExecutor] Rule not found or inactive — skipping", { ruleId });
+      return { executed: false, reason: "inactive_or_missing" };
+    }
+
+    const passesConditions = step.run("evaluate-conditions", async () =>
+      evaluateConditions(rule.condition, context as Record<string, unknown>)
+    );
+
+    const actions = step.run("normalize-actions", () =>
+      normalizeActions(rule.action, rule.actionValue)
+    );
+
+    if (!(await passesConditions)) {
+      await step.run("log-skipped", async () =>
+        prisma.automationLog.create({
+          data: {
+            automationId: rule.id,
+            trigger: triggerType,
+            action: rule.action,
+            result: "skipped",
+            error: "Conditions did not match",
+            workspaceId: context.workspaceId,
+            metadata: { projectId: context.projectId, context: context as any },
+          },
+        })
+      );
+      return { executed: false, reason: "conditions_not_met" };
+    }
+
+    const normalizedActions = await actions;
+
+    const results: Array<{ type: string; ok: boolean; detail?: string }> = [];
+    let failed = false;
+
+    for (const action of normalizedActions) {
+      const result = await step.run(`action-${action.type}`, async () =>
+        executeAction(action, context)
+      );
+      results.push({ type: action.type, ...result });
+      if (!result.ok) failed = true;
+    }
+
+    await step.run("log-result", async () =>
+      prisma.automationLog.create({
+        data: {
+          automationId: rule.id,
+          trigger: triggerType,
+          action: rule.action,
+          result: failed ? "error" : "success",
+          error: failed ? JSON.stringify(results.filter((r) => !r.ok)) : null,
+          workspaceId: context.workspaceId,
+          metadata: { projectId: context.projectId, results, context: context as any },
+        },
+      })
+    );
+
+    logger.info("[AutomationExecutor] Executed automation rule", {
+      ruleId: rule.id,
+      triggerType,
+      results,
+    });
+
+    return { executed: !failed, results };
   }
 );
 
@@ -136,13 +409,37 @@ export async function triggerAutomation(
 
 // ──────────────────────────────────────────────
 //  DUE DATE PASSED — hourly cron
-//  Fires DUE_DATE_PASSED for any overdue, incomplete tasks
+//  Fires DUE_DATE_PASSED for overdue, incomplete tasks
 // ──────────────────────────────────────────────
 
 export const dueDatePassedCron = inngest.createFunction(
   { id: "automation-due-date-passed", triggers: [{ cron: "TZ(UTC) 0 * * * *" }] },
   async ({ step }) => {
-    logger.info("[Automation] DUE_DATE_PASSED cron — Disabled, Nova is in observation mode");
-    return { firedCount: 0 };
+    const { processAutomations } = await import("@/lib/automations/engine");
+
+    const overdue = await step.run("find-overdue-tasks", async () =>
+      prisma.task.findMany({
+        where: {
+          dueDate: { lt: new Date() },
+          status: { notIn: ["done", "complete", "completed", "finished", "approved"] },
+        },
+        select: { id: true, workspaceId: true, projectId: true, title: true, assigneeIds: true },
+        take: 500,
+      })
+    );
+
+    for (const task of overdue) {
+      await processAutomations(task.workspaceId, "DUE_DATE_PASSED", {
+        taskId: task.id,
+        projectId: task.projectId,
+        taskTitle: task.title,
+        assigneeId: task.assigneeIds[0],
+      });
+    }
+
+    logger.info("[Automation] DUE_DATE_PASSED scan complete", {
+      firedCount: overdue.length,
+    });
+    return { firedCount: overdue.length };
   }
 );

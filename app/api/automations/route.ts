@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { canAccessProject } from "@/lib/project-permissions";
 import { getPlanLimits, enforcePlanLimit } from "@/lib/plan-limits";
 
 const TRIGGER_VALUES = [
@@ -26,7 +27,21 @@ const automationSchema = z.object({
     action: z.enum(ACTION_VALUES),
     actionValue: z.string().optional(),
     workspaceId: z.string(),
+    projectId: z.string().optional(),
 });
+
+async function ensureProjectAccess(
+    userId: string,
+    workspaceId: string,
+    projectId?: string
+): Promise<string | null> {
+    if (!projectId) return null;
+    const access = await canAccessProject(userId, projectId, workspaceId);
+    if (!access.hasAccess) {
+        return "Access denied";
+    }
+    return null;
+}
 
 export async function GET(req: Request) {
     try {
@@ -37,6 +52,7 @@ export async function GET(req: Request) {
 
         const { searchParams } = new URL(req.url);
         const workspaceId = searchParams.get("workspaceId");
+        const projectId = searchParams.get("projectId");
 
         if (!workspaceId) {
             return NextResponse.json({ error: "workspaceId is required" }, { status: 400 });
@@ -48,9 +64,22 @@ export async function GET(req: Request) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        const [automations, count] = await Promise.all([
+        const projectError = await ensureProjectAccess(user.id, workspaceId, projectId || undefined);
+        if (projectError) {
+            return NextResponse.json({ error: projectError }, { status: 403 });
+        }
+
+        // projectId === null from the UI means "workspace-wide rules only"
+        const scope: { workspaceId: string; projectId?: string | null } = { workspaceId };
+        if (projectId === "workspace") {
+            scope.projectId = null;
+        } else if (projectId) {
+            scope.projectId = projectId;
+        }
+
+        const [automations, workspaceCount] = await Promise.all([
             prisma.automation.findMany({
-                where: { workspaceId },
+                where: scope,
                 orderBy: { createdAt: "asc" },
             }),
             prisma.automation.count({ where: { workspaceId } })
@@ -68,7 +97,7 @@ export async function GET(req: Request) {
             automations,
             limits: {
                 max: limits.maxAutomations,
-                current: count,
+                current: workspaceCount,
             }
         });
     } catch (error) {
@@ -96,6 +125,11 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
+        const projectError = await ensureProjectAccess(user.id, data.workspaceId, data.projectId);
+        if (projectError) {
+            return NextResponse.json({ error: projectError }, { status: 403 });
+        }
+
         // Check plan limits strictly with TOCTOU-safe transaction
         await prisma.$transaction(async (tx) => {
             const count = await tx.automation.count({ where: { workspaceId: data.workspaceId } });
@@ -110,6 +144,7 @@ export async function POST(req: Request) {
                 action: data.action,
                 actionValue: data.actionValue || null,
                 workspaceId: data.workspaceId,
+                projectId: data.projectId || null,
             },
         });
 

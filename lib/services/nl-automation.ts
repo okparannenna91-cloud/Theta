@@ -173,6 +173,7 @@ export async function createAutomationFromNL(
   input: string,
   workspaceId: string,
   _userId: string,
+  projectId?: string,
 ) {
   const rule = await parseNaturalLanguageToAutomation(input, workspaceId);
 
@@ -184,6 +185,7 @@ export async function createAutomationFromNL(
       action: rule.actions[0].type,
       actionValue: JSON.stringify(rule.actions),
       workspaceId,
+      projectId: projectId || null,
       active: true,
     },
   });
