@@ -62,37 +62,40 @@ export async function GET(request: NextRequest) {
         const { access_token, refresh_token, expires_in } = data;
         const expiresAt = expires_in ? new Date(Date.now() + expires_in * 1000) : null;
 
-
-
-        // Save or update the integration
-        await prisma.integration.upsert({
+        const existingIntegration = await prisma.integration.findFirst({
             where: {
-                id: (await prisma.integration.findFirst({
-                    where: {
-                        workspaceId,
-                        // @ts-ignore
-                        provider: "asana"
-                    }
-                }))?.id || "unfound-id-placeholder"
-            },
-            update: {
-                accessToken: encrypt(access_token),
-                refreshToken: refresh_token ? encrypt(refresh_token) : null,
-                // @ts-ignore
-                expiresAt,
-                updatedAt: new Date(),
-            },
-            create: {
                 workspaceId,
                 // @ts-ignore
-                provider: "asana",
-                accessToken: encrypt(access_token),
-                refreshToken: refresh_token ? encrypt(refresh_token) : null,
-                // @ts-ignore
-                expiresAt,
-                config: {},
-            },
+                provider: "asana"
+            }
         });
+
+        // Save or update the integration
+        if (existingIntegration) {
+            await prisma.integration.update({
+                where: { id: existingIntegration.id },
+                data: {
+                    accessToken: encrypt(access_token),
+                    refreshToken: refresh_token ? encrypt(refresh_token) : null,
+                    // @ts-ignore
+                    expiresAt,
+                    updatedAt: new Date(),
+                },
+            });
+        } else {
+            await prisma.integration.create({
+                data: {
+                    workspaceId,
+                    // @ts-ignore
+                    provider: "asana",
+                    accessToken: encrypt(access_token),
+                    refreshToken: refresh_token ? encrypt(refresh_token) : null,
+                    // @ts-ignore
+                    expiresAt,
+                    config: {},
+                },
+            });
+        }
 
         // Redirect back to dashboard
         return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=success&provider=asana"));

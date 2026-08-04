@@ -31,33 +31,35 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        // Save or update the integration
-        const integration = await prisma.integration.upsert({
-
+        const existingIntegration = await prisma.integration.findFirst({
             where: {
-                id: (await prisma.integration.findFirst({
-                    where: {
-                        workspaceId,
-                        // @ts-ignore
-                        provider
-                    }
-                }))?.id || "unfound-id-placeholder"
-            },
-            update: {
-                accessToken: encrypt(accessToken),
-                refreshToken: refreshToken ? encrypt(refreshToken) : null,
-                config: config || {},
-                updatedAt: new Date(),
-            },
-            create: {
                 workspaceId,
                 // @ts-ignore
-                provider,
-                accessToken: encrypt(accessToken),
-                refreshToken: refreshToken ? encrypt(refreshToken) : null,
-                config: config || {},
-            },
+                provider
+            }
         });
+
+        // Save or update the integration
+        const integration = existingIntegration
+            ? await prisma.integration.update({
+                where: { id: existingIntegration.id },
+                data: {
+                    accessToken: encrypt(accessToken),
+                    refreshToken: refreshToken ? encrypt(refreshToken) : null,
+                    config: config || {},
+                    updatedAt: new Date(),
+                },
+            })
+            : await prisma.integration.create({
+                data: {
+                    workspaceId,
+                    // @ts-ignore
+                    provider,
+                    accessToken: encrypt(accessToken),
+                    refreshToken: refreshToken ? encrypt(refreshToken) : null,
+                    config: config || {},
+                },
+            });
 
         return NextResponse.json(integration);
     } catch (error) {

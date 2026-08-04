@@ -25,32 +25,35 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
 
-        // Trello uses API key from ENV (usually global) and user token.
-        // But for multi-workspace isolation, maybe we store the key too if provided.
-        const integration = await prisma.integration.upsert({
+        const existingIntegration = await prisma.integration.findFirst({
             where: {
-                id: (await prisma.integration.findFirst({
-                    where: {
-                        workspaceId,
-                        // @ts-ignore
-                        provider: "trello"
-                    }
-                }))?.id || "unfound-id-placeholder"
-            },
-            update: {
-                accessToken: encrypt(token),
-                // We could store the apiKey in config if it's per-user
-                config: { apiKey: apiKey || process.env.TRELLO_API_KEY },
-                updatedAt: new Date(),
-            },
-            create: {
                 workspaceId,
                 // @ts-ignore
-                provider: "trello",
-                accessToken: encrypt(token),
-                config: { apiKey: apiKey || process.env.TRELLO_API_KEY },
-            },
+                provider: "trello"
+            }
         });
+
+        // Trello uses API key from ENV (usually global) and user token.
+        // But for multi-workspace isolation, maybe we store the key too if provided.
+        const integration = existingIntegration
+            ? await prisma.integration.update({
+                where: { id: existingIntegration.id },
+                data: {
+                    accessToken: encrypt(token),
+                    // We could store the apiKey in config if it's per-user
+                    config: { apiKey: apiKey || process.env.TRELLO_API_KEY },
+                    updatedAt: new Date(),
+                },
+            })
+            : await prisma.integration.create({
+                data: {
+                    workspaceId,
+                    // @ts-ignore
+                    provider: "trello",
+                    accessToken: encrypt(token),
+                    config: { apiKey: apiKey || process.env.TRELLO_API_KEY },
+                },
+            });
 
         return NextResponse.json(integration);
     } catch (error) {

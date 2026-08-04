@@ -25,32 +25,35 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: error.message }, { status: 403 });
         }
 
-        // WooCommerce siteUrl goes in config, keys go in encrypted tokens
-        const integration = await prisma.integration.upsert({
+        const existingIntegration = await prisma.integration.findFirst({
             where: {
-                id: (await prisma.integration.findFirst({
-                    where: {
-                        workspaceId,
-                        // @ts-ignore
-                        provider: "woocommerce"
-                    }
-                }))?.id || "unfound-id-placeholder"
-            },
-            update: {
-                accessToken: encrypt(consumerKey),
-                refreshToken: null,
-                config: { siteUrl, consumerSecret: encrypt(consumerSecret) },
-                updatedAt: new Date(),
-            },
-            create: {
                 workspaceId,
                 // @ts-ignore
-                provider: "woocommerce",
-                accessToken: encrypt(consumerKey),
-                refreshToken: null,
-                config: { siteUrl, consumerSecret: encrypt(consumerSecret) },
-            },
+                provider: "woocommerce"
+            }
         });
+
+        // WooCommerce siteUrl goes in config, keys go in encrypted tokens
+        const integration = existingIntegration
+            ? await prisma.integration.update({
+                where: { id: existingIntegration.id },
+                data: {
+                    accessToken: encrypt(consumerKey),
+                    refreshToken: null,
+                    config: { siteUrl, consumerSecret: encrypt(consumerSecret) },
+                    updatedAt: new Date(),
+                },
+            })
+            : await prisma.integration.create({
+                data: {
+                    workspaceId,
+                    // @ts-ignore
+                    provider: "woocommerce",
+                    accessToken: encrypt(consumerKey),
+                    refreshToken: null,
+                    config: { siteUrl, consumerSecret: encrypt(consumerSecret) },
+                },
+            });
 
         return NextResponse.json(integration);
     } catch (error) {

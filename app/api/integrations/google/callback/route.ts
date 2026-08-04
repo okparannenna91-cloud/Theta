@@ -38,31 +38,34 @@ export async function GET(request: NextRequest) {
         const { access_token, refresh_token, expires_in } = data;
         const expiresAt = expires_in ? new Date(Date.now() + expires_in * 1000) : null;
 
-        const integration = await prisma.integration.upsert({
-            where: {
-                id: (await prisma.integration.findFirst({
-                    where: { workspaceId, provider: "google" }
-                }))?.id || "unfound-id-placeholder"
-            },
-            update: {
-                accessToken: encrypt(access_token),
-                refreshToken: refresh_token ? encrypt(refresh_token) : undefined,
-                // @ts-ignore
-                expiresAt,
-                updatedAt: new Date(),
-                config: { scopes: data.scope },
-            },
-            create: {
-                workspaceId,
-                // @ts-ignore
-                provider: "google",
-                accessToken: encrypt(access_token),
-                refreshToken: refresh_token ? encrypt(refresh_token) : null,
-                // @ts-ignore
-                expiresAt,
-                config: { scopes: data.scope },
-            },
+        const existingIntegration = await prisma.integration.findFirst({
+            where: { workspaceId, provider: "google" }
         });
+
+        const integration = existingIntegration
+            ? await prisma.integration.update({
+                where: { id: existingIntegration.id },
+                data: {
+                    accessToken: encrypt(access_token),
+                    refreshToken: refresh_token ? encrypt(refresh_token) : undefined,
+                    // @ts-ignore
+                    expiresAt,
+                    updatedAt: new Date(),
+                    config: { scopes: data.scope },
+                },
+            })
+            : await prisma.integration.create({
+                data: {
+                    workspaceId,
+                    // @ts-ignore
+                    provider: "google",
+                    accessToken: encrypt(access_token),
+                    refreshToken: refresh_token ? encrypt(refresh_token) : null,
+                    // @ts-ignore
+                    expiresAt,
+                    config: { scopes: data.scope },
+                },
+            });
 
         return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=success&provider=google"));
     } catch (error) {
