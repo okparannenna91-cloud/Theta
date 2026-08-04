@@ -1,22 +1,21 @@
 import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
-import { NovaEventBus } from "@/lib/nova/ambient/event-bus";
-import { ObservationPipeline } from "@/lib/nova/ambient/observation-pipeline";
-import type { WorkspaceEvent, EventType } from "@/lib/nova/ambient/types";
 import { evaluateConditions, matchesProjectScope } from "@/lib/automations/conditions";
+import { isNovaEnabled } from "@/lib/nova/config";
 
-let _initialized = false;
-function ensurePipelineInitialized(): void {
-  if (!_initialized) {
-    _initialized = true;
-    ObservationPipeline.initialize();
-  }
+let _novaInitialized = false;
+async function ensureNovaInitialized(): Promise<void> {
+  if (!isNovaEnabled() || _novaInitialized) return;
+  const { ObservationPipeline } = await import("@/lib/nova/ambient/observation-pipeline");
+  _novaInitialized = true;
+  ObservationPipeline.initialize({ startGlobalHeartbeat: false });
+  logger.debug("[AutomationEngine] Nova ambient pipeline initialized");
 }
 
 // ──────────────────────────────────────────────
 //  UNIFIED AUTOMATION ENGINE
 //  Single entry point for all trigger firing.
-//  1) Feeds the Nova ambient observation pipeline.
+//  1) Optionally feeds the Nova ambient observation pipeline (if enabled).
 //  2) Dispatches matching automation rules to the
 //     Inngest executor (project-scoped + condition-aware).
 // ──────────────────────────────────────────────
@@ -36,7 +35,7 @@ export type AutomationTrigger =
   | "USER_INVITED"
   | "MEMBER_ADDED";
 
-const TRIGGER_TO_EVENT: Record<AutomationTrigger, EventType> = {
+const TRIGGER_TO_EVENT: Record<AutomationTrigger, string> = {
   TASK_CREATED: "task:created",
   TASK_STATUS_UPDATED: "task:updated",
   TASK_COMPLETED: "task:completed",
@@ -54,6 +53,7 @@ const TRIGGER_TO_EVENT: Record<AutomationTrigger, EventType> = {
 
 export interface TriggerContext {
   workspaceId: string;
+  trigger?: string;
   userId?: string;
   taskId?: string;
   projectId?: string;
@@ -66,21 +66,16 @@ export interface TriggerContext {
   [key: string]: unknown;
 }
 
-/**
- * Emit a workspace event to the Nova ambient observation pipeline and dispatch
- * matching automation rules to the Inngest executor for execution.
- */
-export async function processAutomations(
+async function emitToNova(
   workspaceId: string,
   trigger: AutomationTrigger,
   context: Omit<TriggerContext, "workspaceId"> & { workspaceId?: string },
 ): Promise<void> {
-  ensurePipelineInitialized();
-  logger.debug(`[AutomationEngine] Event: ${trigger} workspace=${workspaceId}`);
-
+  if (!isNovaEnabled()) return;
+  const { NovaEventBus } = await import("@/lib/nova/ambient/event-bus");
   const bus = NovaEventBus.getInstance();
-  const event: WorkspaceEvent = {
-    type: TRIGGER_TO_EVENT[trigger],
+  const event = {
+    type: TRIGGER_TO_EVENT[trigger] as "task:created",
     workspaceId,
     userId: typeof context.userId === "string" ? context.userId : undefined,
     taskId: typeof context.taskId === "string" ? context.taskId : undefined,
@@ -97,8 +92,23 @@ export async function processAutomations(
     },
   };
   await bus.emit(event);
+}
 
-  await dispatchRules(workspaceId, trigger, context);
+/**
+ * Emit a workspace event to the Nova ambient observation pipeline (if enabled) and dispatch
+ * matching automation rules to the Inngest executor for execution.
+ */
+export async function processAutomations(
+  workspaceId: string,
+  trigger: AutomationTrigger,
+  context: Omit<TriggerContext, "workspaceId"> & { workspaceId?: string },
+): Promise<void> {
+  await ensureNovaInitialized();
+  logger.debug(`[AutomationEngine] Event: ${trigger} workspace=${workspaceId}`);
+
+  await emitToNova(workspaceId, trigger, context);
+
+  await dispatchRules(workspaceId, trigger, { ...context, trigger });
 }
 
 async function dispatchRules(

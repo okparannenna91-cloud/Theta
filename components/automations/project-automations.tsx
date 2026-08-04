@@ -23,6 +23,7 @@ import {
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useStatuses, getStatusValue, getStatusDisplayName, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 
@@ -758,9 +759,22 @@ function AutomationBuilder({ workspaceId, projectId, editing, statuses, members,
                   <Select value={actionValue} onValueChange={setActionValue}>
                     <SelectTrigger className="h-8 text-xs w-full sm:w-56"><SelectValue placeholder="Select member" /></SelectTrigger>
                     <SelectContent>
-                      {members.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>{m.name || m.email}</SelectItem>
-                      ))}
+                      {members.map((m) => {
+                        const initials = m.name
+                          ? m.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+                          : m.email.slice(0, 2).toUpperCase();
+                        return (
+                          <SelectItem key={m.id} value={m.id}>
+                            <div className="flex items-center gap-2">
+                              <Avatar className="h-5 w-5">
+                                <AvatarImage src={m.imageUrl || undefined} alt={m.name || m.email} />
+                                <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                              </Avatar>
+                              <span>{m.name || m.email}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
                 )}

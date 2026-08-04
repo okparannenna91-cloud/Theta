@@ -30,6 +30,7 @@ export interface AutomationAction {
 
 export interface TriggerContext {
   workspaceId: string;
+  trigger?: string;
   userId?: string;
   taskId?: string;
   projectId?: string;
@@ -65,6 +66,111 @@ async function resolveActorUserId(
   } catch {
     return null;
   }
+}
+
+async function getActorName(workspaceId: string, userId?: string): Promise<string> {
+  if (!userId) return "Someone";
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+    return user?.name || "Someone";
+  } catch {
+    return "Someone";
+  }
+}
+
+async function getProjectName(projectId?: string): Promise<string> {
+  if (!projectId) return "";
+  try {
+    const project = await prisma.project.findUnique({
+      where: { id: projectId },
+      select: { name: true },
+    });
+    return project?.name ? ` in "${project.name}"` : "";
+  } catch {
+    return "";
+  }
+}
+
+function buildNotificationMessage(
+  trigger: string,
+  action: AutomationAction,
+  context: TriggerContext,
+  actorName: string,
+  projectContext: string
+): string {
+  const customMessage = str(
+    action.params.message ??
+      action.params.content ??
+      action.params.value ??
+      ""
+  );
+
+  if (customMessage) {
+    // Replace placeholders in custom message
+    return customMessage
+      .replace(/\{actor\}/g, actorName)
+      .replace(/\{task\}/g, str(context.taskTitle))
+      .replace(/\{project\}/g, projectContext.replace(" in \"", "").replace("\"", ""));
+  }
+
+  // Default rich messages based on trigger
+  const taskRef = context.taskTitle ? `"${context.taskTitle}"` : "a task";
+
+  switch (trigger) {
+    case "TASK_COMPLETED":
+      return `${actorName} completed ${taskRef}${projectContext}.`;
+    case "TASK_CREATED":
+      return `${actorName} created ${taskRef}${projectContext}.`;
+    case "TASK_STATUS_UPDATED":
+      return `${actorName} updated ${taskRef} status to ${str(context.newValue) || "a new status"}${projectContext}.`;
+    case "TASK_ASSIGNED":
+      return `${actorName} assigned ${taskRef}${projectContext}.`;
+    case "TASK_PRIORITY_CHANGED":
+      return `${actorName} changed ${taskRef} priority to ${str(context.newValue) || "a new priority"}${projectContext}.`;
+    case "DUE_DATE_PASSED":
+      return `${taskRef} is past its due date${projectContext}.`;
+    case "PROJECT_CREATED":
+      return `${actorName} created a new project${projectContext}.`;
+    case "SPRINT_STARTED":
+      return `A sprint started${projectContext}.`;
+    case "SPRINT_COMPLETED":
+      return `A sprint was completed${projectContext}.`;
+    case "FORM_SUBMITTED":
+      return `A form was submitted${projectContext}.`;
+    case "DOCUMENT_UPDATED":
+      return `${actorName} updated a document${projectContext}.`;
+    case "USER_INVITED":
+      return `${actorName} invited a new user${projectContext}.`;
+    case "MEMBER_ADDED":
+      return `A new member joined${projectContext}.`;
+    default:
+      return `Automation triggered by ${actorName} on ${taskRef}${projectContext}.`;
+  }
+}
+
+function buildNotificationTitle(trigger: string, action: AutomationAction, context: TriggerContext): string {
+  const customTitle = str(action.params.title);
+  if (customTitle) return customTitle;
+
+  const titles: Record<string, string> = {
+    TASK_COMPLETED: "Task Completed",
+    TASK_CREATED: "Task Created",
+    TASK_STATUS_UPDATED: "Task Status Updated",
+    TASK_ASSIGNED: "Task Assigned",
+    TASK_PRIORITY_CHANGED: "Priority Changed",
+    DUE_DATE_PASSED: "Overdue Task",
+    PROJECT_CREATED: "Project Created",
+    SPRINT_STARTED: "Sprint Started",
+    SPRINT_COMPLETED: "Sprint Completed",
+    FORM_SUBMITTED: "Form Submitted",
+    DOCUMENT_UPDATED: "Document Updated",
+    USER_INVITED: "User Invited",
+    MEMBER_ADDED: "Member Added",
+  };
+  return titles[trigger] || "Automation Notification";
 }
 
 function normalizeActions(
@@ -227,36 +333,128 @@ async function executeAction(
         action.params.userId || action.params.assigneeId || context.assigneeId || actorId
       );
       if (!targetUserId) return { ok: false, detail: "send_notification requires a recipient" };
+      
+      const actorName = await getActorName(workspaceId, context.userId);
+      const projectContext = await getProjectName(context.projectId);
+      const title = buildNotificationTitle(context.trigger || "", action, context);
+      const message = buildNotificationMessage(context.trigger || "", action, context, actorName, projectContext);
+      
       await createNotification(
         targetUserId,
         workspaceId,
         "reminder" as NotificationType,
-        str(action.params.title ?? "Automation notification"),
-        str(action.params.message ?? action.params.value ?? context.taskTitle ?? ""),
-        { taskId: targetTaskId, projectId: context.projectId }
+        title,
+        message,
+        { taskId: targetTaskId, projectId: context.projectId, actorId: context.userId, actorName }
       );
       return { ok: true, detail: `Notification sent to ${targetUserId}` };
     }
 
-    case "send_message":
-    case "notify_channel":
-    case "send_email": {
-      const title = str(action.params.title ?? "Automation message");
-      const message = str(
-        action.params.message ??
-          action.params.content ??
-          action.params.value ??
-          `Automation "${action.params.ruleName ?? ""}" fired${context.taskTitle ? ` on "${context.taskTitle}"` : ""}.`
-      );
+        case "send_message":
+    case "notify_channel": {
+      const actorName = await getActorName(workspaceId, context.userId);
+      const projectContext = await getProjectName(context.projectId);
+      const title = buildNotificationTitle(context.trigger || "", action, context);
+      const message = buildNotificationMessage(context.trigger || "", action, context, actorName, projectContext);
+      
+      // Find team for this project
+      let teamId = str(action.params.teamId);
+      if (!teamId && context.projectId) {
+        try {
+          const project = await prisma.project.findUnique({
+            where: { id: context.projectId },
+            select: { teamId: true, projectTeams: { select: { teamId: true }, take: 1 } },
+          });
+          teamId = project?.teamId || project?.projectTeams?.[0]?.teamId || "";
+        } catch {}
+      }
+
+      if (teamId) {
+        // Post to team chat channel
+        const crypto = await import("crypto");
+        const messageId = crypto.randomUUID();
+        const now = Date.now();
+
+        const doc = {
+          _id: messageId,
+          content: message,
+          workspaceId,
+          projectId: context.projectId || null,
+          teamId,
+          userId: actorId || "",
+          attachment: null,
+          reactions: null,
+          isPinned: false,
+          isEdited: false,
+          deletedAt: null,
+          replyToId: null,
+          createdAt: now,
+          updatedAt: now,
+        };
+
+        await prisma.$runCommandRaw({
+          insert: "chat_messages",
+          documents: [doc],
+        });
+
+        // Publish to Ably for real-time delivery
+        try {
+          const { publishToChannel } = await import("@/lib/ably");
+          const channelName = `team:${teamId}:chat`;
+          const user = await prisma.user.findUnique({
+            where: { id: actorId || "" },
+            select: { id: true, name: true, imageUrl: true },
+          });
+          await publishToChannel(channelName, "message", {
+            id: messageId,
+            content: message,
+            workspaceId,
+            projectId: context.projectId || null,
+            teamId,
+            userId: actorId || "",
+            attachment: null,
+            reactions: null,
+            isPinned: false,
+            isEdited: false,
+            deletedAt: null,
+            replyToId: null,
+            createdAt: new Date(now),
+            updatedAt: new Date(now),
+            user: user || { id: actorId || "", name: "System", imageUrl: null },
+          });
+        } catch (err) {
+          logger.warn("[AutomationExecutor] Failed to publish to Ably:", err);
+        }
+
+        return { ok: true, detail: `Message posted to team chat` };
+      }
+
+      // Fallback: notify all workspace members
       await notifyWorkspaceMembers(
         workspaceId,
         actorId,
         "smart_alert" as NotificationType,
         title,
         message,
-        { projectId: context.projectId }
+        { projectId: context.projectId, actorId: context.userId, actorName }
       );
       return { ok: true, detail: "Workspace members notified" };
+    }
+
+    case "send_email": {
+      const actorName = await getActorName(workspaceId, context.userId);
+      const projectContext = await getProjectName(context.projectId);
+      const title = buildNotificationTitle(context.trigger || "", action, context);
+      const message = buildNotificationMessage(context.trigger || "", action, context, actorName, projectContext);
+      await notifyWorkspaceMembers(
+        workspaceId,
+        actorId,
+        "smart_alert" as NotificationType,
+        title,
+        message,
+        { projectId: context.projectId, actorId: context.userId, actorName }
+      );
+      return { ok: true, detail: "Email notification sent" };
     }
 
     case "add_comment": {

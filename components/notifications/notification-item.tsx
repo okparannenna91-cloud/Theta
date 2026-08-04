@@ -4,6 +4,7 @@ import { formatDistanceToNow } from "date-fns";
 import { CheckCircle2, FolderKanban, Users, Bell as BellIcon, CreditCard, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 
 interface NotificationItemProps {
@@ -62,6 +63,11 @@ export function NotificationItem({ notification, onRefresh }: NotificationItemPr
         }
     };
 
+    const actor = notification.actor;
+    const initials = actor?.name
+        ? actor.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+        : null;
+
     return (
         <div
             className={cn(
@@ -72,7 +78,16 @@ export function NotificationItem({ notification, onRefresh }: NotificationItemPr
         >
             <div className="flex gap-3">
                 <div className="flex-shrink-0 mt-1">
-                    {getIcon(notification.type)}
+                    {actor ? (
+                        <Avatar className="h-8 w-8">
+                            <AvatarImage src={actor.imageUrl} alt={actor.name} />
+                            <AvatarFallback className="text-xs">
+                                {initials || <BellIcon className="h-4 w-4" />}
+                            </AvatarFallback>
+                        </Avatar>
+                    ) : (
+                        getIcon(notification.type)
+                    )}
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2">

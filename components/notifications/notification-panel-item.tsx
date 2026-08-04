@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const PRIORITY_DOT: Record<string, string> = {
     critical: "bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.5)]",
@@ -81,6 +82,11 @@ export function NotificationPanelItem({ notification }: NotificationPanelItemPro
         },
     });
 
+    const actor = notification.actor;
+    const initials = actor?.name
+        ? actor.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2)
+        : null;
+
     return (
         <div
             className={cn(
@@ -90,8 +96,19 @@ export function NotificationPanelItem({ notification }: NotificationPanelItemPro
             onClick={() => { if (!notification.read) markReadMutation.mutate(); }}
         >
             <div className="flex gap-3">
-                <div className="h-10 w-10 rounded-xl bg-muted/50 border flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
-                    {getIcon(notification.type)}
+                <div className="relative shrink-0 group-hover:scale-105 transition-transform">
+                    {actor ? (
+                        <Avatar className="h-10 w-10">
+                            <AvatarImage src={actor.imageUrl} alt={actor.name} />
+                            <AvatarFallback className="text-xs">
+                                {initials || getIcon(notification.type)}
+                            </AvatarFallback>
+                        </Avatar>
+                    ) : (
+                        <div className="h-10 w-10 rounded-xl bg-muted/50 border flex items-center justify-center">
+                            {getIcon(notification.type)}
+                        </div>
+                    )}
                 </div>
                 <div className="flex-1 min-w-0 space-y-1">
                     <div className="flex items-center justify-between gap-2">

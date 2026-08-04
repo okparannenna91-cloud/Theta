@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { generateWithGemini } from "@/lib/gemini";
 
 const AutomationConditionSchema = z.object({
   field: z.string(),
@@ -135,13 +136,11 @@ export async function parseNaturalLanguageToAutomation(
 
   logger.info("Parsing natural language to automation:", input);
 
-  const { generateWithOpenAI } = await import("@/lib/openai");
-
-  const response = await generateWithOpenAI(
+  const response = await generateWithGemini(
     input,
     SYSTEM_PROMPT,
     undefined,
-    "gpt-4o-mini",
+    "gemini-2.5-flash",
   );
 
   if (!response) {

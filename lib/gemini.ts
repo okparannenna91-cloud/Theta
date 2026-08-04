@@ -22,3 +22,15 @@ export function getModel(model?: string) {
 export function getVisionModel(model?: string) {
   return getModel(model);
 }
+
+export async function generateWithGemini(
+  prompt: string,
+  systemPrompt?: string,
+  signal?: AbortSignal,
+  model?: string
+): Promise<string> {
+  const genModel = getModel(model);
+  const fullPrompt = systemPrompt ? `${systemPrompt}\n\n${prompt}` : prompt;
+  const response = await genModel.generateContent(fullPrompt, { signal });
+  return response.response.text();
+}

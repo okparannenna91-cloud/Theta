@@ -104,8 +104,43 @@ export async function GET(req: Request) {
             prisma.notification.count({ where: { workspaceId, userId: user.id, read: false, archived: false } })
         ]);
 
-        const hasMore = notifications.length > take;
-        const filteredNotifications = notifications.slice(0, take);
+        // Enrich notifications with actor info from metadata
+        const enrichedNotifications = await Promise.all(
+            notifications.map(async (n) => {
+                const meta = (n.metadata as Record<string, unknown>) || {};
+                const actorId = meta.actorId as string | undefined;
+                const actorName = meta.actorName as string | undefined;
+                
+                if (actorId && !actorName) {
+                    try {
+                        const actor = await prisma.user.findUnique({
+                            where: { id: actorId },
+                            select: { name: true, imageUrl: true },
+                        });
+                        return {
+                            ...n,
+                            actor: {
+                                id: actorId,
+                                name: actor?.name || "Someone",
+                                imageUrl: actor?.imageUrl || null,
+                            },
+                        };
+                    } catch {
+                        return { ...n, actor: null };
+                    }
+                }
+                
+                return {
+                    ...n,
+                    actor: actorId
+                        ? { id: actorId, name: actorName || "Someone", imageUrl: null }
+                        : null,
+                };
+            })
+        );
+
+        const hasMore = enrichedNotifications.length > take;
+        const filteredNotifications = enrichedNotifications.slice(0, take);
 
         return NextResponse.json({ 
             notifications: filteredNotifications, 

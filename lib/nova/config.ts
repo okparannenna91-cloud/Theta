@@ -99,6 +99,10 @@ export function getStageMilestone(stage: "ASSISTANT" | "OPERATOR" | "MANAGER" | 
   return EVOLUTION_MILESTONES.find(m => m.stage === stage) || null;
 }
 
+export function isNovaEnabled(): boolean {
+  return process.env.NOVA_ENABLED !== "false";
+}
+
 export { ParameterExtractor } from "./parameter-extractor";
 export { PlanningEngine } from "./planning-engine";
 export { WorkflowOrchestrator } from "./workflow-orchestrator";
