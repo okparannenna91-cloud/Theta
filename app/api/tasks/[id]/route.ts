@@ -5,6 +5,7 @@ import { z } from "zod";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel, getTaskChannel } from "@/lib/ably";
 import { updateParentTask } from "@/lib/task-utils";
+import { syncNativeToFieldValues } from "@/lib/services/custom-fields";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -332,6 +333,25 @@ export async function PATCH(
         },
       },
     });
+
+    // Reverse sync: native task field changes flow back into matching custom field values
+    const nativeSyncedFields = ["dueDate", "startDate", "priority", "assigneeIds", "link", "email", "phone", "rating", "vote", "timeSpent", "progress"];
+    const nativeChanges: Record<string, unknown> = {};
+    for (const key of nativeSyncedFields) {
+      if (changes[key] && (data as any)[key] !== undefined) {
+        nativeChanges[key] = (data as any)[key];
+      }
+    }
+    if (Object.keys(nativeChanges).length > 0) {
+      const mergedFieldValues = await syncNativeToFieldValues(
+        params.id,
+        updated.boardId ?? task.boardId ?? null,
+        nativeChanges,
+      );
+      if (mergedFieldValues) {
+        (updated as any).fieldValues = mergedFieldValues;
+      }
+    }
 
     // Notify via Ably (all channels in parallel so realtime updates arrive fast)
     const workspaceChannel = getWorkspaceChannel(updated.workspaceId);

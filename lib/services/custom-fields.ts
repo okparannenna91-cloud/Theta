@@ -323,12 +323,16 @@ export async function setFieldValue(
       updatedAt: new Date().toISOString(),
     };
 
+    const nativeSync = await buildNativeSyncData(field, value, task);
+    const updateData: any = {
+      fieldValues: values as object,
+      customFieldMetadata: metadata as object,
+      ...nativeSync,
+    };
+
     await prisma.task.update({
       where: { id: taskId },
-      data: {
-        fieldValues: values as object,
-        customFieldMetadata: metadata as object,
-      },
+      data: updateData,
     });
   } catch (err) {
     logger.error("Failed to set field value", err);
@@ -387,11 +391,19 @@ export async function setMultipleFieldValues(
 
     if (hasError) throw new Error(errorMsg);
 
+    const nativeSync: Record<string, unknown> = {};
+    for (const field of fields) {
+      if (currentValues[field.id] !== undefined) {
+        Object.assign(nativeSync, await buildNativeSyncData(field, currentValues[field.id], task));
+      }
+    }
+
     await prisma.task.update({
       where: { id: taskId },
       data: {
         fieldValues: currentValues as object,
         customFieldMetadata: currentMetadata as object,
+        ...nativeSync,
       },
     });
   } catch (err) {
@@ -476,30 +488,33 @@ export async function bulkUpdateFieldValues(
 
     const tasks = await prisma.task.findMany({
       where: { id: { in: taskIds } },
-      select: { id: true, fieldValues: true, customFieldMetadata: true },
+      select: { id: true, fieldValues: true, customFieldMetadata: true, projectId: true, boardId: true },
     });
 
-    const updates = tasks.map((task) => {
-      const currentValues = parseFieldValues(task.fieldValues);
-      currentValues[fieldId] = value;
+    const updates = await Promise.all(
+      tasks.map(async (task) => {
+        const currentValues = parseFieldValues(task.fieldValues);
+        currentValues[fieldId] = value;
 
-      const currentMetadata = parseMetadata(task.customFieldMetadata);
-      currentMetadata[fieldId] = {
-        fieldType: field.columnType,
-        fieldName: field.name,
-        updatedAt: new Date().toISOString(),
-      };
+        const currentMetadata = parseMetadata(task.customFieldMetadata);
+        currentMetadata[fieldId] = {
+          fieldType: field.columnType,
+          fieldName: field.name,
+          updatedAt: new Date().toISOString(),
+        };
 
-      return prisma.task.update({
-        where: { id: task.id },
-        data: {
-          fieldValues: currentValues as object,
-          customFieldMetadata: currentMetadata as object,
-        },
-      });
-    });
+        const nativeSync = await buildNativeSyncData(field, value, task);
 
-    await Promise.all(updates);
+        return prisma.task.update({
+          where: { id: task.id },
+          data: {
+            fieldValues: currentValues as object,
+            customFieldMetadata: currentMetadata as object,
+            ...nativeSync,
+          },
+        });
+      })
+    );
 
     logger.info(`Bulk updated field ${fieldId} on ${updates.length} tasks`);
     return updates.length;
@@ -888,4 +903,145 @@ function validateProgress(value: unknown, settings?: Record<string, unknown>): V
     return { valid: false, error: `Progress must be between ${min} and ${max}` };
   }
   return { valid: true };
+}
+
+// ---------------------------------------------------------------------------
+// 15. Custom field <-> native task field sync
+// ---------------------------------------------------------------------------
+
+interface NativeFieldMapping {
+  native: string;
+  toNative: (value: unknown, settings?: Record<string, unknown>) => unknown;
+}
+
+const NATIVE_FIELD_MAP: Record<string, NativeFieldMapping> = {
+  status: { native: "status", toNative: (v) => (typeof v === "string" ? v : null) },
+  priority: { native: "priority", toNative: (v) => (typeof v === "string" ? v : null) },
+  people: {
+    native: "assigneeIds",
+    toNative: (v) => (Array.isArray(v) ? v : v != null ? [v] : []),
+  },
+  assignee: {
+    native: "assigneeIds",
+    toNative: (v) => (Array.isArray(v) ? v : v != null ? [v] : []),
+  },
+  date: { native: "dueDate", toNative: (v) => (v == null || v === "" ? null : new Date(v as string | number | Date)) },
+  dueDate: { native: "dueDate", toNative: (v) => (v == null || v === "" ? null : new Date(v as string | number | Date)) },
+  startDate: { native: "startDate", toNative: (v) => (v == null || v === "" ? null : new Date(v as string | number | Date)) },
+  link: { native: "link", toNative: (v) => (typeof v === "string" ? v : null) },
+  email: { native: "email", toNative: (v) => (typeof v === "string" ? v : null) },
+  phone: { native: "phone", toNative: (v) => (typeof v === "string" ? v : null) },
+  rating: { native: "rating", toNative: (v) => (typeof v === "number" ? v : null) },
+  vote: { native: "vote", toNative: (v) => (typeof v === "number" ? v : null) },
+  progress: { native: "progress", toNative: (v) => (typeof v === "number" ? v : null) },
+  timeTracking: { native: "timeSpent", toNative: (v) => (typeof v === "number" ? v : null) },
+};
+
+const NATIVE_TO_COLUMN_TYPES: Record<string, string[]> = {
+  dueDate: ["date"],
+  startDate: ["date"],
+  priority: ["priority"],
+  assigneeIds: ["people"],
+  link: ["link"],
+  email: ["email"],
+  phone: ["phone"],
+  rating: ["rating"],
+  vote: ["vote"],
+  progress: ["progress"],
+  timeSpent: ["timeTracking"],
+};
+
+function toFieldValue(nativeKey: string, value: unknown, settings?: Record<string, unknown>): unknown {
+  switch (nativeKey) {
+    case "dueDate":
+    case "startDate":
+      if (value == null || value === "") return null;
+      return value instanceof Date ? value.toISOString() : value;
+    case "assigneeIds":
+      if (settings?.multiple) return Array.isArray(value) ? value : [];
+      return Array.isArray(value) && value.length > 0 ? value[0] : null;
+    default:
+      return value ?? null;
+  }
+}
+
+async function buildNativeSyncData(
+  field: { columnType: string },
+  value: unknown,
+  task: { projectId: string | null; boardId: string | null },
+): Promise<Record<string, unknown>> {
+  const mapping = NATIVE_FIELD_MAP[field.columnType];
+  if (!mapping) return {};
+
+  const converted = mapping.toNative(value);
+  if (converted === undefined) return {};
+
+  const data: Record<string, unknown> = { [mapping.native]: converted };
+
+  if (field.columnType === "status" && typeof converted === "string" && converted) {
+    if (task.projectId) {
+      const statusRecord = await prisma.status.findFirst({
+        where: { projectId: task.projectId, name: { equals: converted, mode: "insensitive" } },
+      });
+      if (statusRecord) data.statusId = statusRecord.id;
+    }
+    if (task.boardId) {
+      const column = await prisma.column.findFirst({
+        where: {
+          boardId: task.boardId,
+          name: { equals: converted.replace(/_/g, " "), mode: "insensitive" },
+        },
+      });
+      if (column) data.columnId = column.id;
+    }
+  }
+
+  return data;
+}
+
+export async function syncNativeToFieldValues(
+  taskId: string,
+  boardId: string | null,
+  changed: Record<string, unknown>,
+): Promise<Record<string, unknown> | null> {
+  try {
+    if (!boardId) return null;
+
+    const nativeKeys = Object.keys(changed).filter((k) => NATIVE_TO_COLUMN_TYPES[k]);
+    if (nativeKeys.length === 0) return null;
+
+    const types = Array.from(new Set(nativeKeys.flatMap((k) => NATIVE_TO_COLUMN_TYPES[k])));
+    const columns = await prisma.column.findMany({
+      where: { boardId, columnType: { in: types } },
+    });
+    if (columns.length === 0) return null;
+
+    const task = await prisma.task.findUnique({
+      where: { id: taskId },
+      select: { id: true, fieldValues: true },
+    });
+    if (!task) return null;
+
+    const values = parseFieldValues(task.fieldValues);
+    let touched = false;
+    for (const col of columns) {
+      const nativeKey = nativeKeys.find((k) => NATIVE_TO_COLUMN_TYPES[k].includes(col.columnType));
+      if (!nativeKey) continue;
+      const next = toFieldValue(nativeKey, changed[nativeKey], (col.settings as Record<string, unknown>) ?? undefined);
+      if (next === undefined) continue;
+      values[col.id] = next;
+      touched = true;
+    }
+    if (!touched) return null;
+
+    await prisma.task.update({
+      where: { id: taskId },
+      data: { fieldValues: values as object },
+    });
+
+    return values;
+  } catch (err) {
+    logger.error("Failed to sync native fields to custom field values", err);
+    return null;
+  }
 }
