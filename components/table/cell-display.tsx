@@ -17,7 +17,7 @@ export function CellDisplay({
   col: Column; value: any; row: any; onClick: () => void; isActive?: boolean;
 }) {
   if (col.type === "checkbox") {
-    const isDone = row.status === "done";
+    const isDone = col.id === "__checkbox" ? row.status === "done" : Boolean(value);
     return (
       <span className="flex items-center justify-center h-full cursor-pointer" onClick={e => { e.stopPropagation(); onClick(); }}>
         {isDone

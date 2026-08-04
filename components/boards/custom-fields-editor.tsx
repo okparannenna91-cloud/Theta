@@ -9,6 +9,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -71,7 +72,6 @@ import {
   X,
   Pin,
   PinOff,
-  Info,
 } from "lucide-react";
 
 type FieldType =
@@ -96,6 +96,12 @@ type FieldType =
   | "colorPicker";
 
 type FieldWidth = "narrow" | "medium" | "wide";
+
+const WIDTH_PRESETS: { label: FieldWidth; value: number }[] = [
+  { label: "narrow", value: 120 },
+  { label: "medium", value: 200 },
+  { label: "wide", value: 320 },
+];
 
 interface DropdownOption {
   id: string;
@@ -129,7 +135,7 @@ interface CustomField {
   boardId: string;
   settings?: FieldSettings;
   order: number;
-  width: FieldWidth;
+  width: number;
   color?: string;
   visible: boolean;
   createdAt: string;
@@ -342,7 +348,7 @@ export default function CustomFieldsEditor({
   const [fieldName, setFieldName] = useState("");
   const [fieldType, setFieldType] = useState<FieldType>("text");
   const [fieldColor, setFieldColor] = useState<string>("#6366f1");
-  const [fieldWidth, setFieldWidth] = useState<FieldWidth>("medium");
+  const [fieldWidth, setFieldWidth] = useState<number>(200);
   const [fieldVisible, setFieldVisible] = useState(true);
   const [fieldRequired, setFieldRequired] = useState(false);
   const [fieldPinned, setFieldPinned] = useState(false);
@@ -379,7 +385,7 @@ export default function CustomFieldsEditor({
     setFieldName("");
     setFieldType("text");
     setFieldColor("#6366f1");
-    setFieldWidth("medium");
+    setFieldWidth(200);
     setFieldVisible(true);
     setFieldRequired(false);
     setFieldPinned(false);
@@ -404,7 +410,7 @@ export default function CustomFieldsEditor({
     setFieldName(field.name);
     setFieldType(field.type);
     setFieldColor(field.color ?? "#6366f1");
-    setFieldWidth(field.width);
+    setFieldWidth(field.width ?? 200);
     setFieldVisible(field.visible);
     setFieldRequired(field.settings?.required ?? false);
     setFieldPinned(field.settings?.pinned ?? false);
@@ -1057,43 +1063,55 @@ export default function CustomFieldsEditor({
           }
         }}
       >
-        <DialogContent className="border-border/40 max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">
+        <DialogContent
+          onClose={() => {
+            setCreateOpen(false);
+            resetForm();
+            setEditingField(null);
+          }}
+          className="border-border/40 max-w-2xl max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0"
+        >
+          <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/60">
+            <DialogTitle className="text-foreground flex items-center gap-2.5">
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                {getFieldTypeConfig(fieldType).icon}
+              </span>
               {editingField ? "Edit Field" : "Create Custom Field"}
             </DialogTitle>
+            <DialogDescription className="text-xs text-muted-foreground/70">
+              {editingField
+                ? `Update the settings for “${editingField.name}”.`
+                : "Add a new column to your board — it will show up across all views."}
+            </DialogDescription>
           </DialogHeader>
 
-          <div className="flex items-start gap-2 border border-border/40 rounded-lg px-3 py-2 bg-muted/20 text-muted-foreground">
-            <Info className="h-3.5 w-3.5 mt-0.5 text-primary/70 flex-shrink-0" />
-            <p className="text-[11px] leading-relaxed">
-              Fields appear as columns on the board and table, and can be shown on the
-              calendar and Gantt views. Pinned fields stay visible when you scroll.
-            </p>
-          </div>
-
-          <ScrollArea className="flex-1 pr-2">
-            <div className="space-y-6 py-2">
-              {/* Field Name */}
-              <div className="space-y-2">
-                <Label className="text-foreground text-sm">Field Name</Label>
+          <ScrollArea className="flex-1 min-h-0">
+            <div className="space-y-7 px-6 py-5">
+              {/* Field name */}
+              <div className="space-y-1.5">
+                <Label className="text-foreground text-[13px] font-medium">
+                  Field name
+                </Label>
                 <Input
                   value={fieldName}
                   onChange={(e) => setFieldName(e.target.value)}
                   placeholder="e.g. Priority, Sprint, Budget"
-                  className="bg-muted border-border text-foreground placeholder:text-muted-foreground/70"
+                  autoFocus
+                  className="h-9 bg-muted/40 border-border text-foreground placeholder:text-muted-foreground/50 focus:border-primary"
                 />
               </div>
 
-              {/* Field Type Selector */}
-              <div className="space-y-3">
-                <Label className="text-foreground text-sm">Field Type</Label>
+              {/* Field type */}
+              <div className="space-y-4">
+                <Label className="text-foreground text-[13px] font-medium">
+                  Field type
+                </Label>
                 {categories.map((cat) => (
-                  <div key={cat.key}>
-                    <p className="text-xs text-muted-foreground/70 uppercase tracking-wider mb-2">
+                  <div key={cat.key} className="space-y-1.5">
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/50">
                       {cat.label}
                     </p>
-                    <div className="grid grid-cols-3 gap-2">
+                    <div className="grid grid-cols-3 gap-1.5">
                       {cat.types.map((ft) => (
                         <button
                           key={ft.type}
@@ -1107,35 +1125,55 @@ export default function CustomFieldsEditor({
                               addStatusOption();
                             }
                           }}
-                          className={`flex items-center gap-2 p-2.5 rounded-lg border text-left transition-all ${
+                          className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-all ${
                             fieldType === ft.type
-                              ? "bg-primary/10 border-primary/50 text-primary"
-                              : "bg-muted/40 border-border/60 text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                              ? "border-primary/60 bg-primary/5 text-foreground ring-1 ring-primary/30"
+                              : "border-border/60 bg-muted/30 text-muted-foreground hover:border-primary/30 hover:bg-muted/60 hover:text-foreground"
                           }`}
                         >
-                          {ft.icon}
-                          <div className="min-w-0">
-                            <p className="text-xs font-medium truncate">
-                              {ft.label}
-                            </p>
-                            <p className="text-[10px] text-muted-foreground/70 truncate">
-                              {ft.description}
-                            </p>
-                          </div>
+                          <span
+                            className={`shrink-0 ${
+                              fieldType === ft.type
+                                ? "text-primary"
+                                : "text-muted-foreground/70"
+                            }`}
+                          >
+                            {ft.icon}
+                          </span>
+                          <span className="text-xs font-medium truncate">
+                            {ft.label}
+                          </span>
                         </button>
                       ))}
                     </div>
                   </div>
                 ))}
+
+                {/* Selected type summary */}
+                <div className="flex items-start gap-2.5 rounded-lg border border-border/60 bg-muted/30 px-3 py-2.5">
+                  <span className="mt-0.5 text-primary shrink-0">
+                    {getFieldTypeConfig(fieldType).icon}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-medium text-foreground">
+                      {getFieldTypeConfig(fieldType).label}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/70">
+                      {getFieldTypeConfig(fieldType).description}
+                    </p>
+                  </div>
+                </div>
               </div>
 
               <Separator className="bg-border" />
 
               {/* Appearance */}
-              <div className="space-y-3">
-                <Label className="text-foreground text-sm">Appearance</Label>
+              <div className="space-y-4">
+                <Label className="text-foreground text-[13px] font-medium">
+                  Appearance
+                </Label>
 
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <Label className="text-muted-foreground text-xs">Color</Label>
                   <div className="flex flex-wrap gap-2">
                     {PRESET_COLORS.map((color) => (
@@ -1143,9 +1181,10 @@ export default function CustomFieldsEditor({
                         key={color}
                         type="button"
                         onClick={() => setFieldColor(color)}
-                        className={`w-7 h-7 rounded-full transition-all ${
+                        aria-label={`Select color ${color}`}
+                        className={`h-6 w-6 rounded-full transition-all ${
                           fieldColor === color
-                            ? "ring-2 ring-foreground ring-offset-2 ring-offset-background scale-110"
+                            ? "ring-2 ring-foreground/70 ring-offset-2 ring-offset-background scale-110"
                             : "hover:scale-110"
                         }`}
                         style={{ backgroundColor: color }}
@@ -1154,24 +1193,22 @@ export default function CustomFieldsEditor({
                   </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground text-xs">Width</Label>
-                  <div className="flex gap-2">
-                    {(["narrow", "medium", "wide"] as FieldWidth[]).map((w) => (
-                      <Button
-                        key={w}
-                        variant="outline"
-                        size="sm"
+                <div className="space-y-1.5">
+                  <Label className="text-muted-foreground text-xs">Column width</Label>
+                  <div className="inline-flex rounded-lg border border-border/60 bg-muted/40 p-0.5">
+                    {WIDTH_PRESETS.map((preset) => (
+                      <button
+                        key={preset.label}
                         type="button"
-                        onClick={() => setFieldWidth(w)}
-                        className={`capitalize text-xs ${
-                          fieldWidth === w
-                            ? "border-primary bg-primary/10 text-primary"
-                            : "border-border bg-muted text-muted-foreground hover:text-foreground"
+                        onClick={() => setFieldWidth(preset.value)}
+                        className={`rounded-md px-3.5 py-1.5 text-xs font-medium capitalize transition-colors ${
+                          fieldWidth === preset.value
+                            ? "bg-background text-foreground shadow-sm"
+                            : "text-muted-foreground hover:text-foreground"
                         }`}
                       >
-                        {w}
-                      </Button>
+                        {preset.label}
+                      </button>
                     ))}
                   </div>
                 </div>
@@ -1182,180 +1219,186 @@ export default function CustomFieldsEditor({
               {/* Type-specific settings */}
               {showTypeSettings && (
                 <div className="space-y-3">
-                  <Label className="text-foreground text-sm">
-                    Type Settings
+                  <Label className="text-foreground text-[13px] font-medium">
+                    Field settings
                   </Label>
 
-                  {fieldType === "dropdown" && (
-                    <div className="space-y-2">
-                      {dropdownOptions.map((opt, idx) => (
-                        <div key={opt.id} className="flex items-center gap-2">
-                          <span className="text-xs text-muted-foreground/70 w-5 text-center">
-                            {idx + 1}
-                          </span>
-                          <div
-                            className="w-3 h-3 rounded-full flex-shrink-0 cursor-pointer"
-                            style={{ backgroundColor: opt.color }}
-                            onClick={() => {
-                              const nextColor =
-                                PRESET_COLORS[
-                                  (PRESET_COLORS.indexOf(opt.color ?? "#6366f1") +
-                                    1) %
-                                    PRESET_COLORS.length
-                                ];
-                              updateDropdownOption(opt.id, { color: nextColor });
-                            }}
-                          />
-                          <Input
-                            value={opt.label}
-                            onChange={(e) =>
-                              updateDropdownOption(opt.id, {
-                                label: e.target.value,
-                              })
-                            }
-                            placeholder="Option label"
-                            className="bg-muted border-border text-foreground text-sm h-8 placeholder:text-muted-foreground/50"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground/70 hover:text-destructive flex-shrink-0"
-                            onClick={() => removeDropdownOption(opt.id)}
-                            disabled={dropdownOptions.length <= 1}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        type="button"
-                        onClick={addDropdownOption}
-                        className="text-primary hover:text-primary/80 text-xs"
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        Add option
-                      </Button>
-                    </div>
-                  )}
+                  <div className="space-y-2 rounded-lg border border-border/60 bg-muted/20 p-3">
+                    {fieldType === "dropdown" && (
+                      <>
+                        {dropdownOptions.map((opt, idx) => (
+                          <div key={opt.id} className="flex items-center gap-2">
+                            <span className="text-[11px] text-muted-foreground/50 w-5 text-center shrink-0">
+                              {idx + 1}
+                            </span>
+                            <button
+                              type="button"
+                              aria-label="Cycle option color"
+                              className="h-3.5 w-3.5 rounded-full shrink-0 border border-black/10 transition-transform hover:scale-110"
+                              style={{ backgroundColor: opt.color }}
+                              onClick={() => {
+                                const nextColor =
+                                  PRESET_COLORS[
+                                    (PRESET_COLORS.indexOf(opt.color ?? "#6366f1") +
+                                      1) %
+                                      PRESET_COLORS.length
+                                  ];
+                                updateDropdownOption(opt.id, { color: nextColor });
+                              }}
+                            />
+                            <Input
+                              value={opt.label}
+                              onChange={(e) =>
+                                updateDropdownOption(opt.id, {
+                                  label: e.target.value,
+                                })
+                              }
+                              placeholder="Option label"
+                              className="h-8 bg-background border-border text-foreground text-sm placeholder:text-muted-foreground/50"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground/60 hover:text-destructive flex-shrink-0"
+                              onClick={() => removeDropdownOption(opt.id)}
+                              disabled={dropdownOptions.length <= 1}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={addDropdownOption}
+                          className="h-8 text-primary hover:text-primary/80 text-xs"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Add option
+                        </Button>
+                      </>
+                    )}
 
-                  {fieldType === "status" && (
-                    <div className="space-y-2">
-                      {statusOptions.map((opt) => (
-                        <div key={opt.id} className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full flex-shrink-0 cursor-pointer"
-                            style={{ backgroundColor: opt.color }}
-                            onClick={() => {
-                              const nextColor =
-                                STATUS_COLORS[
-                                  (STATUS_COLORS.indexOf(opt.color) + 1) %
-                                    STATUS_COLORS.length
-                                ];
-                              updateStatusOption(opt.id, { color: nextColor });
-                            }}
-                          />
-                          <Input
-                            value={opt.label}
-                            onChange={(e) =>
-                              updateStatusOption(opt.id, {
-                                label: e.target.value,
-                              })
-                            }
-                            placeholder="Status label"
-                            className="bg-muted border-border text-foreground text-sm h-8 placeholder:text-muted-foreground/50"
-                          />
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-muted-foreground/70 hover:text-destructive flex-shrink-0"
-                            onClick={() => removeStatusOption(opt.id)}
-                            disabled={statusOptions.length <= 1}
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      ))}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        type="button"
-                        onClick={addStatusOption}
-                        className="text-primary hover:text-primary/80 text-xs"
-                      >
-                        <Plus className="h-3 w-3 mr-1" />
-                        Add status
-                      </Button>
-                    </div>
-                  )}
+                    {fieldType === "status" && (
+                      <>
+                        {statusOptions.map((opt) => (
+                          <div key={opt.id} className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              aria-label="Cycle status color"
+                              className="h-3.5 w-3.5 rounded-full shrink-0 border border-black/10 transition-transform hover:scale-110"
+                              style={{ backgroundColor: opt.color }}
+                              onClick={() => {
+                                const nextColor =
+                                  STATUS_COLORS[
+                                    (STATUS_COLORS.indexOf(opt.color) + 1) %
+                                      STATUS_COLORS.length
+                                  ];
+                                updateStatusOption(opt.id, { color: nextColor });
+                              }}
+                            />
+                            <Input
+                              value={opt.label}
+                              onChange={(e) =>
+                                updateStatusOption(opt.id, {
+                                  label: e.target.value,
+                                })
+                              }
+                              placeholder="Status label"
+                              className="h-8 bg-background border-border text-foreground text-sm placeholder:text-muted-foreground/50"
+                            />
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-muted-foreground/60 hover:text-destructive flex-shrink-0"
+                              onClick={() => removeStatusOption(opt.id)}
+                              disabled={statusOptions.length <= 1}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
+                        ))}
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          type="button"
+                          onClick={addStatusOption}
+                          className="h-8 text-primary hover:text-primary/80 text-xs"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Add status
+                        </Button>
+                      </>
+                    )}
 
-                  {fieldType === "number" && (
-                    <div className="grid grid-cols-3 gap-3">
-                      <div className="space-y-1">
-                        <Label className="text-muted-foreground text-xs">Min</Label>
-                        <Input
-                          type="number"
-                          value={numberMin}
-                          onChange={(e) => setNumberMin(e.target.value)}
-                          placeholder="No min"
-                          className="bg-muted border-border text-foreground text-sm h-8 placeholder:text-muted-foreground/50"
-                        />
+                    {fieldType === "number" && (
+                      <div className="grid grid-cols-3 gap-3">
+                        <div className="space-y-1">
+                          <Label className="text-muted-foreground text-xs">Min</Label>
+                          <Input
+                            type="number"
+                            value={numberMin}
+                            onChange={(e) => setNumberMin(e.target.value)}
+                            placeholder="No min"
+                            className="h-8 bg-background border-border text-foreground text-sm placeholder:text-muted-foreground/50"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-muted-foreground text-xs">Max</Label>
+                          <Input
+                            type="number"
+                            value={numberMax}
+                            onChange={(e) => setNumberMax(e.target.value)}
+                            placeholder="No max"
+                            className="h-8 bg-background border-border text-foreground text-sm placeholder:text-muted-foreground/50"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label className="text-muted-foreground text-xs">
+                            Decimals
+                          </Label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={10}
+                            value={numberDecimals}
+                            onChange={(e) => setNumberDecimals(e.target.value)}
+                            className="h-8 bg-background border-border text-foreground text-sm"
+                          />
+                        </div>
                       </div>
-                      <div className="space-y-1">
-                        <Label className="text-muted-foreground text-xs">Max</Label>
-                        <Input
-                          type="number"
-                          value={numberMax}
-                          onChange={(e) => setNumberMax(e.target.value)}
-                          placeholder="No max"
-                          className="bg-muted border-border text-foreground text-sm h-8 placeholder:text-muted-foreground/50"
-                        />
-                      </div>
+                    )}
+
+                    {fieldType === "rating" && (
                       <div className="space-y-1">
                         <Label className="text-muted-foreground text-xs">
-                          Decimals
+                          Max stars
                         </Label>
                         <Input
                           type="number"
-                          min={0}
+                          min={1}
                           max={10}
-                          value={numberDecimals}
-                          onChange={(e) => setNumberDecimals(e.target.value)}
-                          className="bg-muted border-border text-foreground text-sm h-8"
+                          value={maxStars}
+                          onChange={(e) => setMaxStars(e.target.value)}
+                          className="h-8 bg-background border-border text-foreground text-sm w-24"
                         />
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {fieldType === "rating" && (
-                    <div className="space-y-1">
-                      <Label className="text-muted-foreground text-xs">
-                        Max Stars
-                      </Label>
-                      <Input
-                        type="number"
-                        min={1}
-                        max={10}
-                        value={maxStars}
-                        onChange={(e) => setMaxStars(e.target.value)}
-                        className="bg-muted border-border text-foreground text-sm h-8 w-24"
-                      />
-                    </div>
-                  )}
-
-                  {fieldType === "formula" && (
-                    <div className="space-y-1">
-                      <Label className="text-muted-foreground text-xs">Formula</Label>
-                      <Textarea
-                        value={formula}
-                        onChange={(e) => setFormula(e.target.value)}
-                        placeholder="e.g. field1 + field2 * 0.1"
-                        rows={3}
-                        className="bg-muted border-border text-foreground text-sm placeholder:text-muted-foreground/50 resize-none"
-                      />
-                    </div>
-                  )}
+                    {fieldType === "formula" && (
+                      <div className="space-y-1">
+                        <Label className="text-muted-foreground text-xs">Formula</Label>
+                        <Textarea
+                          value={formula}
+                          onChange={(e) => setFormula(e.target.value)}
+                          placeholder="e.g. field1 + field2 * 0.1"
+                          rows={3}
+                          className="bg-background border-border text-foreground text-sm placeholder:text-muted-foreground/50 resize-none"
+                        />
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -1363,11 +1406,16 @@ export default function CustomFieldsEditor({
 
               {/* Options */}
               <div className="space-y-3">
-                <Label className="text-foreground text-sm">Options</Label>
+                <Label className="text-foreground text-[13px] font-medium">
+                  Options
+                </Label>
 
-                <div className="space-y-3">
+                <div className="space-y-2.5 rounded-lg border border-border/60 bg-muted/20 p-3">
                   <div className="flex items-center justify-between">
-                    <Label className="text-muted-foreground text-xs">Visible</Label>
+                    <div className="pr-4">
+                      <Label className="text-muted-foreground text-xs font-medium">Visible</Label>
+                      <p className="text-[10px] text-muted-foreground/60">Show this column on boards and tables</p>
+                    </div>
                     <Switch
                       checked={fieldVisible}
                       onCheckedChange={setFieldVisible}
@@ -1376,7 +1424,10 @@ export default function CustomFieldsEditor({
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label className="text-muted-foreground text-xs">Required</Label>
+                    <div className="pr-4">
+                      <Label className="text-muted-foreground text-xs font-medium">Required</Label>
+                      <p className="text-[10px] text-muted-foreground/60">Block saving tasks with an empty value</p>
+                    </div>
                     <Switch
                       checked={fieldRequired}
                       onCheckedChange={setFieldRequired}
@@ -1385,7 +1436,10 @@ export default function CustomFieldsEditor({
                   </div>
 
                   <div className="flex items-center justify-between">
-                    <Label className="text-muted-foreground text-xs">Pinned</Label>
+                    <div className="pr-4">
+                      <Label className="text-muted-foreground text-xs font-medium">Pinned</Label>
+                      <p className="text-[10px] text-muted-foreground/60">Keep this column visible when you scroll</p>
+                    </div>
                     <Switch
                       checked={fieldPinned}
                       onCheckedChange={setFieldPinned}
@@ -1394,38 +1448,45 @@ export default function CustomFieldsEditor({
                   </div>
                 </div>
 
-                <div className="space-y-1">
-                  <Label className="text-muted-foreground text-xs">Default Value</Label>
+                <div className="space-y-1.5">
+                  <Label className="text-muted-foreground text-xs">Default value</Label>
                   <Input
                     value={fieldDefaultValue}
                     onChange={(e) => setFieldDefaultValue(e.target.value)}
                     placeholder="Optional default"
-                    className="bg-muted border-border text-foreground text-sm h-8 placeholder:text-muted-foreground/50"
+                    className="h-8 bg-muted/40 border-border text-foreground text-sm placeholder:text-muted-foreground/50"
                   />
                 </div>
               </div>
             </div>
           </ScrollArea>
 
-          <div className="flex justify-end gap-2 pt-4 border-t border-border">
-            <Button
-              variant="ghost"
-              onClick={() => {
-                setCreateOpen(false);
-                resetForm();
-                setEditingField(null);
-              }}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSave}
-              disabled={!fieldName.trim()}
-              className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
-            >
-              {editingField ? "Save Changes" : "Create Field"}
-            </Button>
+          <div className="flex items-center gap-2 px-6 py-4 border-t border-border/60 bg-muted/10">
+            <p className="text-[11px] text-muted-foreground/60 hidden sm:block">
+              {fieldName.trim()
+                ? `${editingField ? "Saving" : "Creating"} “${fieldName.trim()}” as a ${getFieldTypeConfig(fieldType).label.toLowerCase()} field`
+                : "Fields appear as columns on your board"}
+            </p>
+            <div className="flex justify-end gap-2 ml-auto">
+              <Button
+                variant="ghost"
+                onClick={() => {
+                  setCreateOpen(false);
+                  resetForm();
+                  setEditingField(null);
+                }}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSave}
+                disabled={!fieldName.trim()}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground disabled:opacity-50"
+              >
+                {editingField ? "Save Changes" : "Create Field"}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

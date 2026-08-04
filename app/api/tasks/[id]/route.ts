@@ -5,7 +5,7 @@ import { z } from "zod";
 import { canAccessProjectResource } from "@/lib/project-permissions";
 import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel, getTaskChannel } from "@/lib/ably";
 import { updateParentTask } from "@/lib/task-utils";
-import { syncNativeToFieldValues } from "@/lib/services/custom-fields";
+import { syncNativeToFieldValues, syncFieldValuesToNative } from "@/lib/services/custom-fields";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -273,6 +273,19 @@ export async function PATCH(
             updateData.status = slug;
             if (statusRecord) updateData.statusId = statusRecord.id;
         }
+    }
+
+    // Forward sync: custom field value edits flow into matching native task fields
+    // (board/table views edit fieldValues directly via this PATCH, so mirror those
+    // changes onto native fields here; explicit native fields in the payload win).
+    if (data.fieldValues && typeof data.fieldValues === "object" && task.boardId) {
+      const nativeFromFields = await syncFieldValuesToNative(
+        data.fieldValues as Record<string, unknown>,
+        { projectId: task.projectId, boardId: task.boardId },
+      );
+      for (const [key, val] of Object.entries(nativeFromFields)) {
+        if ((data as Record<string, unknown>)[key] === undefined) updateData[key] = val;
+      }
     }
 
     // Dependency blocking guard: advancing to In Progress/Done with unmet FS predecessors is rejected

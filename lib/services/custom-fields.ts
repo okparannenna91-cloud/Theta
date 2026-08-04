@@ -34,6 +34,8 @@ export interface CreateFieldInput {
   order?: number;
   width?: number;
   color?: string;
+  visible?: boolean;
+  pinned?: boolean;
 }
 
 export interface UpdateFieldInput {
@@ -172,8 +174,8 @@ export async function createField(
         order: nextOrder(input.order, maxOrder),
         width: input.width ?? 200,
         color: input.color ?? null,
-        visible: true,
-        pinned: false,
+        visible: input.visible ?? true,
+        pinned: input.pinned ?? Boolean((input.settings as any)?.pinned) ?? false,
       },
     });
 
@@ -203,7 +205,11 @@ export async function updateField(
         ...(updates.width !== undefined && { width: updates.width }),
         ...(updates.color !== undefined && { color: updates.color }),
         ...(updates.visible !== undefined && { visible: updates.visible }),
-        ...(updates.pinned !== undefined && { pinned: updates.pinned }),
+        ...(updates.pinned !== undefined
+          ? { pinned: updates.pinned }
+          : (updates.settings as any)?.pinned !== undefined
+            ? { pinned: Boolean((updates.settings as any).pinned) }
+            : {}),
       },
     });
 
@@ -794,19 +800,35 @@ function validateDate(value: unknown): ValidationResult {
   return { valid: false, error: "Date must be a valid date string, Date object, or timestamp" };
 }
 
+function extractOptionLabels(options: unknown): string[] {
+  if (!Array.isArray(options)) return [];
+  return options.map((o) => {
+    if (typeof o === "string" || typeof o === "number") return String(o);
+    if (o && typeof o === "object" && typeof (o as { label?: unknown }).label === "string") {
+      return (o as { label: string }).label;
+    }
+    return String(o);
+  });
+}
+
+function normalizeOptionLabel(s: string): string {
+  return s.toLowerCase().replace(/[_-]/g, " ").trim();
+}
+
 function validateDropdown(value: unknown, settings?: Record<string, unknown>): ValidationResult {
-  const options = (settings?.options as string[]) ?? [];
+  const labels = extractOptionLabels(settings?.options).concat(extractOptionLabels(settings?.statusOptions));
+  const normalized = labels.map(normalizeOptionLabel);
   if (settings?.multiple) {
     if (!Array.isArray(value)) {
       return { valid: false, error: "Multi-select dropdown must be an array" };
     }
-    const invalid = value.filter((v) => !options.includes(String(v)));
-    if (invalid.length > 0 && options.length > 0) {
+    const invalid = value.filter((v) => !normalized.includes(normalizeOptionLabel(String(v))));
+    if (invalid.length > 0 && normalized.length > 0) {
       return { valid: false, error: `Invalid options: ${invalid.join(", ")}` };
     }
     return { valid: true };
   }
-  if (options.length > 0 && !options.includes(String(value))) {
+  if (normalized.length > 0 && !normalized.includes(normalizeOptionLabel(String(value)))) {
     return { valid: false, error: `Value "${value}" is not a valid option` };
   }
   return { valid: true };
@@ -1044,4 +1066,24 @@ export async function syncNativeToFieldValues(
     logger.error("Failed to sync native fields to custom field values", err);
     return null;
   }
+}
+
+export async function syncFieldValuesToNative(
+  fieldValues: Record<string, unknown>,
+  task: { projectId: string | null; boardId: string | null },
+): Promise<Record<string, unknown>> {
+  const columnIds = Object.keys(fieldValues || {});
+  if (columnIds.length === 0) return {};
+
+  const columns = await prisma.column.findMany({
+    where: { id: { in: columnIds } },
+    select: { id: true, columnType: true },
+  });
+
+  const nativeData: Record<string, unknown> = {};
+  for (const col of columns) {
+    if (fieldValues[col.id] === undefined) continue;
+    Object.assign(nativeData, await buildNativeSyncData(col, fieldValues[col.id], task));
+  }
+  return nativeData;
 }

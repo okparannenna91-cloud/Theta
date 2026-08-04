@@ -13,6 +13,8 @@ const createFieldSchema = z.object({
   order: z.number().optional(),
   width: z.number().optional(),
   color: z.string().optional(),
+  visible: z.boolean().optional(),
+  pinned: z.boolean().optional(),
 });
 
 export async function GET(req: Request) {
@@ -81,6 +83,8 @@ export async function POST(req: Request) {
       order: data.order,
       width: data.width,
       color: data.color,
+      visible: data.visible,
+      pinned: data.pinned,
     });
 
     return NextResponse.json(field, { status: 201 });

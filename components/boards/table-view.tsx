@@ -203,7 +203,7 @@ export default function TableView({
     onError: () => toast.error("Failed to update cell"),
   });
 
-  const handleCellEdit = (taskId: string, col: Column, value: string) => {
+  const handleCellEdit = (taskId: string, col: Column, value: string | boolean) => {
     const task = tasks.find(t => t.id === taskId);
     if (!task || !col) return;
     const payload = buildCellPayload(task, col, value);
@@ -264,7 +264,8 @@ export default function TableView({
           row={task}
           onClick={() => {
             if (col.type === "checkbox") {
-              handleCellEdit(task.id, col, value ? "" : "true");
+              const next = col.id === "__checkbox" ? (value ? "" : "true") : !Boolean(value);
+              handleCellEdit(task.id, col, next);
             }
           }}
         />
