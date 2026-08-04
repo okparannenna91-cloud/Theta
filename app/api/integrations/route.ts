@@ -77,9 +77,13 @@ export async function DELETE(req: Request) {
             return NextResponse.json({ error: "Missing integrationId or workspaceId" }, { status: 400 });
         }
 
-        await prisma.integration.delete({
+        const result = await prisma.integration.deleteMany({
             where: { id: integrationId, workspaceId }
         });
+
+        if (result.count === 0) {
+            return NextResponse.json({ error: "Integration not found" }, { status: 404 });
+        }
 
         return NextResponse.json({ success: true });
     } catch (error) {

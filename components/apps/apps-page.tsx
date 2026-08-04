@@ -165,9 +165,14 @@ export default function AppsPage() {
         const record = getRecord(provider.id);
         if (!record || !activeWorkspaceId) return;
         try {
-            await fetch(`/api/integrations?id=${record.id}&workspaceId=${activeWorkspaceId}`, { method: "DELETE" });
-            toast.success(`${provider.name} disconnected.`);
-            fetchIntegrations(); setIsDetailOpen(false);
+            const res = await fetch(`/api/integrations?id=${record.id}&workspaceId=${activeWorkspaceId}`, { method: "DELETE" });
+            if (res.ok) {
+                toast.success(`${provider.name} disconnected.`);
+                fetchIntegrations(); setIsDetailOpen(false);
+            } else {
+                const d = await res.json().catch(() => ({}));
+                toast.error(d.error || `Failed to disconnect ${provider.name}.`);
+            }
         } catch { toast.error("Failed to disconnect."); }
     };
 
