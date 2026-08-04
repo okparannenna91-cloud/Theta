@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt, verifyOAuthState } from "@/lib/crypto";
+import { getAppUrl } from "@/lib/app-url";
 
 export async function GET(request: NextRequest) {
     const code = request.nextUrl.searchParams.get("code");
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
         // Exchange code for token
         const clientId = process.env.GITHUB_CLIENT_ID;
         const clientSecret = process.env.GITHUB_CLIENT_SECRET;
-        const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/github/callback`;
+        const redirectUri = getAppUrl("/api/integrations/github/callback");
 
         const tokenBody: Record<string, string> = {
             client_id: clientId!,
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
         });
 
         // Redirect to frontend integrations page
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=integrations&status=success&provider=github`);
+        return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=success&provider=github"));
     } catch (error) {
         console.error("GitHub callback error:", error);
         return NextResponse.json({ error: "Authentication failed" }, { status: 500 });

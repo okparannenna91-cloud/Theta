@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { enforcePlanLimit } from "@/lib/plan-limits";
 import { signOAuthState, generateCodeVerifier, generateCodeChallenge } from "@/lib/crypto";
+import { getAppUrl } from "@/lib/app-url";
 
 export async function GET(request: NextRequest) {
     const workspaceId = request.nextUrl.searchParams.get("workspaceId");
@@ -22,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     const clientId = process.env.BITBUCKET_CLIENT_ID;
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/bitbucket/callback`;
+    const redirectUri = getAppUrl("/api/integrations/bitbucket/callback");
 
     // PKCE: generate verifier and challenge to prevent authorization code interception
     const codeVerifier = generateCodeVerifier();

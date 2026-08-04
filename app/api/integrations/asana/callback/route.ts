@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt, verifyOAuthState } from "@/lib/crypto";
+import { getAppUrl } from "@/lib/app-url";
 
 export async function GET(request: NextRequest) {
     const code = request.nextUrl.searchParams.get("code");
@@ -28,7 +29,7 @@ export async function GET(request: NextRequest) {
         // Exchange code for token
         const clientId = process.env.ASANA_CLIENT_ID;
         const clientSecret = process.env.ASANA_CLIENT_SECRET;
-        const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/asana/callback`;
+        const redirectUri = getAppUrl("/api/integrations/asana/callback");
 
         const tokenParams: Record<string, string> = {
             grant_type: "authorization_code",
@@ -94,7 +95,7 @@ export async function GET(request: NextRequest) {
         });
 
         // Redirect back to dashboard
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=integrations&status=success&provider=asana`);
+        return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=success&provider=asana"));
     } catch (error) {
         console.error("Asana callback error:", error);
         return NextResponse.json({ error: "Authentication failed" }, { status: 500 });

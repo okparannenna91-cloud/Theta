@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt, verifyOAuthState } from "@/lib/crypto";
 import { exchangeGoogleCode } from "@/lib/services/google/oauth";
+import { getAppUrl } from "@/lib/app-url";
 
 export async function GET(request: NextRequest) {
     const code = request.nextUrl.searchParams.get("code");
@@ -10,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
         console.error("Google OAuth error:", error);
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=integrations&status=error&provider=google`);
+        return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=error&provider=google"));
     }
 
     if (!code || !state) {
@@ -63,7 +64,7 @@ export async function GET(request: NextRequest) {
             },
         });
 
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=integrations&status=success&provider=google`);
+        return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=success&provider=google"));
     } catch (error) {
         console.error("Google callback error:", error);
         return NextResponse.json({ error: "Authentication failed" }, { status: 500 });

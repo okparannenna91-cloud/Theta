@@ -4,12 +4,13 @@ import { exchangeSlackCode } from "@/lib/integrations/slack";
 import { prisma } from "@/lib/prisma";
 import { encrypt } from "@/lib/crypto";
 import { isWorkspaceAdmin } from "@/lib/workspace";
+import { getAppUrl } from "@/lib/app-url";
 
 export async function GET(req: Request) {
     try {
         const user = await getCurrentUser();
         if (!user) {
-            return NextResponse.redirect(new URL("/sign-in", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+            return NextResponse.redirect(new URL("/sign-in", getAppUrl()));
         }
 
         const { searchParams } = new URL(req.url);
@@ -19,7 +20,7 @@ export async function GET(req: Request) {
 
         if (error) {
             console.error("Slack OAuth returned error:", error);
-            return NextResponse.redirect(new URL("/dashboard?error=slack_connection_failed", process.env.NEXT_PUBLIC_APP_URL));
+            return NextResponse.redirect(new URL("/dashboard?error=slack_connection_failed", getAppUrl()));
         }
 
         if (!code || !state) {
@@ -95,10 +96,10 @@ export async function GET(req: Request) {
         }
 
         // Redirect back to dashboard with success
-        return NextResponse.redirect(new URL(`/dashboard/${workspaceId}/settings?success=slack_connected`, process.env.NEXT_PUBLIC_APP_URL));
+        return NextResponse.redirect(new URL(`/dashboard/${workspaceId}/settings?success=slack_connected`, getAppUrl()));
 
     } catch (error) {
         console.error("Slack callback handler error:", error);
-        return NextResponse.redirect(new URL("/dashboard?error=slack_connection_error", process.env.NEXT_PUBLIC_APP_URL));
+        return NextResponse.redirect(new URL("/dashboard?error=slack_connection_error", getAppUrl()));
     }
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { encrypt, verifyOAuthState } from "@/lib/crypto";
+import { getAppUrl } from "@/lib/app-url";
 
 export async function GET(request: NextRequest) {
     const code = request.nextUrl.searchParams.get("code");
@@ -92,7 +93,7 @@ export async function GET(request: NextRequest) {
         });
 
         // Redirect to settings
-        return NextResponse.redirect(`${process.env.NEXT_PUBLIC_APP_URL}/settings?tab=integrations&status=success&provider=bitbucket`);
+        return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=success&provider=bitbucket"));
     } catch (error) {
         console.error("Bitbucket callback error:", error);
         return NextResponse.json({ error: "Authentication failed" }, { status: 500 });

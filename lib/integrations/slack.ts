@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import { signOAuthState, generateCodeChallenge } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import { getAppUrl } from "@/lib/app-url";
 
 export interface SlackConfig {
   teamId: string;
@@ -124,7 +125,7 @@ export function getSlackAuthUrl(
   codeVerifier?: string
 ): string {
   const clientId = process.env.SLACK_CLIENT_ID;
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/slack/callback`;
+  const redirectUri = getAppUrl("/api/integrations/slack/callback");
 
   const statePayload: Record<string, any> = { workspaceId };
   let url =
@@ -155,7 +156,7 @@ export async function exchangeSlackCode(
 ): Promise<any> {
   const clientId = process.env.SLACK_CLIENT_ID;
   const clientSecret = process.env.SLACK_CLIENT_SECRET;
-  const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/slack/callback`;
+  const redirectUri = getAppUrl("/api/integrations/slack/callback");
 
   const form = new URLSearchParams();
   form.append("code", code);
@@ -256,7 +257,7 @@ export async function sendTaskNotification(
       commented: "New comment on task",
     };
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const appUrl = getAppUrl();
     const taskLink = `${appUrl}/tasks/${task.id}`;
 
     const dueStr = task.dueDate
@@ -456,7 +457,7 @@ export async function sendSprintSummary(
       "█".repeat(Math.round(completionRate / 10)) +
       "░".repeat(10 - Math.round(completionRate / 10));
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    const appUrl = getAppUrl();
 
     const blocks: SlackBlock[] = [
       {
@@ -840,7 +841,7 @@ async function createTaskFromMessage(
     },
   });
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const appUrl = getAppUrl();
 
   return {
     text: `✅ Task created from Slack message`,
@@ -1046,7 +1047,7 @@ export function buildInteractiveMessage(task: {
   const dueStr = task.dueDate
     ? new Date(task.dueDate).toLocaleDateString()
     : "No due date";
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  const appUrl = getAppUrl();
 
   return [
     {

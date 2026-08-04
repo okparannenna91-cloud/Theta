@@ -3,12 +3,13 @@ import { getCurrentUser } from "@/lib/auth";
 import { getUserWorkspaces } from "@/lib/workspace";
 import { getSlackAuthUrl } from "@/lib/integrations/slack";
 import { generateCodeVerifier } from "@/lib/crypto";
+import { getAppUrl } from "@/lib/app-url";
 
 export async function GET(req: Request) {
     try {
         const user = await getCurrentUser();
         if (!user) {
-            return NextResponse.redirect(new URL("/sign-in", process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000"));
+            return NextResponse.redirect(new URL("/sign-in", getAppUrl()));
         }
 
         const { searchParams } = new URL(req.url);

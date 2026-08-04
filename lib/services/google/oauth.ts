@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { encrypt, decrypt, signOAuthState, generateCodeVerifier, generateCodeChallenge } from "@/lib/crypto";
+import { getAppUrl } from "@/lib/app-url";
 
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -22,7 +23,7 @@ export const GOOGLE_SCOPES = [
 
 export function getGoogleAuthUrl(workspaceId: string): { url: string; codeVerifier: string } {
     const clientId = process.env.GOOGLE_CLIENT_ID;
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google/callback`;
+    const redirectUri = getAppUrl("/api/integrations/google/callback");
 
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = generateCodeChallenge(codeVerifier);
@@ -37,7 +38,7 @@ export function getGoogleAuthUrl(workspaceId: string): { url: string; codeVerifi
 export async function exchangeGoogleCode(code: string, codeVerifier?: string): Promise<any> {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/api/integrations/google/callback`;
+    const redirectUri = getAppUrl("/api/integrations/google/callback");
 
     const body: Record<string, string> = {
         code,
