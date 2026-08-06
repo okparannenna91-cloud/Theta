@@ -9,6 +9,7 @@ import { WooCommerceService } from "@/lib/services/woocommerceService";
 import { GoogleCalendarService } from "@/lib/services/google/calendarService";
 import {
   persistSyncedItems,
+  syncGithubTasks,
   importGoogleEventToCalendar,
   normalizeGithubRepo,
   normalizeGithubIssue,
@@ -58,16 +59,21 @@ export async function POST(req: Request) {
         }
 
         let count = 0;
+        let created = 0;
+        let updated = 0;
 
         switch (provider) {
             case "github": {
                 const github = new GitHubIntegration(workspaceId);
                 const repos = await github.listRepositories(workspaceId);
-                const issues = await github.listIssues("open");
+                const issues = await github.listIssues("all");
                 count += await persistSyncedItems(workspaceId, integration.id, "github", [
                     ...repos.map(normalizeGithubRepo),
                     ...issues.map(normalizeGithubIssue),
                 ]);
+                const result = await syncGithubTasks(workspaceId, user.id);
+                created = result.created;
+                updated = result.updated;
                 break;
             }
             case "bitbucket": {
@@ -115,7 +121,7 @@ export async function POST(req: Request) {
             data: { updatedAt: new Date() }
         });
 
-        return NextResponse.json({ success: true, count });
+        return NextResponse.json({ success: true, count, created, updated });
     } catch (error: any) {
         console.error("Sync error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });

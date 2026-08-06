@@ -102,6 +102,11 @@ export default function AppsPage() {
     const [importProjects, setImportProjects] = useState<any[]>([]);
     const [importProjectId, setImportProjectId] = useState<string>("");
     const [isImporting, setIsImporting] = useState<string | null>(null);
+    const [linkTarget, setLinkTarget] = useState<any>(null);
+    const [repoProjectId, setRepoProjectId] = useState<string>("");
+    const [repoCreateNew, setRepoCreateNew] = useState(false);
+    const [newRepoProjectName, setNewRepoProjectName] = useState("");
+    const [isLinking, setIsLinking] = useState(false);
 
     const fetchIntegrations = useCallback(async () => {
         if (!activeWorkspaceId) return;
@@ -251,14 +256,31 @@ export default function AppsPage() {
             const projects = Array.isArray(data.projects) ? data.projects : [];
             setImportProjects(projects);
             if (projects.length > 0) setImportProjectId(prev => prev || projects[0].id);
+            if (projects.length > 0) setRepoProjectId(prev => prev || projects[0].id);
         } catch { setImportProjects([]); }
     }, [activeWorkspaceId]);
+
+    // Repo full name -> linked project id (from synced repo items)
+    const repoProjectMap = useMemo(() => {
+        const m: Record<string, string> = {};
+        for (const it of syncedItems) {
+            if (it.type === "repo" && it.extra?.linkedProjectId) m[it.title] = it.extra.linkedProjectId;
+        }
+        return m;
+    }, [syncedItems]);
+
+    const projectNameMap = useMemo(() => {
+        const m: Record<string, string> = {};
+        for (const p of importProjects) m[p.id] = p.name;
+        return m;
+    }, [importProjects]);
 
     const openDetail = (provider: any) => {
         setSelectedProvider(provider);
         setIsDetailOpen(true);
         setSyncedItems([]);
         setImportProjectId("");
+        setRepoProjectId("");
         if (isConnected(provider.id) && provider.canSync) {
             loadSyncedItems(provider.id);
             loadImportProjects();
@@ -266,12 +288,17 @@ export default function AppsPage() {
     };
 
     const handleImport = async (item: any) => {
-        if (!importProjectId) { toast.error("Select a project to import into."); return; }
+        // Issues of a linked repo import into that repo's project automatically.
+        let targetProjectId = importProjectId;
+        if (item.type === "issue" && item.extra?.repo && repoProjectMap[item.extra.repo]) {
+            targetProjectId = repoProjectMap[item.extra.repo];
+        }
+        if (!targetProjectId) { toast.error("Select a project to import into."); return; }
         setIsImporting(item.id);
         try {
             const res = await fetch(`/api/integrations/sync/import`, {
                 method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ itemId: item.id, projectId: importProjectId })
+                body: JSON.stringify({ itemId: item.id, projectId: targetProjectId })
             });
             if (res.ok) {
                 const d = await res.json();
@@ -284,6 +311,42 @@ export default function AppsPage() {
             }
         } catch { toast.error("Import error."); }
         finally { setIsImporting(null); }
+    };
+
+    const openLinkDialog = (item: any) => {
+        setLinkTarget(item);
+        setRepoProjectId(importProjects[0]?.id || "");
+        setRepoCreateNew(false);
+        setNewRepoProjectName("");
+    };
+
+    const handleLinkRepo = async () => {
+        if (!linkTarget) return;
+        const projectId = repoCreateNew ? "" : repoProjectId;
+        const newProjectName = repoCreateNew ? (newRepoProjectName.trim() || linkTarget.title) : "";
+        if (!repoCreateNew && !projectId) { toast.error("Select a project."); return; }
+        setIsLinking(true);
+        try {
+            const res = await fetch(`/api/integrations/sync/link-repo`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ itemId: linkTarget.id, projectId, newProjectName })
+            });
+            if (res.ok) {
+                const d = await res.json();
+                toast.success(d.importedCount > 0
+                    ? `Linked to "${d.project.name}" · ${d.importedCount} issue(s) imported.`
+                    : `Linked to "${d.project.name}".`);
+                setLinkTarget(null);
+                setRepoCreateNew(false);
+                setNewRepoProjectName("");
+                loadSyncedItems(selectedProvider?.id);
+                loadImportProjects();
+            } else {
+                const d = await res.json().catch(() => ({}));
+                toast.error(d.error || "Link failed.");
+            }
+        } catch { toast.error("Link error."); }
+        finally { setIsLinking(false); }
     };
 
     return (
@@ -459,17 +522,29 @@ export default function AppsPage() {
                                                                 <p className="text-xs font-medium text-foreground truncate">{item.title}</p>
                                                                 <p className="text-[10px] text-muted-foreground capitalize">
                                                                     {item.type}{item.status ? ` · ${item.status}` : ""}
-                                                                    {item.imported ? " · Imported" : ""}
+                                                                    {item.type === "repo" && item.extra?.linkedProjectId
+                                                                        ? ` · Linked to ${projectNameMap[item.extra.linkedProjectId] || "project"}`
+                                                                        : item.imported ? " · Imported" : ""}
                                                                 </p>
                                                             </div>
-                                                            <Button
-                                                                variant="outline" size="sm" className="h-6 px-2 text-xs shrink-0"
-                                                                onClick={() => handleImport(item)}
-                                                                disabled={isImporting === item.id}
-                                                            >
-                                                                <Download className="h-3 w-3 mr-1" />
-                                                                {isImporting === item.id ? "..." : "Import"}
-                                                            </Button>
+                                                            {item.type === "repo" ? (
+                                                                <Button
+                                                                    variant="outline" size="sm" className="h-6 px-2 text-xs shrink-0"
+                                                                    onClick={() => openLinkDialog(item)}
+                                                                >
+                                                                    <Link2 className="h-3 w-3 mr-1" />
+                                                                    {item.extra?.linkedProjectId ? "Relink" : "Link to Project"}
+                                                                </Button>
+                                                            ) : (
+                                                                <Button
+                                                                    variant="outline" size="sm" className="h-6 px-2 text-xs shrink-0"
+                                                                    onClick={() => handleImport(item)}
+                                                                    disabled={isImporting === item.id}
+                                                                >
+                                                                    <Download className="h-3 w-3 mr-1" />
+                                                                    {isImporting === item.id ? "..." : "Import"}
+                                                                </Button>
+                                                            )}
                                                         </div>
                                                     ))}
                                                 </div>
@@ -493,6 +568,61 @@ export default function AppsPage() {
                             </>
                         );
                     })()}
+                </DialogContent>
+            </Dialog>
+
+            <Dialog open={!!linkTarget} onOpenChange={(open) => { if (!open) setLinkTarget(null); }}>
+                <DialogContent className="sm:max-w-sm">
+                    {linkTarget && (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle className="flex items-center gap-2">
+                                    <Link2 className="h-4 w-4" />Link Repository
+                                </DialogTitle>
+                                <DialogDescription className="truncate">{linkTarget.title}</DialogDescription>
+                            </DialogHeader>
+                            <div className="space-y-4">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs">Target project</Label>
+                                    <Select
+                                        value={repoCreateNew ? "__new__" : repoProjectId}
+                                        onValueChange={(v) => {
+                                            if (v === "__new__") { setRepoCreateNew(true); }
+                                            else { setRepoCreateNew(false); setRepoProjectId(v); }
+                                        }}
+                                    >
+                                        <SelectTrigger className="text-xs"><SelectValue placeholder="Choose a project" /></SelectTrigger>
+                                        <SelectContent>
+                                            {importProjects.map(p => (
+                                                <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                            ))}
+                                            <SelectItem value="__new__">+ Create new project</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                {repoCreateNew && (
+                                    <div className="space-y-1.5">
+                                        <Label className="text-xs">New project name</Label>
+                                        <Input
+                                            placeholder={linkTarget.title}
+                                            value={newRepoProjectName}
+                                            onChange={e => setNewRepoProjectName(e.target.value)}
+                                        />
+                                    </div>
+                                )}
+                                <p className="text-[11px] text-muted-foreground">
+                                    Linking imports all open issues as tasks into this project. The repository itself never becomes a task.
+                                </p>
+                            </div>
+                            <DialogFooter className="gap-2">
+                                <Button variant="outline" onClick={() => setLinkTarget(null)}>Cancel</Button>
+                                <Button onClick={handleLinkRepo} disabled={isLinking || (!repoCreateNew && !repoProjectId)}>
+                                    <Link2 className="h-4 w-4 mr-2" />
+                                    {isLinking ? "Linking..." : "Link & Import Issues"}
+                                </Button>
+                            </DialogFooter>
+                        </>
+                    )}
                 </DialogContent>
             </Dialog>
 

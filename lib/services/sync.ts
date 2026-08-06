@@ -164,26 +164,46 @@ export async function listSyncedItems(
   });
 }
 
-export async function importSyncedItem(
-  itemId: string,
-  userId: string,
+const sourceLineFor = (item: {
+  provider: string;
+  type: string;
+  url?: string | null;
+  externalId: string;
+}): string => `Imported from ${item.provider} (${item.type}): ${item.url ?? item.externalId}`;
+
+function buildDescription(item: {
+  description?: string | null;
+  provider: string;
+  type: string;
+  url?: string | null;
+  externalId: string;
+}): string {
+  return [item.description, sourceLineFor(item)].filter(Boolean).join("\n\n");
+}
+
+async function resolveColumnForStatus(
+  boardId: string | null,
+  status: string,
+): Promise<string | null> {
+  if (!boardId) return null;
+  const statusName = status.replace(/_/g, " ");
+  const match = await prisma.column.findFirst({
+    where: { boardId, name: { equals: statusName, mode: "insensitive" } },
+  });
+  if (match) return match.id;
+  const first = await prisma.column.findFirst({
+    where: { boardId },
+    orderBy: { order: "asc" },
+  });
+  return first?.id ?? null;
+}
+
+async function resolveBoardAndColumn(
   projectId: string,
-  boardId?: string | null,
-) {
-  const item = await prisma.syncedItem.findUnique({ where: { id: itemId } });
-  if (!item) throw new Error("Synced item not found");
-
-  if (item.imported && item.taskId) {
-    const existing = await prisma.task.findUnique({ where: { id: item.taskId } });
-    if (existing) return { task: existing, alreadyImported: true };
-  }
-
-  const sourceLine = `Imported from ${item.provider} (${item.type}): ${item.url ?? item.externalId}`;
-  const description = [item.description, sourceLine].filter(Boolean).join("\n\n");
-
+  boardId: string | null | undefined,
+  status: string,
+): Promise<{ boardId: string | null; columnId: string | null }> {
   let resolvedBoardId = boardId ?? null;
-  let resolvedColumnId: string | null = null;
-
   if (!resolvedBoardId) {
     const board = await prisma.board.findFirst({
       where: { projectId },
@@ -191,27 +211,43 @@ export async function importSyncedItem(
     });
     if (board) resolvedBoardId = board.id;
   }
+  const resolvedColumnId = await resolveColumnForStatus(resolvedBoardId, status);
+  return { boardId: resolvedBoardId, columnId: resolvedColumnId };
+}
 
-  if (resolvedBoardId) {
-    const matchingColumn = await prisma.column.findFirst({
-      where: { boardId: resolvedBoardId, name: { equals: "todo", mode: "insensitive" } },
-    });
-    if (matchingColumn) {
-      resolvedColumnId = matchingColumn.id;
-    } else {
-      const firstCol = await prisma.column.findFirst({
-        where: { boardId: resolvedBoardId },
-        orderBy: { order: "asc" },
-      });
-      if (firstCol) resolvedColumnId = firstCol.id;
-    }
-  }
+// GitHub issues map their state to Theta statuses on import/sync.
+// Closed -> done (terminal status), open -> todo.
+function githubStatusMapping(item: {
+  provider: string;
+  type: string;
+  status?: string | null;
+}): { status: string; completedAt: Date | null } | null {
+  if (item.provider !== "github" || item.type !== "issue") return null;
+  if (item.status === "closed") return { status: "done", completedAt: new Date() };
+  return { status: "todo", completedAt: null };
+}
+
+export async function createTaskForSyncedItem(
+  item: any,
+  userId: string,
+  projectId: string,
+  boardId?: string | null,
+) {
+  const mapping = githubStatusMapping(item);
+  const status = mapping?.status ?? "todo";
+  const completedAt = mapping?.completedAt ?? null;
+
+  const { boardId: resolvedBoardId, columnId: resolvedColumnId } = await resolveBoardAndColumn(
+    projectId,
+    boardId,
+    status,
+  );
 
   const task = await prisma.task.create({
     data: {
       title: item.title,
-      description,
-      status: "todo",
+      description: buildDescription(item),
+      status,
       priority: "medium",
       taskType: "task",
       workspaceId: item.workspaceId,
@@ -220,6 +256,7 @@ export async function importSyncedItem(
       assigneeIds: [],
       boardId: resolvedBoardId,
       columnId: resolvedColumnId,
+      completedAt,
       link: item.url ?? null,
       customFieldMetadata: {
         provider: item.provider,
@@ -229,6 +266,50 @@ export async function importSyncedItem(
     },
   });
 
+  return task;
+}
+
+// Find the SyncedItem for a repo (matched by full name) so callers can read its
+// linked project. Uses a JS filter to avoid fragile Mongo JSON-path queries.
+async function findRepoItem(workspaceId: string, repoFullName: string): Promise<any | null> {
+  const repos = await prisma.syncedItem.findMany({
+    where: { workspaceId, type: "repo" },
+  });
+  return repos.find((r) => r.title === repoFullName) ?? null;
+}
+
+export async function importSyncedItem(
+  itemId: string,
+  userId: string,
+  projectId: string,
+  boardId?: string | null,
+) {
+  const item = await prisma.syncedItem.findUnique({ where: { id: itemId } });
+  if (!item) throw new Error("Synced item not found");
+
+  if (item.type === "repo") {
+    throw new Error("Repositories are linked to projects, not imported as tasks.");
+  }
+
+  if (item.imported && item.taskId) {
+    const existing = await prisma.task.findUnique({ where: { id: item.taskId } });
+    if (existing) return { task: existing, alreadyImported: true };
+  }
+
+  // Default to the linked project when the issue's repo is already linked.
+  let targetProjectId = projectId;
+  if (!targetProjectId && item.provider === "github" && item.type === "issue") {
+    const repoFullName = (item.extra as any)?.repo as string | undefined;
+    if (repoFullName) {
+      const repoItem = await findRepoItem(item.workspaceId, repoFullName);
+      const linked = (repoItem?.extra as any)?.linkedProjectId as string | undefined;
+      if (linked) targetProjectId = linked;
+    }
+  }
+  if (!targetProjectId) throw new Error("Missing projectId");
+
+  const task = await createTaskForSyncedItem(item, userId, targetProjectId, boardId);
+
   await prisma.syncedItem.update({
     where: { id: item.id },
     data: { imported: true, taskId: task.id },
@@ -236,6 +317,76 @@ export async function importSyncedItem(
 
   logger.info("Imported synced item as task", { itemId, taskId: task.id });
   return { task, alreadyImported: false };
+}
+
+// Push the latest GitHub issue state into an already-linked task.
+export async function updateTaskFromSyncedItem(item: any): Promise<any | null> {
+  if (!item.taskId) return null;
+
+  const task = await prisma.task.findUnique({ where: { id: item.taskId } });
+  if (!task) return null;
+
+  const data: any = {
+    title: item.title,
+    description: buildDescription(item),
+  };
+
+  if (item.provider === "github" && item.type === "issue") {
+    if (item.status === "closed" && task.status !== "done") {
+      data.status = "done";
+      data.completedAt = new Date();
+      data.columnId = await resolveColumnForStatus(task.boardId, "done");
+    } else if (item.status === "open" && (task.status === "done" || task.completedAt)) {
+      data.status = "todo";
+      data.completedAt = null;
+      data.columnId = await resolveColumnForStatus(task.boardId, "todo");
+    }
+  }
+
+  return prisma.task.update({ where: { id: task.id }, data });
+}
+
+// Reconcile synced GitHub data with Theta tasks:
+// - issues already imported are updated (title/description, closed -> done)
+// - open issues of a repo linked to a project are auto-imported into that project
+// - repositories themselves never become tasks
+export async function syncGithubTasks(
+  workspaceId: string,
+  userId: string,
+): Promise<{ created: number; updated: number }> {
+  const [repoItems, issueItems] = await Promise.all([
+    prisma.syncedItem.findMany({ where: { workspaceId, provider: "github", type: "repo" } }),
+    prisma.syncedItem.findMany({ where: { workspaceId, provider: "github", type: "issue" } }),
+  ]);
+
+  const linkedByRepo = new Map<string, string>();
+  for (const repo of repoItems) {
+    const linked = (repo.extra as any)?.linkedProjectId as string | undefined;
+    if (linked) linkedByRepo.set(repo.title, linked);
+  }
+
+  let created = 0;
+  let updated = 0;
+
+  for (const issue of issueItems) {
+    const repoFullName = (issue.extra as any)?.repo as string | undefined;
+    const linkedProjectId = repoFullName ? linkedByRepo.get(repoFullName) : undefined;
+
+    if (issue.taskId) {
+      const result = await updateTaskFromSyncedItem(issue);
+      if (result) updated++;
+    } else if (linkedProjectId && issue.status === "open") {
+      const task = await createTaskForSyncedItem(issue, userId, linkedProjectId);
+      await prisma.syncedItem.update({
+        where: { id: issue.id },
+        data: { imported: true, taskId: task.id },
+      });
+      created++;
+    }
+  }
+
+  logger.info("Synced GitHub issues to tasks", { workspaceId, created, updated });
+  return { created, updated };
 }
 
 export async function importGoogleEventToCalendar(item: NormalizedSyncItem, workspaceId: string, userId: string) {
