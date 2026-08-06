@@ -1,11 +1,24 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
+import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { GitHubIntegration } from "@/lib/integrations/github";
 import { BitbucketService } from "@/lib/services/bitbucketService";
 import { AsanaService } from "@/lib/services/asanaService";
 import { TrelloService } from "@/lib/services/trelloService";
 import { WooCommerceService } from "@/lib/services/woocommerceService";
 import { GoogleCalendarService } from "@/lib/services/google/calendarService";
+import {
+  persistSyncedItems,
+  importGoogleEventToCalendar,
+  normalizeGithubRepo,
+  normalizeGithubIssue,
+  normalizeBitbucketRepo,
+  normalizeAsanaProject,
+  normalizeTrelloBoard,
+  normalizeWooProduct,
+  normalizeGoogleEvent,
+} from "@/lib/services/sync";
+import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
     try {
@@ -32,47 +45,77 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
-        let result: any = null;
+        const hasAccess = await verifyWorkspaceAccess(user.id, workspaceId);
+        if (!hasAccess) {
+            return NextResponse.json({ error: "Access denied" }, { status: 403 });
+        }
+
+        const integration = await prisma.integration.findFirst({
+            where: { workspaceId, provider },
+        });
+        if (!integration) {
+            return NextResponse.json({ error: "Integration is not connected" }, { status: 404 });
+        }
+
+        let count = 0;
 
         switch (provider) {
-            case "github":
+            case "github": {
                 const github = new GitHubIntegration(workspaceId);
-                result = await github.listRepositories(workspaceId);
+                const repos = await github.listRepositories(workspaceId);
+                const issues = await github.listIssues("open");
+                count += await persistSyncedItems(workspaceId, integration.id, "github", [
+                    ...repos.map(normalizeGithubRepo),
+                    ...issues.map(normalizeGithubIssue),
+                ]);
                 break;
-            case "bitbucket":
+            }
+            case "bitbucket": {
                 const bitbucket = new BitbucketService(workspaceId);
-                result = await bitbucket.getRepositories();
+                const data = await bitbucket.getRepositories();
+                const repos = Array.isArray(data) ? data : data.values ?? [];
+                count += await persistSyncedItems(workspaceId, integration.id, "bitbucket", repos.map(normalizeBitbucketRepo));
                 break;
-            case "asana":
+            }
+            case "asana": {
                 const asana = new AsanaService(workspaceId);
-                result = await asana.getProjects();
+                const projects = await asana.getProjects();
+                count += await persistSyncedItems(workspaceId, integration.id, "asana", projects.map(normalizeAsanaProject));
                 break;
-            case "trello":
+            }
+            case "trello": {
                 const trello = new TrelloService(workspaceId);
-                result = await trello.getBoards();
+                const boards = await trello.getBoards();
+                count += await persistSyncedItems(workspaceId, integration.id, "trello", boards.map(normalizeTrelloBoard));
                 break;
-            case "woocommerce":
+            }
+            case "woocommerce": {
                 const woo = new WooCommerceService(workspaceId);
                 const products = await woo.getProducts();
-                result = { count: products.length };
+                count += await persistSyncedItems(workspaceId, integration.id, "woocommerce", products.map(normalizeWooProduct));
                 break;
-            case "google":
+            }
+            case "google": {
                 const google = new GoogleCalendarService(workspaceId);
-                result = await google.listEvents();
+                const data = await google.listEvents();
+                const events = (data?.items ?? []) as any[];
+                const normalized = events.map(normalizeGoogleEvent);
+                count += await persistSyncedItems(workspaceId, integration.id, "google", normalized);
+                for (const item of normalized) {
+                    await importGoogleEventToCalendar(item, workspaceId, user.id);
+                }
                 break;
+            }
             default:
                 throw new Error("Provider not supported for sync");
         }
 
-        // After fetching, we should update the updatedAt timestamp in the DB
-        const { prisma } = await import("@/lib/prisma");
         await prisma.integration.updateMany({
-            // @ts-ignore
             where: { workspaceId, provider },
             data: { updatedAt: new Date() }
         });
 
-        return NextResponse.json({ success: true, count: Array.isArray(result) ? result.length : result.count });
+        return NextResponse.json({ success: true, count });
     } catch (error: any) {
         console.error("Sync error:", error);
         return NextResponse.json({ error: error.message }, { status: 500 });

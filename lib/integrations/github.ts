@@ -372,6 +372,23 @@ export class GitHubIntegration {
     return repos;
   }
 
+  async listIssues(state: "open" | "closed" | "all" = "open"): Promise<GitHubIssue[]> {
+    const issues: GitHubIssue[] = [];
+    let page = 1;
+
+    while (true) {
+      const batch = await this.request<GitHubIssue[]>(
+        `/user/issues?filter=all&state=${state}&sort=updated&per_page=100&page=${page}`,
+      );
+      issues.push(...batch);
+      if (batch.length < 100) break;
+      page++;
+    }
+
+    logger.info("Listed GitHub issues", { workspaceId: this.workspaceId, count: issues.length });
+    return issues;
+  }
+
   // ---------------------------------------------------------------------------
   // 4. Create a GitHub issue from a Theta task
   // ---------------------------------------------------------------------------

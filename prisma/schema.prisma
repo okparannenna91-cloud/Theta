@@ -67,6 +67,7 @@ model Workspace {
   activities    Activity[]
   invites       Invite[]
   integrations  Integration[]
+  syncedItems   SyncedItem[]
   calendarEvents CalendarEvent[]
   tags           Tag[]
   statuses       Status[]
@@ -915,6 +916,32 @@ model Integration {
   @@index([provider])
   @@unique([workspaceId, provider])
   @@map("integrations")
+}
+
+model SyncedItem {
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  integrationId String   @db.ObjectId
+  workspaceId   String   @db.ObjectId
+  provider      String   // github, bitbucket, asana, trello, woocommerce, google
+  type          String   // repo, issue, project, board, product, event
+  externalId    String   // id from the external system
+  title         String
+  description   String?
+  url           String?
+  status        String?
+  extra         Json?    @db.Json // provider-specific fields (labels, dates, prices, etc.)
+  imported      Boolean  @default(false)
+  taskId        String?  @db.ObjectId // task created on import
+  syncedAt      DateTime @default(now())
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, provider])
+  @@index([imported])
+  @@unique([provider, externalId, type])
+  @@map("synced_items")
 }
 
 model UserPreference {

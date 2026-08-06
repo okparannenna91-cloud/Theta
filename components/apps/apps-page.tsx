@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { RefreshCw, Trash2, CheckCircle2, Plus, Link2, Search, Zap, ArrowRight, Bot, Terminal } from "lucide-react";
+import { RefreshCw, Trash2, CheckCircle2, Plus, Link2, Search, Zap, ArrowRight, Bot, Terminal, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -96,6 +97,11 @@ export default function AppsPage() {
     const [isDetailOpen, setIsDetailOpen] = useState(false);
     const [isManualOpen, setIsManualOpen] = useState(false);
     const [manualInputs, setManualInputs] = useState<any>({});
+    const [syncedItems, setSyncedItems] = useState<any[]>([]);
+    const [isItemsLoading, setIsItemsLoading] = useState(false);
+    const [importProjects, setImportProjects] = useState<any[]>([]);
+    const [importProjectId, setImportProjectId] = useState<string>("");
+    const [isImporting, setIsImporting] = useState<string | null>(null);
 
     const fetchIntegrations = useCallback(async () => {
         if (!activeWorkspaceId) return;
@@ -220,12 +226,65 @@ export default function AppsPage() {
         setIsSyncing(provider.id);
         try {
             const res = await fetch(`/api/integrations/sync?workspaceId=${activeWorkspaceId}&provider=${provider.id}`, { method: "POST" });
-            if (res.ok) toast.success(`${provider.name} synced!`); else toast.error("Sync failed.");
+            if (res.ok) { toast.success(`${provider.name} synced!`); loadSyncedItems(provider.id); }
+            else { const d = await res.json().catch(() => ({})); toast.error(d.error || "Sync failed."); }
         } catch { toast.error("Sync error."); }
         finally { setIsSyncing(null); }
     };
 
-    const openDetail = (provider: any) => { setSelectedProvider(provider); setIsDetailOpen(true); };
+    const loadSyncedItems = useCallback(async (providerId: string) => {
+        if (!activeWorkspaceId) return;
+        setIsItemsLoading(true);
+        try {
+            const res = await fetch(`/api/integrations/sync/items?workspaceId=${activeWorkspaceId}&provider=${providerId}`);
+            const data = await res.json();
+            setSyncedItems(Array.isArray(data.items) ? data.items : []);
+        } catch { setSyncedItems([]); }
+        finally { setIsItemsLoading(false); }
+    }, [activeWorkspaceId]);
+
+    const loadImportProjects = useCallback(async () => {
+        if (!activeWorkspaceId) return;
+        try {
+            const res = await fetch(`/api/projects?workspaceId=${activeWorkspaceId}`);
+            const data = await res.json();
+            const projects = Array.isArray(data.projects) ? data.projects : [];
+            setImportProjects(projects);
+            if (projects.length > 0) setImportProjectId(prev => prev || projects[0].id);
+        } catch { setImportProjects([]); }
+    }, [activeWorkspaceId]);
+
+    const openDetail = (provider: any) => {
+        setSelectedProvider(provider);
+        setIsDetailOpen(true);
+        setSyncedItems([]);
+        setImportProjectId("");
+        if (isConnected(provider.id) && provider.canSync) {
+            loadSyncedItems(provider.id);
+            loadImportProjects();
+        }
+    };
+
+    const handleImport = async (item: any) => {
+        if (!importProjectId) { toast.error("Select a project to import into."); return; }
+        setIsImporting(item.id);
+        try {
+            const res = await fetch(`/api/integrations/sync/import`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ itemId: item.id, projectId: importProjectId })
+            });
+            if (res.ok) {
+                const d = await res.json();
+                if (d.alreadyImported) toast.info("Already imported into a task.");
+                else toast.success("Imported as a task!");
+                loadSyncedItems(selectedProvider?.id);
+            } else {
+                const d = await res.json().catch(() => ({}));
+                toast.error(d.error || "Import failed.");
+            }
+        } catch { toast.error("Import error."); }
+        finally { setIsImporting(null); }
+    };
 
     return (
         <div className="pb-10">
@@ -371,6 +430,66 @@ export default function AppsPage() {
                                         </Button>
                                     )}
                                 </div>
+                                {connected && selectedProvider.canSync && (
+                                    <div className="border rounded-lg p-3 space-y-3">
+                                        <div className="flex items-center justify-between">
+                                            <p className="text-xs font-medium text-foreground uppercase tracking-wide">
+                                                Synced Items {syncedItems.length > 0 && `(${syncedItems.length})`}
+                                            </p>
+                                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => loadSyncedItems(selectedProvider.id)} disabled={isItemsLoading}>
+                                                <RefreshCw className={cn("h-3 w-3 mr-1", isItemsLoading && "animate-spin")} />Refresh
+                                            </Button>
+                                        </div>
+                                        {isItemsLoading ? (
+                                            <div className="space-y-2">
+                                                <Skeleton className="h-8 w-full" />
+                                                <Skeleton className="h-8 w-full" />
+                                                <Skeleton className="h-8 w-full" />
+                                            </div>
+                                        ) : syncedItems.length === 0 ? (
+                                            <p className="text-xs text-muted-foreground text-center py-3">
+                                                Nothing synced yet. Click Sync to fetch items from {selectedProvider.name}.
+                                            </p>
+                                        ) : (
+                                            <>
+                                                <div className="max-h-48 overflow-y-auto space-y-2">
+                                                    {syncedItems.map(item => (
+                                                        <div key={item.id} className="flex items-start gap-2 rounded-md border bg-muted/20 p-2">
+                                                            <div className="flex-1 min-w-0">
+                                                                <p className="text-xs font-medium text-foreground truncate">{item.title}</p>
+                                                                <p className="text-[10px] text-muted-foreground capitalize">
+                                                                    {item.type}{item.status ? ` · ${item.status}` : ""}
+                                                                    {item.imported ? " · Imported" : ""}
+                                                                </p>
+                                                            </div>
+                                                            <Button
+                                                                variant="outline" size="sm" className="h-6 px-2 text-xs shrink-0"
+                                                                onClick={() => handleImport(item)}
+                                                                disabled={isImporting === item.id}
+                                                            >
+                                                                <Download className="h-3 w-3 mr-1" />
+                                                                {isImporting === item.id ? "..." : "Import"}
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                                {importProjects.length > 0 && (
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-xs">Import into project</Label>
+                                                        <Select value={importProjectId} onValueChange={setImportProjectId}>
+                                                            <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select project" /></SelectTrigger>
+                                                            <SelectContent>
+                                                                {importProjects.map(p => (
+                                                                    <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
+                                                                ))}
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </div>
+                                                )}
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </>
                         );
                     })()}
