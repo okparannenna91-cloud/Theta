@@ -181,6 +181,32 @@ export async function importSyncedItem(
   const sourceLine = `Imported from ${item.provider} (${item.type}): ${item.url ?? item.externalId}`;
   const description = [item.description, sourceLine].filter(Boolean).join("\n\n");
 
+  let resolvedBoardId = boardId ?? null;
+  let resolvedColumnId: string | null = null;
+
+  if (!resolvedBoardId) {
+    const board = await prisma.board.findFirst({
+      where: { projectId },
+      orderBy: { createdAt: "asc" },
+    });
+    if (board) resolvedBoardId = board.id;
+  }
+
+  if (resolvedBoardId) {
+    const matchingColumn = await prisma.column.findFirst({
+      where: { boardId: resolvedBoardId, name: { equals: "todo", mode: "insensitive" } },
+    });
+    if (matchingColumn) {
+      resolvedColumnId = matchingColumn.id;
+    } else {
+      const firstCol = await prisma.column.findFirst({
+        where: { boardId: resolvedBoardId },
+        orderBy: { order: "asc" },
+      });
+      if (firstCol) resolvedColumnId = firstCol.id;
+    }
+  }
+
   const task = await prisma.task.create({
     data: {
       title: item.title,
@@ -192,7 +218,8 @@ export async function importSyncedItem(
       projectId,
       userId,
       assigneeIds: [],
-      boardId: boardId ?? null,
+      boardId: resolvedBoardId,
+      columnId: resolvedColumnId,
       link: item.url ?? null,
       customFieldMetadata: {
         provider: item.provider,
