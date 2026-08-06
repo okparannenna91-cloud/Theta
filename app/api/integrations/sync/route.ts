@@ -14,7 +14,19 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
-        const { provider, workspaceId } = await req.json();
+        const { searchParams } = new URL(req.url);
+        const queryProvider = searchParams.get("provider");
+        const queryWorkspaceId = searchParams.get("workspaceId");
+
+        let body: any = {};
+        try {
+            body = await req.json();
+        } catch {
+            body = {};
+        }
+
+        const provider = queryProvider || body.provider;
+        const workspaceId = queryWorkspaceId || body.workspaceId;
 
         if (!provider || !workspaceId) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
