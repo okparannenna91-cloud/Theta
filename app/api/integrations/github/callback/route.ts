@@ -97,8 +97,8 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // Redirect to frontend integrations page
-        return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=success&provider=github"));
+        // Redirect back to the apps page (popup flow closes and refreshes)
+        return NextResponse.redirect(getAppUrl("/apps?status=success&provider=github"));
     } catch (error) {
         console.error("GitHub callback error:", error);
         return NextResponse.json({ error: "Authentication failed" }, { status: 500 });

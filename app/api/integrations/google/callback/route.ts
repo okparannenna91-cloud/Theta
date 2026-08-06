@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
         console.error("Google OAuth error:", error);
-        return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=error&provider=google"));
+        return NextResponse.redirect(getAppUrl("/apps?status=error&provider=google"));
     }
 
     if (!code || !state) {
@@ -67,7 +67,7 @@ export async function GET(request: NextRequest) {
                 },
             });
 
-        return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=success&provider=google"));
+        return NextResponse.redirect(getAppUrl("/apps?status=success&provider=google"));
     } catch (error) {
         console.error("Google callback error:", error);
         return NextResponse.json({ error: "Authentication failed" }, { status: 500 });

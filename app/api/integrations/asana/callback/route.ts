@@ -97,8 +97,8 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // Redirect back to dashboard
-        return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=success&provider=asana"));
+        // Redirect back to the apps page (popup flow closes and refreshes)
+        return NextResponse.redirect(getAppUrl("/apps?status=success&provider=asana"));
     } catch (error) {
         console.error("Asana callback error:", error);
         return NextResponse.json({ error: "Authentication failed" }, { status: 500 });

@@ -20,7 +20,7 @@ export async function GET(req: Request) {
 
         if (error) {
             console.error("Slack OAuth returned error:", error);
-            return NextResponse.redirect(new URL("/dashboard?error=slack_connection_failed", getAppUrl()));
+            return NextResponse.redirect(new URL("/apps?status=error&provider=slack", getAppUrl()));
         }
 
         if (!code || !state) {
@@ -95,11 +95,11 @@ export async function GET(req: Request) {
             });
         }
 
-        // Redirect back to dashboard with success
-        return NextResponse.redirect(new URL(`/dashboard/${workspaceId}/settings?success=slack_connected`, getAppUrl()));
+        // Redirect back to the apps page (popup flow closes and refreshes)
+        return NextResponse.redirect(new URL("/apps?status=success&provider=slack", getAppUrl()));
 
     } catch (error) {
         console.error("Slack callback handler error:", error);
-        return NextResponse.redirect(new URL("/dashboard?error=slack_connection_error", getAppUrl()));
+        return NextResponse.redirect(new URL("/apps?status=error&provider=slack", getAppUrl()));
     }
 }

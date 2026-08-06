@@ -95,8 +95,8 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        // Redirect to settings
-        return NextResponse.redirect(getAppUrl("/settings?tab=integrations&status=success&provider=bitbucket"));
+        // Redirect back to the apps page (popup flow closes and refreshes)
+        return NextResponse.redirect(getAppUrl("/apps?status=success&provider=bitbucket"));
     } catch (error) {
         console.error("Bitbucket callback error:", error);
         return NextResponse.json({ error: "Authentication failed" }, { status: 500 });

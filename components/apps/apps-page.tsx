@@ -111,6 +111,45 @@ export default function AppsPage() {
 
     useEffect(() => { fetchIntegrations(); }, [fetchIntegrations]);
 
+    useEffect(() => {
+        if (typeof window === "undefined") return;
+        const params = new URLSearchParams(window.location.search);
+        const status = params.get("status");
+        const provider = params.get("provider");
+        if (!status) return;
+
+        const name = PROVIDERS.find(p => p.id === provider)?.name || provider || "App";
+        const cleanUrl = () => {
+            const url = new URL(window.location.href);
+            url.searchParams.delete("status");
+            url.searchParams.delete("provider");
+            window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+        };
+
+        fetchIntegrations();
+        if (window.opener) {
+            window.opener.postMessage({ source: "theta-apps", status, provider }, "*");
+            cleanUrl();
+            window.close();
+        } else {
+            if (status === "success") toast.success(`${name} connected!`);
+            else toast.error(`Failed to connect ${name}.`);
+            cleanUrl();
+        }
+    }, [fetchIntegrations]);
+
+    useEffect(() => {
+        const onMessage = (e: MessageEvent) => {
+            if (e.data?.source !== "theta-apps") return;
+            const name = PROVIDERS.find(p => p.id === e.data.provider)?.name || e.data.provider || "App";
+            if (e.data.status === "success") toast.success(`${name} connected!`);
+            else toast.error(`Failed to connect ${name}.`);
+            fetchIntegrations();
+        };
+        window.addEventListener("message", onMessage);
+        return () => window.removeEventListener("message", onMessage);
+    }, [fetchIntegrations]);
+
     const isConnected = (id: string) => integrations.some(i => i.provider === id);
     const getRecord = (id: string) => integrations.find(i => i.provider === id);
 
