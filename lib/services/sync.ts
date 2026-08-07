@@ -11,6 +11,11 @@ export interface NormalizedSyncItem {
   extra?: Record<string, unknown>;
 }
 
+// Containers link to Theta projects; their children become tasks.
+export const CONTAINER_TYPES = ["repo", "board", "project"];
+export const WORK_ITEM_TYPES = ["issue", "card", "task"];
+export const CATALOG_TYPES = ["product"];
+
 type JsonRecord = Record<string, any>;
 
 const trim = (s: unknown): string | undefined => {
@@ -39,6 +44,7 @@ export function normalizeGithubIssue(issue: JsonRecord): NormalizedSyncItem {
     url: issue.html_url,
     status: issue.state,
     extra: {
+      parentId: issue.repository?.id != null ? String(issue.repository.id) : undefined,
       number: issue.number,
       repo: issue.repository?.full_name,
       labels: Array.isArray(issue.labels) ? issue.labels.map((l: any) => l?.name).filter(Boolean) : [],
@@ -71,6 +77,18 @@ export function normalizeAsanaProject(project: JsonRecord): NormalizedSyncItem {
   };
 }
 
+export function normalizeAsanaTask(task: JsonRecord, projectGid: string): NormalizedSyncItem {
+  return {
+    externalId: task.gid,
+    type: "task",
+    title: task.name,
+    description: trim(task.notes),
+    url: task.permalink_url,
+    status: task.completed ? "closed" : "open",
+    extra: { parentId: projectGid, dueOn: task.due_on },
+  };
+}
+
 export function normalizeTrelloBoard(board: JsonRecord): NormalizedSyncItem {
   return {
     externalId: board.id,
@@ -80,6 +98,18 @@ export function normalizeTrelloBoard(board: JsonRecord): NormalizedSyncItem {
     url: board.url,
     status: board.closed ? "closed" : "open",
     extra: { organization: board.idOrganization },
+  };
+}
+
+export function normalizeTrelloCard(card: JsonRecord, boardId: string): NormalizedSyncItem {
+  return {
+    externalId: card.id,
+    type: "card",
+    title: card.name,
+    description: trim(card.desc),
+    url: card.url,
+    status: card.closed ? "closed" : "open",
+    extra: { parentId: boardId, list: card.list?.name, listId: card.idList },
   };
 }
 
@@ -198,9 +228,26 @@ async function resolveColumnForStatus(
   return first?.id ?? null;
 }
 
+// Trello cards prefer a column named after their list; everything else falls
+// back to the status column.
+async function resolveColumnForItem(
+  boardId: string | null,
+  item: any,
+  status: string,
+): Promise<string | null> {
+  if (item.provider === "trello" && item.extra?.list && boardId) {
+    const listCol = await prisma.column.findFirst({
+      where: { boardId, name: { equals: item.extra.list, mode: "insensitive" } },
+    });
+    if (listCol) return listCol.id;
+  }
+  return resolveColumnForStatus(boardId, status);
+}
+
 async function resolveBoardAndColumn(
   projectId: string,
   boardId: string | null | undefined,
+  item: any,
   status: string,
 ): Promise<{ boardId: string | null; columnId: string | null }> {
   let resolvedBoardId = boardId ?? null;
@@ -211,18 +258,17 @@ async function resolveBoardAndColumn(
     });
     if (board) resolvedBoardId = board.id;
   }
-  const resolvedColumnId = await resolveColumnForStatus(resolvedBoardId, status);
+  const resolvedColumnId = await resolveColumnForItem(resolvedBoardId, item, status);
   return { boardId: resolvedBoardId, columnId: resolvedColumnId };
 }
 
-// GitHub issues map their state to Theta statuses on import/sync.
+// Work items (issues, cards, tasks) map their state to Theta statuses.
 // Closed -> done (terminal status), open -> todo.
-function githubStatusMapping(item: {
-  provider: string;
+function workItemStatusMapping(item: {
   type: string;
   status?: string | null;
 }): { status: string; completedAt: Date | null } | null {
-  if (item.provider !== "github" || item.type !== "issue") return null;
+  if (!WORK_ITEM_TYPES.includes(item.type)) return null;
   if (item.status === "closed") return { status: "done", completedAt: new Date() };
   return { status: "todo", completedAt: null };
 }
@@ -233,13 +279,14 @@ export async function createTaskForSyncedItem(
   projectId: string,
   boardId?: string | null,
 ) {
-  const mapping = githubStatusMapping(item);
+  const mapping = workItemStatusMapping(item);
   const status = mapping?.status ?? "todo";
   const completedAt = mapping?.completedAt ?? null;
 
   const { boardId: resolvedBoardId, columnId: resolvedColumnId } = await resolveBoardAndColumn(
     projectId,
     boardId,
+    item,
     status,
   );
 
@@ -269,15 +316,6 @@ export async function createTaskForSyncedItem(
   return task;
 }
 
-// Find the SyncedItem for a repo (matched by full name) so callers can read its
-// linked project. Uses a JS filter to avoid fragile Mongo JSON-path queries.
-async function findRepoItem(workspaceId: string, repoFullName: string): Promise<any | null> {
-  const repos = await prisma.syncedItem.findMany({
-    where: { workspaceId, type: "repo" },
-  });
-  return repos.find((r) => r.title === repoFullName) ?? null;
-}
-
 export async function importSyncedItem(
   itemId: string,
   userId: string,
@@ -287,8 +325,8 @@ export async function importSyncedItem(
   const item = await prisma.syncedItem.findUnique({ where: { id: itemId } });
   if (!item) throw new Error("Synced item not found");
 
-  if (item.type === "repo") {
-    throw new Error("Repositories are linked to projects, not imported as tasks.");
+  if (!WORK_ITEM_TYPES.includes(item.type)) {
+    throw new Error("This item is a container or catalog item — it cannot be imported as a task.");
   }
 
   if (item.imported && item.taskId) {
@@ -296,13 +334,20 @@ export async function importSyncedItem(
     if (existing) return { task: existing, alreadyImported: true };
   }
 
-  // Default to the linked project when the issue's repo is already linked.
+  // Default to the linked project when the item's parent container is linked.
   let targetProjectId = projectId;
-  if (!targetProjectId && item.provider === "github" && item.type === "issue") {
-    const repoFullName = (item.extra as any)?.repo as string | undefined;
-    if (repoFullName) {
-      const repoItem = await findRepoItem(item.workspaceId, repoFullName);
-      const linked = (repoItem?.extra as any)?.linkedProjectId as string | undefined;
+  if (!targetProjectId) {
+    const parentId = (item.extra as any)?.parentId as string | undefined;
+    if (parentId) {
+      const container = await prisma.syncedItem.findFirst({
+        where: {
+          workspaceId: item.workspaceId,
+          provider: item.provider,
+          externalId: parentId,
+          type: { in: CONTAINER_TYPES },
+        },
+      });
+      const linked = (container?.extra as any)?.linkedProjectId as string | undefined;
       if (linked) targetProjectId = linked;
     }
   }
@@ -319,7 +364,7 @@ export async function importSyncedItem(
   return { task, alreadyImported: false };
 }
 
-// Push the latest GitHub issue state into an already-linked task.
+// Push the latest external state into an already-linked task.
 export async function updateTaskFromSyncedItem(item: any): Promise<any | null> {
   if (!item.taskId) return null;
 
@@ -331,61 +376,66 @@ export async function updateTaskFromSyncedItem(item: any): Promise<any | null> {
     description: buildDescription(item),
   };
 
-  if (item.provider === "github" && item.type === "issue") {
+  if (WORK_ITEM_TYPES.includes(item.type)) {
     if (item.status === "closed" && task.status !== "done") {
       data.status = "done";
       data.completedAt = new Date();
-      data.columnId = await resolveColumnForStatus(task.boardId, "done");
+      data.columnId = await resolveColumnForItem(task.boardId, item, "done");
     } else if (item.status === "open" && (task.status === "done" || task.completedAt)) {
       data.status = "todo";
       data.completedAt = null;
-      data.columnId = await resolveColumnForStatus(task.boardId, "todo");
+      data.columnId = await resolveColumnForItem(task.boardId, item, "todo");
     }
   }
 
   return prisma.task.update({ where: { id: task.id }, data });
 }
 
-// Reconcile synced GitHub data with Theta tasks:
-// - issues already imported are updated (title/description, closed -> done)
-// - open issues of a repo linked to a project are auto-imported into that project
-// - repositories themselves never become tasks
-export async function syncGithubTasks(
+// Reconcile synced data with Theta tasks for a provider:
+// - imported children are updated (title/description, closed -> done, reopened -> todo)
+// - open children of a linked container are auto-imported into that project
+// - containers themselves never become tasks
+export async function syncLinkedChildren(
   workspaceId: string,
   userId: string,
+  provider: string,
 ): Promise<{ created: number; updated: number }> {
-  const [repoItems, issueItems] = await Promise.all([
-    prisma.syncedItem.findMany({ where: { workspaceId, provider: "github", type: "repo" } }),
-    prisma.syncedItem.findMany({ where: { workspaceId, provider: "github", type: "issue" } }),
+  const [containers, children] = await Promise.all([
+    prisma.syncedItem.findMany({
+      where: { workspaceId, provider, type: { in: CONTAINER_TYPES } },
+    }),
+    prisma.syncedItem.findMany({
+      where: { workspaceId, provider, type: { in: WORK_ITEM_TYPES } },
+    }),
   ]);
 
-  const linkedByRepo = new Map<string, string>();
-  for (const repo of repoItems) {
-    const linked = (repo.extra as any)?.linkedProjectId as string | undefined;
-    if (linked) linkedByRepo.set(repo.title, linked);
+  const linkedByParent = new Map<string, string>();
+  for (const container of containers) {
+    const linked = (container.extra as any)?.linkedProjectId as string | undefined;
+    if (linked) linkedByParent.set(container.externalId, linked);
   }
 
   let created = 0;
   let updated = 0;
 
-  for (const issue of issueItems) {
-    const repoFullName = (issue.extra as any)?.repo as string | undefined;
-    const linkedProjectId = repoFullName ? linkedByRepo.get(repoFullName) : undefined;
+  for (const child of children) {
+    const parentId = (child.extra as any)?.parentId as string | undefined;
+    const linkedProjectId = parentId ? linkedByParent.get(parentId) : undefined;
 
-    if (issue.taskId) {
-      const result = await updateTaskFromSyncedItem(issue);
+    if (child.taskId) {
+      const result = await updateTaskFromSyncedItem(child);
       if (result) updated++;
-    } else if (linkedProjectId && issue.status === "open") {
-      const task = await createTaskForSyncedItem(issue, userId, linkedProjectId);
+    } else if (linkedProjectId && child.status !== "closed") {
+      const task = await createTaskForSyncedItem(child, userId, linkedProjectId);
       await prisma.syncedItem.update({
-        where: { id: issue.id },
+        where: { id: child.id },
         data: { imported: true, taskId: task.id },
       });
       created++;
     }
   }
 
-  logger.info("Synced GitHub issues to tasks", { workspaceId, created, updated });
+  logger.info("Synced children to tasks", { workspaceId, provider, created, updated });
   return { created, updated };
 }
 

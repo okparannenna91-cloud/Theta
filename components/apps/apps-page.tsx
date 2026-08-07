@@ -260,11 +260,11 @@ export default function AppsPage() {
         } catch { setImportProjects([]); }
     }, [activeWorkspaceId]);
 
-    // Repo full name -> linked project id (from synced repo items)
-    const repoProjectMap = useMemo(() => {
+    // Container external id -> linked project id (from synced container items)
+    const containerProjectMap = useMemo(() => {
         const m: Record<string, string> = {};
         for (const it of syncedItems) {
-            if (it.type === "repo" && it.extra?.linkedProjectId) m[it.title] = it.extra.linkedProjectId;
+            if (it.extra?.linkedProjectId) m[it.externalId] = it.extra.linkedProjectId;
         }
         return m;
     }, [syncedItems]);
@@ -274,6 +274,9 @@ export default function AppsPage() {
         for (const p of importProjects) m[p.id] = p.name;
         return m;
     }, [importProjects]);
+
+    const isContainerType = (t: string) => ["repo", "board", "project"].includes(t);
+    const isWorkItemType = (t: string) => ["issue", "card", "task"].includes(t);
 
     const openDetail = (provider: any) => {
         setSelectedProvider(provider);
@@ -288,10 +291,10 @@ export default function AppsPage() {
     };
 
     const handleImport = async (item: any) => {
-        // Issues of a linked repo import into that repo's project automatically.
+        // Items whose parent container is linked import into that project automatically.
         let targetProjectId = importProjectId;
-        if (item.type === "issue" && item.extra?.repo && repoProjectMap[item.extra.repo]) {
-            targetProjectId = repoProjectMap[item.extra.repo];
+        if (item.extra?.parentId && containerProjectMap[item.extra.parentId]) {
+            targetProjectId = containerProjectMap[item.extra.parentId];
         }
         if (!targetProjectId) { toast.error("Select a project to import into."); return; }
         setIsImporting(item.id);
@@ -327,7 +330,7 @@ export default function AppsPage() {
         if (!repoCreateNew && !projectId) { toast.error("Select a project."); return; }
         setIsLinking(true);
         try {
-            const res = await fetch(`/api/integrations/sync/link-repo`, {
+            const res = await fetch(`/api/integrations/sync/link`, {
                 method: "POST", headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ itemId: linkTarget.id, projectId, newProjectName })
             });
@@ -522,12 +525,12 @@ export default function AppsPage() {
                                                                 <p className="text-xs font-medium text-foreground truncate">{item.title}</p>
                                                                 <p className="text-[10px] text-muted-foreground capitalize">
                                                                     {item.type}{item.status ? ` · ${item.status}` : ""}
-                                                                    {item.type === "repo" && item.extra?.linkedProjectId
+                                                                    {isContainerType(item.type) && item.extra?.linkedProjectId
                                                                         ? ` · Linked to ${projectNameMap[item.extra.linkedProjectId] || "project"}`
                                                                         : item.imported ? " · Imported" : ""}
                                                                 </p>
                                                             </div>
-                                                            {item.type === "repo" ? (
+                                                            {isContainerType(item.type) ? (
                                                                 <Button
                                                                     variant="outline" size="sm" className="h-6 px-2 text-xs shrink-0"
                                                                     onClick={() => openLinkDialog(item)}
@@ -535,6 +538,10 @@ export default function AppsPage() {
                                                                     <Link2 className="h-3 w-3 mr-1" />
                                                                     {item.extra?.linkedProjectId ? "Relink" : "Link to Project"}
                                                                 </Button>
+                                                            ) : !isWorkItemType(item.type) ? (
+                                                                <Badge variant="outline" className="h-6 px-2 text-[10px] shrink-0 text-muted-foreground">
+                                                                    Catalog
+                                                                </Badge>
                                                             ) : (
                                                                 <Button
                                                                     variant="outline" size="sm" className="h-6 px-2 text-xs shrink-0"
@@ -577,9 +584,11 @@ export default function AppsPage() {
                         <>
                             <DialogHeader>
                                 <DialogTitle className="flex items-center gap-2">
-                                    <Link2 className="h-4 w-4" />Link Repository
+                                    <Link2 className="h-4 w-4" />Link to Project
                                 </DialogTitle>
-                                <DialogDescription className="truncate">{linkTarget.title}</DialogDescription>
+                                <DialogDescription className="truncate capitalize">
+                                    {linkTarget.type} · {linkTarget.title}
+                                </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">
                                 <div className="space-y-1.5">
@@ -611,14 +620,15 @@ export default function AppsPage() {
                                     </div>
                                 )}
                                 <p className="text-[11px] text-muted-foreground">
-                                    Linking imports all open issues as tasks into this project. The repository itself never becomes a task.
+                                    Linking imports this {linkTarget.type}&apos;s open items as tasks into the project.
+                                    The {linkTarget.type} itself never becomes a task.
                                 </p>
                             </div>
                             <DialogFooter className="gap-2">
                                 <Button variant="outline" onClick={() => setLinkTarget(null)}>Cancel</Button>
                                 <Button onClick={handleLinkRepo} disabled={isLinking || (!repoCreateNew && !repoProjectId)}>
                                     <Link2 className="h-4 w-4 mr-2" />
-                                    {isLinking ? "Linking..." : "Link & Import Issues"}
+                                    {isLinking ? "Linking..." : "Link & Import"}
                                 </Button>
                             </DialogFooter>
                         </>

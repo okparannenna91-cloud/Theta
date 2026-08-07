@@ -9,13 +9,15 @@ import { WooCommerceService } from "@/lib/services/woocommerceService";
 import { GoogleCalendarService } from "@/lib/services/google/calendarService";
 import {
   persistSyncedItems,
-  syncGithubTasks,
+  syncLinkedChildren,
   importGoogleEventToCalendar,
   normalizeGithubRepo,
   normalizeGithubIssue,
   normalizeBitbucketRepo,
   normalizeAsanaProject,
+  normalizeAsanaTask,
   normalizeTrelloBoard,
+  normalizeTrelloCard,
   normalizeWooProduct,
   normalizeGoogleEvent,
 } from "@/lib/services/sync";
@@ -71,7 +73,7 @@ export async function POST(req: Request) {
                     ...repos.map(normalizeGithubRepo),
                     ...issues.map(normalizeGithubIssue),
                 ]);
-                const result = await syncGithubTasks(workspaceId, user.id);
+                const result = await syncLinkedChildren(workspaceId, user.id, "github");
                 created = result.created;
                 updated = result.updated;
                 break;
@@ -86,13 +88,37 @@ export async function POST(req: Request) {
             case "asana": {
                 const asana = new AsanaService(workspaceId);
                 const projects = await asana.getProjects();
-                count += await persistSyncedItems(workspaceId, integration.id, "asana", projects.map(normalizeAsanaProject));
+                const projectItems = projects.map(normalizeAsanaProject);
+                const taskItems: any[] = [];
+                for (const p of projects) {
+                    const tasks = await asana.getTasks(p.gid);
+                    for (const t of tasks) taskItems.push(normalizeAsanaTask(t, p.gid));
+                }
+                count += await persistSyncedItems(workspaceId, integration.id, "asana", [
+                    ...projectItems,
+                    ...taskItems,
+                ]);
+                const asanaResult = await syncLinkedChildren(workspaceId, user.id, "asana");
+                created = asanaResult.created;
+                updated = asanaResult.updated;
                 break;
             }
             case "trello": {
                 const trello = new TrelloService(workspaceId);
                 const boards = await trello.getBoards();
-                count += await persistSyncedItems(workspaceId, integration.id, "trello", boards.map(normalizeTrelloBoard));
+                const boardItems = boards.map(normalizeTrelloBoard);
+                const cardItems: any[] = [];
+                for (const b of boards) {
+                    const cards = await trello.getCards(b.id);
+                    for (const c of cards) cardItems.push(normalizeTrelloCard(c, b.id));
+                }
+                count += await persistSyncedItems(workspaceId, integration.id, "trello", [
+                    ...boardItems,
+                    ...cardItems,
+                ]);
+                const trelloResult = await syncLinkedChildren(workspaceId, user.id, "trello");
+                created = trelloResult.created;
+                updated = trelloResult.updated;
                 break;
             }
             case "woocommerce": {

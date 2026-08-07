@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
-import { importSyncedItem } from "@/lib/services/sync";
+import { importSyncedItem, CONTAINER_TYPES, WORK_ITEM_TYPES } from "@/lib/services/sync";
 import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
@@ -23,9 +23,9 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Synced item not found" }, { status: 404 });
         }
 
-        if (item.type === "repo") {
+        if (!WORK_ITEM_TYPES.includes(item.type)) {
             return NextResponse.json(
-                { error: "Repositories are linked to projects, not imported as tasks." },
+                { error: "This item is a container or catalog item — it cannot be imported as a task." },
                 { status: 400 },
             );
         }
@@ -35,17 +35,21 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: "Access denied" }, { status: 403 });
         }
 
-        // When the issue's repo is linked to a project, resolve the project
-        // automatically unless the caller supplied one explicitly.
+        // When the item's parent container is linked to a project, resolve the
+        // project automatically unless the caller supplied one explicitly.
         let targetProjectId = projectId;
-        if (!targetProjectId && item.provider === "github" && item.type === "issue") {
-            const repoFullName = (item.extra as any)?.repo as string | undefined;
-            if (repoFullName) {
-                const repoItems = await prisma.syncedItem.findMany({
-                    where: { workspaceId: item.workspaceId, type: "repo" },
+        if (!targetProjectId) {
+            const parentId = (item.extra as any)?.parentId as string | undefined;
+            if (parentId) {
+                const container = await prisma.syncedItem.findFirst({
+                    where: {
+                        workspaceId: item.workspaceId,
+                        provider: item.provider,
+                        externalId: parentId,
+                        type: { in: CONTAINER_TYPES },
+                    },
                 });
-                const repoItem = repoItems.find((r) => r.title === repoFullName);
-                const linked = (repoItem?.extra as any)?.linkedProjectId as string | undefined;
+                const linked = (container?.extra as any)?.linkedProjectId as string | undefined;
                 if (linked) targetProjectId = linked;
             }
         }

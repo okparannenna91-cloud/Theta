@@ -33,9 +33,16 @@ export class TrelloService {
         return response.json();
     }
 
+    async getLists(boardId: string) {
+        const { apiKey, token } = await this.getCreds();
+        const response = await fetch(`${TRELLO_API_URL}/boards/${boardId}/lists?key=${apiKey}&token=${token}`);
+        if (!response.ok) throw new Error("Trello API Error");
+        return response.json();
+    }
+
     async getCards(boardId: string) {
         const { apiKey, token } = await this.getCreds();
-        const response = await fetch(`${TRELLO_API_URL}/boards/${boardId}/cards?key=${apiKey}&token=${token}`);
+        const response = await fetch(`${TRELLO_API_URL}/boards/${boardId}/cards?list=true&key=${apiKey}&token=${token}`);
         if (!response.ok) throw new Error("Trello API Error");
         return response.json();
     }
