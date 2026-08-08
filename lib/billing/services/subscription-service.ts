@@ -316,7 +316,7 @@ export class SubscriptionService {
 
     const memberCount = await prisma.workspaceMember.count({ where: { workspaceId } });
 
-    const proration = prorationService.calculate(
+    const proration = await prorationService.calculate(
       workspaceId,
       workspace.plan,
       newPlanKey,

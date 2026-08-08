@@ -65,6 +65,7 @@ export default function BillingPage() {
   const [providerModalOpen, setProviderModalOpen] = useState(false);
   const [pendingCheckout, setPendingCheckout] = useState<{ planId: string; price: string; name: string } | null>(null);
   const [priceBreakdown, setPriceBreakdown] = useState<PriceBreakdown | null>(null);
+  const [ngnPrices, setNgnPrices] = useState<Record<string, number> | null>(null);
 
   const searchParams = useSearchParams();
   const queryClient = useQueryClient();
@@ -116,6 +117,25 @@ export default function BillingPage() {
       refetchSub();
     }
   }, [searchParams, refetchSub]);
+
+  const memberCount = usage?.members?.current || 0;
+
+  useEffect(() => {
+    if (currency !== "NGN" || !activeWorkspaceId) {
+      setNgnPrices(null);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const res = await fetch(`/api/billing/prices?workspaceId=${activeWorkspaceId}&interval=${billingInterval}&currency=NGN`);
+      if (!res.ok) throw new Error("Failed to load NGN prices");
+      const data = await res.json();
+      if (!cancelled) setNgnPrices(data.prices);
+    })().catch(() => {
+      if (!cancelled) setNgnPrices(null);
+    });
+    return () => { cancelled = true; };
+  }, [currency, billingInterval, activeWorkspaceId, memberCount]);
 
   const executeCheckout = async (planId: string, provider?: string) => {
     const wsId = activeWorkspaceIdRef.current;
@@ -342,11 +362,15 @@ export default function BillingPage() {
               const isCurrentPlan = currentPlanKey === plan.planKey;
               const isPopular = plan.planKey === "pro";
               const isFree = plan.planKey === "free";
-              const currentMemberCount = usage?.members?.current || 0;
-              const price = getPlanPrice(plan.id, billingInterval, currentMemberCount, currency);
+              const currentMemberCount = memberCount;
+              const usdPrice = getPlanPrice(plan.id, billingInterval, currentMemberCount, "USD");
+              const price = currency === "USD" ? usdPrice : ngnPrices?.[plan.id] ?? null;
+              const ngnRate = currency === "NGN" && price ? price / usdPrice : 1250;
               const formattedPrice = currency === "USD"
-                ? `$${(price / 100).toLocaleString()}`
-                : `₦${(price / 100).toLocaleString()}`;
+                ? `$${usdPrice / 100}`
+                : price
+                  ? `₦${(price / 100).toLocaleString()}`
+                  : "…";
 
               const isUpgrade = plan.basePriceMonthlyUSD > (BILLING_PLANS.find(p => p.planKey === currentPlanKey)?.basePriceMonthlyUSD ?? 0);
               const grouped = !isFree ? groupFeatures(plan.features) : [];
@@ -410,8 +434,8 @@ export default function BillingPage() {
                           </span>
                         </div>
                         <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5 text-xs text-muted-foreground">
-                          <span>Base: {currency === "USD" ? `$${plan.basePriceMonthlyUSD / 100}` : `₦${(plan.basePriceMonthlyUSD / 100 * 1250).toLocaleString()}`}</span>
-                          <span>+ {currentMemberCount} {currentMemberCount === 1 ? 'member' : 'members'} × {currency === "USD" ? `$${plan.perUserPriceMonthlyUSD / 100}` : `₦${(plan.perUserPriceMonthlyUSD / 100 * 1250).toLocaleString()}`}</span>
+                          <span>Base: {currency === "USD" ? `$${plan.basePriceMonthlyUSD / 100}` : `₦${(plan.basePriceMonthlyUSD / 100 * ngnRate).toLocaleString()}`}</span>
+                          <span>+ {currentMemberCount} {currentMemberCount === 1 ? 'member' : 'members'} × {currency === "USD" ? `$${plan.perUserPriceMonthlyUSD / 100}` : `₦${(plan.perUserPriceMonthlyUSD / 100 * ngnRate).toLocaleString()}`}</span>
                         </div>
                       </div>
                     )}
@@ -516,7 +540,7 @@ export default function BillingPage() {
                             targetPlan={{
                               planKey: plan.planKey,
                               name: plan.name,
-                              price,
+                              price: price ?? 0,
                               formattedPrice,
                               isUpgrade: false,
                             }}

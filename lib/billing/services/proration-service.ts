@@ -1,9 +1,9 @@
 import { differenceInDays } from "date-fns";
 import { BillingInterval, ProrationResult } from "../types";
-import { getPlanPrice, Currency } from "@/lib/billing-plans";
+import { getPlanPriceDynamic, Currency } from "@/lib/billing-plans";
 
 class ProrationService {
-  calculate(
+  async calculate(
     workspaceId: string,
     currentPlan: string,
     newPlan: string,
@@ -12,13 +12,13 @@ class ProrationService {
     currentPeriodEnd: Date,
     memberCount: number,
     currency: Currency = "USD"
-  ): ProrationResult {
+  ): Promise<ProrationResult> {
     const totalDays = differenceInDays(currentPeriodEnd, currentPeriodStart) || 1;
     const remainingDays = Math.max(1, differenceInDays(currentPeriodEnd, new Date()));
     const usedDays = totalDays - remainingDays;
 
-    const oldPrice = getPlanPrice(currentPlan, currentInterval, memberCount, currency);
-    const newPrice = getPlanPrice(newPlan, currentInterval, memberCount, currency);
+    const oldPrice = await getPlanPriceDynamic(currentPlan, currentInterval, memberCount, currency);
+    const newPrice = await getPlanPriceDynamic(newPlan, currentInterval, memberCount, currency);
 
     const oldDaily = oldPrice / totalDays;
     const newDaily = newPrice / totalDays;
