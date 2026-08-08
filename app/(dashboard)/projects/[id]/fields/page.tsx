@@ -40,7 +40,7 @@ export default function Page({ params }: { params: { id: string } }) {
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Custom Fields</h2>
           <p className="text-sm text-muted-foreground">
-            Define custom data fields for tasks in this project. They appear as columns on your board and table.
+            Define custom data fields for tasks in this project. They appear on task cards in Kanban and in the task detail dialog.
           </p>
         </div>
       </div>
@@ -48,7 +48,7 @@ export default function Page({ params }: { params: { id: string } }) {
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground/70 border border-border/40 rounded-lg px-3 py-2 bg-muted/20 w-fit">
         <Layers className="h-3.5 w-3.5 text-primary/70" />
         <span>
-          Custom fields are shared across the board, table, calendar and Gantt views — no code needed.
+          Field values are editable in the task dialog, shown on Kanban cards, and available to filters, automations and exports.
         </span>
       </div>
 

@@ -86,6 +86,7 @@ import MapView from "@/components/boards/map-view";
 import FilterSortBar from "@/components/boards/filter-sort-bar";
 import type { FilterConfig, SortConfig, ColumnVisibility, SavedView } from "@/components/boards/filter-sort-bar";
 import { TaskDialog } from "@/components/tasks/task-dialog";
+import { CustomFieldBadges } from "@/components/tasks/task-custom-fields";
 import { UserAvatar } from "@/components/ui/user-avatar";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useAbly } from "@/hooks/use-ably";
@@ -132,7 +133,7 @@ async function deleteColumn(columnId: string, migrateToStatusId?: string) {
   return res.json();
 }
 
-function TaskCardContent({ task, memberMap }: { task: any; memberMap: Record<string, any> }) {
+function TaskCardContent({ task, memberMap, fields }: { task: any; memberMap: Record<string, any>; fields: any[] }) {
   const priorityInfo = useMemo(() => {
     switch (task.priority) {
       case "urgent":
@@ -215,6 +216,9 @@ function TaskCardContent({ task, memberMap }: { task: any; memberMap: Record<str
           )}
         </div>
       )}
+
+      {/* Custom field badges */}
+      <CustomFieldBadges fields={fields} task={task} memberMap={memberMap} />
 
       {/* Metadata row — only renders when at least one item exists */}
       {hasMetadata && (
@@ -304,12 +308,14 @@ function SortableTask({
   isSelected, 
   onSelect,
   memberMap,
+  fields,
 }: { 
   task: any; 
   onClick: () => void;
   isSelected: boolean;
   onSelect: (checked: boolean) => void;
   memberMap: Record<string, any>;
+  fields: any[];
 }) {
   const {
     attributes,
@@ -363,7 +369,7 @@ function SortableTask({
           className="h-3.5 w-3.5 rounded border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
         />
       </div>
-      <TaskCardContent task={task} memberMap={memberMap} />
+      <TaskCardContent task={task} memberMap={memberMap} fields={fields} />
     </Card>
   );
 }
@@ -571,6 +577,16 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const { data: board, isLoading } = useQuery({
     queryKey: ["board", boardId],
     queryFn: () => fetchBoard(boardId),
+    enabled: !!boardId,
+  });
+
+  const { data: customFields = [] } = useQuery({
+    queryKey: ["custom-fields", boardId],
+    queryFn: async () => {
+      const res = await fetch(`/api/custom-fields?boardId=${boardId}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
     enabled: !!boardId,
   });
 
@@ -1195,6 +1211,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                                   );
                                 }}
                                 memberMap={memberMap}
+                                fields={customFields}
                               />
                             ))}
                           </div>
@@ -1238,7 +1255,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                   className="p-3 w-[320px] bg-card border shadow-2xl rounded-lg rotate-[1deg] scale-[1.02]"
                   style={activeTask.color ? { borderLeftColor: activeTask.color, borderLeftWidth: "3px" } : {}}
                 >
-                  <TaskCardContent task={activeTask} memberMap={memberMap} />
+                  <TaskCardContent task={activeTask} memberMap={memberMap} fields={customFields} />
                 </div>
               )}
             </DragOverlay>

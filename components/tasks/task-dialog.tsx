@@ -36,6 +36,7 @@ import { TaskDependencies } from "./task-dependencies";
 import { TaskAttachments } from "./task-attachments";
 import { TaskComments } from "./task-comments";
 import { TaskActivity } from "./task-activity";
+import { CustomFieldsSection } from "./task-custom-fields";
 
 interface TaskDialogProps {
     task: any;
@@ -389,6 +390,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
 
                             <LazySections
                                 taskId={task.id}
+                                task={task}
                                 workspaceId={workspaceId}
                                 projectId={task.projectId}
                                 attachments={task.fieldValues?.attachments || []}
@@ -541,7 +543,7 @@ const ActivityContent = React.memo(function ActivityContent({ taskId, workspaceI
     return <TaskActivity taskId={taskId} workspaceId={workspaceId} />;
 });
 
-const LazySections = React.memo(function LazySections({ taskId, workspaceId, projectId, attachments, onOpenChild }: { taskId: string; workspaceId: string; projectId?: string; attachments?: any[]; onOpenChild: (child: any) => void }) {
+const LazySections = React.memo(function LazySections({ task, taskId, workspaceId, projectId, attachments, onOpenChild }: { task: any; taskId: string; workspaceId: string; projectId?: string; attachments?: any[]; onOpenChild: (child: any) => void }) {
     return (
         <>
             <LazySection icon={Sparkles} title="Subtasks">
@@ -559,6 +561,8 @@ const LazySections = React.memo(function LazySections({ taskId, workspaceId, pro
             <LazySection icon={Palette} title="Attachments">
                 <AttachmentsContent taskId={taskId} workspaceId={workspaceId} attachments={attachments || []} />
             </LazySection>
+
+            <CustomFieldsSection task={task} workspaceId={workspaceId} />
 
             <hr className="border-border/10 my-8" />
 
