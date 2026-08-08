@@ -271,12 +271,28 @@ export async function deleteField(fieldId: string): Promise<void> {
 
 export async function getFieldsForBoard(boardId: string): Promise<FieldDefinition[]> {
   try {
+    const board = await prisma.board.findUnique({
+      where: { id: boardId },
+      select: { projectId: true },
+    });
+
+    let workflowNames = new Set<string>();
+    if (board?.projectId) {
+      const statuses = await prisma.status.findMany({
+        where: { projectId: board.projectId },
+        select: { name: true },
+      });
+      workflowNames = new Set(statuses.map((s) => s.name.toLowerCase().trim()));
+    }
+
     const columns = await prisma.column.findMany({
       where: { boardId },
       orderBy: { order: "asc" },
     });
 
-    return columns.map(toFieldDefinition);
+    return columns
+      .filter((c) => !workflowNames.has(c.name.toLowerCase().trim()))
+      .map(toFieldDefinition);
   } catch (err) {
     logger.error("Failed to get fields for board", err);
     throw err;
