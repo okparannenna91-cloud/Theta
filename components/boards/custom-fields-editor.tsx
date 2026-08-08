@@ -9,8 +9,14 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -1053,7 +1059,7 @@ export default function CustomFieldsEditor({
       </Card>
 
       {/* Create / Edit Dialog */}
-      <Dialog
+      <Sheet
         open={createOpen}
         onOpenChange={(open) => {
           setCreateOpen(open);
@@ -1063,29 +1069,25 @@ export default function CustomFieldsEditor({
           }
         }}
       >
-        <DialogContent
-          onClose={() => {
-            setCreateOpen(false);
-            resetForm();
-            setEditingField(null);
-          }}
-          className="border-border/40 max-w-2xl max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0"
+        <SheetContent
+          side="right"
+          className="fixed left-auto right-0 top-0 translate-x-0 translate-y-0 h-[100dvh] w-full sm:w-[95vw] md:w-[85vw] lg:w-[680px] sm:max-w-none p-0 border-l bg-background shadow-2xl rounded-none sm:rounded-l-xl overflow-hidden flex flex-col"
         >
-          <DialogHeader className="px-6 pt-5 pb-4 border-b border-border/60">
-            <DialogTitle className="text-foreground flex items-center gap-2.5">
+          <SheetHeader className="px-6 pr-14 pt-5 pb-4 border-b border-border/60">
+            <SheetTitle className="text-foreground flex items-center gap-2.5">
               <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
                 {getFieldTypeConfig(fieldType).icon}
               </span>
               {editingField ? "Edit Field" : "Create Custom Field"}
-            </DialogTitle>
-            <DialogDescription className="text-xs text-muted-foreground/70">
+            </SheetTitle>
+            <SheetDescription className="text-xs text-muted-foreground/70">
               {editingField
                 ? `Update the settings for “${editingField.name}”.`
                 : "Add a new column to your board — it will show up across all views."}
-            </DialogDescription>
-          </DialogHeader>
+            </SheetDescription>
+          </SheetHeader>
 
-          <ScrollArea className="flex-1 min-h-0">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden no-scrollbar">
             <div className="space-y-7 px-6 py-5">
               {/* Field name */}
               <div className="space-y-1.5">
@@ -1459,7 +1461,7 @@ export default function CustomFieldsEditor({
                 </div>
               </div>
             </div>
-          </ScrollArea>
+          </div>
 
           <div className="flex items-center gap-2 px-6 py-4 border-t border-border/60 bg-muted/10">
             <p className="text-[11px] text-muted-foreground/60 hidden sm:block">
@@ -1488,8 +1490,8 @@ export default function CustomFieldsEditor({
               </Button>
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
 
       {/* Delete Confirmation Dialog */}
       <Dialog
