@@ -5,17 +5,17 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 240 6% 15%;
+    --foreground: 240 6% 10%;
     --card: 0 0% 100%;
-    --card-foreground: 240 6% 15%;
+    --card-foreground: 240 6% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 6% 15%;
+    --popover-foreground: 240 6% 10%;
     --primary: 211 100% 46%;
     --primary-foreground: 0 0% 100%;
     --secondary: 220 14% 96%;
-    --secondary-foreground: 240 6% 15%;
+    --secondary-foreground: 240 6% 10%;
     --muted: 220 10% 97%;
-    --muted-foreground: 240 4% 48%;
+    --muted-foreground: 240 5% 40%;
     --accent: 211 100% 94%;
     --accent-foreground: 211 100% 40%;
     --destructive: 351 67% 54%;
@@ -41,24 +41,24 @@
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
     --sidebar: 0 0% 100%;
-    --sidebar-foreground: 240 6% 15%;
-    --sidebar-muted: 240 4% 48%;
+    --sidebar-foreground: 240 6% 10%;
+    --sidebar-muted: 240 5% 40%;
     --sidebar-border: 240 6% 91%;
   }
 
   .dark, .dark-app-theme {
     --background: 0 0% 0%;
-    --foreground: 0 0% 94%;
+    --foreground: 0 0% 96%;
     --card: 0 0% 7%;
-    --card-foreground: 0 0% 94%;
+    --card-foreground: 0 0% 96%;
     --popover: 0 0% 9%;
-    --popover-foreground: 0 0% 94%;
+    --popover-foreground: 0 0% 96%;
     --primary: 211 100% 48%;
     --primary-foreground: 0 0% 100%;
     --secondary: 0 0% 10%;
-    --secondary-foreground: 0 0% 90%;
+    --secondary-foreground: 0 0% 92%;
     --muted: 0 0% 10%;
-    --muted-foreground: 0 0% 42%;
+    --muted-foreground: 0 0% 62%;
     --accent: 211 100% 90%;
     --accent-foreground: 211 100% 48%;
     --destructive: 351 67% 54%;
@@ -84,8 +84,8 @@
     --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
     --ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
     --sidebar: 0 0% 0%;
-    --sidebar-foreground: 0 0% 88%;
-    --sidebar-muted: 0 0% 42%;
+    --sidebar-foreground: 0 0% 92%;
+    --sidebar-muted: 0 0% 62%;
     --sidebar-border: 0 0% 9%;
   }
 }
