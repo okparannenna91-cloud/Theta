@@ -9,7 +9,6 @@ import {
   Plus,
   RefreshCcw,
   Trash2,
-  ArrowRight,
   Loader2,
   Search,
   Upload,
@@ -28,6 +27,7 @@ import { Input } from "@/components/ui/input";
 import { useInView } from "react-intersection-observer";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { cn } from "@/lib/utils";
+import { describeChange, isMeaningfulChange, type ActivityChange } from "@/lib/activity-format";
 
 interface ActivityItem {
   id: string;
@@ -39,7 +39,7 @@ interface ActivityItem {
   project?: { name: string } | null;
   metadata?: {
     entityName?: string;
-    changes?: Record<string, { old: string; new: string }>;
+    changes?: Record<string, ActivityChange>;
     taskTitle?: string;
   };
 }
@@ -105,7 +105,14 @@ function getIconMeta(action: string, entityType: string): { Icon: LucideIcon; fg
   return { Icon: ActivityIcon, fg: "text-slate-400", bg: "bg-slate-400/10" };
 }
 
-function getActivityParts(activity: ActivityItem): { verb: string; entity: string } {
+interface ActivityLine {
+  sentence: string | null;
+  verb: string;
+  entity: string;
+  bullets: string[];
+}
+
+function getActivityLine(activity: ActivityItem): ActivityLine {
   const entity = activity.metadata?.entityName || activity.entityType || "item";
   const action = activity.action?.toLowerCase() || "updated";
   const verbMap: Record<string, string> = {
@@ -117,15 +124,25 @@ function getActivityParts(activity: ActivityItem): { verb: string; entity: strin
     removed: "removed",
     commented: "commented on",
     comment_created: "commented on",
-    status_updated: "updated status of",
-    status_changed: "updated status of",
-    assigned: "assigned",
-    unassigned: "unassigned",
+    status_updated: "updated",
+    status_changed: "updated",
     moved: "moved",
     uploaded: "uploaded",
     updated: "updated",
   };
-  return { verb: verbMap[action] || action, entity };
+  const verb = verbMap[action] || action;
+
+  const changes = activity.metadata?.changes || {};
+  const meaningful = Object.entries(changes).filter(([field, change]) =>
+    isMeaningfulChange(field, change)
+  );
+  const descriptions = meaningful.map(([field, change]) =>
+    describeChange(field, change, entity)
+  );
+
+  if (descriptions.length === 1) return { sentence: descriptions[0], verb, entity, bullets: [] };
+  if (descriptions.length > 1) return { sentence: null, verb, entity, bullets: descriptions };
+  return { sentence: null, verb, entity, bullets: [] };
 }
 
 function formatDayLabel(date: Date): string {
@@ -371,9 +388,7 @@ export function ProjectActivity({ projectId, workspaceId }: ProjectActivityProps
                       const type = classifyActivity(activity);
                       const meta = TYPE_META[type] || TYPE_META.other;
                       const iconMeta = getIconMeta(activity.action, activity.entityType);
-                      const parts = getActivityParts(activity);
-                      const changes = activity.metadata?.changes;
-                      const hasChanges = changes && Object.keys(changes).length > 0;
+                      const line = getActivityLine(activity);
                       return (
                         <div key={activity.id} className="relative pl-12">
                           <div
@@ -398,10 +413,16 @@ export function ProjectActivity({ projectId, workspaceId }: ProjectActivityProps
                                 <div className="min-w-0">
                                   <p className="text-[13px] leading-snug text-foreground">
                                     <span className="font-semibold">{activity.user?.name || "Unknown"}</span>{" "}
-                                    <span className="text-muted-foreground">{parts.verb}</span>{" "}
-                                    <span className="font-semibold underline-offset-2 hover:underline decoration-primary/40">
-                                      {parts.entity}
-                                    </span>
+                                    {line.sentence ? (
+                                      <span className="text-muted-foreground">{line.sentence}</span>
+                                    ) : (
+                                      <>
+                                        <span className="text-muted-foreground">{line.verb}</span>{" "}
+                                        <span className="font-semibold underline-offset-2 hover:underline decoration-primary/40">
+                                          {line.entity}
+                                        </span>
+                                      </>
+                                    )}
                                   </p>
                                   <div className="mt-1 flex items-center gap-2">
                                     <span
@@ -426,29 +447,19 @@ export function ProjectActivity({ projectId, workspaceId }: ProjectActivityProps
                               />
                             </div>
 
-                            {/* Change diffs */}
-                            {hasChanges && (
-                              <div className="mt-2.5 ml-9 overflow-hidden rounded-xl border border-border/50 bg-card shadow-sm">
-                                <div className="border-b border-border/50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Changes
-                                </div>
-                                <div className="divide-y divide-border/40">
-                                  {Object.entries(changes).map(([field, values]) => (
-                                    <div key={field} className="flex items-center gap-2 px-3 py-2 text-[11px]">
-                                      <span className="w-24 flex-shrink-0 truncate font-medium text-muted-foreground">
-                                        {field}
-                                      </span>
-                                      <span className="font-mono text-red-500 line-through decoration-red-400/50 opacity-70">
-                                        {String((values as { old: string }).old)}
-                                      </span>
-                                      <ArrowRight className="h-3 w-3 flex-shrink-0 text-border" />
-                                      <span className="font-mono font-medium text-emerald-600 dark:text-emerald-400">
-                                        {String((values as { new: string }).new)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
+                            {/* Change details */}
+                            {line.bullets.length > 0 && (
+                              <ul className="ml-9 mt-2 space-y-1">
+                                {line.bullets.map((bullet, i) => (
+                                  <li
+                                    key={i}
+                                    className="flex items-start gap-1.5 text-[11px] text-muted-foreground"
+                                  >
+                                    <span className="mt-1 h-1 w-1 flex-shrink-0 rounded-full bg-primary/40" />
+                                    <span>{bullet.charAt(0).toUpperCase() + bullet.slice(1)}</span>
+                                  </li>
+                                ))}
+                              </ul>
                             )}
                           </div>
                         </div>
