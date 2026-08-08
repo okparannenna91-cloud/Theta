@@ -9,19 +9,19 @@ const steps = [
   {
     icon: Sparkles,
     title: "Create your workspace",
-    desc: "Sign up and Theta instantly sets up your workspace. Nova analyzes your team structure and prepares your environment.",
+    desc: "Sign up and Theta sets up your workspace — boards, sprints, and your first project ready to go in minutes.",
     color: "from-primary/20 to-primary/5",
   },
   {
     icon: UserPlus,
     title: "Invite your team",
-    desc: "Share secure invite links with role-based permissions. Nova learns who does what and how your team operates.",
+    desc: "Share secure invite links with role-based permissions. Set up projects, assign work, and start planning.",
     color: "from-purple-500/20 to-purple-500/5",
   },
   {
     icon: Workflow,
-    title: "Let Nova plan, organize, and execute",
-    desc: "Start working. Nova schedules tasks, tracks progress, answers questions, and helps your team ship faster — automatically.",
+    title: "Plan, track, and ship together",
+    desc: "Manage tasks, timelines, and priorities as a team — with clear visibility into what's done, in progress, and next.",
     color: "from-emerald-500/20 to-emerald-500/5",
   },
 ];

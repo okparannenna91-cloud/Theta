@@ -8,11 +8,9 @@ import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
 import HeroSection from "@/components/landing/sections/hero-section";
 import ProblemSection from "@/components/landing/sections/problem-section";
-import MeetNovaSection from "@/components/landing/sections/meet-nova-section";
 import HowItWorksSection from "@/components/landing/sections/how-it-works-section";
 import EcosystemSection from "@/components/landing/sections/ecosystem-section";
 import DifferentiatorsSection from "@/components/landing/sections/differentiators-section";
-import NovaInActionSection from "@/components/landing/sections/nova-in-action-section";
 import IdeaToDeliverySection from "@/components/landing/sections/idea-to-delivery-section";
 import BuiltForTeamsSection from "@/components/landing/sections/built-for-teams-section";
 import SecuritySection from "@/components/landing/sections/security-section";
@@ -73,11 +71,9 @@ export default function LandingPage() {
 
       <HeroSection />
       <ProblemSection />
-      <MeetNovaSection />
       <HowItWorksSection />
       <EcosystemSection />
       <DifferentiatorsSection />
-      <NovaInActionSection />
       <IdeaToDeliverySection />
       <BuiltForTeamsSection />
       <SecuritySection />
@@ -137,7 +133,7 @@ export default function LandingPage() {
             <div className="col-span-2 lg:col-span-2">
               <Logo size="lg" className="mb-6" />
               <p className="text-sm text-muted-foreground leading-relaxed max-w-xs mb-8">
-                Building the most intelligent, feature-complete project collaboration platform for modern teams.
+                Building a PM-native project management platform for modern teams.
               </p>
             </div>
 

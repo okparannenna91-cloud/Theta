@@ -2,21 +2,37 @@
 
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Sparkles, Zap, MessageSquare, Brain } from "lucide-react";
+import { ArrowRight, Zap, MessageSquare, FolderKanban, ListChecks, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 
-function FloatingNovaBadge({ className = "" }: { className?: string }) {
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 2, duration: 0.6 }}
-      className={`absolute flex items-center gap-2 px-3 py-1.5 rounded-full bg-card border shadow-lg ${className}`}
-    >
-      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-      <span className="text-xs font-medium text-foreground">Nova is ready</span>
-    </motion.div>
-  );
+const columns = [
+  {
+    title: "To Do",
+    tasks: [
+      { title: "Draft launch announcement", tag: "Marketing", tagClass: "text-purple-500 bg-purple-500/10", priority: "high", assignee: "SK" },
+      { title: "Finalize pricing page", tag: "Marketing", tagClass: "text-purple-500 bg-purple-500/10", priority: "med", assignee: "LC" },
+      { title: "Integrate billing API", tag: "Engineering", tagClass: "text-blue-500 bg-blue-500/10", priority: "high", assignee: "DT" },
+    ],
+  },
+  {
+    title: "In Progress",
+    tasks: [
+      { title: "Landing page hero", tag: "Design", tagClass: "text-emerald-500 bg-emerald-500/10", priority: "high", assignee: "AN" },
+      { title: "Product demo video", tag: "Design", tagClass: "text-emerald-500 bg-emerald-500/10", priority: "med", assignee: "RM" },
+    ],
+  },
+  {
+    title: "Done",
+    tasks: [
+      { title: "Set up analytics", tag: "Engineering", tagClass: "text-blue-500 bg-blue-500/10", priority: "low", assignee: "DT" },
+      { title: "Customer interviews", tag: "Research", tagClass: "text-amber-500 bg-amber-500/10", priority: "med", assignee: "LC" },
+    ],
+  },
+];
+
+function PriorityDot({ level }: { level: string }) {
+  const color = level === "high" ? "bg-rose-500" : level === "med" ? "bg-amber-500" : "bg-slate-400";
+  return <span className={`w-1.5 h-1.5 rounded-full ${color}`} />;
 }
 
 export default function HeroSection() {
@@ -34,8 +50,8 @@ export default function HeroSection() {
             transition={{ duration: 0.5 }}
             className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-primary/10 text-primary text-xs font-medium mb-8 border border-primary/20"
           >
-            <Sparkles className="w-3.5 h-3.5" />
-            AI-First Project Management
+            <FolderKanban className="w-3.5 h-3.5" />
+            PM-Native Project Management
           </motion.div>
 
           <motion.h1
@@ -46,7 +62,7 @@ export default function HeroSection() {
           >
             Your Projects, Your Team,{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-500">
-              One Intelligent Workspace
+              One Native Workspace
             </span>
           </motion.h1>
 
@@ -56,9 +72,9 @@ export default function HeroSection() {
             transition={{ delay: 0.2, duration: 0.6 }}
             className="text-lg lg:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed"
           >
-            Theta brings your team, tasks, and documents together with{" "}
-            <span className="text-foreground font-semibold">Nova</span> — an AI
-            teammate that understands your work and helps you execute.
+            Theta brings projects, tasks, docs, and your team into one place — built for
+            how project managers actually work. Plan, track, and ship without juggling
+            five different tools.
           </motion.p>
 
           <motion.div
@@ -110,67 +126,75 @@ export default function HeroSection() {
                   <div className="w-3 h-3 rounded-full bg-emerald-400" />
                 </div>
                 <div className="ml-4 flex items-center gap-2 text-xs text-muted-foreground">
-                  <Brain className="w-3.5 h-3.5 text-primary" />
-                  <span>Nova — Workspace Intelligence</span>
+                  <FolderKanban className="w-3.5 h-3.5 text-primary" />
+                  <span>Product Launch Q3</span>
+                  <span className="px-1.5 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
+                    Sprint 14
+                  </span>
                 </div>
                 <div className="ml-auto flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                  <span className="text-xs text-emerald-500 font-medium">Connected</span>
+                  <div className="flex -space-x-1.5">
+                    <div className="w-5 h-5 rounded-full bg-blue-500 flex items-center justify-center text-[8px] font-semibold text-white ring-2 ring-card">AN</div>
+                    <div className="w-5 h-5 rounded-full bg-purple-500 flex items-center justify-center text-[8px] font-semibold text-white ring-2 ring-card">SK</div>
+                    <div className="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-[8px] font-semibold text-white ring-2 ring-card">DT</div>
+                  </div>
+                  <span className="text-xs text-emerald-500 font-medium">6 members online</span>
                 </div>
               </div>
+
               <div className="p-6 space-y-4">
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-4 h-4 text-white" />
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="rounded-lg border bg-muted/30 p-3 text-left">
+                    <p className="text-xs text-muted-foreground">Open tasks</p>
+                    <p className="text-xl font-semibold text-foreground">14</p>
                   </div>
-                  <div className="flex-1">
-                    <div className="bg-muted rounded-lg p-4 text-sm text-foreground">
-                      I&apos;ve analyzed your workspace. You have 14 open tasks, 3
-                      approaching deadlines, and 1 overdue. Want me to organize
-                      the sprint?
-                    </div>
+                  <div className="rounded-lg border bg-muted/30 p-3 text-left">
+                    <p className="text-xs text-muted-foreground">Sprint capacity</p>
+                    <p className="text-xl font-semibold text-foreground">82%</p>
                   </div>
-                </div>
-                <div className="flex gap-3 justify-end">
-                  <div className="flex-1 max-w-[75%]">
-                    <div className="bg-primary rounded-lg p-4 text-sm text-primary-foreground">
-                      Yes. Prioritize by deadline and assign to available team members.
-                    </div>
-                  </div>
-                  <div className="w-8 h-8 rounded-lg bg-muted-foreground/20 flex items-center justify-center flex-shrink-0 text-xs font-medium text-muted-foreground">
-                    Y
+                  <div className="rounded-lg border bg-muted/30 p-3 text-left">
+                    <p className="text-xs text-muted-foreground">Deadlines this week</p>
+                    <p className="text-xl font-semibold text-foreground">2</p>
                   </div>
                 </div>
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-                    <Sparkles className="w-4 h-4 text-white" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="bg-muted rounded-lg p-4 text-sm text-foreground">
-                      <p className="font-semibold text-primary mb-2 text-xs uppercase tracking-wider">
-                        Sprint organized
-                      </p>
-                      <ul className="space-y-1.5">
-                        <li className="flex items-center gap-2">
-                          <Zap className="w-3 h-3 text-emerald-500" />
-                          <span>3 high-priority tasks assigned</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Zap className="w-3 h-3 text-emerald-500" />
-                          <span>2 deadlines rescheduled</span>
-                        </li>
-                        <li className="flex items-center gap-2">
-                          <Zap className="w-3 h-3 text-emerald-500" />
-                          <span>Sprint board created with 8 tasks</span>
-                        </li>
-                      </ul>
+
+                <div className="grid grid-cols-3 gap-3">
+                  {columns.map((col, i) => (
+                    <div key={i} className="rounded-lg border bg-muted/20 p-3">
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="text-xs font-semibold text-foreground">{col.title}</span>
+                        <span className="text-[10px] text-muted-foreground">{col.tasks.length}</span>
+                      </div>
+                      <div className="space-y-2">
+                        {col.tasks.map((task, j) => (
+                          <div key={j} className="rounded-lg border bg-card p-3 text-left shadow-sm">
+                            <div className="flex items-center gap-1.5 mb-1.5">
+                              <PriorityDot level={task.priority} />
+                              <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full ${task.tagClass}`}>
+                                {task.tag}
+                              </span>
+                            </div>
+                            <p className="text-xs font-medium text-foreground leading-snug mb-2">{task.title}</p>
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-1.5">
+                                {i === 2 ? (
+                                  <CheckCircle2 className="w-3 h-3 text-emerald-500" />
+                                ) : (
+                                  <ListChecks className="w-3 h-3 text-muted-foreground" />
+                                )}
+                              </div>
+                              <div className="w-5 h-5 rounded-full bg-primary/10 flex items-center justify-center text-[9px] font-semibold text-primary">
+                                {task.assignee}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
               </div>
             </div>
-
-            <FloatingNovaBadge className="-bottom-3 -right-3" />
           </motion.div>
 
           <motion.div
@@ -180,13 +204,16 @@ export default function HeroSection() {
             className="mt-10 flex items-center gap-6 text-xs text-muted-foreground"
           >
             <span className="flex items-center gap-1.5">
-              <Zap className="w-3 h-3 text-emerald-500" /> Real-time sync
+              <FolderKanban className="w-3 h-3 text-emerald-500" /> Boards & timelines
             </span>
             <span className="flex items-center gap-1.5">
-              <MessageSquare className="w-3 h-3 text-primary" /> Natural language
+              <ListChecks className="w-3 h-3 text-primary" /> Sprints & tasks
             </span>
             <span className="flex items-center gap-1.5">
-              <Brain className="w-3 h-3 text-purple-500" /> Context-aware
+              <MessageSquare className="w-3 h-3 text-purple-500" /> Docs & chat
+            </span>
+            <span className="flex items-center gap-1.5">
+              <Zap className="w-3 h-3 text-amber-500" /> Real-time sync
             </span>
           </motion.div>
         </div>

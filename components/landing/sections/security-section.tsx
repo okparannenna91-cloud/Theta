@@ -40,7 +40,7 @@ const securityItems = [
   {
     icon: EyeOff,
     title: "Privacy-first architecture",
-    desc: "Nova operates within your permissions. Your data stays yours — always.",
+    desc: "Your data stays yours — always. No sharing, no surprises.",
   },
 ];
 
@@ -99,12 +99,12 @@ export default function SecuritySection() {
           <div className="flex items-center justify-center gap-2 mb-3">
             <CheckCircle2 className="w-5 h-5 text-emerald-500" />
             <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-              Nova works within your permissions
+              Your workspace stays yours
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            Nova only accesses what you authorize. It respects workspace boundaries,
-            role-based permissions, and never shares data across workspaces.
+            Strict workspace boundaries and role-based permissions keep your data secure,
+            private, and accessible only to the people you choose.
           </p>
         </motion.div>
       </div>

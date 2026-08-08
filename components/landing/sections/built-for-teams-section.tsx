@@ -8,39 +8,37 @@ import {
   Globe,
   Building2,
   Shield,
-  ArrowRight,
-  Sparkles,
 } from "lucide-react";
 
 const teams = [
   {
     icon: Rocket,
     title: "Startups",
-    desc: "Move fast without chaos. Nova helps you plan sprints, track milestones, and adapt as you grow.",
+    desc: "Move fast without chaos. Plan sprints, track milestones, and adapt as you grow.",
     gradient: "from-blue-500/20 to-blue-500/5",
   },
   {
     icon: Palette,
     title: "Agencies",
-    desc: "Manage multiple clients in isolated workspaces. Nova keeps every project on track.",
+    desc: "Manage multiple clients in isolated workspaces. Keep every project on track.",
     gradient: "from-purple-500/20 to-purple-500/5",
   },
   {
     icon: Package,
     title: "Product Teams",
-    desc: "From roadmap to release. Nova organizes backlogs, prioritizes features, and monitors progress.",
+    desc: "From roadmap to release. Organize backlogs, prioritize features, and monitor progress.",
     gradient: "from-emerald-500/20 to-emerald-500/5",
   },
   {
     icon: Globe,
     title: "Remote Teams",
-    desc: "Stay aligned across timezones. Nova provides async updates and 24/7 workspace awareness.",
+    desc: "Stay aligned across timezones with async updates that keep everyone in the loop.",
     gradient: "from-cyan-500/20 to-cyan-500/5",
   },
   {
     icon: Building2,
     title: "Growing Businesses",
-    desc: "Scale without adding overhead. Nova automates coordination as your team expands.",
+    desc: "Scale without adding overhead. Coordination stays smooth as your team expands.",
     gradient: "from-amber-500/20 to-amber-500/5",
   },
   {
@@ -70,8 +68,8 @@ export default function BuiltForTeamsSection() {
             </span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Nova adapts to your workflow instead of forcing you into rigid processes.
-            Theta molds to how your team works.
+            Theta adapts to your workflow instead of forcing you into rigid processes.
+            It molds to how your team works.
           </p>
         </motion.div>
 
@@ -89,11 +87,7 @@ export default function BuiltForTeamsSection() {
                 <team.icon className="w-6 h-6 text-foreground" />
               </div>
               <h3 className="text-base font-semibold text-foreground mb-2">{team.title}</h3>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-4">{team.desc}</p>
-              <div className="flex items-center gap-1.5 text-xs text-primary font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                <Sparkles className="w-3 h-3" />
-                <span>Nova-ready</span>
-              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">{team.desc}</p>
             </motion.div>
           ))}
         </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Sparkles, ArrowRight, Zap, Brain, Shield } from "lucide-react";
+import { Sparkles, ArrowRight, Zap, Clock, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 
@@ -33,19 +33,18 @@ export default function FinalCtaSection() {
             </motion.div>
 
             <h2 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6 leading-tight tracking-tight">
-              Build Faster.
+              Plan Faster.
               <br />
               Stay Organized.
               <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-500">
-                Let Nova handle the busy work.
+                Minus the busy work.
               </span>
             </h2>
 
             <p className="text-lg text-muted-foreground mb-10 max-w-xl mx-auto leading-relaxed">
-              Theta combines powerful project management with an intelligent AI teammate
-              that works alongside your entire team. One workspace. One teammate. Endless
-              possibilities.
+              Theta is a PM-native project management platform for modern teams. One
+              workspace. One team. Everything you need to plan, track, and ship.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-10">
@@ -83,8 +82,8 @@ export default function FinalCtaSection() {
                 No credit card
               </span>
               <span className="flex items-center gap-1.5">
-                <Brain className="w-3.5 h-3.5 text-primary" />
-                Nova included
+                <Clock className="w-3.5 h-3.5 text-primary" />
+                Setup in minutes
               </span>
               <span className="flex items-center gap-1.5">
                 <Shield className="w-3.5 h-3.5 text-purple-500" />

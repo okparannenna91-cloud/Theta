@@ -24,13 +24,13 @@ const features = [
   {
     icon: ListChecks,
     title: "Tasks",
-    desc: "Create, assign, prioritize, and track tasks with Nova's help.",
+    desc: "Create, assign, prioritize, and track tasks with full visibility.",
     gradient: "from-emerald-500/20 to-emerald-500/5",
   },
   {
     icon: FileText,
     title: "Documents",
-    desc: "Write specs, notes, and plans that Nova can read and reference.",
+    desc: "Write specs, notes, and plans — always in sync with your projects.",
     gradient: "from-purple-500/20 to-purple-500/5",
   },
   {
@@ -47,8 +47,8 @@ const features = [
   },
   {
     icon: Sparkles,
-    title: "AI by Nova",
-    desc: "Your intelligent teammate that understands everything and helps execute.",
+    title: "Priorities",
+    desc: "Set priorities and keep the most important work moving forward.",
     gradient: "from-primary/20 to-primary/5",
   },
   {
@@ -90,8 +90,8 @@ export default function EcosystemSection() {
             </span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Projects, tasks, docs, calendar, chat — and Nova connects them all.
-            Instead of searching through five tools, just ask Nova.
+            Projects, tasks, docs, calendar, and chat — everything your team needs to
+            plan, track, and ship. No more tool-hopping.
           </p>
         </motion.div>
 
@@ -129,10 +129,9 @@ export default function EcosystemSection() {
             &ldquo;Find the Q4 marketing plan and show me what&apos;s overdue&rdquo;
           </h3>
           <p className="text-sm text-muted-foreground">
-            Nova searches your projects, tasks, and documents — and gives you an answer
+            Search across your projects, tasks, and documents — and find what you need
             in seconds. No digging through folders.
-          </p>
-        </motion.div>
+          </p>        </motion.div>
       </div>
     </section>
   );

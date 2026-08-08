@@ -10,8 +10,8 @@ const plans = [
   {
     name: "Free",
     price: "$0",
-    desc: "Get started with core features and Nova AI assistance.",
-    features: ["Up to 10 team members", "3 projects", "Basic Nova AI", "500MB storage"],
+    desc: "Get started with the core features you need.",
+    features: ["Up to 10 team members", "3 projects", "Basic analytics", "500MB storage"],
     cta: "Start Free",
     popular: false,
   },
@@ -19,8 +19,8 @@ const plans = [
     name: "Growth",
     price: "$12",
     period: "/month",
-    desc: "For growing teams that need more power and Nova capabilities.",
-    features: ["Unlimited team members", "Unlimited projects", "Full Nova AI", "10GB storage", "Priority support"],
+    desc: "For growing teams that need more power and room to scale.",
+    features: ["Unlimited team members", "Unlimited projects", "Advanced analytics", "10GB storage", "Priority support"],
     cta: "Start Free Trial",
     popular: true,
   },
@@ -29,7 +29,7 @@ const plans = [
     price: "$29",
     period: "/month",
     desc: "Advanced features for professional teams with demanding workflows.",
-    features: ["Everything in Growth", "Advanced analytics", "Nova automation", "Unlimited storage", "API access"],
+    features: ["Everything in Growth", "Advanced automation", "Unlimited storage", "API access"],
     cta: "Start Free Trial",
     popular: false,
   },
@@ -42,32 +42,36 @@ type FaqItem = {
 
 const faqs: FaqItem[] = [
   {
+    q: "What makes Theta different from Jira or Asana?",
+    a: "Theta is a PM-native workspace built for how modern teams work. Flexible boards, sprints, timelines, docs, and chat live in one place — fast, clean, and ready to use in minutes. No bloat, no rigidity, no tools that fight you.",
+  },
+  {
     q: "Is there a free plan?",
-    a: "Yes. The Free plan includes core project management features and basic Nova AI assistance with up to 10 team members and 3 projects. No credit card required.",
+    a: "Yes. The Free plan includes core project management features with up to 10 team members and 3 projects. No credit card required.",
   },
   {
     q: "Can I invite my entire team?",
     a: "Absolutely. The Growth and Pro plans support unlimited team members with role-based permissions. You can invite members via secure links.",
   },
   {
-    q: "How does Nova work?",
-    a: "Nova is an AI teammate integrated into your workspace. It understands your projects, tasks, team members, and documents. You interact with Nova using natural language — it can create tasks, organize projects, answer questions, and execute actions inside Theta.",
+    q: "Is there a learning curve?",
+    a: "No. Boards, lists, timelines, calendars, and dashboards work the way you expect — your team is productive from day one, no training required.",
   },
   {
     q: "Is my workspace private?",
-    a: "Yes. Every workspace is fully isolated with strict tenant separation. Your data is encrypted at rest and in transit. Nova operates within your permissions and never shares data across workspaces.",
+    a: "Yes. Every workspace is fully isolated with strict tenant separation. Your data is encrypted at rest and in transit and is never shared across workspaces.",
   },
   {
     q: "Which payment methods are supported?",
     a: "We accept major credit cards, debit cards, and select local payment methods depending on your region. All payments are processed securely.",
   },
   {
-    q: "Can Nova perform actions or only answer questions?",
-    a: "Nova performs actions. It can create projects, assign tasks, adjust timelines, organize sprints, send notifications, and more. Nova isn't just a chatbot — it's an intelligent teammate that executes inside your workspace.",
+    q: "Can I customize workflows to fit my team?",
+    a: "Yes. Tailor boards, fields, and views to match how your team works — no rigid templates, no forced processes.",
   },
   {
-    q: "Does Nova understand my projects automatically?",
-    a: "Yes. Nova analyzes your workspace structure, project data, tasks, documents, and team configuration automatically. There's no manual setup or training required.",
+    q: "Which project views are included?",
+    a: "Board, list, timeline, calendar, and dashboard views come standard. Switch between them anytime to see your work the way you prefer.",
   },
 ];
 
@@ -129,11 +133,12 @@ export default function PricingFaqSection() {
             Simple pricing.
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-500">
-              Every plan includes Nova
+              Plans that grow with you
             </span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Start free. Upgrade as you grow. Nova capabilities expand with your plan.
+            Start free. Upgrade as you grow. Get more features, storage, and support
+            as your team scales.
           </p>
         </motion.div>
 

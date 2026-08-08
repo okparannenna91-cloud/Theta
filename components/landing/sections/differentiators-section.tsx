@@ -2,50 +2,50 @@
 
 import { motion } from "framer-motion";
 import {
-  Brain,
-  Sparkles,
+  LayoutDashboard,
   Workflow,
   Zap,
   MessageSquare,
-  LayoutDashboard,
+  BarChart3,
+  Layers,
   CheckCircle2,
 } from "lucide-react";
 
 const differentiators = [
   {
-    icon: Brain,
-    title: "AI built into the foundation",
-    desc: "Nova isn&apos;t an add-on. It&apos;s part of every project, task, and document from day one.",
+    icon: LayoutDashboard,
+    title: "PM features, first",
+    desc: "Boards, sprints, timelines, docs, and dashboards — designed for how project managers actually work.",
     gradient: "from-primary/20 to-primary/5",
   },
   {
-    icon: LayoutDashboard,
-    title: "One assistant everywhere",
-    desc: "Not a separate AI page. Nova is in your boards, your tasks, your calendar — wherever you work.",
+    icon: Workflow,
+    title: "Works the way your team works",
+    desc: "Flexible workflows that adapt to your process. No rigid templates, no forcing your team into a box.",
     gradient: "from-purple-500/20 to-purple-500/5",
   },
   {
-    icon: Workflow,
-    title: "Workspace-aware intelligence",
-    desc: "Nova understands your team, your projects, and your context. It doesn&apos;t guess — it knows.",
+    icon: Zap,
+    title: "Automation where it matters",
+    desc: "Assignments, reminders, and status updates handled automatically, so your team stays focused on the work.",
     gradient: "from-emerald-500/20 to-emerald-500/5",
   },
   {
-    icon: Zap,
-    title: "Real execution, not suggestions",
-    desc: "Nova creates tasks, assigns work, adjusts timelines — it takes action inside your workspace.",
+    icon: MessageSquare,
+    title: "Real-time collaboration",
+    desc: "Chat, comment, and decide as work happens — no more waiting for the next status meeting.",
     gradient: "from-amber-500/20 to-amber-500/5",
   },
   {
-    icon: MessageSquare,
-    title: "Natural language project management",
-    desc: "&ldquo;Plan the sprint&rdquo; or &ldquo;What&apos;s blocked?&rdquo; — talk to your workspace like you talk to your team.",
+    icon: BarChart3,
+    title: "Clarity you can act on",
+    desc: "Live dashboards surface progress and bottlenecks, so everyone stays aligned and informed.",
     gradient: "from-rose-500/20 to-rose-500/5",
   },
   {
-    icon: Sparkles,
-    title: "A single place for teams and AI",
-    desc: "Your team collaborates. Nova coordinates. Everything lives in one workspace.",
+    icon: Layers,
+    title: "A single place for your team",
+    desc: "Projects, tasks, docs, and conversations live together — no tool-hopping to understand what's happening.",
     gradient: "from-cyan-500/20 to-cyan-500/5",
   },
 ];
@@ -64,14 +64,14 @@ export default function DifferentiatorsSection() {
           className="text-center max-w-3xl mx-auto mb-16"
         >
           <h2 className="text-4xl sm:text-5xl font-bold text-foreground mb-6 tracking-tight">
-            What makes Theta{" "}
+            Project management,{" "}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-500">
-              different
+              the way it should be
             </span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            We didn&apos;t bolt AI onto a project management tool. We built a project
-            management platform around an intelligent teammate.
+            Built from the ground up for modern teams — fast, flexible, and clean.
+            No bloat, no friction, no tools that fight you.
           </p>
         </motion.div>
 
@@ -107,13 +107,12 @@ export default function DifferentiatorsSection() {
               </div>
               <div>
                 <h3 className="text-base font-semibold text-foreground mb-1">
-                  Nova works across the entire platform
+                  One workspace, zero tool-hopping
                 </h3>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Unlike tools that confine AI to a sidebar chat, Nova operates
-                  everywhere — inside your boards, your task views, your calendar,
-                  and your documents. It creates, edits, assigns, and organizes
-                  without leaving your workflow.
+                  Boards, tasks, docs, calendar, and chat live together in one place —
+                  so you never have to switch between five tools to understand what&apos;s
+                  happening.
                 </p>
               </div>
             </div>

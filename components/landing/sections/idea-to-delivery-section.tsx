@@ -3,23 +3,22 @@
 import { motion } from "framer-motion";
 import {
   Lightbulb,
-  MessageSquare,
+  ClipboardList,
   FolderKanban,
   ListChecks,
   Users,
   BarChart3,
   Rocket,
-  Sparkles,
 } from "lucide-react";
 
 const timeline = [
   { icon: Lightbulb, label: "Idea", desc: "A new feature, campaign, or product takes shape", color: "text-amber-500", bg: "bg-amber-500/10" },
-  { icon: MessageSquare, label: "Ask Nova", desc: "&ldquo;Plan a product launch for Q3&rdquo; — Nova gets to work", color: "text-primary", bg: "bg-primary/10" },
-  { icon: FolderKanban, label: "Project Created", desc: "Nova creates the project, sets up the board, and defines phases", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+  { icon: ClipboardList, label: "Plan", desc: "Define scope, phases, and milestones for the work ahead", color: "text-primary", bg: "bg-primary/10" },
+  { icon: FolderKanban, label: "Project Created", desc: "Set up the project, board, and phases in minutes", color: "text-emerald-500", bg: "bg-emerald-500/10" },
   { icon: ListChecks, label: "Tasks Organized", desc: "Tasks are created, prioritized, assigned, and scheduled", color: "text-purple-500", bg: "bg-purple-500/10" },
-  { icon: Users, label: "Team Collaborates", desc: "Your team works in real-time. Nova tracks progress and adjusts.", color: "text-blue-500", bg: "bg-blue-500/10" },
-  { icon: BarChart3, label: "Progress Tracked", desc: "Dashboards update automatically. Nova surfaces insights.", color: "text-rose-500", bg: "bg-rose-500/10" },
-  { icon: Rocket, label: "Project Delivered", desc: "Ship with confidence. Nova handles the retrospective.", color: "text-cyan-500", bg: "bg-cyan-500/10" },
+  { icon: Users, label: "Team Collaborates", desc: "Your team works in real-time, with progress tracked as it happens", color: "text-blue-500", bg: "bg-blue-500/10" },
+  { icon: BarChart3, label: "Progress Tracked", desc: "Dashboards update automatically so everyone stays aligned", color: "text-rose-500", bg: "bg-rose-500/10" },
+  { icon: Rocket, label: "Project Delivered", desc: "Ship with confidence and run a smooth retrospective", color: "text-cyan-500", bg: "bg-cyan-500/10" },
 ];
 
 export default function IdeaToDeliverySection() {
@@ -37,12 +36,12 @@ export default function IdeaToDeliverySection() {
           <h2 className="text-4xl sm:text-5xl font-bold text-foreground mb-6 tracking-tight">
             From idea to delivery,<br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-purple-500">
-              Nova is with you at every step
+              with you at every step
             </span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Watch how a single idea transforms into a delivered project — with Nova
-            coordinating the entire journey.
+            Watch how a single idea transforms into a delivered project — planned,
+            organized, and tracked in one workspace.
           </p>
         </motion.div>
 
@@ -70,25 +69,14 @@ export default function IdeaToDeliverySection() {
                     <step.icon className={`w-5 h-5 ${step.color}`} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">{step.label}</h3>
-                      <Sparkles className="w-3 h-3 text-primary/40" />
-                    </div>
+                    <h3 className="text-sm font-semibold text-foreground">{step.label}</h3>
                     <p className="text-xs text-muted-foreground mt-0.5">{step.desc}</p>
                   </div>
                 </div>
 
                 <div className="hidden md:block flex-1 pt-4">
                   <div className="p-4 rounded-xl border bg-card group-hover:border-primary/30 transition-all">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="text-sm font-semibold text-foreground">{step.label}</h3>
-                      {i >= 1 && i <= 5 && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[10px] font-medium">
-                          <Sparkles className="w-2.5 h-2.5" />
-                          Nova
-                        </span>
-                      )}
-                    </div>
+                    <h3 className="text-sm font-semibold text-foreground mb-1">{step.label}</h3>
                     <p className="text-sm text-muted-foreground">{step.desc}</p>
                   </div>
                 </div>

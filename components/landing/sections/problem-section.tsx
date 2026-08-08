@@ -75,7 +75,7 @@ export default function ProblemSection() {
             className="lg:col-span-1 relative p-5 rounded-xl border-2 border-primary/20 bg-primary/5 flex items-center justify-center"
           >
             <p className="text-sm font-semibold text-primary text-center">
-              What if one intelligent workspace could solve all of this?
+              What if one PM-native workspace could solve all of this?
             </p>
           </motion.div>
         </div>
