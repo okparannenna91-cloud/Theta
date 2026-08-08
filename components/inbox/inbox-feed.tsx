@@ -6,13 +6,15 @@ import { cn } from "@/lib/utils";
 import { InboxTab } from "./inbox-page";
 import {
   Bell, Check, Search, Loader2, AlertTriangle,
-  ArrowUpDown, RefreshCw,
+  ArrowUpDown, RefreshCw, ArrowRight, FolderKanban,
+  Calendar, CreditCard, ListTodo, Users,
 } from "lucide-react";
 import { format, isToday, isYesterday, isThisWeek, isThisMonth } from "date-fns";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useInView } from "react-intersection-observer";
+import { UserAvatar } from "@/components/ui/user-avatar";
 
 interface InboxFeedProps {
   workspaceId: string;
@@ -132,11 +134,62 @@ export function InboxFeed({ workspaceId, activeTab }: InboxFeedProps) {
     return order.filter(g => groups[g]?.length).map(g => ({ label: g, items: groups[g] }));
   }, [notifications]);
 
-  const PRIORITY_COLORS: Record<string, string> = {
-    critical: "bg-red-500",
-    medium: "bg-amber-500",
-    low: "bg-slate-400",
+  const CATEGORY_STYLES: Record<string, { iconTile: string; chip: string }> = {
+    tasks: { iconTile: "bg-indigo-500/10 text-indigo-500", chip: "bg-indigo-500/10 text-indigo-600 border-indigo-500/20" },
+    mentions: { iconTile: "bg-amber-500/10 text-amber-500", chip: "bg-amber-500/10 text-amber-600 border-amber-500/20" },
+    calendar: { iconTile: "bg-sky-500/10 text-sky-500", chip: "bg-sky-500/10 text-sky-600 border-sky-500/20" },
+    alerts: { iconTile: "bg-rose-500/10 text-rose-500", chip: "bg-rose-500/10 text-rose-600 border-rose-500/20" },
+    digest: { iconTile: "bg-emerald-500/10 text-emerald-500", chip: "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" },
+    billing: { iconTile: "bg-violet-500/10 text-violet-500", chip: "bg-violet-500/10 text-violet-600 border-violet-500/20" },
+    invite: { iconTile: "bg-teal-500/10 text-teal-500", chip: "bg-teal-500/10 text-teal-600 border-teal-500/20" },
+    default: { iconTile: "bg-slate-500/10 text-slate-500", chip: "bg-slate-500/10 text-slate-600 border-slate-500/20" },
   };
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    tasks: "Task",
+    mentions: "Mention",
+    calendar: "Calendar",
+    alerts: "Alert",
+    digest: "Digest",
+    billing: "Billing",
+    invite: "Team",
+    default: "Activity",
+  };
+
+  const PRIORITY_STYLES: Record<string, string> = {
+    critical: "bg-red-500/10 text-red-600 border-red-500/20",
+    medium: "bg-amber-500/10 text-amber-600 border-amber-500/20",
+    low: "bg-slate-500/10 text-slate-500 border-slate-500/20",
+  };
+
+  function getCategory(type: string): string {
+    if (["mention", "task_mentioned"].includes(type)) return "mentions";
+    if (["task_assigned", "task_unassigned", "task_completed", "task_reopened", "task_due_soon",
+      "task_overdue", "task_status_changed", "priority_changed", "dependency_blocked",
+      "dependency_unblocked", "recurring_task_created", "comment_reply", "comment",
+      "deadline", "reminder", "task_updated"].includes(type)) return "tasks";
+    if (type.startsWith("calendar_")) return "calendar";
+    if (["smart_alert", "nova_suggestion", "limit_warning"].includes(type)) return "alerts";
+    if (["daily_summary", "weekly_summary"].includes(type)) return "digest";
+    if (type.startsWith("payment")) return "billing";
+    if (["workspace_invite", "team_invite", "team_joined", "member_joined", "member_removed",
+      "project_created", "project_updated"].includes(type)) return "invite";
+    return "default";
+  }
+
+  function getCategoryIcon(category: string, className: string) {
+    const props: any = { className };
+    switch (category) {
+      case "tasks": return <ListTodo {...props} />;
+      case "mentions": return <AtSignIcon {...props} />;
+      case "calendar": return <Calendar {...props} />;
+      case "alerts": return <AlertTriangle {...props} />;
+      case "digest": return <SparklesIcon {...props} />;
+      case "billing": return <CreditCard {...props} />;
+      case "invite": return <Users {...props} />;
+      default: return <Bell {...props} />;
+    }
+  }
 
   function getIconForType(type: string) {
     const className = "h-5 w-5";
@@ -303,6 +356,14 @@ export function InboxFeed({ workspaceId, activeTab }: InboxFeedProps) {
                 <div className="space-y-1">
                   {group.items.map((n: any) => {
                     const actions = quickActions(n);
+                    const meta = n.metadata || {};
+                    const category = n.category || getCategory(n.type);
+                    const styles = CATEGORY_STYLES[category] || CATEGORY_STYLES.default;
+                    const priorityStyle = n.priority ? PRIORITY_STYLES[n.priority] : null;
+                    const projectName = n.projectName || meta.projectName;
+                    const dueDate = meta.dueDate ? new Date(meta.dueDate) : null;
+                    const statusChanged = meta.oldStatus && meta.status && meta.oldStatus !== meta.status;
+                    const actor = n.actor;
                     return (
                       <div
                         key={n.id}
@@ -317,19 +378,26 @@ export function InboxFeed({ workspaceId, activeTab }: InboxFeedProps) {
                           <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-1/2 rounded-r-full bg-primary" />
                         )}
 
-                        <div className="h-9 w-9 rounded-[10px] bg-muted/60 flex items-center justify-center shrink-0 mt-0.5">
+                        <div className={cn("h-9 w-9 rounded-[10px] flex items-center justify-center shrink-0 mt-0.5", styles.iconTile)}>
                           {getIconForType(n.type)}
                         </div>
 
                         <div className="flex-1 min-w-0 pt-0.5">
                           <div className="flex items-start justify-between gap-3">
                             <div className="min-w-0">
-                              <span className={cn(
-                                "text-[13px] leading-snug",
-                                !n.read ? "font-semibold text-foreground" : "text-foreground/70"
-                              )}>
-                                {n.title}
-                              </span>
+                              <div className="flex flex-wrap items-center gap-1.5">
+                                <span className={cn(
+                                  "text-[13px] leading-snug",
+                                  !n.read ? "font-semibold text-foreground" : "text-foreground/70"
+                                )}>
+                                  {n.title}
+                                </span>
+                                {n.groupCount > 1 && (
+                                  <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded-md bg-primary/10 text-primary">
+                                    ×{n.groupCount}
+                                  </span>
+                                )}
+                              </div>
                               {n.message && (
                                 <p className="text-[12px] text-muted-foreground/60 mt-0.5 line-clamp-2">
                                   {n.message}
@@ -338,7 +406,7 @@ export function InboxFeed({ workspaceId, activeTab }: InboxFeedProps) {
                             </div>
                             <div className="flex items-center gap-2 shrink-0">
                               {n.priority === "critical" && !n.read && (
-                                <span className="text-[9px] font-semibold uppercase tracking-wider text-red-500 bg-red-500/10 px-1.5 py-0.5 rounded-md">
+                                <span className={cn("text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md border", PRIORITY_STYLES.critical)}>
                                   Critical
                                 </span>
                               )}
@@ -346,6 +414,48 @@ export function InboxFeed({ workspaceId, activeTab }: InboxFeedProps) {
                                 {format(new Date(n.createdAt), "HH:mm")}
                               </span>
                             </div>
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                            <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-md border", styles.chip)}>
+                              {getCategoryIcon(category, "h-3 w-3")}
+                              {CATEGORY_LABELS[category] || "Activity"}
+                            </span>
+
+                            {n.priority && n.priority !== "medium" && (
+                              <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium capitalize px-2 py-0.5 rounded-md border", priorityStyle)}>
+                                {n.priority}
+                              </span>
+                            )}
+
+                            {projectName && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground/60 px-2 py-0.5 rounded-md bg-muted/50 border border-border/30">
+                                <FolderKanban className="h-3 w-3 text-muted-foreground/40" />
+                                {projectName}
+                              </span>
+                            )}
+
+                            {dueDate && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground/60 px-2 py-0.5 rounded-md bg-muted/50 border border-border/30">
+                                <ClockIcon className="h-3 w-3 text-muted-foreground/40" />
+                                {format(dueDate, "MMM d")}
+                              </span>
+                            )}
+
+                            {statusChanged && (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-muted-foreground/60 px-2 py-0.5 rounded-md bg-muted/50 border border-border/30">
+                                {meta.oldStatus}
+                                <ArrowRight className="h-2.5 w-2.5 text-muted-foreground/40" />
+                                {meta.status}
+                              </span>
+                            )}
+
+                            {actor && (
+                              <span className="inline-flex items-center gap-1.5 text-[10px] font-medium text-muted-foreground/60 px-1.5 py-0.5 rounded-md">
+                                <UserAvatar imageUrl={actor.imageUrl} name={actor.name} size="sm" className="h-4 w-4 text-[7px]" />
+                                {actor.name}
+                              </span>
+                            )}
                           </div>
 
                           <div className="flex items-center gap-2 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">

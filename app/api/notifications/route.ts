@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { verifyWorkspaceAccess } from "@/lib/workspace";
+import { getNotificationCategory } from "@/lib/notification-types";
 
 export async function GET(req: Request) {
     try {
@@ -104,40 +105,48 @@ export async function GET(req: Request) {
             prisma.notification.count({ where: { workspaceId, userId: user.id, read: false, archived: false } })
         ]);
 
-        // Enrich notifications with actor info from metadata
-        const enrichedNotifications = await Promise.all(
-            notifications.map(async (n) => {
-                const meta = (n.metadata as Record<string, unknown>) || {};
-                const actorId = meta.actorId as string | undefined;
-                const actorName = meta.actorName as string | undefined;
-                
-                if (actorId && !actorName) {
-                    try {
-                        const actor = await prisma.user.findUnique({
-                            where: { id: actorId },
-                            select: { name: true, imageUrl: true },
-                        });
-                        return {
-                            ...n,
-                            actor: {
-                                id: actorId,
-                                name: actor?.name || "Someone",
-                                imageUrl: actor?.imageUrl || null,
-                            },
-                        };
-                    } catch {
-                        return { ...n, actor: null };
-                    }
-                }
-                
-                return {
-                    ...n,
-                    actor: actorId
-                        ? { id: actorId, name: actorName || "Someone", imageUrl: null }
-                        : null,
-                };
-            })
-        );
+        // Enrich notifications with actor info, entity names, and category
+        const allMeta = notifications.map(n => (n.metadata as Record<string, unknown>) || {});
+        const actorIds = [...new Set(allMeta.map(m => m.actorId).filter(Boolean) as string[])];
+        const projectIds = [...new Set(allMeta.map(m => m.projectId).filter(Boolean) as string[])];
+        const taskIds = [...new Set(allMeta.map(m => m.taskId).filter(Boolean) as string[])];
+
+        const [users, projects, tasks] = await Promise.all([
+            actorIds.length
+                ? prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, name: true, imageUrl: true } })
+                : [],
+            projectIds.length
+                ? prisma.project.findMany({ where: { id: { in: projectIds } }, select: { id: true, name: true } })
+                : [],
+            taskIds.length
+                ? prisma.task.findMany({ where: { id: { in: taskIds } }, select: { id: true, title: true } })
+                : [],
+        ]);
+
+        const userMap = new Map(users.map(u => [u.id, u]));
+        const projectMap = new Map(projects.map(p => [p.id, p.name]));
+        const taskMap = new Map(tasks.map(t => [t.id, t.title]));
+
+        const enrichedNotifications = notifications.map((n) => {
+            const meta = (n.metadata as Record<string, unknown>) || {};
+            const actorId = meta.actorId as string | undefined;
+            const actorName = meta.actorName as string | undefined;
+            const actor = actorId
+                ? {
+                      id: actorId,
+                      name: userMap.get(actorId)?.name || actorName || "Someone",
+                      imageUrl: userMap.get(actorId)?.imageUrl || (meta.actorAvatar as string) || null,
+                  }
+                : null;
+
+            return {
+                ...n,
+                category: getNotificationCategory(n.type as any),
+                projectName: projectMap.get(meta.projectId as string) || (meta.projectName as string) || undefined,
+                taskTitle: taskMap.get(meta.taskId as string) || (meta.taskTitle as string) || undefined,
+                actor,
+            };
+        });
 
         const hasMore = enrichedNotifications.length > take;
         const filteredNotifications = enrichedNotifications.slice(0, take);
