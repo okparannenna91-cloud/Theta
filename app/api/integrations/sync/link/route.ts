@@ -7,76 +7,13 @@ import { AsanaService } from "@/lib/services/asanaService";
 import { TrelloService } from "@/lib/services/trelloService";
 import {
   CONTAINER_TYPES,
+  createLinkedProject,
   persistSyncedItems,
   syncLinkedChildren,
   normalizeGithubIssue,
   normalizeAsanaTask,
   normalizeTrelloCard,
 } from "@/lib/services/sync";
-import { enforcePlanLimit } from "@/lib/plan-limits";
-import { getProjectCount } from "@/lib/usage-tracking";
-import { createActivity } from "@/lib/activity";
-
-async function createLinkedProject(
-  workspaceId: string,
-  userId: string,
-  name: string,
-  columns?: string[],
-) {
-  const columnNames = columns?.length ? columns : ["Todo", "In Progress", "Done"];
-
-  const projectCount = await getProjectCount(workspaceId);
-  await enforcePlanLimit(workspaceId, "projects", projectCount);
-
-  const project = await prisma.project.create({
-    data: {
-      name,
-      workspaceId,
-      userId,
-      members: { create: { userId, role: "manager" } },
-    },
-  });
-
-  const board = await prisma.board.create({
-    data: {
-      name: project.name,
-      projectId: project.id,
-      workspaceId: project.workspaceId,
-      description: "",
-    },
-  });
-
-  for (let i = 0; i < columnNames.length; i++) {
-    const existingStatus = await prisma.status.findFirst({
-      where: { projectId: project.id, name: { equals: columnNames[i], mode: "insensitive" } },
-    });
-    const status =
-      existingStatus ||
-      (await prisma.status.create({
-        data: {
-          name: columnNames[i],
-          order: i,
-          projectId: project.id,
-          workspaceId: project.workspaceId,
-        },
-      }));
-
-    await prisma.column.create({
-      data: {
-        name: columnNames[i],
-        boardId: board.id,
-        order: i,
-      },
-    });
-  }
-
-  await createActivity(userId, workspaceId, "created", "project", project.id, {
-    projectName: project.name,
-    entityName: project.name,
-  });
-
-  return project;
-}
 
 async function fetchChildren(provider: string, item: any): Promise<any[]> {
   switch (provider) {

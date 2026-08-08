@@ -1,5 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { enforcePlanLimit } from "@/lib/plan-limits";
+import { getProjectCount } from "@/lib/usage-tracking";
+import { createActivity } from "@/lib/activity";
 
 export interface NormalizedSyncItem {
   externalId: string;
@@ -316,6 +319,69 @@ export async function createTaskForSyncedItem(
   return task;
 }
 
+// Create a project (with a default board and statuses/columns) to host a linked
+// container. Trello board lists can be passed in as the column names.
+export async function createLinkedProject(
+  workspaceId: string,
+  userId: string,
+  name: string,
+  columns?: string[],
+) {
+  const columnNames = columns?.length ? columns : ["Todo", "In Progress", "Done"];
+
+  const projectCount = await getProjectCount(workspaceId);
+  await enforcePlanLimit(workspaceId, "projects", projectCount);
+
+  const project = await prisma.project.create({
+    data: {
+      name,
+      workspaceId,
+      userId,
+      members: { create: { userId, role: "manager" } },
+    },
+  });
+
+  const board = await prisma.board.create({
+    data: {
+      name: project.name,
+      projectId: project.id,
+      workspaceId: project.workspaceId,
+      description: "",
+    },
+  });
+
+  for (let i = 0; i < columnNames.length; i++) {
+    const existingStatus = await prisma.status.findFirst({
+      where: { projectId: project.id, name: { equals: columnNames[i], mode: "insensitive" } },
+    });
+    const status =
+      existingStatus ||
+      (await prisma.status.create({
+        data: {
+          name: columnNames[i],
+          order: i,
+          projectId: project.id,
+          workspaceId: project.workspaceId,
+        },
+      }));
+
+    await prisma.column.create({
+      data: {
+        name: columnNames[i],
+        boardId: board.id,
+        order: i,
+      },
+    });
+  }
+
+  await createActivity(userId, workspaceId, "created", "project", project.id, {
+    projectName: project.name,
+    entityName: project.name,
+  });
+
+  return project;
+}
+
 export async function importSyncedItem(
   itemId: string,
   userId: string,
@@ -467,4 +533,137 @@ export async function importGoogleEventToCalendar(item: NormalizedSyncItem, work
       metadata: { externalId: item.externalId, provider: "google", url: item.url },
     },
   });
+}
+
+// ---------------------------------------------------------------------------
+// One-off migration: convert legacy container/catalog tasks (created before
+// containers were linked to projects) into their correct representation.
+//   - container tasks (repo/board/project): link the container to a project
+//     (match by name, else create a new project named after the container)
+//     and delete the task.
+//   - catalog tasks (product): just delete — products are never tasks.
+// Idempotent: tasks with a work-item type, or containers already linked, are
+// skipped. After converting, already-synced open children are imported into
+// the newly linked projects (no API calls needed).
+// ---------------------------------------------------------------------------
+// Delete a task along with every record that references it, since the schema
+// uses onDelete: NoAction for task relations (no automatic cascade).
+async function deleteTaskAndDependents(taskId: string) {
+  const comments = await prisma.comment.findMany({
+    where: { taskId },
+    select: { id: true },
+  });
+  const commentIds = comments.map((c) => c.id);
+  if (commentIds.length) {
+    await prisma.comment.deleteMany({ where: { parentId: { in: commentIds } } });
+    await prisma.comment.deleteMany({ where: { taskId } });
+  }
+
+  await prisma.subtask.deleteMany({ where: { taskId } });
+  await prisma.checklistItem.deleteMany({ where: { taskId } });
+  await prisma.timeLog.deleteMany({ where: { taskId } });
+  await prisma.taskDependency.deleteMany({
+    where: { OR: [{ taskId }, { predecessorId: taskId }] },
+  });
+  await prisma.syncedItem.updateMany({
+    where: { taskId },
+    data: { taskId: null },
+  });
+  await prisma.task.delete({ where: { id: taskId } });
+}
+
+export async function migrateLegacyContainerTasks(workspaceId?: string) {
+  const stats = {
+    found: 0,
+    linked: 0,
+    createdProjects: 0,
+    deleted: 0,
+    skipped: 0,
+    errors: 0,
+  };
+  const reconcile: { workspaceId: string; userId: string; provider: string }[] = [];
+
+  const tasks = await prisma.task.findMany({
+    where: workspaceId ? { workspaceId } : undefined,
+    select: {
+      id: true,
+      title: true,
+      workspaceId: true,
+      projectId: true,
+      userId: true,
+      customFieldMetadata: true,
+    },
+  });
+  const legacy = tasks.filter((t) => {
+    const type = (t.customFieldMetadata as any)?.type;
+    return CONTAINER_TYPES.includes(type) || CATALOG_TYPES.includes(type);
+  });
+  stats.found = legacy.length;
+
+  for (const task of legacy) {
+    try {
+      const meta = task.customFieldMetadata as any;
+      const synced = meta?.provider && meta?.externalId
+        ? await prisma.syncedItem.findFirst({
+            where: {
+              workspaceId: task.workspaceId,
+              provider: meta.provider,
+              externalId: meta.externalId,
+              type: meta.type,
+            },
+          })
+        : null;
+
+      if (synced && CONTAINER_TYPES.includes(meta.type) && !(synced.extra as any)?.linkedProjectId) {
+        let project = await prisma.project.findFirst({
+          where: { workspaceId: task.workspaceId, name: { equals: synced.title, mode: "insensitive" } },
+        });
+
+        if (!project) {
+          try {
+            project = await createLinkedProject(task.workspaceId, task.userId, synced.title);
+            stats.createdProjects++;
+          } catch {
+            // Plan limit or other error: fall back to the task's existing project.
+            project = await prisma.project.findUnique({ where: { id: task.projectId } });
+          }
+        }
+
+        if (project && project.workspaceId === task.workspaceId) {
+          await prisma.syncedItem.update({
+            where: { id: synced.id },
+            data: {
+              extra: {
+                ...((synced.extra as any) ?? {}),
+                linkedProjectId: project.id,
+                linkedProjectName: project.name,
+              },
+            },
+          });
+          stats.linked++;
+          reconcile.push({ workspaceId: task.workspaceId, userId: task.userId, provider: meta.provider });
+        }
+      }
+
+      await deleteTaskAndDependents(task.id);
+      stats.deleted++;
+    } catch (error: any) {
+      stats.errors++;
+      logger.error("Legacy container task migration failed", {
+        taskId: task.id,
+        error: error.message,
+      });
+    }
+  }
+
+  for (const { workspaceId: wid, userId, provider } of reconcile) {
+    try {
+      await syncLinkedChildren(wid, userId, provider);
+    } catch {
+      // best-effort reconciliation of already-synced children
+    }
+  }
+
+  logger.info("Legacy container task migration complete", { workspaceId, stats });
+  return stats;
 }
