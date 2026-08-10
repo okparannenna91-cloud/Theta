@@ -2,10 +2,10 @@ import { tool } from "@opencode-ai/plugin"
 import * as agent from "../skills/theta-growth-engineer/agent"
 
 export const review = tool({
-  description: "Review Theta PM's current version, capabilities, and state before starting lead research",
+  description: "Review Theta PM's current version, capabilities, and state before starting lead research. Analyze only the features actually showing in the UI - features that exist in the codebase but are not visible in the UI are NOT available capabilities.",
   args: {},
   async execute() {
-    return await agent.reviewTheta PM()
+    return await agent.reviewThetaPM()
   },
 })
 

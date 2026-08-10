@@ -61,7 +61,7 @@ export async function getThetaInfo(): Promise<string> {
   }
 }
 
-export async function reviewTheta PM(): Promise<string> {
+export async function reviewThetaPM(): Promise<string> {
   const info = await getThetaInfo()
   return `## Theta PM Review\n\n${info}\n\nAlways reference these capabilities when analyzing fit for potential leads.`
 }

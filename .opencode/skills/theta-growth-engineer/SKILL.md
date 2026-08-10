@@ -50,6 +50,20 @@ Build your understanding from the current codebase and documentation.
 
 Your understanding of Theta PM should guide every qualification decision.
 
+### Analyze the UI, Not the Codebase
+
+When you review Theta PM's current state, you are analyzing the features that are actually **showing in the UI** — the product a real user sees and can use today.
+
+Important:
+
+* The codebase contains features that are **not yet visible in the UI**. Those features are **not** part of the current product, because users cannot access them yet.
+* Do **not** count a feature as a capability just because its code exists in the repository.
+* Base every capability claim on what is **rendered and reachable in the UI** (pages, navigation, and working flows).
+* If you cannot verify a feature is visible in the UI, treat it as **not available**.
+* Only promote capabilities that an actual user can see, click, and use.
+
+The product you describe to prospects must match exactly what users see when they use Theta PM today.
+
 ---
 
 ## Ideal Customer Profile
