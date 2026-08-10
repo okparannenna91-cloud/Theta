@@ -7,7 +7,6 @@ import { NotificationBell } from "@/components/notifications/notification-bell";
 import { AppsDropdown } from "@/components/apps/apps-dropdown";
 import { ErrorBoundary } from "@/components/ui/error-boundary";
 import { HeartbeatProvider } from "@/components/providers/heartbeat-provider";
-import { NovaLauncher } from "@/components/ai/nova-launcher";
 
 export default function DashboardLayout({
   children,
@@ -37,7 +36,6 @@ export default function DashboardLayout({
                   </ErrorBoundary>
                 </main>
               </div>
-              <NovaLauncher />
             </div>
           </HeartbeatProvider>
         </OnboardingRedirect>

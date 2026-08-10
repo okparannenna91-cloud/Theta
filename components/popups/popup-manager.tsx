@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Sparkles, Rocket, ShieldAlert, AlertTriangle, CreditCard, Info, Trash2, UserPlus, Zap, Clock } from "lucide-react";
+import { X, Rocket, ShieldAlert, AlertTriangle, CreditCard, Info, Trash2, UserPlus, Zap, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type PopupType = 
@@ -12,8 +12,7 @@ type PopupType =
     | "billing_warning" 
     | "destructive" 
     | "info" 
-    | "success"
-    | "ai_suggestion";
+    | "success";
 
 interface PopupData {
     id: string;
@@ -33,7 +32,6 @@ interface PopupContextType {
     showUpgradePrompt: (feature: string) => void;
     showConfirm: (data: Omit<PopupData, "id" | "type"> & { id?: string }) => void;
     showInfo: (title: string, description: string) => void;
-    showAISuggestion: (suggestion: string, data?: any) => void;
     showTrialExpiration: (daysLeft: number) => void;
     showBillingFailure: () => void;
     dismissPopup: (id: string) => void;
@@ -82,16 +80,6 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
         setActivePopup({ id: "info", type: "info", title, description });
     }, []);
 
-    const showAISuggestion = useCallback((suggestion: string, data?: any) => {
-        setActivePopup({ 
-            id: "ai_suggestion", 
-            type: "ai_suggestion", 
-            title: "Nova Intelligence", 
-            description: suggestion,
-            data 
-        });
-    }, []);
-
     const showTrialExpiration = useCallback((daysLeft: number) => {
         setActivePopup({
             id: "trial_expiration",
@@ -122,7 +110,6 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
             case "trial_expiration": return <Clock className="w-6 h-6 text-orange-600" />;
             case "billing_warning": return <ShieldAlert className="w-6 h-6 text-rose-600" />;
             case "destructive": return <Trash2 className="w-6 h-6 text-rose-600" />;
-            case "ai_suggestion": return <Sparkles className="w-6 h-6 text-primary" />;
             default: return <Info className="w-6 h-6 text-blue-600" />;
         }
     };
@@ -133,7 +120,6 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
             case "trial_expiration": return "bg-orange-100";
             case "billing_warning":
             case "destructive": return "bg-rose-100";
-            case "ai_suggestion": return "bg-muted";
             default: return "bg-blue-100";
         }
     };
@@ -144,7 +130,6 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
             showUpgradePrompt,
             showConfirm,
             showInfo,
-            showAISuggestion,
             showTrialExpiration,
             showBillingFailure,
             dismissPopup

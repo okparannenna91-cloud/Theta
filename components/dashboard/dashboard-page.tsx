@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,7 +12,6 @@ import { useI18n } from "@/lib/i18n";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useRouter } from "next/navigation";
 import { ActivityTimeline } from "@/components/shared/activity-timeline";
-import { usePopups } from "@/components/popups/popup-manager";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 
@@ -28,10 +27,8 @@ export default function DashboardPage() {
   const { t } = useI18n();
   const { activeWorkspaceId } = useWorkspace();
   const router = useRouter();
-  const { showAISuggestion } = usePopups();
   const [timeRange, setTimeRange] = useState<"7" | "30">("7");
   const [includeSubtasks, setIncludeSubtasks] = useState(false);
-  const hasSuggested = useRef(false);
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["dashboard", activeWorkspaceId, timeRange, includeSubtasks],
     queryFn: async () => {
@@ -47,27 +44,6 @@ export default function DashboardPage() {
     },
     enabled: !!activeWorkspaceId,
   });
-
-  useEffect(() => {
-    if (!data || hasSuggested.current) return;
-    if (data.tasksCount === 0 && data.projectsCount === 0) {
-      showAISuggestion("Your workspace is empty. Would you like Nova to help you create a project?", {
-        type: "workspace_empty",
-        workspaceId: activeWorkspaceId,
-      });
-    } else if (data.tasksCount > 0 && data.completionRate < 30) {
-      showAISuggestion("I notice several tasks are still open. I can help prioritize and organize them.", {
-        type: "task_backlog",
-        tasksCount: data.tasksCount,
-      });
-    } else if (data.recentProjects?.length > 0) {
-      showAISuggestion("Your team has been productive! I can generate a sprint summary or suggest next steps.", {
-        type: "productivity_tip",
-        projectsCount: data.recentProjects.length,
-      });
-    }
-    hasSuggested.current = true;
-  }, [data, showAISuggestion, activeWorkspaceId]);
 
   if (!activeWorkspaceId) {
     return (

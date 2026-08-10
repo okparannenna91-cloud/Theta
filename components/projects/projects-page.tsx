@@ -41,9 +41,8 @@ export default function ProjectsPage() {
 
   const queryClient = useQueryClient();
   const { activeWorkspaceId } = useWorkspace();
-  const { showUpgradePrompt, showAISuggestion } = usePopups();
+  const { showUpgradePrompt } = usePopups();
   const router = useRouter();
-  const projectsSuggested = useRef(false);
   const activeWorkspaceIdRef = useRef(activeWorkspaceId);
   useEffect(() => { activeWorkspaceIdRef.current = activeWorkspaceId; }, [activeWorkspaceId]);
 
@@ -101,16 +100,6 @@ export default function ProjectsPage() {
       toast.error("Failed to delete project");
     },
   });
-
-  useEffect(() => {
-    if (!projectsSuggested.current && !isLoading && projects.length === 0) {
-      projectsSuggested.current = true;
-      showAISuggestion("Your projects area is empty. I can help you create a project with AI — just describe what you're working on.", {
-        type: "no_projects",
-        workspaceId: activeWorkspaceId,
-      });
-    }
-  }, [isLoading, projects, showAISuggestion, activeWorkspaceId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

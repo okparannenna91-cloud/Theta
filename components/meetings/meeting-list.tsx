@@ -179,7 +179,7 @@ export function MeetingList({ projectId }: MeetingListProps) {
                 <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
                   <div className="flex items-center gap-2 text-xs text-primary mb-1">
                     <Brain className="h-3 w-3" />
-                    Nova will generate an AI agenda for this topic
+                    AI will generate an agenda for this topic
                   </div>
                 </div>
               )}

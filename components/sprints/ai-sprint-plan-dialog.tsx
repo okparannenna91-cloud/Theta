@@ -109,7 +109,7 @@ export function AISprintPlanDialog({ open, onOpenChange, projectId, workspaceId,
         {!plan ? (
           <div className="space-y-4">
             <p className="text-sm text-slate-400">
-              Nova will analyze your backlog, team velocity, and capacity to generate an optimal sprint plan.
+              AI will analyze your backlog, team velocity, and capacity to generate an optimal sprint plan.
             </p>
             <div className="space-y-2">
               <label className="text-xs font-medium text-slate-300">Sprint Duration (days)</label>

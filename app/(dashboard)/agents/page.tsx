@@ -107,7 +107,7 @@ export default function AgentsPage() {
         <div>
           <h1 className="text-2xl font-semibold text-foreground flex items-center gap-3">
             <Bot className="h-6 w-6 text-primary" />
-            Nova Agents
+            AI Agents
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
             Autonomous AI agents working in the background for your workspace
