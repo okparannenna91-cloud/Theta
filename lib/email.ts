@@ -2,7 +2,7 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_ADDRESS = "Theta <noreply@thetapm.site>";
+const FROM_ADDRESS = "Theta PM <noreply@thetapm.site>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.thetapm.site";
 const UNSUBSCRIBE_URL = `${APP_URL}/settings/notifications`;
 
@@ -59,13 +59,13 @@ export async function sendInviteEmail({
     try {
         const subject = teamName
             ? `You've been invited to join the ${teamName} team in ${workspaceName}`
-            : `You've been invited to join ${workspaceName} on Theta`;
+            : `You've been invited to join ${workspaceName} on Theta PM`;
 
         const content = `
             <h1 style="color: #4f46e5; margin-top: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Join ${teamName ? teamName : workspaceName}</h1>
             <p style="color: #334155; font-size: 16px; line-height: 24px;">Hello!</p>
             <p style="color: #475569; font-size: 15px; line-height: 24px; margin-bottom: 32px;">
-                You have been invited to collaborate in <strong>${workspaceName}</strong> ${teamName ? `on the <strong>${teamName}</strong> team` : ''} as a <strong style="text-transform: capitalize;">${role}</strong>. Theta is where your team's work gets done faster.
+                You have been invited to collaborate in <strong>${workspaceName}</strong> ${teamName ? `on the <strong>${teamName}</strong> team` : ''} as a <strong style="text-transform: capitalize;">${role}</strong>. Theta PM is where your team's work gets done faster.
             </p>
             <div style="text-align: center; margin: 32px 0;">
                 <a href="${inviteLink}" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; border-radius: 9999px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.39);">
@@ -148,7 +148,7 @@ export async function sendPasswordResetEmail(to: string, resetLink: string) {
         <h1 style="color: #4f46e5; margin-top: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px;">Reset your password</h1>
         <p style="color: #334155; font-size: 16px; line-height: 24px;">Hello,</p>
         <p style="color: #475569; font-size: 15px; line-height: 24px; margin-bottom: 32px;">
-            We received a request to reset the password for your Theta account. Click the button below to choose a new password.
+            We received a request to reset the password for your Theta PM account. Click the button below to choose a new password.
         </p>
         <div style="text-align: center; margin: 32px 0;">
             <a href="${resetLink}" style="background-color: #4f46e5; color: #ffffff; padding: 14px 28px; border-radius: 9999px; text-decoration: none; font-weight: 700; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px 0 rgba(79, 70, 229, 0.39);">
@@ -160,7 +160,7 @@ export async function sendPasswordResetEmail(to: string, resetLink: string) {
         </p>
     `;
     const { html, text } = wrapEmail(content);
-    return await sendEmail({ to, subject: "Reset your Theta password", html, text });
+    return await sendEmail({ to, subject: "Reset your Theta PM password", html, text });
 }
 
 /**
@@ -411,7 +411,7 @@ export async function sendPaymentSuccessEmail(to: string, plan: string, amount: 
         </div>
     `;
     const { html, text } = wrapEmail(content, `<a href="${UNSUBSCRIBE_URL}" style="color: #94a3b8; text-decoration: underline;">Manage email preferences</a>`);
-    return await sendEmail({ to, subject: `Payment Successful - Welcome to Theta ${plan}`, html, text });
+    return await sendEmail({ to, subject: `Payment Successful - Welcome to Theta PM ${plan}`, html, text });
 }
 
 /**
@@ -444,13 +444,13 @@ export async function sendPaymentFailedEmail(to: string, plan: string) {
  */
 export async function sendWelcomeEmail(to: string, name: string) {
     const content = `
-        <h1 style="color: #4f46e5; margin-top: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; text-align: center;">Welcome to Theta, ${name}!</h1>
-        <p style="color: #334155; font-size: 16px; line-height: 24px;">We're thrilled to have you on board. Theta is designed to help you and your team manage projects with speed, security, and intelligence.</p>
+        <h1 style="color: #4f46e5; margin-top: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.5px; text-align: center;">Welcome to Theta PM, ${name}!</h1>
+        <p style="color: #334155; font-size: 16px; line-height: 24px;">We're thrilled to have you on board. Theta PM is designed to help you and your team manage projects with speed, security, and intelligence.</p>
         <div style="margin: 32px 0; background-color: #f1f5f9; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
             <h3 style="margin-top: 0; color: #0f172a; font-size: 16px;">Quick Start Guide:</h3>
             <ul style="color: #475569; font-size: 14px; line-height: 22px; padding-left: 20px; margin-bottom: 0;">
                 <li style="margin-bottom: 8px;"><strong>Create a Project:</strong> Organise your work into sleek project spaces.</li>
-                <li style="margin-bottom: 8px;"><strong>Invite your Team:</strong> Collaboration is at the heart of Theta.</li>
+                <li style="margin-bottom: 8px;"><strong>Invite your Team:</strong> Collaboration is at the heart of Theta PM.</li>
                 <li><strong>Meet Nova:</strong> Your AI assistant is ready to help in the bottom right corner.</li>
             </ul>
         </div>
@@ -464,5 +464,5 @@ export async function sendWelcomeEmail(to: string, name: string) {
         </p>
     `;
     const { html, text } = wrapEmail(content, `<a href="${UNSUBSCRIBE_URL}" style="color: #94a3b8; text-decoration: underline;">Manage email preferences</a>`);
-    return await sendEmail({ to, subject: "Welcome to Theta - Let's get started!", html, text });
+    return await sendEmail({ to, subject: "Welcome to Theta PM - Let's get started!", html, text });
 }

@@ -1,7 +1,7 @@
 import InboxPage from "@/components/inbox/inbox-page";
 
 export const metadata = {
-  title: "Inbox | Theta",
+  title: "Inbox | Theta PM",
   description: "Your workspace activity center — notifications, mentions, assignments, and direct messages.",
 };
 

@@ -340,10 +340,10 @@ async function callModel(state: AgentStateType): Promise<Partial<AgentStateType>
   const userContent = state.messages[state.messages.length - 1]?.content || "";
   const model = getLangChainModel(state.routerConfig.provider, state.routerConfig.model);
 
-  const OBSERVATION_MODE_INSTRUCTION = "\n\n**BEHAVIOR CONSTRAINT:** In this environment you cannot create, edit, delete, assign, schedule, or execute workspace actions — you reason, analyze, and advise. Keep this constraint internal: never announce it or mention your mode, capabilities, or status in responses. Respond naturally and conversationally. If the user asks you to perform an action, briefly explain how to do it in the Theta interface without framing it as a limitation.";
+  const OBSERVATION_MODE_INSTRUCTION = "\n\n**BEHAVIOR CONSTRAINT:** In this environment you cannot create, edit, delete, assign, schedule, or execute workspace actions — you reason, analyze, and advise. Keep this constraint internal: never announce it or mention your mode, capabilities, or status in responses. Respond naturally and conversationally. If the user asks you to perform an action, briefly explain how to do it in the Theta PM interface without framing it as a limitation.";
 
   // Build system prompt
-  const basePrompt = state.systemPrompt || "You are Nova, the intelligent operating system of Theta.";
+  const basePrompt = state.systemPrompt || "You are Nova, the intelligent operating system of Theta PM.";
   const systemPrompt = [
     basePrompt,
     OBSERVATION_MODE_INSTRUCTION,

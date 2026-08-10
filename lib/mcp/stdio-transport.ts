@@ -2,7 +2,7 @@ import { ThetaMCPServer, JSONRPCRequest, JSONRPCResponse } from "./server";
 import { logger } from "@/lib/logger";
 
 /**
- * Stdio transport for the Theta MCP server.
+ * Stdio transport for the Theta PM MCP server.
  *
  * Reads JSON-RPC 2.0 messages from stdin (newline-delimited) and writes
  * responses to stdout. Suitable for direct integration with Claude Desktop,
@@ -62,7 +62,7 @@ async function main(): Promise<void> {
 
   const server = new ThetaMCPServer(workspaceId);
 
-  logger.info(`Theta MCP server starting (workspace: ${workspaceId})`);
+  logger.info(`Theta PM MCP server starting (workspace: ${workspaceId})`);
 
   let buffer = "";
 
@@ -96,27 +96,27 @@ async function main(): Promise<void> {
   });
 
   process.stdin.on("end", () => {
-    logger.info("Theta MCP server: stdin closed, shutting down");
+    logger.info("Theta PM MCP server: stdin closed, shutting down");
     process.exit(0);
   });
 
   process.on("SIGINT", () => {
-    logger.info("Theta MCP server: SIGINT received, shutting down");
+    logger.info("Theta PM MCP server: SIGINT received, shutting down");
     process.exit(0);
   });
 
   process.on("SIGTERM", () => {
-    logger.info("Theta MCP server: SIGTERM received, shutting down");
+    logger.info("Theta PM MCP server: SIGTERM received, shutting down");
     process.exit(0);
   });
 
   process.on("uncaughtException", (err) => {
-    logger.error("Theta MCP server: uncaught exception:", err.message);
+    logger.error("Theta PM MCP server: uncaught exception:", err.message);
     writeErrorResponse(null, -32603, "Internal error");
   });
 
   process.on("unhandledRejection", (reason) => {
-    logger.error("Theta MCP server: unhandled rejection:", String(reason));
+    logger.error("Theta PM MCP server: unhandled rejection:", String(reason));
   });
 }
 

@@ -163,7 +163,7 @@ export async function exportPDF(
   // Add header
   doc.setFontSize(18);
   doc.setTextColor(79, 70, 229); // Indigo-600
-  doc.text(`Theta - ${title}`, 14, 20);
+  doc.text(`Theta PM - ${title}`, 14, 20);
 
   doc.setFontSize(10);
   doc.setTextColor(100, 116, 139); // Slate-500

@@ -1,6 +1,6 @@
 {
-  "name": "Theta - Project Management Platform",
-  "short_name": "Theta",
+  "name": "Theta PM - Project Management Platform",
+  "short_name": "Theta PM",
   "description": "AI-powered project management platform with Nova intelligence",
   "start_url": "/dashboard",
   "display": "standalone",

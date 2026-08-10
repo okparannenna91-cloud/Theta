@@ -14,7 +14,7 @@ export interface NormalizedSyncItem {
   extra?: Record<string, unknown>;
 }
 
-// Containers link to Theta projects; their children become tasks.
+// Containers link to Theta PM projects; their children become tasks.
 export const CONTAINER_TYPES = ["repo", "board", "project"];
 export const WORK_ITEM_TYPES = ["issue", "card", "task"];
 export const CATALOG_TYPES = ["product"];
@@ -265,7 +265,7 @@ async function resolveBoardAndColumn(
   return { boardId: resolvedBoardId, columnId: resolvedColumnId };
 }
 
-// Work items (issues, cards, tasks) map their state to Theta statuses.
+// Work items (issues, cards, tasks) map their state to Theta PM statuses.
 // Closed -> done (terminal status), open -> todo.
 function workItemStatusMapping(item: {
   type: string;
@@ -457,7 +457,7 @@ export async function updateTaskFromSyncedItem(item: any): Promise<any | null> {
   return prisma.task.update({ where: { id: task.id }, data });
 }
 
-// Reconcile synced data with Theta tasks for a provider:
+// Reconcile synced data with Theta PM tasks for a provider:
 // - imported children are updated (title/description, closed -> done, reopened -> todo)
 // - open children of a linked container are auto-imported into that project
 // - containers themselves never become tasks

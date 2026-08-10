@@ -134,8 +134,8 @@ export class TrialService {
         await sendEmail({
           to: ownerEmail,
           subject: daysRemaining === 0
-            ? "Your Theta trial has ended — choose a plan"
-            : `Your Theta trial ends in ${daysRemaining} day${daysRemaining === 1 ? "" : "s"}`,
+            ? "Your Theta PM trial has ended — choose a plan"
+            : `Your Theta PM trial ends in ${daysRemaining} day${daysRemaining === 1 ? "" : "s"}`,
           html: `
             <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
               <h1 style="color: ${daysRemaining <= 1 ? "#ef4444" : "#6366f1"};">
@@ -143,7 +143,7 @@ export class TrialService {
               </h1>
               <p>Hello,</p>
               <p>${daysRemaining === 0
-                ? "Your free trial of Theta has ended. Please select a plan to continue using your workspace."
+                ? "Your free trial of Theta PM has ended. Please select a plan to continue using your workspace."
                 : `Your free trial ends in <strong>${daysRemaining} day${daysRemaining === 1 ? "" : "s"}</strong>.`}
               </p>
               <p>Choose a plan to keep your projects, tasks, and team collaboration running smoothly.</p>

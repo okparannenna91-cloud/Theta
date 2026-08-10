@@ -9,7 +9,7 @@ const steps = [
   {
     icon: Sparkles,
     title: "Create your workspace",
-    desc: "Sign up and Theta sets up your workspace — boards, sprints, and your first project ready to go in minutes.",
+    desc: "Sign up and Theta PM sets up your workspace — boards, sprints, and your first project ready to go in minutes.",
     color: "from-primary/20 to-primary/5",
   },
   {

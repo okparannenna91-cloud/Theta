@@ -145,7 +145,7 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
         return {
           success: false,
           message: null,
-          error: "Nova is currently in observation mode and cannot execute workspace actions. I can explain what needs to be done, but you'll need to perform the action through the Theta interface.",
+          error: "Nova is currently in observation mode and cannot execute workspace actions. I can explain what needs to be done, but you'll need to perform the action through the Theta PM interface.",
         };
       }
       const limited = await isToolRateLimited(user.id, toolName);

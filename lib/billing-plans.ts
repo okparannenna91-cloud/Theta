@@ -26,7 +26,7 @@ export type BillingPlan = {
  * Free:    $0 + ($0 x members)
  * Growth:  $5 + ($2 x members)
  * Pro:     $10 + ($3 x members)
- * Theta+:  $20 + ($4 x members)
+ * Theta PM+:  $20 + ($4 x members)
  *
  * Pain Funnel Design:
  * - Free tier is generous enough to build dependency (unlimited projects/tasks)
@@ -118,7 +118,7 @@ export const BILLING_PLANS: BillingPlan[] = [
   {
     id: "theta_plus",
     planKey: "theta_plus",
-    name: "Theta Plus",
+    name: "Theta PM Plus",
     priceLabel: "$20",
     basePriceMonthlyUSD: 2000,
     perUserPriceMonthlyUSD: 400,

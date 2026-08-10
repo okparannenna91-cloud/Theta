@@ -13,7 +13,7 @@ export default function Documentation() {
                 </Link>
 
                 <h1 className="text-5xl font-black mb-4">Documentation</h1>
-                <p className="text-xl text-slate-500 mb-12 border-b pb-8">Everything you need to master Theta and boost your team&apos;s productivity.</p>
+                <p className="text-xl text-slate-500 mb-12 border-b pb-8">Everything you need to master Theta PM and boost your team&apos;s productivity.</p>
 
                 <div className="space-y-16 mt-12">
                     <section>
@@ -22,7 +22,7 @@ export default function Documentation() {
                             <h2 className="text-3xl font-bold">Getting Started</h2>
                         </div>
                         <p className="text-slate-600 mb-8 leading-relaxed">
-                            Theta is organized around **Workspaces**. A workspace is a secure, isolated environment for your team.
+                            Theta PM is organized around **Workspaces**. A workspace is a secure, isolated environment for your team.
                             Upon signing up, we&apos;ll guide you through creating your first workspace and inviting team members.
                         </p>
                         <div className="aspect-video bg-slate-100 rounded-[2rem] border-4 border-slate-50 flex items-center justify-center text-slate-400 font-bold flex-col gap-4">

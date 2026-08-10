@@ -4,7 +4,7 @@ import { logger } from "@/lib/logger";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_ADDRESS = "Theta <notifications@thetapm.site>";
+const FROM_ADDRESS = "Theta PM <notifications@thetapm.site>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.thetapm.site";
 const UNSUBSCRIBE_URL = `${APP_URL}/settings/notifications`;
 
@@ -122,7 +122,7 @@ export async function sendActivityDigestEmail(userId: string, workspaceId: strin
     await resend.emails.send({
       from: FROM_ADDRESS,
       to: [user.email],
-      subject: `Daily Digest — ${workspace?.name || "Theta"}`,
+      subject: `Daily Digest — ${workspace?.name || "Theta PM"}`,
       html,
       text,
     });

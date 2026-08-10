@@ -1,6 +1,6 @@
 // ─── Integration Examples ─────────────────────────────────
 // These examples show how to use the PostHog analytics system
-// throughout the Theta codebase.
+// throughout the Theta PM codebase.
 
 // ─── 1. Client-Side Event Tracking (React Component) ─────
 //

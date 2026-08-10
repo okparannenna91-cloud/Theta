@@ -144,7 +144,7 @@ export async function POST(req: Request) {
             try {
                 await sendInviteEmail({
                     to: targetEmail,
-                    workspaceName: emailWorkspace?.name || "Theta Workspace",
+                    workspaceName: emailWorkspace?.name || "Theta PM Workspace",
                     inviteLink,
                     role: data.role,
                     teamName,
@@ -369,7 +369,7 @@ export async function PATCH(req: Request) {
         const { sendInviteEmail } = await import("@/lib/email");
         await sendInviteEmail({
             to: invite.email,
-            workspaceName: workspaceName || "Theta Workspace",
+            workspaceName: workspaceName || "Theta PM Workspace",
             inviteLink,
             role: invite.role,
             teamName,

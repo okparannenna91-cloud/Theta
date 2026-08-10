@@ -19,7 +19,7 @@ User → POST /api/ai → Auth/Rate Limit → Plan Limits → DecisionFramework 
        ├─ memory-saver node               (save conversation results)
        ├─ provider-fallback node          (parallel fallback)
        └─ output-validator node           (validate + sanitize)
-            └─ buildAllLangGraphTools() → Theta Services → Database
+            └─ buildAllLangGraphTools() → Theta PM Services → Database
 ```
 
 **Status:** LangGraph is the **primary orchestration engine** for ALL routes (CHAT, ACTION, ANALYSIS). The `streamText` fallback has been removed. All 12+ nodes are wired into `NovaAgent.execute()`. No duplicate implementations remain.
@@ -190,7 +190,7 @@ User → POST /api/ai → Auth/Rate Limit → Plan Limits
        ├─ provider-fallback node          (parallel fallback across providers)
        ├─ stream-handler node             (Vercel AI SDK streaming)
        └─ output-validator node           (OutputValidator + PhilosophyEngine)
-            └─ Wrapped Tools → Theta Services → Database
+            └─ Wrapped Tools → Theta PM Services → Database
 ```
 
 ### 2.1 LangGraph State Machine Design

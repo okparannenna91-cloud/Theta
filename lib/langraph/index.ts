@@ -41,7 +41,7 @@ export async function runNovaAgent(prompt: string, options: NovaAgentOptions): P
 
   const result = await runNovaGraph({
     prompt,
-    systemPrompt: options.systemPrompt || "You are Nova, the intelligent operating system of Theta.",
+    systemPrompt: options.systemPrompt || "You are Nova, the intelligent operating system of Theta PM.",
     ctx: { userId: options.userId, workspaceId: options.workspaceId, projectId: options.projectId },
     intent: options.intent,
     routeDecision: options.routeDecision,

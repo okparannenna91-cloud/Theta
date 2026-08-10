@@ -1,4 +1,4 @@
-# Theta Task & Kanban Synchronization Architecture
+# Theta PM Task & Kanban Synchronization Architecture
 
 ## Objective
 
@@ -101,7 +101,7 @@ Creating a new column should:
 
 - Create a new workflow status.
 - Add a new Kanban column.
-- Update every Status dropdown across Theta.
+- Update every Status dropdown across Theta PM.
 - Make the new status immediately usable.
 
 Example:

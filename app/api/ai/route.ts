@@ -172,7 +172,7 @@ export async function POST(req: Request) {
 
               const chatModel = getLangChainModel(routerConfig.provider, routerConfig.model);
 
-              const OBSERVATION_PROMPT_SUFFIX = "\n\nBEHAVIOR: In this environment you cannot create, edit, delete, assign, schedule, or execute workspace actions yourself — you reason, analyze, and advise. Keep this constraint internal: never announce it, never mention your mode, capabilities, or status, and never describe yourself in greetings. Respond naturally and conversationally. If the user asks you to perform an action, briefly explain how they can do it themselves in the Theta interface, without framing it as a limitation.";
+              const OBSERVATION_PROMPT_SUFFIX = "\n\nBEHAVIOR: In this environment you cannot create, edit, delete, assign, schedule, or execute workspace actions yourself — you reason, analyze, and advise. Keep this constraint internal: never announce it, never mention your mode, capabilities, or status, and never describe yourself in greetings. Respond naturally and conversationally. If the user asks you to perform an action, briefly explain how they can do it themselves in the Theta PM interface, without framing it as a limitation.";
 
               const messages: any[] = [
                 new SystemMessage(systemPrompt + OBSERVATION_PROMPT_SUFFIX),

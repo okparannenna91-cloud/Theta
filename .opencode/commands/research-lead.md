@@ -1,8 +1,8 @@
 ---
-description: Deep research a company and person for Theta fit analysis
+description: Deep research a company and person for Theta PM fit analysis
 ---
 
-Research the company or person "$ARGUMENTS" for Theta fit analysis.
+Research the company or person "$ARGUMENTS" for Theta PM fit analysis.
 
 1. Company Research:
    - What does the company do?
@@ -16,10 +16,10 @@ Research the company or person "$ARGUMENTS" for Theta fit analysis.
    - Decision-making authority
    - Professional background
 
-3. Theta Fit Assessment:
+3. Theta PM Fit Assessment:
    - Does this company manage multiple projects?
    - Do they need team coordination?
-   - Would Theta's features help?
+   - Would Theta PM's features help?
    - Confidence score (0.0-1.0)
 
 Export findings as a lead JSON file under /LinkedIn/.

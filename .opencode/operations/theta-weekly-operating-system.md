@@ -1,10 +1,10 @@
-# Theta Weekly Operating System
+# Theta PM Weekly Operating System
 
 ## Mission
 
-This document defines how Theta's Growth workspace operates every week.
+This document defines how Theta PM's Growth workspace operates every week.
 
-Its purpose is to ensure consistent execution of Theta's growth strategy through disciplined scheduling, clear priorities, and coordinated specialist execution.
+Its purpose is to ensure consistent execution of Theta PM's growth strategy through disciplined scheduling, clear priorities, and coordinated specialist execution.
 
 This is the operational source of truth.
 
@@ -18,7 +18,7 @@ Every week the Growth workspace should achieve:
 
 - Publish 120 SEO pages
 - Send 100 high-quality LinkedIn connection requests
-- Maintain and improve Theta
+- Maintain and improve Theta PM
 - Review growth metrics
 - Prepare the following week's roadmap
 
@@ -100,7 +100,7 @@ No scheduled work.
 
 Focus
 
-Theta Development
+Theta PM Development
 
 Objectives
 
@@ -140,7 +140,7 @@ Objectives
 
 - Reply to messages.
 - Organize leads.
-- Update outreach tracking inside Theta.
+- Update outreach tracking inside Theta PM.
 
 ---
 
@@ -195,7 +195,7 @@ Objectives
 
 Focus
 
-Theta Improvements
+Theta PM Improvements
 
 Objectives
 
@@ -293,7 +293,7 @@ Send 20 connection requests.
 
 ## 16:30–18:00
 
-Improve Theta based on customer feedback.
+Improve Theta PM based on customer feedback.
 
 ---
 
@@ -501,6 +501,6 @@ Protect deep work by minimizing unnecessary context switching.
 
 Follow the weekly operating system unless the user explicitly changes priorities.
 
-Use Theta as the single source of truth for task status, project progress, and growth operations.
+Use Theta PM as the single source of truth for task status, project progress, and growth operations.
 
-The goal is not merely to complete tasks, but to build a repeatable operating rhythm that consistently grows Theta through high-quality SEO, thoughtful outreach, and continuous product improvement.
+The goal is not merely to complete tasks, but to build a repeatable operating rhythm that consistently grows Theta PM through high-quality SEO, thoughtful outreach, and continuous product improvement.

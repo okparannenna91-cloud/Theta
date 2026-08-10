@@ -1,16 +1,16 @@
-# Theta Design Polish Plan
+# Theta PM Design Polish Plan
 
 ## Mission
 
-Transform Theta into a world-class, premium Project Management platform.
+Transform Theta PM into a world-class, premium Project Management platform.
 
-This is NOT a feature sprint. This is a DESIGN REFINEMENT sprint. The goal is to make Theta feel as polished as Apple while maintaining the power of modern PM platforms.
+This is NOT a feature sprint. This is a DESIGN REFINEMENT sprint. The goal is to make Theta PM feel as polished as Apple while maintaining the power of modern PM platforms.
 
 ## Target Inspiration
 
 - **70% Apple** — elegance, restraint, precision, calmness
 - **20% Linear** — speed, density, keyboard-first, hairline borders
-- **10% Theta Identity** — Nova AI, blue/purple accents, flow-based philosophy
+- **10% Theta PM Identity** — Nova AI, blue/purple accents, flow-based philosophy
 
 ---
 
@@ -196,7 +196,7 @@ Apply consistent spacing across all pages:
 
 ## Success Criteria
 
-After implementation, Theta should feel:
+After implementation, Theta PM should feel:
 
 - [ ] More premium — cards have 12px radius, subtle shadows, premium feel
 - [ ] More spacious — consistent 8px grid, generous page padding

@@ -59,7 +59,7 @@ export class FlutterwaveProvider implements BillingProvider {
           email: params.customerEmail,
         },
         customizations: {
-          title: "Theta",
+          title: "Theta PM",
           description: lineItem.description,
         },
         meta: {
@@ -396,7 +396,7 @@ export class FlutterwaveProvider implements BillingProvider {
       method: "POST",
       body: JSON.stringify({
         amount,
-        name: `Theta ${planKey} (${interval})`,
+        name: `Theta PM ${planKey} (${interval})`,
         interval,
         currency,
       }),

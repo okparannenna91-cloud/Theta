@@ -2,8 +2,8 @@
   "$schema": "https://opencode.ai/config.json",
   "command": {
     "list-leads": {
-      "template": "List all saved Theta leads and present them in a table with columns: Name, Company, Role, Confidence, Status. Use the theta_list_leads tool to retrieve them.",
-      "description": "List saved Theta leads (optionally filter by category)"
+      "template": "List all saved Theta PM leads and present them in a table with columns: Name, Company, Role, Confidence, Status. Use the theta_list_leads tool to retrieve them.",
+      "description": "List saved Theta PM leads (optionally filter by category)"
     }
   }
 }

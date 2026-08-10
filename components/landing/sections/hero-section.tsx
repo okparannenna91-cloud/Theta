@@ -72,7 +72,7 @@ export default function HeroSection() {
             transition={{ delay: 0.2, duration: 0.6 }}
             className="text-lg lg:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed"
           >
-            Theta brings projects, tasks, docs, and your team into one place — built for
+            Theta PM brings projects, tasks, docs, and your team into one place — built for
             how project managers actually work. Plan, track, and ship without juggling
             five different tools.
           </motion.p>

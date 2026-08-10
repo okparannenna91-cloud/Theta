@@ -119,7 +119,7 @@ self.addEventListener("fetch", (event) => {
 
 self.addEventListener("push", (event) => {
   const data = event.data?.json() || {
-    title: "Theta",
+    title: "Theta PM",
     body: "You have a new notification",
     icon: "/icons/icon-192x192.png",
     badge: "/icons/icon-96x96.png",

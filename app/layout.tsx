@@ -17,14 +17,14 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-family" });
 export const metadata: Metadata = {
   metadataBase: new URL("https://thetapm.site"),
   title: {
-    default: "Theta | Advanced AI-Powered Project Management",
-    template: "%s | Theta AI"
+    default: "Theta PM | Advanced AI-Powered Project Management",
+    template: "%s | Theta PM AI"
   },
   icons: {
     icon: "/Logo.png",
     apple: "/Logo.png",
   },
-  description: "Theta is the next evolution of project synchronization. Featuring real-time collaboration, Gantt charts, and strategic portfolio tracking for high-velocity teams.",
+  description: "Theta PM is the next evolution of project synchronization. Featuring real-time collaboration, Gantt charts, and strategic portfolio tracking for high-velocity teams.",
   keywords: [
     "project management software",
     "AI project management",
@@ -39,13 +39,13 @@ export const metadata: Metadata = {
     "real-time gantt charts",
     "theta pm",
     "theta",
-    "Theta",
+    "Theta PM",
     "Theta PM",
     "enterprise project isolation"
   ],
-  authors: [{ name: "Theta Teams", url: "https://thetapm.site" }],
-  creator: "Theta Systems",
-  publisher: "Theta Systems",
+  authors: [{ name: "Theta PM Teams", url: "https://thetapm.site" }],
+  creator: "Theta PM Systems",
+  publisher: "Theta PM Systems",
   alternates: {
     canonical: './',
   },
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Theta | Orchestrate Your Workflow with AI",
+    title: "Theta PM | Orchestrate Your Workflow with AI",
     description: "Ship faster with sub-50ms real-time updates. The most advanced workspace for modern high-performing teams.",
     url: "https://thetapm.site",
     siteName: "Theta PM",
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
         url: "/Logo.png",
         width: 1024,
         height: 1024,
-        alt: "Theta AI Workspace Preview",
+        alt: "Theta PM AI Workspace Preview",
       },
     ],
     locale: "en_US",
@@ -78,7 +78,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Theta | AI-Powered Project Synchronization",
+    title: "Theta PM | AI-Powered Project Synchronization",
     description: "Experience zero-latency project management with native AI co-piloting. Built for scale.",
     creator: "@theta_pm",
     images: ["/Logo.png"],
@@ -111,7 +111,7 @@ export default function RootLayout({
           <meta name="theme-color" content="#7c3aed" />
           <meta name="mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-          <meta name="apple-mobile-web-app-title" content="Theta" />
+          <meta name="apple-mobile-web-app-title" content="Theta PM" />
           <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         </head>
         <body className={`${inter.variable}`}>

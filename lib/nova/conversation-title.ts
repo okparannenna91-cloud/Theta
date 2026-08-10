@@ -2,7 +2,7 @@ import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import { getLangChainModel } from "@/lib/langraph/models";
 
 const TITLE_SYSTEM_PROMPT =
-  "Task: Create a concise, descriptive title for a new chat conversation in a project management app called Theta.\n" +
+  "Task: Create a concise, descriptive title for a new chat conversation in a project management app called Theta PM.\n" +
   "Rules:\n" +
   "- Return ONLY the title — no quotes, no period, no explanation.\n" +
   "- 3 to 6 words.\n" +

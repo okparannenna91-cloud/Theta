@@ -24,7 +24,7 @@ export async function executeTool(ctx: LangGraphToolContext, toolName: string, a
     return {
       toolName,
       success: false,
-      error: "Nova is in observation mode and cannot execute workspace actions. I can explain what needs to be done, but you'll need to perform the action through the Theta interface.",
+      error: "Nova is in observation mode and cannot execute workspace actions. I can explain what needs to be done, but you'll need to perform the action through the Theta PM interface.",
       durationMs: Date.now() - start,
     };
   }

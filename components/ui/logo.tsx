@@ -43,7 +43,7 @@ export function Logo({
     <div className={cn(containerClass, "rounded-lg overflow-hidden flex-shrink-0 bg-primary/20 flex items-center justify-center")}>
       <Image
         src="/Logo.png"
-        alt="Theta"
+        alt="Theta PM"
         width={iconSize}
         height={iconSize}
         priority={priority}
@@ -53,7 +53,7 @@ export function Logo({
   ) : (
     <Image
       src="/Logo.png"
-      alt="Theta"
+      alt="Theta PM"
       width={iconSize}
       height={iconSize}
       priority={priority}
@@ -66,7 +66,7 @@ export function Logo({
       {icon}
       {showWordmark && (
         <span className={cn("font-semibold text-foreground", wordmarkClass, wordmarkClassName)}>
-          Theta
+          Theta PM
         </span>
       )}
     </div>

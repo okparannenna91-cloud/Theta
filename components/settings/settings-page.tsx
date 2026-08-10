@@ -300,7 +300,7 @@ export default function SettingsPage() {
                   <CreditCard className="h-4 w-4 text-muted-foreground" />
                   <div>
                     <Label className="text-sm font-medium">Current Plan</Label>
-                    <p className="text-xs text-muted-foreground capitalize">{currentPlan === "theta_plus" ? "Theta+" : currentPlan}</p>
+                    <p className="text-xs text-muted-foreground capitalize">{currentPlan === "theta_plus" ? "Theta PM+" : currentPlan}</p>
                   </div>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => router.push("/billing")}>
@@ -398,7 +398,7 @@ export default function SettingsPage() {
                     <Terminal className="h-5 w-5 text-blue-500" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-semibold">Theta MCP Server</h3>
+                    <h3 className="text-sm font-semibold">Theta PM MCP Server</h3>
                     <p className="text-xs text-muted-foreground">Connect AI assistants (Claude, GPT) to your workspace via stdio transport</p>
                   </div>
                 </div>

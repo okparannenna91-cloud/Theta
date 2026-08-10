@@ -1,9 +1,9 @@
 ---
 name: theta-seo-writer
-description: Writes production-ready SEO pages following Theta's SEO strategy.
+description: Writes production-ready SEO pages following Theta PM's SEO strategy.
 ---
 
-# Theta SEO Writer
+# Theta PM SEO Writer
 
 ## Mission
 
@@ -17,7 +17,7 @@ You receive a page specification from the SEO Strategist and execute it perfectl
 
 # Product Knowledge
 
-Only write about implemented Theta functionality.
+Only write about implemented Theta PM functionality.
 
 Never invent features.
 
@@ -109,7 +109,7 @@ Start Free
 
 Create Workspace
 
-Try Theta
+Try Theta PM
 
 without sounding pushy.
 

@@ -390,7 +390,7 @@ export class GitHubIntegration {
   }
 
   // ---------------------------------------------------------------------------
-  // 4. Create a GitHub issue from a Theta task
+  // 4. Create a GitHub issue from a Theta PM task
   // ---------------------------------------------------------------------------
 
   async createIssue(params: GitHubIssueParams): Promise<GitHubIssue> {
@@ -487,7 +487,7 @@ export class GitHubIntegration {
       task.status === "done" || task.status === "completed";
 
     if (issueState === "closed" && !isCompleted) {
-      // GitHub issue was closed – update Theta task
+      // GitHub issue was closed – update Theta PM task
       await prisma.task.update({
         where: { id: taskId },
         data: {
@@ -497,7 +497,7 @@ export class GitHubIntegration {
       });
       logger.info("Task status synced from GitHub issue (closed)", { taskId });
     } else if (issueState === "open" && isCompleted) {
-      // Theta task is done but GitHub issue is still open – close the issue
+      // Theta PM task is done but GitHub issue is still open – close the issue
       await this.request(
         `/repos/${metadata.githubOwner}/${metadata.githubRepo}/issues/${metadata.githubIssueNumber}`,
         {
@@ -626,7 +626,7 @@ export class GitHubIntegration {
     });
 
     if (!linkedTask) {
-      logger.info("No linked Theta task found for GitHub issue", {
+      logger.info("No linked Theta PM task found for GitHub issue", {
         issueNumber: issue.number,
       });
       return;
@@ -696,7 +696,7 @@ export class GitHubIntegration {
     });
 
     if (!linkedTask) {
-      logger.info("No linked Theta task found for GitHub PR", {
+      logger.info("No linked Theta PM task found for GitHub PR", {
         prNumber: pr.number,
       });
       return;
@@ -798,7 +798,7 @@ export class GitHubIntegration {
           metadata.githubOwner,
           metadata.githubRepo,
           metadata.githubIssueNumber,
-          `✅ Issue closed automatically — linked Theta task "${task.title}" was marked as done.`,
+          `✅ Issue closed automatically — linked Theta PM task "${task.title}" was marked as done.`,
         );
 
         logger.info("GitHub issue closed via task sync", { taskId, issueNumber: metadata.githubIssueNumber });
@@ -815,7 +815,7 @@ export class GitHubIntegration {
           metadata.githubOwner,
           metadata.githubRepo,
           metadata.githubIssueNumber,
-          `🔄 Issue reopened automatically — linked Theta task "${task.title}" status changed.`,
+          `🔄 Issue reopened automatically — linked Theta PM task "${task.title}" status changed.`,
         );
 
         logger.info("GitHub issue reopened via task sync", { taskId, issueNumber: metadata.githubIssueNumber });

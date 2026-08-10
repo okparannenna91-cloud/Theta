@@ -2,15 +2,15 @@ import { tool } from "@opencode-ai/plugin"
 import * as agent from "../skills/theta-growth-engineer/agent"
 
 export const review = tool({
-  description: "Review Theta's current version, capabilities, and state before starting lead research",
+  description: "Review Theta PM's current version, capabilities, and state before starting lead research",
   args: {},
   async execute() {
-    return await agent.reviewTheta()
+    return await agent.reviewTheta PM()
   },
 })
 
 export const discover_leads = tool({
-  description: "Discover potential leads for Theta in a specific industry. Uses web search to identify companies and decision-makers.",
+  description: "Discover potential leads for Theta PM in a specific industry. Uses web search to identify companies and decision-makers.",
   args: {
     industry: tool.schema.string().describe("Target industry to search for leads (e.g. 'SaaS', 'marketing agencies', 'consulting')"),
   },
@@ -20,7 +20,7 @@ export const discover_leads = tool({
 })
 
 export const research_lead = tool({
-  description: "Deep research a company and person for Theta fit analysis. Uses web search to gather company info, team structure, and growth signals.",
+  description: "Deep research a company and person for Theta PM fit analysis. Uses web search to gather company info, team structure, and growth signals.",
   args: {
     companyName: tool.schema.string().describe("Company name to research"),
     personName: tool.schema.string().optional().describe("Target person name at the company"),
@@ -32,7 +32,7 @@ export const research_lead = tool({
 })
 
 export const analyze_fit = tool({
-  description: "Evaluate how well a company fits Theta's ideal customer profile. Uses web search to analyze website and public information.",
+  description: "Evaluate how well a company fits Theta PM's ideal customer profile. Uses web search to analyze website and public information.",
   args: {
     companyName: tool.schema.string().describe("Company name to analyze"),
     website: tool.schema.string().describe("Company website URL"),

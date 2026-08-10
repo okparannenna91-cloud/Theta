@@ -1,7 +1,7 @@
 import ActivityPage from "@/components/activity/activity-page";
 
 export const metadata = {
-  title: "Activity | Theta",
+  title: "Activity | Theta PM",
   description: "Everything happening across your workspace.",
 };
 

@@ -485,7 +485,7 @@ export class ThetaMCPServer {
     logger.info(`MCP create_task: blocked — Nova is in observation mode`);
     return {
       success: false,
-      message: "Nova is currently in observation mode and cannot create tasks. Please use the Theta interface directly.",
+      message: "Nova is currently in observation mode and cannot create tasks. Please use the Theta PM interface directly.",
     };
   }
 
@@ -493,7 +493,7 @@ export class ThetaMCPServer {
     logger.info(`MCP update_task: blocked — Nova is in observation mode`);
     return {
       success: false,
-      message: "Nova is currently in observation mode and cannot update tasks. Please use the Theta interface directly.",
+      message: "Nova is currently in observation mode and cannot update tasks. Please use the Theta PM interface directly.",
     };
   }
 

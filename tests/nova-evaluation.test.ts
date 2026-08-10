@@ -307,7 +307,7 @@ describe("Nova Evaluation Suite — Output Validation", () => {
 
 describe("Nova Evaluation Suite — Raw Tool Call Detection", () => {
   it("detects JSON array tool call format", () => {
-    expect(detectRawToolCalls('[{"tool_code": "print(nova.tools.search_tasks(project_name=\'Theta\'))"}]')).toBe(true);
+    expect(detectRawToolCalls('[{"tool_code": "print(nova.tools.search_tasks(project_name=\'Theta PM\'))"}]')).toBe(true);
   });
 
   it("detects tool_name format", () => {
@@ -323,21 +323,21 @@ describe("Nova Evaluation Suite — Raw Tool Call Detection", () => {
   });
 
   it("extracts tool calls from JSON array", () => {
-    const calls = extractToolCallsFromText('[{"tool_code": "print(nova.tools.search_tasks(project_name=\'Theta\'))"}]');
+    const calls = extractToolCallsFromText('[{"tool_code": "print(nova.tools.search_tasks(project_name=\'Theta PM\'))"}]');
     expect(calls.length).toBe(1);
     expect(calls[0].tool).toBe("search_tasks");
-    expect(calls[0].params.project_name).toBe("Theta");
+    expect(calls[0].params.project_name).toBe("Theta PM");
   });
 
   it("extracts tool calls from print statement", () => {
-    const calls = extractToolCallsFromText('print(nova.tools.list_tasks(project_name="Theta"))');
+    const calls = extractToolCallsFromText('print(nova.tools.list_tasks(project_name="Theta PM"))');
     expect(calls.length).toBe(1);
     expect(calls[0].tool).toBe("list_tasks");
-    expect(calls[0].params.project_name).toBe("Theta");
+    expect(calls[0].params.project_name).toBe("Theta PM");
   });
 
   it("quality gate replaces raw tool calls with clean message", () => {
-    const result = ResponseQualityGate.review('[{"tool_code": "print(nova.tools.search_tasks(project_name=\'Theta\'))"}]', {
+    const result = ResponseQualityGate.review('[{"tool_code": "print(nova.tools.search_tasks(project_name=\'Theta PM\'))"}]', {
       route: "CHAT",
       userPrompt: "Calculate the team velocity",
     });

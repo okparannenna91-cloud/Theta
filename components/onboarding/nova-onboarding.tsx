@@ -128,7 +128,7 @@ export function NovaOnboarding({ onComplete }: NovaOnboardingProps) {
         },
         {
             role: "nova",
-            content: "What brings you to Theta? What are you hoping to manage?",
+            content: "What brings you to Theta PM? What are you hoping to manage?",
             options: ["Software projects", "Marketing campaigns", "Client work", "Sales pipeline", "Team operations", "Personal productivity"],
             field: "primaryGoal",
         },
@@ -322,7 +322,7 @@ export function NovaOnboarding({ onComplete }: NovaOnboardingProps) {
                                     transition={{ delay: 0.4 }}
                                     className="text-3xl sm:text-4xl font-black text-foreground mb-3"
                                 >
-                                    Welcome to Theta
+                                    Welcome to Theta PM
                                 </motion.h1>
 
                                 <motion.p

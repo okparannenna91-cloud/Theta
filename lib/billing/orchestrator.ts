@@ -192,7 +192,7 @@ class BillingOrchestrator {
           workspace.providerCustomerId ?? "",
           amount,
           workspace.currency ?? "USD",
-          { offSession: true, description: `Theta ${workspace.plan} renewal` }
+          { offSession: true, description: `Theta PM ${workspace.plan} renewal` }
         );
 
         if (chargeResult.paid) {

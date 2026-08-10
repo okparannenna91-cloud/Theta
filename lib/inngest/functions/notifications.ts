@@ -684,7 +684,7 @@ export const insightDigestEmail = inngest.createFunction(
 
         for (const member of ws.members) {
           if (!member.user.email) continue;
-          await sendEmail({ to: member.user.email, subject: `[Theta] Weekly Nova Insight Digest — ${ws.name}`, html });
+          await sendEmail({ to: member.user.email, subject: `[Theta PM] Weekly Nova Insight Digest — ${ws.name}`, html });
           emailsSent++;
         }
       } catch (error: any) {

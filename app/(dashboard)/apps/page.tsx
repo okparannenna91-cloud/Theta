@@ -1,7 +1,7 @@
 import AppsPage from "@/components/apps/apps-page";
 
 export const metadata = {
-  title: "Apps & Integrations | Theta",
+  title: "Apps & Integrations | Theta PM",
   description: "Connect and manage all your tools and integrations from one place.",
 };
 

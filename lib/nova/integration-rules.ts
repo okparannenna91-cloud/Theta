@@ -28,7 +28,7 @@ export const SERVICE_REGISTRY: ServiceDefinition[] = [
 ];
 
 export const INTEGRATION_PRIORITY_FRAMEWORK: Array<{ priority: IntegrationPriority; label: string; description: string }> = [
-  { priority: 1, label: "Existing Theta capability", description: "Use existing platform features first" },
+  { priority: 1, label: "Existing Theta PM capability", description: "Use existing platform features first" },
   { priority: 2, label: "Existing integrated service", description: "Use services already integrated" },
   { priority: 3, label: "External API", description: "Integrate with external APIs" },
   { priority: 4, label: "Custom implementation", description: "Build custom only as last resort" },

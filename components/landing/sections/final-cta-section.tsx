@@ -43,7 +43,7 @@ export default function FinalCtaSection() {
             </h2>
 
             <p className="text-lg text-muted-foreground mb-10 max-w-xl mx-auto leading-relaxed">
-              Theta is a PM-native project management platform for modern teams. One
+              Theta PM is a PM-native project management platform for modern teams. One
               workspace. One team. Everything you need to plan, track, and ship.
             </p>
 

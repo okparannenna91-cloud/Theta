@@ -130,7 +130,7 @@ describe("ResponseQualityGate — review", () => {
   });
 
   it("handles raw tool calls in response", () => {
-    const result = ResponseQualityGate.review('[{"tool_code": "print(nova.tools.search_tasks(project_name=\'Theta\'))"}]', {
+    const result = ResponseQualityGate.review('[{"tool_code": "print(nova.tools.search_tasks(project_name=\'Theta PM\'))"}]', {
       route: "CHAT",
       userPrompt: "Calculate the team velocity",
     });

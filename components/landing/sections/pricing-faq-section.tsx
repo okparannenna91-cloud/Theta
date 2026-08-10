@@ -42,8 +42,8 @@ type FaqItem = {
 
 const faqs: FaqItem[] = [
   {
-    q: "What makes Theta different from Jira or Asana?",
-    a: "Theta is a PM-native workspace built for how modern teams work. Flexible boards, sprints, timelines, docs, and chat live in one place — fast, clean, and ready to use in minutes. No bloat, no rigidity, no tools that fight you.",
+    q: "What makes Theta PM different from Jira or Asana?",
+    a: "Theta PM is a PM-native workspace built for how modern teams work. Flexible boards, sprints, timelines, docs, and chat live in one place — fast, clean, and ready to use in minutes. No bloat, no rigidity, no tools that fight you.",
   },
   {
     q: "Is there a free plan?",

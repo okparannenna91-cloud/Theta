@@ -63,7 +63,7 @@ export default function OnboardingPage() {
 
         <div className="space-y-3">
           <h1 className="text-3xl font-bold tracking-tight text-foreground">
-            Welcome to Theta
+            Welcome to Theta PM
           </h1>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Plan projects, track tasks, and keep your team in sync — all in one

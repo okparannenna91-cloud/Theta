@@ -12,11 +12,11 @@ export default function PrivacyPolicy() {
                     </Button>
                 </Link>
 
-                <h1 className="text-4xl font-black mb-4">Privacy Policy for Theta</h1>
+                <h1 className="text-4xl font-black mb-4">Privacy Policy for Theta PM</h1>
                 <p className="text-xl font-medium text-slate-500 mb-8">Effective Date: April 27, 2026</p>
 
                 <div className="prose prose-slate max-w-none space-y-8 text-slate-600">
-                    <p>Welcome to Theta (“we”, “our”, or “us”). Your privacy is important to us. This Privacy Policy explains how we collect, use, and protect your information when you use our project management platform (“Service”).</p>
+                    <p>Welcome to Theta PM (“we”, “our”, or “us”). Your privacy is important to us. This Privacy Policy explains how we collect, use, and protect your information when you use our project management platform (“Service”).</p>
 
                     <section>
                         <h2 className="text-2xl font-bold text-slate-900 mb-4">1. Information We Collect</h2>
@@ -39,7 +39,7 @@ export default function PrivacyPolicy() {
 
                             <h3 className="text-lg font-bold text-slate-800">c. Project Data</h3>
                             <ul className="list-disc pl-6 space-y-1">
-                                <li>Tasks, files, messages, and content you create within Theta</li>
+                                <li>Tasks, files, messages, and content you create within Theta PM</li>
                             </ul>
 
                             <h3 className="text-lg font-bold text-slate-800">d. Integrations Data</h3>
@@ -101,12 +101,12 @@ export default function PrivacyPolicy() {
 
                     <section>
                         <h2 className="text-2xl font-bold text-slate-900 mb-4">7. Third-Party Services</h2>
-                        <p>Theta may contain links or integrations with third-party services. We are not responsible for their privacy practices.</p>
+                        <p>Theta PM may contain links or integrations with third-party services. We are not responsible for their privacy practices.</p>
                     </section>
 
                     <section>
                         <h2 className="text-2xl font-bold text-slate-900 mb-4">8. Children’s Privacy</h2>
-                        <p>Theta is not intended for users under 13. We do not knowingly collect data from children.</p>
+                        <p>Theta PM is not intended for users under 13. We do not knowingly collect data from children.</p>
                     </section>
 
                     <section>
@@ -122,7 +122,7 @@ export default function PrivacyPolicy() {
                     </section>
 
                     <div className="pt-8 border-t">
-                        <p className="font-bold text-slate-900 italic underline decoration-indigo-500 decoration-2">Final Note: By using Theta, you agree to this Privacy Policy.</p>
+                        <p className="font-bold text-slate-900 italic underline decoration-indigo-500 decoration-2">Final Note: By using Theta PM, you agree to this Privacy Policy.</p>
                     </div>
                 </div>
             </div>

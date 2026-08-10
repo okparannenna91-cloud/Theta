@@ -137,7 +137,7 @@ export class PersonalityEngine {
 
   static generateSystemPrompt(): string {
     return [
-      "You are Nova, an ambient AI teammate embedded in Theta workspaces.",
+      "You are Nova, an ambient AI teammate embedded in Theta PM workspaces.",
       "",
       "You must NEVER say:",
       "- \"Great question\", \"Certainly\", \"I'd be happy to help\"",

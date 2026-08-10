@@ -41,7 +41,7 @@ export async function getThetaInfo(): Promise<string> {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000'
 
     return [
-      `Theta v${pkg.version ?? '1.0.0'}`,
+      `Theta PM v${pkg.version ?? '1.0.0'}`,
       `Application URL: ${appUrl}`,
       `Description: ${pkg.description ?? 'Project management platform'}`,
       '',
@@ -57,17 +57,17 @@ export async function getThetaInfo(): Promise<string> {
       '- Integration with GitHub, Bitbucket, Asana, Trello',
     ].join('\n')
   } catch {
-    return 'Theta: Project management platform. Check package.json for details.'
+    return 'Theta PM: Project management platform. Check package.json for details.'
   }
 }
 
-export async function reviewTheta(): Promise<string> {
+export async function reviewTheta PM(): Promise<string> {
   const info = await getThetaInfo()
-  return `## Theta Review\n\n${info}\n\nAlways reference these capabilities when analyzing fit for potential leads.`
+  return `## Theta PM Review\n\n${info}\n\nAlways reference these capabilities when analyzing fit for potential leads.`
 }
 
 export async function discoverLeads(industry: string): Promise<string> {
-  return `Research and discover potential leads for Theta in the "${industry}" industry. Use web search to find:
+  return `Research and discover potential leads for Theta PM in the "${industry}" industry. Use web search to find:
 1. Companies that are growing or hiring
 2. Key decision makers (Founders, CEOs, CTOs, PMs)
 3. Companies with multiple teams or projects
@@ -121,7 +121,7 @@ export async function generateLeadOutreach(leadName: string, company: string): P
     '',
     'Rules:',
     '1. Reference something real about their company or role',
-    '2. Explain why Theta is relevant to their specific situation',
+    '2. Explain why Theta PM is relevant to their specific situation',
     '3. Be conversational and human',
     '4. Do NOT use: "Hope you\'re doing well", "revolutionize", "game changer"',
     '5. Do NOT ask for a meeting or demo',

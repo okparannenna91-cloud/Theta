@@ -68,7 +68,7 @@ export default function BuiltForTeamsSection() {
             </span>
           </h2>
           <p className="text-lg text-muted-foreground leading-relaxed">
-            Theta adapts to your workflow instead of forcing you into rigid processes.
+            Theta PM adapts to your workflow instead of forcing you into rigid processes.
             It molds to how your team works.
           </p>
         </motion.div>

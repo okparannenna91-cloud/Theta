@@ -2,7 +2,7 @@
 description: Discover potential leads in a specific industry niche
 ---
 
-Research and discover potential leads for Theta in the "$ARGUMENTS" industry.
+Research and discover potential leads for Theta PM in the "$ARGUMENTS" industry.
 
 Look for:
 1. Companies that are growing or hiring
@@ -11,6 +11,6 @@ Look for:
 4. Remote-first or distributed teams
 5. Companies showing operational or collaboration challenges
 
-For each lead, capture company name, person name and role, and why Theta might help them.
+For each lead, capture company name, person name and role, and why Theta PM might help them.
 
-Prioritize quality over quantity. Only include leads where Theta is clearly relevant.
+Prioritize quality over quantity. Only include leads where Theta PM is clearly relevant.

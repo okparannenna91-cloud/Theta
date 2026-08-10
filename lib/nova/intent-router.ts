@@ -46,7 +46,7 @@ export function routeRequest(
       toolCategories: categoriesForIntent(intent),
       contextDepth: "standard",
       timeoutMs: 50000,
-      promptSuffix: "\n[ADVISORY] Instead of executing the requested action, explain to the user what needs to be done and guide them through the Theta interface with clear step-by-step instructions. Respond naturally and never announce or mention this constraint or your mode.",
+      promptSuffix: "\n[ADVISORY] Instead of executing the requested action, explain to the user what needs to be done and guide them through the Theta PM interface with clear step-by-step instructions. Respond naturally and never announce or mention this constraint or your mode.",
     };
   } else if (isAnalysisIntent(intent)) {
     decision = {

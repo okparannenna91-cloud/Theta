@@ -83,7 +83,7 @@ export default function LandingPage() {
       <section className="max-w-7xl mx-auto px-6 py-24 sm:py-32">
         <div className="text-center mb-16">
           <h2 className="text-4xl sm:text-5xl font-bold text-foreground mb-4 tracking-tight">Loved by <span className="text-primary">Builders.</span></h2>
-          <p className="text-lg text-muted-foreground">Theta is trusted by teams building the future.</p>
+          <p className="text-lg text-muted-foreground">Theta PM is trusted by teams building the future.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -96,12 +96,12 @@ export default function LandingPage() {
             {
               name: "Marcus Thorne",
               role: "CEO @ Brightside",
-              content: "We switched from Jira last month and haven't looked back. Theta is just faster. The UI is gorgeous."
+              content: "We switched from Jira last month and haven't looked back. Theta PM is just faster. The UI is gorgeous."
             },
             {
               name: "Lina Rodriguez",
               role: "Lead Designer @ PixelPerfect",
-              content: "Theta feels like it was designed by people who actually use project tools. Clean, minimalist, but packed with features."
+              content: "Theta PM feels like it was designed by people who actually use project tools. Clean, minimalist, but packed with features."
             },
           ].map((t, i) => (
             <Card key={i} className="border shadow-sm hover:border-primary/30 hover:shadow-md transition-all">
@@ -160,7 +160,7 @@ export default function LandingPage() {
           </div>
 
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8 border-t text-xs text-muted-foreground">
-            <p>&copy; {new Date().getFullYear()} Theta Systems.</p>
+            <p>&copy; {new Date().getFullYear()} Theta PM Systems.</p>
             <div className="flex gap-6">
               <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
