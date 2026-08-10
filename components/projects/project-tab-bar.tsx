@@ -16,7 +16,6 @@ import {
   GanttChartSquare,
   Zap,
   Database,
-  FileText,
   MoreHorizontal,
   ChevronDown,
 } from "lucide-react";
@@ -39,7 +38,6 @@ const coreTabs = [
 
 const overflowTabs = [
   { label: "Gantt", href: "gantt", icon: GanttChartSquare },
-  { label: "Reports", href: "reports", icon: FileText },
   { label: "Automations", href: "automations", icon: Zap },
   { label: "Fields", href: "fields", icon: Database },
   { label: "Settings", href: "settings", icon: Settings },

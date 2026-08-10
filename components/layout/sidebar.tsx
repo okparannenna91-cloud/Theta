@@ -17,13 +17,14 @@ import {
    ChevronDown,
    Check,
    Plus,
-   CreditCard,
-    Mail,
-    AtSign,
-    UserCheck,
-    MessageSquare,
-    Archive,
-  } from "lucide-react";
+    CreditCard,
+     Mail,
+     AtSign,
+     UserCheck,
+     MessageSquare,
+     Archive,
+     Blocks,
+   } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -179,7 +180,6 @@ export const Sidebar = memo(function Sidebar() {
     // { label: "Calendar", href: `/projects/${currentProjectId}/calendar` }, // V2
     { label: "Team", href: `/projects/${currentProjectId}/team` },
     { label: "Automations", href: `/projects/${currentProjectId}/automations` },
-    { label: "Reports", href: `/projects/${currentProjectId}/reports` },
     { label: "Activity", href: `/projects/${currentProjectId}/activity` },
     { label: "Fields", href: `/projects/${currentProjectId}/fields` },
     { label: "Settings", href: `/projects/${currentProjectId}/settings` },
@@ -355,6 +355,7 @@ export const Sidebar = memo(function Sidebar() {
           <NavItem href="/portfolio" icon={FolderKanban} label="Portfolio" active={isActive("/portfolio")} onClick={closeMobile} />
 
           <NavItem href="/teams" icon={Users} label="Teams" active={isActive("/teams")} onClick={closeMobile} />
+          <NavItem href="/apps" icon={Blocks} label="Apps" active={isActive("/apps")} onClick={closeMobile} />
           <NavItem href="/billing" icon={CreditCard} label="Billing" active={isActive("/billing")} onClick={closeMobile} />
          </nav>
 
