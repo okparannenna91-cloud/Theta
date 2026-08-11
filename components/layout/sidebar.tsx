@@ -211,7 +211,7 @@ export const Sidebar = memo(function Sidebar() {
             onClick={closeMobile}
             className="flex items-center gap-2 w-full text-left group text-sm font-medium text-sidebar-foreground rounded-md hover:bg-accent/30 transition-colors px-1 py-1"
           >
-            <Logo size={24} href="/dashboard" priority linkClassName="gap-2" wordmarkClassName="text-sidebar-foreground text-sm font-semibold" />
+            <Logo size={24} priority linkClassName="gap-2" wordmarkClassName="text-sidebar-foreground text-sm font-semibold" />
             <span className="text-sidebar-muted mx-0.5">/</span>
             <span className="truncate">{activeWorkspace?.name || "Workspace"}</span>
             <ChevronDown className="h-3 w-3 text-sidebar-muted flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
