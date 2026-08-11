@@ -2,7 +2,7 @@
 
 import { memo, useState, useCallback, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
    LayoutDashboard,
@@ -15,8 +15,6 @@ import {
    Menu,
    X,
    ChevronDown,
-   Check,
-   Plus,
     CreditCard,
      Mail,
      AtSign,
@@ -31,13 +29,6 @@ import { useWorkspace } from "@/hooks/use-workspace";
 import { useI18n } from "@/lib/i18n";
 import { Logo } from "@/components/ui/logo";
 import { useQuery } from "@tanstack/react-query";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-} from "@/components/ui/dropdown-menu";
 
 function NavItem({ href, icon: Icon, label, active, onClick }: { href: string; icon?: any; label: string; active?: boolean; onClick?: () => void }) {
   return (
@@ -78,7 +69,6 @@ function ProjectSubItem({ href, label, active, onClick }: { href: string; label:
 export const Sidebar = memo(function Sidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [inboxExpanded, setInboxExpanded] = useState(false);
 
@@ -97,7 +87,7 @@ export const Sidebar = memo(function Sidebar() {
     }
   }, []);
   const { t } = useI18n();
-  const { workspaces, activeWorkspaceId, switchWorkspace } = useWorkspace();
+  const { workspaces, activeWorkspaceId } = useWorkspace();
   const { user } = useUser();
 
   const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId);
@@ -216,52 +206,16 @@ export const Sidebar = memo(function Sidebar() {
         )}
       >
         <div className="flex h-12 items-center px-3 border-b border-sidebar-border">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-2 w-full text-left group text-sm font-medium text-sidebar-foreground">
-                <Logo size={16} href="/dashboard" priority linkClassName="gap-1.5" wordmarkClassName="text-sidebar-foreground text-sm font-semibold" />
-                <span className="text-sidebar-muted mx-0.5">/</span>
-                <span className="truncate">{activeWorkspace?.name || "Workspace"}</span>
-                <ChevronDown className="h-3 w-3 text-sidebar-muted flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" side="right" sideOffset={8} className="w-56">
-              <div className="px-2 py-1.5 text-xs font-medium text-sidebar-muted uppercase tracking-wider">
-                Workspaces
-              </div>
-              {workspaces?.map((ws: any) => (
-                <DropdownMenuItem
-                  key={ws.id}
-                  className="flex items-center gap-3 cursor-pointer"
-                  onClick={() => {
-                    switchWorkspace(ws.id);
-                    router.push("/dashboard");
-                  }}
-                >
-                  <div className={cn(
-                    "w-6 h-6 rounded-md flex items-center justify-center text-xs font-medium flex-shrink-0",
-                    ws.id === activeWorkspaceId
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground"
-                  )}>
-                    {ws.name?.charAt(0).toUpperCase() || "W"}
-                  </div>
-                  <span className="flex-1 truncate">{ws.name}</span>
-                  {ws.id === activeWorkspaceId && (
-                    <Check className="h-4 w-4 text-primary flex-shrink-0" />
-                  )}
-                </DropdownMenuItem>
-              ))}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                className="flex items-center gap-2 cursor-pointer text-primary"
-                onClick={() => router.push("/workspaces")}
-              >
-                <Plus className="h-4 w-4" />
-                <span>Manage Workspaces</span>
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <Link
+            href="/workspaces"
+            onClick={closeMobile}
+            className="flex items-center gap-2 w-full text-left group text-sm font-medium text-sidebar-foreground rounded-md hover:bg-accent/30 transition-colors px-1 py-1"
+          >
+            <Logo size={24} href="/dashboard" priority linkClassName="gap-2" wordmarkClassName="text-sidebar-foreground text-sm font-semibold" />
+            <span className="text-sidebar-muted mx-0.5">/</span>
+            <span className="truncate">{activeWorkspace?.name || "Workspace"}</span>
+            <ChevronDown className="h-3 w-3 text-sidebar-muted flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+          </Link>
         </div>
 
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">

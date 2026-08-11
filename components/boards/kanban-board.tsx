@@ -94,6 +94,7 @@ import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import { usePopups } from "@/components/popups/popup-manager";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { getBoardChannel } from "@/lib/ably";
+import { isDoneColumnName, isTodoColumnName } from "@/lib/constants/status";
 
 async function fetchBoard(id: string) {
   const res = await fetch(`/api/boards/${id}`);
@@ -390,7 +391,7 @@ function ColumnContainer({
     <div 
       ref={setNodeRef}
       className={cn(
-        "flex-shrink-0 w-[320px] flex flex-col bg-muted/30 rounded-xl border shadow-sm max-h-full transition-colors",
+        "flex-shrink-0 w-[320px] h-full max-h-full flex flex-col bg-muted/30 rounded-xl border shadow-sm transition-colors",
         isOver && "ring-2 ring-primary/30 bg-primary/5 border-primary/30"
       )}
     >
@@ -405,13 +406,11 @@ interface KanbanBoardProps {
 }
 
 function isTodoColumn(name: string) {
-  const lower = name.toLowerCase();
-  return lower === "todo" || lower === "to-do" || lower === "backlog" || lower === "not started";
+  return isTodoColumnName(name);
 }
 
 function isDoneColumn(name: string) {
-  const lower = name.toLowerCase();
-  return lower === "done" || lower.includes("done") || lower === "completed" || lower === "complete";
+  return isDoneColumnName(name);
 }
 
 function getMoveViolation(task: any, targetColName: string, allTasks: any[], columns: any[]): string | null {
@@ -1052,6 +1051,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
   return (
     <>
+      <div className="h-full flex flex-col">
       <div className="px-6 sm:px-8 py-3 border-b bg-muted/20">
         <div className="flex items-center justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -1279,6 +1279,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
             <MapView tasks={sortedTasks} columns={columns} onSelectTask={setSelectedTask} />
           </div>
         )}
+      </div>
       </div>
 
       {/* New Column Dialog */}

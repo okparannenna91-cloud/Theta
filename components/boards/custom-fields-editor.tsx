@@ -1072,6 +1072,7 @@ export default function CustomFieldsEditor({
         <SheetContent
           side="right"
           className="fixed left-auto right-0 top-0 translate-x-0 translate-y-0 h-[100dvh] w-full sm:w-[95vw] md:w-[85vw] lg:w-[680px] sm:max-w-none p-0 border-l bg-background shadow-2xl rounded-none sm:rounded-l-xl overflow-hidden flex flex-col"
+          lazy
         >
           <SheetHeader className="px-6 pr-14 pt-5 pb-4 border-b border-border/60">
             <SheetTitle className="text-foreground flex items-center gap-2.5">

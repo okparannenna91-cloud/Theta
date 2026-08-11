@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { format, differenceInDays, parseISO, isAfter } from "date-fns";
 import { cn } from "@/lib/utils";
+import { isDoneStatus } from "@/lib/constants/status";
 import {
   Calendar,
   User,
@@ -145,11 +146,11 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
   const milestones = useMemo(() => Array.isArray(project?.milestones) ? project.milestones : [], [project?.milestones]);
 
   const completedTasks = useMemo(() =>
-    safeTasks.filter((t: any) => t.status === "done" || t.status === "Completed").length,
+    safeTasks.filter((t: any) => isDoneStatus(t.status)).length,
     [safeTasks]
   );
   const overdueTasks = useMemo(() =>
-    safeTasks.filter((t: any) => t.dueDate && new Date(t.dueDate) < new Date() && t.status !== "done" && t.status !== "Completed").length,
+    safeTasks.filter((t: any) => t.dueDate && new Date(t.dueDate) < new Date() && !isDoneStatus(t.status)).length,
     [safeTasks]
   );
   const progress = safeTasks.length > 0 ? (completedTasks / safeTasks.length) * 100 : 0;

@@ -27,6 +27,7 @@ import { format } from "date-fns";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
 import { cn } from "@/lib/utils";
+import { isDoneStatus } from "@/lib/constants/status";
 
 export default function ProjectsPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -116,7 +117,7 @@ export default function ProjectsPage() {
       let filtered = projects.map((p: any) => {
           const tasks = p.tasks || [];
           const totalTasks = tasks.length;
-          const completedTasks = tasks.filter((t: any) => t.status === "done").length;
+          const completedTasks = tasks.filter((t: any) => isDoneStatus(t.status)).length;
           const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
           let status = "Active";
           if (progress === 100 && totalTasks > 0) status = "Completed";
