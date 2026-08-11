@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://thetapm.site";
 
 export const metadata: Metadata = {
-  title: "Task Management Software That Keeps Teams in Flow",
+  title: "Task Management Software That Keeps Teams in Flow (2026)",
   description: "Task management software with assignees, custom fields, dependencies, multiple views, and real-time collaboration. Track work from idea to done in one place.",
   alternates: { canonical: `${BASE}/features/tasks` },
   openGraph: {
-    title: "Task Management Software That Keeps Teams in Flow",
+    title: "Task Management Software That Keeps Teams in Flow (2026)",
     description: "Assignees, custom fields, dependencies, multiple views, and real-time collaboration.",
     url: `${BASE}/features/tasks`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Task Management Software That Keeps Teams in Flow",
+    title: "Task Management Software That Keeps Teams in Flow (2026)",
     description: "Track work from idea to done in one place.",
     creator: "@theta_pm",
   },
@@ -40,7 +40,7 @@ export default function TasksFeature() {
     <SeoShell>
       <SeoContent
         breadcrumb={["Home", "Features", "Tasks"]}
-        title="Task Management Software That Keeps Teams in Flow"
+        title="Task Management Software That Keeps Teams in Flow (2026)"
         intro={[
           "Most 'task management' starts and ends with a shared to-do list. That works until the team grows, projects overlap, and someone asks 'who owns this, when is it due, and what is blocking it?'",
           "Theta PM is task management built for teams: every task carries ownership, dates, custom fields, and dependencies — and it lives in a board, timeline, calendar, or Gantt view so everyone sees work the way they think about it.",

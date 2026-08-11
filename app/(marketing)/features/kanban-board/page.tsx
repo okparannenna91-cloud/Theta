@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://thetapm.site";
 
 export const metadata: Metadata = {
-  title: "Kanban Board Software: Plan, Track, and Ship",
+  title: "Kanban Board Software: Plan, Track, and Ship (2026)",
   description: "Kanban board software for teams that want a clear view of work: drag-and-drop cards, custom fields, automations, and real-time collaboration — plus timeline and Gantt views on the same tasks.",
   alternates: { canonical: `${BASE}/features/kanban-board` },
   openGraph: {
-    title: "Kanban Board Software: Plan, Track, and Ship",
+    title: "Kanban Board Software: Plan, Track, and Ship (2026)",
     description: "Boards, custom fields, automations, and real-time collaboration.",
     url: `${BASE}/features/kanban-board`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Kanban Board Software: Plan, Track, and Ship",
+    title: "Kanban Board Software: Plan, Track, and Ship (2026)",
     description: "Boards, custom fields, automations, and real-time collaboration.",
     creator: "@theta_pm",
   },
@@ -40,7 +40,7 @@ export default function KanbanBoardFeature() {
     <SeoShell>
       <SeoContent
         breadcrumb={["Home", "Features", "Kanban Board"]}
-        title="Kanban Board Software That Shows Work Clearly"
+        title="Kanban Board Software That Shows Work Clearly (2026)"
         intro={[
           "A kanban board is the fastest way to see what the team is working on, what is about to finish, and where work is getting stuck. Theta PM turns that simple idea into your team's operating system — with cards that carry real task data, columns you can shape to your workflow, and automations that do the boring parts.",
         ]}
@@ -125,7 +125,7 @@ export default function KanbanBoardFeature() {
           },
           {
             q: "Is there a free kanban board plan?",
-            a: "Yes. Theta PM's free tier covers a full small team with unlimited boards, tasks, and views.",
+            a: "Yes. Theta PM's free tier covers a small team of up to five members with unlimited tasks, plus boards, timelines, and calendar views.",
           },
         ]}
         internalLinks={[
@@ -135,6 +135,7 @@ export default function KanbanBoardFeature() {
           { label: "Gantt Chart Software", href: "/features/gantt" },
           { label: "Team Collaboration Software", href: "/features/collaboration" },
           { label: "Best Project Management Software 2026", href: "/project-management-software" },
+          { label: "Pricing", href: "/pricing" },
         ]}
         schema={pageSchema}
       />

@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://thetapm.site";
 
 export const metadata: Metadata = {
-  title: "Kanban vs Scrum vs Agile: What's the Difference?",
+  title: "Kanban vs Scrum vs Agile: What's the Difference? (2026)",
   description: "Kanban vs Scrum vs Agile explained simply: how they differ, when to use each, and how to choose the right framework for your team in 2026.",
   alternates: { canonical: `${BASE}/guides/kanban-vs-scrum-vs-agile` },
   openGraph: {
-    title: "Kanban vs Scrum vs Agile: What's the Difference?",
+    title: "Kanban vs Scrum vs Agile: What's the Difference? (2026)",
     description: "How they differ, when to use each, and how to choose.",
     url: `${BASE}/guides/kanban-vs-scrum-vs-agile`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Kanban vs Scrum vs Agile: What's the Difference?",
+    title: "Kanban vs Scrum vs Agile: What's the Difference? (2026)",
     description: "How they differ, when to use each, and how to choose.",
     creator: "@theta_pm",
   },
@@ -27,7 +27,7 @@ const pageSchema = [
   {
     "@context": "https://schema.org",
     "@type": "Article",
-    headline: "Kanban vs Scrum vs Agile: What's the Difference?",
+    headline: "Kanban vs Scrum vs Agile: What's the Difference? (2026)",
     description: "Kanban, Scrum, and Agile compared: how they differ, when to use each, and how to choose.",
     author: { "@type": "Organization", name: "Theta PM Systems" },
     publisher: { "@type": "Organization", name: "Theta PM Systems" },
@@ -39,7 +39,7 @@ export default function KanbanVsScrumVsAgile() {
     <SeoShell>
       <SeoContent
         breadcrumb={["Home", "Guides", "Kanban vs Scrum vs Agile"]}
-        title="Kanban vs Scrum vs Agile: What's the Difference?"
+        title="Kanban vs Scrum vs Agile: What's the Difference? (2026)"
         intro={[
           "If the difference between Agile, Scrum, and Kanban feels fuzzy, you are not alone. They are three overlapping ideas that people use interchangeably — but they are not the same thing.",
           "Here is the simplest way to think about it: Agile is a philosophy, Scrum is a framework built on that philosophy, and Kanban is a method you can use with or without Scrum. This guide explains all three and helps you pick the right one for your team.",
@@ -186,8 +186,8 @@ export default function KanbanVsScrumVsAgile() {
         ]}
         internalLinks={[
           { label: "Kanban Guide", href: "/guides/kanban" },
-          { label: "Task Management Software", href: "/features/tasks" },
-          { label: "Gantt Chart Software", href: "/features/gantt" },
+          { label: "Kanban vs Scrum", href: "/guides/kanban-vs-scrum" },
+          { label: "What Is Agile?", href: "/guides/what-is-agile" },
           { label: "Kanban Board Software", href: "/features/kanban-board" },
           { label: "Best Project Management Software 2026", href: "/project-management-software" },
         ]}

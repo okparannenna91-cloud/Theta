@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://thetapm.site";
 
 export const metadata: Metadata = {
-  title: "Team Collaboration Software: Work Together in Real Time",
+  title: "Team Collaboration Software: Work Together in Real Time (2026)",
   description: "Team collaboration software with comments, mentions, activity feeds, and inbox notifications. Keep discussion next to the work, not lost in chat.",
   alternates: { canonical: `${BASE}/features/collaboration` },
   openGraph: {
-    title: "Team Collaboration Software: Work Together in Real Time",
+    title: "Team Collaboration Software: Work Together in Real Time (2026)",
     description: "Comments, mentions, activity feeds, and inbox notifications.",
     url: `${BASE}/features/collaboration`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Team Collaboration Software: Work Together in Real Time",
+    title: "Team Collaboration Software: Work Together in Real Time (2026)",
     description: "Keep discussion next to the work, not lost in chat.",
     creator: "@theta_pm",
   },
@@ -40,7 +40,7 @@ export default function CollaborationFeature() {
     <SeoShell>
       <SeoContent
         breadcrumb={["Home", "Features", "Collaboration"]}
-        title="Team Collaboration Software That Puts Discussion Next to the Work"
+        title="Team Collaboration Software That Puts Discussion Next to the Work (2026)"
         intro={[
           "Teams that work in one chat app and track work in another spend half their day copying context between them. The fix is not another communication tool — it is collaboration attached to the work itself.",
           "Theta PM keeps every conversation, mention, and update attached to the task it belongs to, in real time. Your team gets the speed of chat with the structure of a project plan.",

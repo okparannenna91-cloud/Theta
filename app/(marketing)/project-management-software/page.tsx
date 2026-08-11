@@ -87,7 +87,7 @@ export default function BestProjectManagementSoftware() {
               },
               {
                 heading: "Best Free Option",
-                body: "Theta PM's free tier covers unlimited tasks, boards, timelines, and team members for small teams. Trello is also solid if you live in boards and never need a timeline or Gantt view.",
+                body: "Theta PM's free tier covers unlimited tasks and timelines for teams of up to five members, plus boards and calendar views. Trello is also solid if you live in boards and never need a timeline or Gantt view.",
               },
               {
                 heading: "Best for Startups",
@@ -119,7 +119,7 @@ export default function BestProjectManagementSoftware() {
             table: {
               headers: ["Tool", "Best For", "Views", "Real-time", "Free Tier"],
               rows: [
-                ["Theta PM", "PM-native teams", "Board, timeline, Gantt, calendar, list", "Yes", "Yes — full small team"],
+                ["Theta PM", "PM-native teams", "Board, timeline, Gantt, calendar, list", "Yes", "Yes — up to 5 members"],
                 ["Asana", "Cross-functional teams", "List, board, timeline, calendar", "Yes", "Limited"],
                 ["Monday.com", "Business operations", "Board-first", "Yes", "Limited"],
                 ["ClickUp", "All-in-one power users", "20+ views", "Yes", "Limited"],
@@ -156,11 +156,11 @@ export default function BestProjectManagementSoftware() {
         faqs={[
           {
             q: "What is the best project management software for small teams?",
-            a: "For small teams, the best tool is one people will actually use without training. Theta PM's free tier covers boards, timelines, and unlimited tasks for small teams, which makes it a strong default. Asana is a solid alternative if you prefer list-first work.",
+            a: "For small teams, the best tool is one people will actually use without training. Theta PM's free tier covers boards, timelines, and unlimited tasks for teams of up to five members, which makes it a strong default. Asana is a solid alternative if you prefer list-first work.",
           },
           {
             q: "Is there good free project management software?",
-            a: "Yes. Theta PM offers a free tier for small teams that includes kanban boards, a timeline, Gantt view, and task management. Trello and Notion also have free tiers, but with fewer views and collaboration features.",
+            a: "Yes. Theta PM offers a free tier for teams of up to five members that includes kanban boards, a timeline, Gantt view, and task management. Trello and Notion also have free tiers, but with fewer views and collaboration features.",
           },
           {
             q: "What is the difference between project management and task management software?",

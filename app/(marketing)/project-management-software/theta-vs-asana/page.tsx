@@ -56,7 +56,7 @@ export default function ThetaVsAsana() {
                 ["Best for", "PM-native teams that want views without bloat", "Cross-functional teams, list-first work"],
                 ["Default views", "Board, timeline, Gantt, calendar", "List, board, timeline, calendar"],
                 ["Real-time updates", "Yes — instant sync", "Yes"],
-                ["Free tier", "Covers a full small team", "Limited"],
+                ["Free tier", "Yes — up to 5 members", "Limited"],
                 ["Automations", "Built in", "Available on paid plans"],
                 ["GitHub integration", "Deep — repos, issues, PRs", "Available via integration"],
                 ["Learning curve", "Gentle", "Gentle to moderate"],
@@ -99,7 +99,7 @@ export default function ThetaVsAsana() {
             h2: "Pricing",
             paragraphs: [
               "Asana's free plan is limited and the paid tiers add per-user cost that climbs with automations, advanced views, and guest seats.",
-              "Theta PM's free tier covers a full small team, and paid plans are priced transparently without a maze of per-seat add-ons for basic views.",
+              "Theta PM's free tier covers a small team of up to five members, and paid plans are priced transparently without a maze of per-seat add-ons for basic views.",
             ],
           },
           {
@@ -134,11 +134,11 @@ export default function ThetaVsAsana() {
           },
           {
             q: "Can I import my Asana projects into Theta PM?",
-            a: "Yes. You can export tasks from Asana and import them into Theta PM projects. The process is designed to keep your structure, so you can switch without losing your plan.",
+            a: "You can export the projects and tasks you need from Asana and set them up in Theta PM, and most teams run both tools side by side for a week or two during the switch. The Asana integration also keeps work in sync while you migrate.",
           },
           {
             q: "Does Theta PM have a free plan?",
-            a: "Yes. Theta PM's free tier covers a full small team with unlimited tasks, boards, timelines, and Gantt view.",
+            a: "Yes. Theta PM's free tier covers a small team of up to five members with unlimited tasks and timelines, plus boards and Gantt view.",
           },
           {
             q: "Which tool is easier to learn?",

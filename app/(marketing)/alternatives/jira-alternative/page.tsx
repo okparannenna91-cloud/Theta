@@ -75,7 +75,7 @@ export default function JiraAlternative() {
             table: {
               headers: ["Alternative", "Best For", "Views", "GitHub Sync", "Free Tier"],
               rows: [
-                ["Theta PM", "PM-native teams & small dev teams", "Board, timeline, Gantt, calendar", "Deep — repos, issues, PRs", "Full small team"],
+                ["Theta PM", "PM-native teams & small dev teams", "Board, timeline, Gantt, calendar", "Deep — repos, issues, PRs", "Up to 5 members"],
                 ["Asana", "Cross-functional teams", "List, board, timeline", "Via integration", "Limited"],
                 ["Monday.com", "Business operations", "Board-first", "Via integration", "Limited"],
                 ["ClickUp", "All-in-one power users", "20+ views", "Via integration", "Limited"],
@@ -105,7 +105,7 @@ export default function JiraAlternative() {
             ],
             bullets: [
               "Export your active projects and issues — leave the archive behind.",
-              "Map your Jira workflow columns to your new board columns before importing.",
+              "Map your Jira workflow columns to your new board columns as you set up.",
               "Set up GitHub integration first so issues continue to sync from day one.",
               "Run both tools in parallel for one or two sprints.",
               "Review statuses and reports after the first month, then tune the workflow.",
@@ -114,7 +114,7 @@ export default function JiraAlternative() {
           {
             h2: "Free Jira Alternatives",
             paragraphs: [
-              "Yes, there are genuinely free Jira alternatives. Theta PM's free tier covers a full small team with boards, timeline, Gantt, and integrations. Trello is free for basic kanban work, and Notion is free for lightweight task management.",
+              "Yes, there are genuinely free Jira alternatives. Theta PM's free tier covers a small team of up to five members with boards, timeline, Gantt, and one integration. Trello is free for basic kanban work, and Notion is free for lightweight task management.",
               "The catch with most free tiers is limits on users, automations, and views. Check the limits at your team size before committing.",
             ],
           },
@@ -122,11 +122,11 @@ export default function JiraAlternative() {
         faqs={[
           {
             q: "What is the best Jira alternative for small teams?",
-            a: "Theta PM is a strong choice for small teams: free tier covers a full small team, setup takes minutes, and you get boards, timeline, and Gantt without configuration overhead. Trello is also good if you only need kanban.",
+            a: "Theta PM is a strong choice for small teams: the free tier covers a team of up to five members, setup takes minutes, and you get boards, timeline, and Gantt without configuration overhead. Trello is also good if you only need kanban.",
           },
           {
             q: "Is there a free Jira alternative?",
-            a: "Yes. Theta PM has a free tier for small teams that includes boards, timeline, Gantt view, and GitHub integration. Trello and Notion also offer free plans with more limited features.",
+            a: "Yes. Theta PM has a free tier for teams of up to five members that includes boards, timeline, Gantt view, and one integration like GitHub. Trello and Notion also offer free plans with more limited features.",
           },
           {
             q: "Which Jira alternative is best for software teams?",
@@ -134,7 +134,7 @@ export default function JiraAlternative() {
           },
           {
             q: "Can I import my Jira projects?",
-            a: "Yes. You can export your projects and issues from Jira and import them into Theta PM, then map your workflow columns to your new board.",
+            a: "You can export your active projects and issues from Jira and recreate them in Theta PM, mapping your workflow columns to your new board as you go. For dev teams, the GitHub integration brings issues and PRs in automatically.",
           },
           {
             q: "Is switching from Jira worth it?",
@@ -145,7 +145,7 @@ export default function JiraAlternative() {
           { label: "Best Project Management Software 2026", href: "/project-management-software" },
           { label: "Theta PM vs Asana", href: "/project-management-software/theta-vs-asana" },
           { label: "Kanban vs Scrum vs Agile", href: "/guides/kanban-vs-scrum-vs-agile" },
-          { label: "Kanban Guide", href: "/guides/kanban" },
+          { label: "Task Management Software", href: "/features/tasks" },
           { label: "Gantt Chart Software", href: "/features/gantt" },
           { label: "Pricing", href: "/pricing" },
         ]}

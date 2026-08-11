@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://thetapm.site";
 
 export const metadata: Metadata = {
-  title: "Gantt Chart Software: Plan, Sequence, and Track",
+  title: "Gantt Chart Software: Plan, Sequence, and Track (2026)",
   description: "Gantt chart software with dependencies, scheduling, and real-time updates. See the whole project on one timeline and keep it in sync with daily work.",
   alternates: { canonical: `${BASE}/features/gantt` },
   openGraph: {
-    title: "Gantt Chart Software: Plan, Sequence, and Track",
+    title: "Gantt Chart Software: Plan, Sequence, and Track (2026)",
     description: "Dependencies, scheduling, and real-time updates on one timeline.",
     url: `${BASE}/features/gantt`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Gantt Chart Software: Plan, Sequence, and Track",
+    title: "Gantt Chart Software: Plan, Sequence, and Track (2026)",
     description: "See the whole project on one timeline.",
     creator: "@theta_pm",
   },
@@ -40,7 +40,7 @@ export default function GanttFeature() {
     <SeoShell>
       <SeoContent
         breadcrumb={["Home", "Features", "Gantt"]}
-        title="Gantt Chart Software for Teams That Plan in Time"
+        title="Gantt Chart Software for Teams That Plan in Time (2026)"
         intro={[
           "A Gantt chart shows the entire project on one timeline: what starts when, what overlaps, and what depends on what. It is the view project managers reach for when a simple list cannot answer 'will we actually finish on time?'",
           "Theta PM's Gantt view turns your tasks into a live schedule with dependencies and working-day scheduling — and because it reads from the same tasks as your board, the chart never drifts from the work.",

@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://thetapm.site";
 
 export const metadata: Metadata = {
-  title: "How to Use Kanban Boards: A Practical Guide",
+  title: "How to Use Kanban Boards: A Practical Guide (2026)",
   description: "Learn how to use kanban boards the right way: visualize work, set up columns, limit work in progress, and keep flow healthy. Practical guide with examples.",
   alternates: { canonical: `${BASE}/guides/kanban` },
   openGraph: {
-    title: "How to Use Kanban Boards: A Practical Guide",
+    title: "How to Use Kanban Boards: A Practical Guide (2026)",
     description: "Visualize work, set up columns, limit WIP, and keep flow healthy.",
     url: `${BASE}/guides/kanban`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "How to Use Kanban Boards: A Practical Guide",
+    title: "How to Use Kanban Boards: A Practical Guide (2026)",
     description: "The practical kanban guide.",
     creator: "@theta_pm",
   },
@@ -27,7 +27,7 @@ const pageSchema = [
   {
     "@context": "https://schema.org",
     "@type": "HowTo",
-    name: "How to Use Kanban Boards",
+    name: "How to Use Kanban Boards (2026)",
     description: "A practical guide to using kanban boards: visualize work, set up columns, limit work in progress, and keep flow healthy.",
     step: [
       { "@type": "HowToStep", name: "Visualize your workflow", text: "Turn every stage of your work into a column." },
@@ -43,7 +43,7 @@ export default function KanbanGuide() {
     <SeoShell>
       <SeoContent
         breadcrumb={["Home", "Guides", "Kanban"]}
-        title="How to Use Kanban Boards: A Practical Guide"
+        title="How to Use Kanban Boards: A Practical Guide (2026)"
         intro={[
           "Kanban boards are one of the simplest ways to manage work — a few columns, a stack of cards, and a set of rules you can explain in two minutes. Yet most teams get less out of them than they could, because they copy a generic template without matching it to their own workflow.",
           "This guide walks through how to set up a kanban board that actually reflects how your team works, how to limit work in progress, and how to keep work flowing without constant meetings.",
@@ -156,7 +156,7 @@ export default function KanbanGuide() {
         internalLinks={[
           { label: "Kanban vs Scrum vs Agile", href: "/guides/kanban-vs-scrum-vs-agile" },
           { label: "Kanban Board Software", href: "/features/kanban-board" },
-          { label: "Theta PM vs Asana", href: "/project-management-software/theta-vs-asana" },
+          { label: "Kanban vs Scrum", href: "/guides/kanban-vs-scrum" },
           { label: "Task Management Software", href: "/features/tasks" },
           { label: "Best Project Management Software 2026", href: "/project-management-software" },
         ]}

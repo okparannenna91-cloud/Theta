@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://thetapm.site";
 
 export const metadata: Metadata = {
-  title: "Project Planning Software: From Idea to Timeline",
+  title: "Project Planning Software: From Idea to Timeline (2026)",
   description: "Project planning software with milestones, timelines, dependencies, and Gantt charts. Plan the whole project, keep the roadmap visible, and adapt as you learn.",
   alternates: { canonical: `${BASE}/features/project-planning` },
   openGraph: {
-    title: "Project Planning Software: From Idea to Timeline",
+    title: "Project Planning Software: From Idea to Timeline (2026)",
     description: "Milestones, timelines, dependencies, and Gantt charts in one place.",
     url: `${BASE}/features/project-planning`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Project Planning Software: From Idea to Timeline",
+    title: "Project Planning Software: From Idea to Timeline (2026)",
     description: "Plan the whole project and keep the roadmap visible.",
     creator: "@theta_pm",
   },
@@ -40,7 +40,7 @@ export default function ProjectPlanningFeature() {
     <SeoShell>
       <SeoContent
         breadcrumb={["Home", "Features", "Project Planning"]}
-        title="Project Planning Software: From Idea to Timeline"
+        title="Project Planning Software: From Idea to Timeline (2026)"
         intro={[
           "A good plan answers three questions before anyone starts: what are we building, in what order, and by when. Teams that skip the plan pay for it later — in missed dates, unclear ownership, and scope that quietly grows.",
           "Theta PM turns project planning into something you do in minutes, not workshops. Set milestones, lay out the timeline, add dependencies, and keep the roadmap visible to everyone who needs it.",
