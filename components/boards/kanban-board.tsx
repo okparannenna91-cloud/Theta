@@ -2,6 +2,7 @@
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { StatusCategory, inferStatusCategory } from "@/lib/constants/status";
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -91,6 +92,7 @@ import { UserAvatar } from "@/components/ui/user-avatar";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useAbly } from "@/hooks/use-ably";
 import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
+import { useStatuses } from "@/hooks/use-statuses";
 import { usePopups } from "@/components/popups/popup-manager";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { getBoardChannel } from "@/lib/ably";
@@ -102,11 +104,11 @@ async function fetchBoard(id: string) {
   return res.json();
 }
 
-async function createColumn(boardId: string, name: string) {
+async function createColumn(boardId: string, name: string, category?: string) {
   const res = await fetch(`/api/boards/${boardId}/columns`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name }),
+    body: JSON.stringify({ name, ...(category && { category }) }),
   });
   if (!res.ok) throw new Error("Failed to create column");
   return res.json();
@@ -460,6 +462,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [newColumnName, setNewColumnName] = useState("");
+  const [newColumnCategory, setNewColumnCategory] = useState<string>(StatusCategory.TODO);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [targetColumnId, setTargetColumnId] = useState<string | null>(null);
 
@@ -579,6 +582,8 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     enabled: !!boardId,
   });
 
+  const { data: dbStatuses = [] } = useStatuses(activeWorkspaceId, board?.projectId);
+
   const { data: customFields = [] } = useQuery({
     queryKey: ["custom-fields", boardId],
     queryFn: async () => {
@@ -641,11 +646,13 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   );
 
   const createColumnMutation = useMutation({
-    mutationFn: (name: string) => createColumn(boardId, name),
+    mutationFn: ({ name, category }: { name: string; category: string }) =>
+      createColumn(boardId, name, category),
     onSuccess: () => {
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
       setIsColumnDialogOpen(false);
       setNewColumnName("");
+      setNewColumnCategory(StatusCategory.TODO);
       toast.success("Column created");
     },
   });
@@ -724,6 +731,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
   const [editingColumn, setEditingColumn] = useState<any>(null);
   const [colName, setColName] = useState("");
+  const [colCategory, setColCategory] = useState<string>(StatusCategory.TODO);
   const [colWip, setColWip] = useState<number | null>(null);
   const [colColor, setColColor] = useState("#4f46e5");
 
@@ -766,6 +774,18 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       toast.success("Column updated");
     },
   });
+
+  // Auto-suggest the semantic category from the column name while typing
+  useEffect(() => {
+    const inferred = inferStatusCategory(newColumnName);
+    if (inferred) setNewColumnCategory(inferred);
+  }, [newColumnName]);
+
+  useEffect(() => {
+    if (!editingColumn) return;
+    const inferred = inferStatusCategory(colName);
+    if (inferred) setColCategory(inferred);
+  }, [colName, editingColumn]);
 
   const batchDeleteMutation = useMutation({
     mutationFn: async (taskIds: string[]) => {
@@ -1045,6 +1065,10 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const handleOpenColumnSettings = (column: any) => {
     setEditingColumn(column);
     setColName(column.name);
+    const matchingStatus = dbStatuses.find(
+      (s: any) => s.name.toLowerCase() === (column.name || "").toLowerCase()
+    );
+    setColCategory(matchingStatus?.category || inferStatusCategory(column.name) || StatusCategory.TODO);
     setColWip(column.wipLimit);
     setColColor(column.color || "#4f46e5");
   };
@@ -1293,10 +1317,25 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               <Label htmlFor="new-col-name">Column Name</Label>
               <Input id="new-col-name" placeholder="e.g., In Progress" value={newColumnName} onChange={(e) => setNewColumnName(e.target.value)} />
             </div>
+            <div className="space-y-2">
+              <Label htmlFor="new-col-category">Category</Label>
+              <Select value={newColumnCategory} onValueChange={setNewColumnCategory}>
+                <SelectTrigger id="new-col-category" className="w-full">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={StatusCategory.TODO}>To Do / Not Started</SelectItem>
+                  <SelectItem value={StatusCategory.IN_PROGRESS}>In Progress</SelectItem>
+                  <SelectItem value={StatusCategory.DONE}>Done / Completed</SelectItem>
+                  <SelectItem value={StatusCategory.BLOCKED}>Blocked</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Controls how Theta counts tasks in this column (completion, analytics, calendar, timeline).</p>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setIsColumnDialogOpen(false)}>Cancel</Button>
-            <Button onClick={() => createColumnMutation.mutate(newColumnName)} disabled={!newColumnName || createColumnMutation.isPending}>
+            <Button onClick={() => createColumnMutation.mutate({ name: newColumnName, category: newColumnCategory })} disabled={!newColumnName || createColumnMutation.isPending}>
               Create
             </Button>
           </DialogFooter>
@@ -1315,6 +1354,21 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               <Input id="edit-col-name" value={colName} onChange={(e) => setColName(e.target.value)} />
             </div>
             <div className="space-y-2">
+              <Label htmlFor="edit-col-category">Category</Label>
+              <Select value={colCategory} onValueChange={setColCategory}>
+                <SelectTrigger id="edit-col-category" className="w-full">
+                  <SelectValue placeholder="Select category" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={StatusCategory.TODO}>To Do / Not Started</SelectItem>
+                  <SelectItem value={StatusCategory.IN_PROGRESS}>In Progress</SelectItem>
+                  <SelectItem value={StatusCategory.DONE}>Done / Completed</SelectItem>
+                  <SelectItem value={StatusCategory.BLOCKED}>Blocked</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Controls how Theta counts tasks in this column (completion, analytics, calendar, timeline).</p>
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="col-wip">WIP Limit</Label>
               <Input id="col-wip" type="number" value={colWip ?? ""} onChange={(e) => setColWip(e.target.value ? parseInt(e.target.value) : null)} placeholder="No limit" />
             </div>
@@ -1325,7 +1379,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditingColumn(null)}>Cancel</Button>
-            <Button onClick={() => updateColumnMutation.mutate({ id: editingColumn.id, name: colName, wipLimit: colWip, color: colColor })} disabled={!colName}>
+            <Button onClick={() => updateColumnMutation.mutate({ id: editingColumn.id, name: colName, wipLimit: colWip, color: colColor, category: colCategory })} disabled={!colName}>
               Save
             </Button>
           </DialogFooter>

@@ -4,11 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { logger } from "@/lib/logger";
 import { publishToChannel, getWorkspaceChannel } from "@/lib/ably";
+import { StatusCategory, inferStatusCategory } from "@/lib/constants/status";
 
 const statusSchema = z.object({
     name: z.string().min(1).max(50),
     color: z.string().optional(),
     order: z.number().int().optional(),
+    category: z.enum(["TODO", "IN_PROGRESS", "DONE", "BLOCKED"]).optional(),
     projectId: z.string(),
 });
 
@@ -109,6 +111,7 @@ export async function POST(
                 order,
                 projectId: data.projectId,
                 workspaceId: params.id,
+                category: data.category ?? inferStatusCategory(data.name) ?? StatusCategory.TODO,
             },
         });
 

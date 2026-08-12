@@ -6,6 +6,7 @@ import { enforcePlanLimit, getPlanLimits } from "@/lib/plan-limits";
 import { getProjectCount } from "@/lib/usage-tracking";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
 import { createActivity } from "@/lib/activity";
+import { StatusCategory, inferStatusCategory } from "@/lib/constants/status";
 import { z } from "zod";
 
 const projectSchema = z.object({
@@ -273,6 +274,7 @@ export async function POST(req: Request) {
           order: i,
           projectId: project.id,
           workspaceId: project.workspaceId,
+          category: inferStatusCategory(defaultColumns[i]) ?? StatusCategory.TODO,
         },
       });
 

@@ -156,6 +156,19 @@ export function isBlockedStatus(status: string | null | undefined, category?: st
   return s === "blocked" || s.includes("block");
 }
 
+/**
+ * Infer a status's semantic category from its display name (name-based detection).
+ * Used when a status is created without an explicit category (default statuses,
+ * imported statuses, board columns, backfill).
+ */
+export function inferStatusCategory(name: string | null | undefined): StatusCategory | null {
+  if (isDoneStatus(name)) return StatusCategory.DONE;
+  if (isBlockedStatus(name)) return StatusCategory.BLOCKED;
+  if (isInProgressStatus(name)) return StatusCategory.IN_PROGRESS;
+  if (isTodoStatus(name)) return StatusCategory.TODO;
+  return null;
+}
+
 export const PRIORITY_LOW = "low";
 export const PRIORITY_MEDIUM = "medium";
 export const PRIORITY_HIGH = "high";

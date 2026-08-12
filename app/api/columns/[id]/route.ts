@@ -15,6 +15,7 @@ const columnSchema = z.object({
     width: z.number().optional(),
     visible: z.boolean().optional(),
     pinned: z.boolean().optional(),
+    category: z.enum(["TODO", "IN_PROGRESS", "DONE", "BLOCKED"]).optional(),
 });
 
 export async function PATCH(
@@ -65,16 +66,18 @@ export async function PATCH(
             },
         });
 
-        // If column name changed, rename the matching Status and update all tasks
-        if (data.name && data.name !== column.name) {
-            const matchingStatus = await prisma.status.findFirst({
-                where: {
-                    projectId: board.projectId,
-                    name: { equals: column.name, mode: "insensitive" },
-                },
-            });
+        // Keep the matching Status (name + category) in sync with this column
+        const matchingStatus = await prisma.status.findFirst({
+            where: {
+                projectId: board.projectId,
+                name: { equals: column.name, mode: "insensitive" },
+            },
+        });
 
-            if (matchingStatus) {
+        if (matchingStatus) {
+            const wantsCategoryChange = data.category !== undefined && matchingStatus.category !== data.category;
+
+            if (data.name && data.name !== column.name) {
                 // Check uniqueness before renaming
                 const conflict = await prisma.status.findFirst({
                     where: {
@@ -92,6 +95,7 @@ export async function PATCH(
                         data: {
                             name: data.name,
                             ...(data.color !== undefined && { color: data.color }),
+                            ...(wantsCategoryChange && { category: data.category }),
                         },
                     });
 
@@ -101,6 +105,11 @@ export async function PATCH(
                         data: { status: slug },
                     });
                 }
+            } else if (wantsCategoryChange) {
+                await prisma.status.update({
+                    where: { id: matchingStatus.id },
+                    data: { category: data.category },
+                });
             }
         }
         

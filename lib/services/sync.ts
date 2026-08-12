@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { enforcePlanLimit } from "@/lib/plan-limits";
 import { getProjectCount } from "@/lib/usage-tracking";
 import { createActivity } from "@/lib/activity";
+import { StatusCategory, inferStatusCategory } from "@/lib/constants/status";
 
 export interface NormalizedSyncItem {
   externalId: string;
@@ -362,6 +363,7 @@ export async function createLinkedProject(
           order: i,
           projectId: project.id,
           workspaceId: project.workspaceId,
+          category: inferStatusCategory(columnNames[i]) ?? StatusCategory.TODO,
         },
       }));
 

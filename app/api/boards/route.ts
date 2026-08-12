@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { getPlanLimits } from "@/lib/plan-limits";
 import { getAccessibleProjectIds, requireProjectAccess } from "@/lib/project-permissions";
+import { StatusCategory, inferStatusCategory } from "@/lib/constants/status";
 import { z } from "zod";
 
 const boardSchema = z.object({
@@ -200,6 +201,7 @@ export async function POST(req: Request) {
             order: i,
             projectId: data.projectId,
             workspaceId: project.workspaceId,
+            category: inferStatusCategory(defaultColumns[i]) ?? StatusCategory.TODO,
           },
         });
       }

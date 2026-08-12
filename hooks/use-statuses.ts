@@ -9,6 +9,7 @@ export interface Status {
     order: number;
     projectId: string;
     workspaceId: string;
+    category?: string | null;
 }
 
 async function fetchStatuses(workspaceId: string, projectId: string): Promise<Status[]> {

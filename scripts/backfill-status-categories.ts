@@ -2,10 +2,7 @@ import "./load-env";
 import { PrismaClient } from "@prisma/client";
 import {
   StatusCategory,
-  isTodoStatus,
-  isInProgressStatus,
-  isDoneStatus,
-  isBlockedStatus,
+  inferStatusCategory,
 } from "../lib/constants/status";
 
 const prisma = new PrismaClient();
@@ -26,14 +23,6 @@ const prisma = new PrismaClient();
  *
  * Run: npx tsx scripts/backfill-status-categories.ts
  */
-function inferCategory(name: string): StatusCategory | null {
-  if (isDoneStatus(name)) return StatusCategory.DONE;
-  if (isBlockedStatus(name)) return StatusCategory.BLOCKED;
-  if (isInProgressStatus(name)) return StatusCategory.IN_PROGRESS;
-  if (isTodoStatus(name)) return StatusCategory.TODO;
-  return null;
-}
-
 async function main() {
   const statuses = await prisma.status.findMany({
     select: { id: true, name: true, category: true },
@@ -45,7 +34,7 @@ async function main() {
   const leftAlone = new Set<string>();
 
   for (const s of statuses) {
-    const inferred = inferCategory(s.name);
+    const inferred = inferStatusCategory(s.name);
     const current = s.category ? s.category.toUpperCase() : null;
 
     if (!inferred) {

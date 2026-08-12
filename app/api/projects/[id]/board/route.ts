@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { requireProjectAccess } from "@/lib/project-permissions";
+import { StatusCategory, inferStatusCategory } from "@/lib/constants/status";
 
 export async function GET(
   req: Request,
@@ -61,6 +62,7 @@ export async function GET(
             order: i,
             projectId: params.id,
             workspaceId: project.workspaceId,
+            category: inferStatusCategory(defaultColumns[i]) ?? StatusCategory.TODO,
           },
         });
 

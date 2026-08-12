@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { requireProjectWriteAccess } from "@/lib/project-permissions";
 import { publishToChannel, getBoardChannel } from "@/lib/ably";
+import { StatusCategory, inferStatusCategory } from "@/lib/constants/status";
 
 const columnSchema = z.object({
     name: z.string().min(1),
@@ -12,6 +13,7 @@ const columnSchema = z.object({
     settings: z.any().optional(),
     width: z.number().optional(),
     color: z.string().optional(),
+    category: z.enum(["TODO", "IN_PROGRESS", "DONE", "BLOCKED"]).optional(),
 });
 
 export async function POST(
@@ -75,6 +77,7 @@ export async function POST(
                     order: (lastStatus?.order ?? -1) + 1,
                     projectId: board.projectId,
                     workspaceId: board.workspaceId,
+                    category: data.category ?? inferStatusCategory(data.name) ?? StatusCategory.TODO,
                 },
             });
         }
