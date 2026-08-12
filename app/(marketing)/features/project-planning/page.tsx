@@ -121,6 +121,8 @@ export default function ProjectPlanningFeature() {
           { label: "Team Collaboration Software", href: "/features/collaboration" },
           { label: "Gantt Chart Software", href: "/features/gantt" },
           { label: "Kanban Guide", href: "/guides/kanban" },
+          { label: "Project Timeline Software", href: "/features/timeline" },
+          { label: "Theta PM vs Wrike", href: "/project-management-software/theta-vs-wrike" },
           { label: "Task Management Software", href: "/features/tasks" },
           { label: "Best Project Management Software 2026", href: "/project-management-software" },
         ]}

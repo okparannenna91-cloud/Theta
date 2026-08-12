@@ -126,6 +126,8 @@ export default function GanttFeature() {
           { label: "Task Management Software", href: "/features/tasks" },
           { label: "Project Planning Software", href: "/features/project-planning" },
           { label: "Kanban Board Software", href: "/features/kanban-board" },
+          { label: "What is a Gantt Chart", href: "/guides/what-is-a-gantt-chart" },
+          { label: "Microsoft Project Alternative", href: "/alternatives/microsoft-project-alternative" },
           { label: "Jira Alternative", href: "/alternatives/jira-alternative" },
           { label: "Best Project Management Software 2026", href: "/project-management-software" },
         ]}

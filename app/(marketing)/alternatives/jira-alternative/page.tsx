@@ -143,7 +143,7 @@ export default function JiraAlternative() {
         ]}
         internalLinks={[
           { label: "Best Project Management Software 2026", href: "/project-management-software" },
-          { label: "Theta PM vs Asana", href: "/project-management-software/theta-vs-asana" },
+          { label: "Theta PM vs Jira", href: "/project-management-software/theta-vs-jira" },
           { label: "Kanban vs Scrum vs Agile", href: "/guides/kanban-vs-scrum-vs-agile" },
           { label: "Task Management Software", href: "/features/tasks" },
           { label: "Gantt Chart Software", href: "/features/gantt" },
