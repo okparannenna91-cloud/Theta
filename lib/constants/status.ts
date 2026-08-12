@@ -1,3 +1,23 @@
+// Canonical status categories
+export const StatusCategory = {
+  TODO: "TODO" as const,
+  IN_PROGRESS: "IN_PROGRESS" as const,
+  DONE: "DONE" as const,
+  BLOCKED: "BLOCKED" as const,
+} as const;
+
+export type StatusCategory = typeof StatusCategory[keyof typeof StatusCategory];
+
+export const STATUS_CATEGORY_VALUES = [
+  StatusCategory.TODO,
+  StatusCategory.IN_PROGRESS,
+  StatusCategory.DONE,
+  StatusCategory.BLOCKED,
+] as const;
+
+export const ACTIVE_CATEGORIES = [StatusCategory.TODO, StatusCategory.IN_PROGRESS] as const;
+export const COMPLETED_CATEGORIES = [StatusCategory.DONE] as const;
+
 // Canonical status values — "done" is the single terminal value, "completed" removed
 export const STATUS_TODO = "todo";
 export const STATUS_IN_PROGRESS = "in_progress";
@@ -26,6 +46,7 @@ function normalize(value: string | null | undefined): string {
 
 // Terminal states. Tasks' statuses are slugified from kanban column names
 // (e.g. "Complete" -> "complete"), so custom columns must be recognized here too.
+// These are the traditional "done" status names that count as completed.
 const DONE_STATUSES = new Set([
   "done",
   "completed",
@@ -43,13 +64,6 @@ const DONE_STATUSES = new Set([
   "delivered",
 ]);
 
-export function isDoneStatus(status: string | null | undefined): boolean {
-  const s = normalize(status);
-  if (!s) return false;
-  if (DONE_STATUSES.has(s)) return true;
-  return s.includes("done") || s.includes("complete");
-}
-
 // Initial states. Same slugification caveat as above ("Not Started" -> "not_started").
 const TODO_STATUSES = new Set([
   "todo",
@@ -65,13 +79,6 @@ const TODO_STATUSES = new Set([
   "new",
 ]);
 
-export function isTodoStatus(status: string | null | undefined): boolean {
-  const s = normalize(status);
-  if (!s) return false;
-  if (TODO_STATUSES.has(s)) return true;
-  return s.includes("todo") || s.includes("backlog") || s.includes("not_started") || s.includes("queued");
-}
-
 // Column-name variants of the above for kanban board logic
 export function isDoneColumnName(name: string | null | undefined): boolean {
   return isDoneStatus(name);
@@ -79,6 +86,74 @@ export function isDoneColumnName(name: string | null | undefined): boolean {
 
 export function isTodoColumnName(name: string | null | undefined): boolean {
   return isTodoStatus(name);
+}
+
+/**
+ * Check if a status represents a "done" category.
+ * Accepts an optional semantic category (e.g. from the Status model's category field).
+ * When category is provided it wins; otherwise falls back to name-based detection.
+ */
+export function isDoneStatus(status: string | null | undefined, category?: string | null): boolean {
+  // If category is provided, use semantic category check
+  if (category) {
+    return category.toUpperCase() === StatusCategory.DONE;
+  }
+
+  const s = normalize(status);
+  if (!s) return false;
+  if (DONE_STATUSES.has(s)) return true;
+  return s.includes("done") || s.includes("complete");
+}
+
+/**
+ * Check if a status represents a "todo" category.
+ * Accepts an optional semantic category (e.g. from the Status model's category field).
+ * When category is provided it wins; otherwise falls back to name-based detection.
+ */
+export function isTodoStatus(status: string | null | undefined, category?: string | null): boolean {
+  // If category is provided, use semantic category check
+  if (category) {
+    return category.toUpperCase() === StatusCategory.TODO;
+  }
+
+  const s = normalize(status);
+  if (!s) return false;
+  if (TODO_STATUSES.has(s)) return true;
+  return s.includes("todo") || s.includes("backlog") || s.includes("not_started") || s.includes("queued");
+}
+
+/**
+ * Check if a status represents "in progress" category.
+ * Accepts an optional semantic category (e.g. from the Status model's category field).
+ * When category is provided it wins; otherwise falls back to name-based detection.
+ */
+export function isInProgressStatus(status: string | null | undefined, category?: string | null): boolean {
+  // If category is provided, use semantic category check
+  if (category) {
+    return category.toUpperCase() === StatusCategory.IN_PROGRESS;
+  }
+
+  const s = normalize(status);
+  if (!s) return false;
+  // Check against known in-progress variants
+  const inProgressKeywords = ["in_progress", "in-progress", "in progress", "working", "review"];
+  return inProgressKeywords.some((kw) => s === kw || s.includes(kw));
+}
+
+/**
+ * Check if a status represents "blocked" category.
+ * Accepts an optional semantic category (e.g. from the Status model's category field).
+ * When category is provided it wins; otherwise falls back to name-based detection.
+ */
+export function isBlockedStatus(status: string | null | undefined, category?: string | null): boolean {
+  // If category is provided, use semantic category check
+  if (category) {
+    return category.toUpperCase() === StatusCategory.BLOCKED;
+  }
+
+  const s = normalize(status);
+  if (!s) return false;
+  return s === "blocked" || s.includes("block");
 }
 
 export const PRIORITY_LOW = "low";

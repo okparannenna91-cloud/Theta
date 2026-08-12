@@ -5,6 +5,7 @@ import {
   differenceInDays, isToday, isWeekend, format, parseISO
 } from "date-fns";
 import type { ZoomLevel } from "@/components/shared/timeline/types";
+import { StatusCategory } from "@/lib/constants/status";
 
 export const ROW_HEIGHT = 52;
 export const LANE_HEADER_HEIGHT = 40;
@@ -140,7 +141,16 @@ export function getDateFromX(x: number, timelineStart: Date, cellWidth: number):
   return addDays(startOfDay(timelineStart), daysOffset);
 }
 
-export function getStatusColor(status: string): string {
+export function getStatusColor(status: string | null | undefined, category?: string | null): string {
+  // Use semantic category for color if available
+  if (category) {
+    const cat = category.toUpperCase();
+    if (cat === StatusCategory.TODO) return "#64748b";
+    if (cat === StatusCategory.IN_PROGRESS) return "#3b82f6";
+    if (cat === StatusCategory.DONE) return "#22c55e";
+    if (cat === StatusCategory.BLOCKED) return "#ef4444";
+  }
+  
   const colors: Record<string, string> = {
     todo: "#64748b",
     in_progress: "#3b82f6",
@@ -149,7 +159,7 @@ export function getStatusColor(status: string): string {
     backlog: "#a855f7",
     review: "#f59e0b",
   };
-  return colors[status] || "#64748b";
+  return colors[(status || "") as string] || "#64748b";
 }
 
 export function getPriorityColor(priority: string): string {

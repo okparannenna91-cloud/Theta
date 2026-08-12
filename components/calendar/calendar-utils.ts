@@ -8,6 +8,7 @@ import {
 } from "date-fns";
 import { getStatusColor, getPriorityColor } from "@/components/timeline/timeline-utils";
 import type { CalendarEvent, CalendarViewType, EventPlacement } from "./calendar-types";
+import { isDoneStatus } from "@/lib/constants/status";
 
 export const DAY_HEADERS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 export const DAY_HEADERS_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
@@ -92,11 +93,11 @@ export function taskToCalendarEvent(task: any): CalendarEvent | null {
 
   const now = new Date();
   const isMultiDay = !isSameDay(effectiveStart, effectiveEnd);
-  const isOverdue = isBefore(effectiveEnd, now) && task.status !== "done" && task.status !== "cancelled";
+  const isOverdue = isBefore(effectiveEnd, now) && !isDoneStatus(task.status, task.customStatus?.category) && task.status !== "cancelled";
   const isDueToday = isToday(effectiveEnd);
 
-  const color = task.color || getStatusColor(task.status);
-  const isCompleted = task.status === "done";
+  const color = task.color || getStatusColor(task.status, task.customStatus?.category);
+  const isCompleted = isDoneStatus(task.status, task.customStatus?.category);
 
   return {
     id: task.id,
@@ -161,7 +162,7 @@ export function getDateRangeFromDrop(dropDay: Date, draggedEvent: CalendarEvent)
 }
 
 export function getTaskColor(task: any): string {
-  return task.color || getStatusColor(task.status);
+  return task.color || getStatusColor(task.status, task.customStatus?.category);
 }
 
 export { getStatusColor, getPriorityColor };

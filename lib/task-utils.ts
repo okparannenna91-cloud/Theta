@@ -1,10 +1,51 @@
 import { prisma } from "@/lib/prisma";
 import { publishToChannel, getWorkspaceChannel, getTaskChannel } from "@/lib/ably";
+import {
+  isDoneStatus,
+  isTodoStatus,
+  isInProgressStatus,
+  isBlockedStatus,
+  StatusCategory,
+} from "@/lib/constants/status";
 
 const COMPLETION_KEYWORDS = ["done", "complete", "finished", "approved"];
 
-function isCompletedStatus(status: string): boolean {
+function isCompletedStatus(status: string | null | undefined, category?: string | null): boolean {
+  // If category is provided, use semantic category check
+  if (category) {
+    return category.toUpperCase() === StatusCategory.DONE;
+  }
+
   return COMPLETION_KEYWORDS.some((kw) => (status || "").toLowerCase().includes(kw));
+}
+
+/**
+ * Get the semantic category for a task's status.
+ * Looks up the Status model via statusId, falls back to name-based detection.
+ */
+export async function getTaskStatusCategory(
+  task: any,
+  prismaClient: any
+): Promise<StatusCategory | null> {
+  // Try to get category from the Status model via statusId
+  if (task.statusId) {
+    const status = await prismaClient.status.findUnique({
+      where: { id: task.statusId },
+      select: { category: true },
+    });
+    if (status?.category) {
+      return status.category as StatusCategory;
+    }
+  }
+  
+  // Fall back to name-based detection from the raw status string
+  const status = task.status || "";
+  if (isTodoStatus(status)) return StatusCategory.TODO;
+  if (isInProgressStatus(status)) return StatusCategory.IN_PROGRESS;
+  if (isDoneStatus(status)) return StatusCategory.DONE;
+  if (isBlockedStatus(status)) return StatusCategory.BLOCKED;
+  
+  return null;
 }
 
 /**
@@ -28,6 +69,7 @@ export async function updateParentTask(parentId: string, workspaceId: string) {
     select: {
       progress: true,
       status: true,
+      statusId: true,
       startDate: true,
       dueDate: true,
       estimatedHours: true,
@@ -41,7 +83,21 @@ export async function updateParentTask(parentId: string, workspaceId: string) {
     children.reduce((acc: number, child: any) => acc + (child.progress || 0), 0) / children.length
   );
 
-  const completedCount = children.filter((c: any) => isCompletedStatus(c.status)).length;
+  // Get the semantic category for each child's status (from Status model, name-based fallback)
+  const childStatusIds = Array.from(
+    new Set(children.map((c: any) => c.statusId).filter((id): id is string => Boolean(id)))
+  );
+  const statusCategories = childStatusIds.length > 0
+    ? await prisma.status.findMany({
+        where: { id: { in: childStatusIds } },
+        select: { id: true, category: true },
+      })
+    : [];
+  const categoryById = new Map(statusCategories.map((s) => [s.id, s.category]));
+
+  const completedCount = children.filter(
+    (c: any) => isCompletedStatus(c.status, categoryById.get(c.statusId || "") || null)
+  ).length;
 
   const totalEstimated = children.reduce((acc: number, child: any) => acc + (child.estimatedHours || 0), 0);
   const totalLogged = children.reduce((acc: number, child: any) => acc + (child.timeSpent || 0), 0);

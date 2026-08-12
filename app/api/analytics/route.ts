@@ -5,6 +5,7 @@ import { verifyWorkspaceAccess } from "@/lib/workspace";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
 import { getPlanLimits } from "@/lib/plan-limits";
 import { subDays, isAfter, isBefore, startOfDay, endOfDay, format } from "date-fns";
+import { isDoneStatus, StatusCategory } from "@/lib/constants/status";
 
 type TaskWithProject = {
     id: string;
@@ -19,6 +20,7 @@ type TaskWithProject = {
     updatedAt: Date;
     completedAt: Date | null;
     dueDate: Date | null;
+    customStatus: { id: string; category: string | null } | null;
     project: { id: string; name: string } | null;
 };
 
@@ -68,7 +70,10 @@ export async function GET(req: Request) {
             }),
             prisma.task.findMany({
                 where: { workspaceId, projectId: taskProjectFilter, ...(includeSubtasks ? {} : { parentId: { equals: null } }) },
-                include: { project: true }
+                include: {
+                  project: true,
+                  customStatus: { select: { id: true, category: true } },
+                }
             }),
             prisma.status.findMany({
                 where: { projectId: taskProjectFilter },
@@ -76,16 +81,24 @@ export async function GET(req: Request) {
             })
         ]);
 
-        // Identify 'Done/Completed' status dynamically
+// Identify 'Done/Completed' status dynamically using semantic category
         const completionStatus = statuses[statuses.length - 1];
-        const completionIds = statuses.filter(s => s.name.toLowerCase() === 'done').map(s => s.id);
+        const completionIds = statuses
+          .filter((s) => s.category === StatusCategory.DONE || s.name.toLowerCase() === "done")
+          .map((s) => s.id);
         if (completionStatus && !completionIds.includes(completionStatus.id)) {
-            completionIds.push(completionStatus.id);
+          completionIds.push(completionStatus.id);
         }
 
-        const isTaskCompleted = (task: TaskWithProject) =>
-            completionIds.includes(task.statusId ?? '') ||
-            (task.status && ['done'].includes(task.status.toLowerCase()));
+        const isTaskCompleted = (task: TaskWithProject) => {
+  // Check if statusId maps to a Status record with category DONE
+  if (completionIds.includes(task.statusId ?? '')) return true;
+  
+  // Check if the raw status string matches done categories
+  if (task.status && isDoneStatus(task.status, task.customStatus?.category)) return true;
+  
+  return false;
+};
 
         const totalProjects = projects.length;
         const totalTasks = tasks.length;

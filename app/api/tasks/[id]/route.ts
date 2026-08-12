@@ -6,6 +6,7 @@ import { canAccessProjectResource } from "@/lib/project-permissions";
 import { publishToChannel, getWorkspaceChannel, getBoardChannel, getProjectChannel, getTaskChannel } from "@/lib/ably";
 import { updateParentTask } from "@/lib/task-utils";
 import { syncNativeToFieldValues, syncFieldValuesToNative } from "@/lib/services/custom-fields";
+import { isDoneStatus, StatusCategory } from "@/lib/constants/status";
 
 const updateSchema = z.object({
   title: z.string().min(1).optional(),
@@ -130,7 +131,12 @@ export async function PATCH(
     const body = await req.json();
     const data = updateSchema.parse(body);
 
-    const task = await prisma.task.findUnique({ where: { id: params.id } });
+    const task = await prisma.task.findUnique({
+      where: { id: params.id },
+      include: {
+        customStatus: { select: { id: true, name: true, category: true } },
+      },
+    });
 
     if (!task) {
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
@@ -198,22 +204,33 @@ export async function PATCH(
     }
 
     // Resolve statusId and handle completion logic (Analytics & State Integrity Fix)
-    if (data.status) {
-        const statusRecord = await prisma.status.findFirst({
-            where: { 
-                projectId: task.projectId,
-                name: { equals: data.status, mode: 'insensitive' }
-            }
-        });
+    const completionKeywords = ["done", "complete", "finished", "approved"];
+    const statusRecord = data.status
+      ? await prisma.status.findFirst({
+          where: {
+            projectId: task.projectId,
+            name: { equals: data.status, mode: "insensitive" },
+          },
+        })
+      : null;
 
+    if (data.status) {
         if (statusRecord) {
             updateData.statusId = statusRecord.id;
             
-            // Completion Logic - match hardcoded names AND custom status names
-            const completionKeywords = ['done', 'complete', 'finished', 'approved'];
-            const isNowCompleted = completionKeywords.includes(data.status.toLowerCase()) ||
-                (statusRecord && completionKeywords.some(kw => statusRecord.name.toLowerCase().includes(kw)));
-            const wasCompleted = completionKeywords.includes(task.status.toLowerCase());
+            // Completion Logic - use semantic category from Status model, fall back to keywords
+            const isNowCompletedByCategory =
+              statusRecord?.category === StatusCategory.DONE;
+            const isNowCompletedByKeywords =
+              completionKeywords.includes(data.status.toLowerCase()) ||
+              (statusRecord &&
+                completionKeywords.some((kw) => statusRecord.name.toLowerCase().includes(kw)));
+            const isNowCompleted =
+              isNowCompletedByCategory || isNowCompletedByKeywords;
+            const wasCompletedByCategory =
+              isDoneStatus(task.status, task.customStatus?.category) ||
+              completionKeywords.some((kw) => (task.status || "").toLowerCase().includes(kw));
+            const wasCompleted = wasCompletedByCategory;
 
             if (isNowCompleted && !wasCompleted) {
                 updateData.completedAt = new Date();
@@ -291,16 +308,22 @@ export async function PATCH(
     // Dependency blocking guard: advancing to In Progress/Done with unmet FS predecessors is rejected
     const finalStatus = updateData.status || task.status;
     if (data.status && finalStatus !== task.status && data.status !== task.status) {
-        const doneKeywords = ['done', 'complete', 'finished', 'approved'];
-        const advanceKeywords = ['in_progress', 'in-progress', 'in progress', ...doneKeywords];
-        const advanceMatch = advanceKeywords.some((kw) => finalStatus.toLowerCase().includes(kw));
+        const advanceKeywords = ["in_progress", "in-progress", "in progress", "done", "complete", "finished", "approved"];
+        const advanceMatch =
+          (statusRecord?.category === StatusCategory.IN_PROGRESS ||
+            statusRecord?.category === StatusCategory.DONE) ||
+          advanceKeywords.some((kw) => finalStatus.toLowerCase().includes(kw));
         if (advanceMatch) {
             const dependencies = await prisma.taskDependency.findMany({
                 where: { taskId: params.id, type: "FS" },
-                include: { predecessor: { select: { id: true, title: true, status: true } } },
+                include: { predecessor: { select: { id: true, title: true, status: true, customStatus: true } } },
             });
             const blockedBy = dependencies.filter(
-                (dep) => !doneKeywords.some((kw) => dep.predecessor.status.toLowerCase().includes(kw))
+                (dep) => {
+                  const predStatus = dep.predecessor.status || "";
+                  const predCategory = dep.predecessor.customStatus?.category;
+                  return !isDoneStatus(predStatus, predCategory);
+                }
             );
             if (blockedBy.length > 0) {
                 // Notify the task's assignees that the move was blocked (production UX: surface
@@ -338,6 +361,9 @@ export async function PATCH(
       where: { id: params.id },
       data: updateData,
       include: {
+        customStatus: {
+          select: { id: true, name: true, category: true },
+        },
         project: {
           select: {
             id: true,
@@ -469,9 +495,12 @@ export async function PATCH(
     }
 
     // Sub-task completion notifications + parent activity (task_completed)
-    const completionKeywords = ['done', 'complete', 'finished', 'approved'];
-    const isNowCompleted = completionKeywords.some((kw) => (updated.status || "").toLowerCase().includes(kw));
-    const wasCompleted = completionKeywords.some((kw) => (task.status || "").toLowerCase().includes(kw));
+    const isNowCompleted =
+      isDoneStatus(updated.status, updated.customStatus?.category) ||
+      completionKeywords.some((kw) => (updated.status || "").toLowerCase().includes(kw));
+    const wasCompleted =
+      isDoneStatus(task.status, task.customStatus?.category) ||
+      completionKeywords.some((kw) => (task.status || "").toLowerCase().includes(kw));
 
     if (isNowCompleted && !wasCompleted && updated.parentId) {
       const completedParentId = updated.parentId;
@@ -607,9 +636,13 @@ export async function PATCH(
               });
 
               // TASK_COMPLETED fires when status moves to a completion state
-              const completionKeywords = ['done', 'complete', 'finished', 'approved'];
-              const isNowCompleted = completionKeywords.includes(data.status.toLowerCase());
-              const wasCompleted = completionKeywords.includes(task.status.toLowerCase());
+              const isNowCompleted =
+                statusRecord?.category === StatusCategory.DONE ||
+                isDoneStatus(updated.status, updated.customStatus?.category) ||
+                completionKeywords.includes(data.status.toLowerCase());
+              const wasCompleted =
+                isDoneStatus(task.status, task.customStatus?.category) ||
+                completionKeywords.includes(task.status.toLowerCase());
               if (isNowCompleted && !wasCompleted) {
                   await processAutomations(task.workspaceId, "TASK_COMPLETED", {
                       ...baseCtx,
@@ -649,8 +682,10 @@ export async function PATCH(
 
     // Notify blocked task assignees when a blocking task completes
     if (data.status && data.status !== task.status) {
-        const completionKeywords = ['done', 'complete', 'finished', 'approved'];
-        const isNowCompleted = completionKeywords.includes(data.status.toLowerCase());
+        const isNowCompleted =
+          statusRecord?.category === StatusCategory.DONE ||
+          isDoneStatus(updated.status, updated.customStatus?.category) ||
+          completionKeywords.includes(data.status.toLowerCase());
         if (isNowCompleted) {
             sideEffects.push((async () => {
                 try {

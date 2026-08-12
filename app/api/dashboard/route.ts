@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
+import { StatusCategory } from "@/lib/constants/status";
 
 export async function GET(req: Request) {
   let workspaceId: string | null = null;
@@ -75,13 +76,48 @@ export async function GET(req: Request) {
     const rangeStart = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
     const prevRangeStart = new Date(Date.now() - daysBack * 2 * 24 * 60 * 60 * 1000);
 
+    // Status records with semantic categories (used for all completion/active counting below)
+    const statusRecords = await prisma.status.findMany({
+      where: { projectId: { in: accessibleProjectIds } },
+      select: { id: true, name: true, category: true },
+    });
+    const categoryMap = new Map(
+      statusRecords.map((s) => [s.name.toLowerCase(), s.category])
+    );
+    const doneStatusIds = new Set(
+      statusRecords.filter((s) => s.category === StatusCategory.DONE).map((s) => s.id)
+    );
+
+    // A task is "completed" if its status slug is done/completed OR its Status record has category DONE
+    const completedStatusFilter: Record<string, unknown> = {
+      OR: [
+        { status: { in: ["done", "completed"] } },
+        ...(doneStatusIds.size > 0 ? [{ statusId: { in: Array.from(doneStatusIds) } }] : []),
+      ],
+    };
+    const notCompletedStatusFilter: Record<string, unknown> = {
+      NOT: {
+        OR: [
+          { status: { in: ["done", "completed"] } },
+          ...(doneStatusIds.size > 0 ? [{ statusId: { in: Array.from(doneStatusIds) } }] : []),
+        ],
+      },
+    };
+
+    const prevPeriodWhere: Record<string, unknown> = {
+      workspaceId,
+      projectId: { in: accessibleProjectIds },
+      ...(includeSubtasks ? {} : { parentId: { equals: null } }),
+      createdAt: { lt: rangeStart, gte: prevRangeStart },
+    };
+
     const [
       projectsCount, tasksCount, membersCount, recentProjects, recentTasks,
-      activities, statuses, totalTaskCount, completedTaskCount,
+      activities, statuses, totalTaskCount,
       prevProjectsCount, prevTasksCount, prevCompletedTaskCount, prevTotalTaskCount,
     ] = await Promise.all([
       prisma.project.count({ where: whereProject }),
-      prisma.task.count({ where: { ...whereTask, status: { notIn: ["done"] } } }),
+      prisma.task.count({ where: { ...whereTask, ...notCompletedStatusFilter } }),
       prisma.workspaceMember.count({ where: { workspaceId } }),
       prisma.project.findMany({
         where: whereProject,
@@ -105,27 +141,34 @@ export async function GET(req: Request) {
       prisma.status.findMany({ where: { projectId: { in: accessibleProjectIds } }, orderBy: { order: "asc" } }),
       // Individual counts instead of groupBy (Prisma MongoDB crashes on nullable fields in groupBy)
       prisma.task.count({ where: whereTask }),
-      prisma.task.count({ where: { ...whereTask, status: { in: ["done", "completed"] } } }),
       // Previous period counts for trend calculation
       prisma.project.count({ where: { workspaceId, id: { in: accessibleProjectIds }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
-      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, ...(includeSubtasks ? {} : { parentId: { equals: null } }), status: { notIn: ["done"] }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
-      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, ...(includeSubtasks ? {} : { parentId: { equals: null } }), status: { in: ["done", "completed"] }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
-      prisma.task.count({ where: { workspaceId, projectId: { in: accessibleProjectIds }, ...(includeSubtasks ? {} : { parentId: { equals: null } }), createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
+      prisma.task.count({ where: { ...prevPeriodWhere, ...notCompletedStatusFilter } }),
+      prisma.task.count({ where: { ...prevPeriodWhere, ...completedStatusFilter } }),
+      prisma.task.count({ where: prevPeriodWhere }),
     ]);
+
+    const completedTaskCount = await prisma.task.count({
+      where: { ...whereTask, ...completedStatusFilter },
+    });
 
     const completionRate = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
     const prevCompletionRate = prevTotalTaskCount > 0 ? Math.round((prevCompletedTaskCount / prevTotalTaskCount) * 100) : 0;
 
-    // Status Distribution: one count per status (separate batch to avoid circular ref)
+    // Status Distribution: use semantic category from Status model
     const statusCounts = await Promise.all(
-      statuses.map(s =>
-        prisma.task.count({ where: { ...whereTask, statusId: s.id } })
-      )
+      statuses.map(async (s) => {
+        return prisma.task.count({ where: { ...whereTask, statusId: s.id } });
+      })
     );
-    const statusDistribution = statuses.map((s, i) => ({
-      name: s.name,
-      value: statusCounts[i] ?? 0,
-    }));
+    const statusDistribution = statuses.map((s, i) => {
+      const category = categoryMap.get(s.name.toLowerCase()) || "";
+      return {
+        name: s.name,
+        value: statusCounts[i] ?? 0,
+        category: category || undefined,
+      };
+    });
 
     // Priority Distribution: individual counts per priority
     const [priorityLow, priorityMedium, priorityHigh, priorityUrgent] = await Promise.all([

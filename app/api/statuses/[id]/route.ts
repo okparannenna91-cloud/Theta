@@ -9,8 +9,9 @@ const updateStatusSchema = z.object({
     name: z.string().min(1).max(50).optional(),
     color: z.string().optional(),
     order: z.number().int().optional(),
+    category: z.enum(["TODO", "IN_PROGRESS", "DONE", "BLOCKED"]).optional(),
     workspaceId: z.string(),
-});
+  });
 
 export async function PATCH(
     req: Request,
@@ -75,6 +76,7 @@ export async function PATCH(
                 ...(data.name !== undefined && { name: data.name }),
                 ...(data.color !== undefined && { color: data.color }),
                 ...(data.order !== undefined && { order: data.order }),
+                ...(data.category !== undefined && { category: data.category }),
             },
         });
 

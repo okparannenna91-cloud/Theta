@@ -560,6 +560,7 @@ model Status {
   id          String    @id @default(auto()) @map("_id") @db.ObjectId
   name        String
   color       String?   @default("#4f46e5")
+  category    String    @default("TODO") // TODO, IN_PROGRESS, DONE, BLOCKED
   order       Int       @default(0)
   projectId   String    @db.ObjectId
   project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
@@ -1500,3 +1501,4 @@ model AgentAction {
   @@index([workspaceId, createdAt])
   @@map("agent_actions")
 }
+
