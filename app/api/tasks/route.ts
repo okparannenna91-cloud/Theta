@@ -168,6 +168,7 @@ export async function GET(req: Request) {
               name: true,
             },
           },
+          customStatus: { select: { id: true, name: true, category: true } },
           predecessors: true,
           successors: true,
         },

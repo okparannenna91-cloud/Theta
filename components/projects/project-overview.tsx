@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { format, differenceInDays, parseISO, isAfter } from "date-fns";
 import { cn } from "@/lib/utils";
-import { isDoneStatus } from "@/lib/constants/status";
+import { isDoneStatus, isInProgressStatus } from "@/lib/constants/status";
 import {
   Calendar,
   User,
@@ -143,14 +143,17 @@ function MilestoneRow({ milestone }: { milestone: any }) {
 
 export function ProjectOverview({ project }: ProjectOverviewProps) {
   const safeTasks = useMemo(() => Array.isArray(project?.tasks) ? project.tasks : [], [project?.tasks]);
-  const milestones = useMemo(() => Array.isArray(project?.milestones) ? project.milestones : [], [project?.milestones]);
+  const milestones = useMemo(() => {
+    const direct = Array.isArray(project?.milestones) ? project.milestones : [];
+    return direct.length > 0 ? direct : safeTasks.filter((t: any) => t.isMilestone);
+  }, [project?.milestones, safeTasks]);
 
   const completedTasks = useMemo(() =>
-    safeTasks.filter((t: any) => isDoneStatus(t.status)).length,
+    safeTasks.filter((t: any) => isDoneStatus(t.status, t.customStatus?.category)).length,
     [safeTasks]
   );
   const overdueTasks = useMemo(() =>
-    safeTasks.filter((t: any) => t.dueDate && new Date(t.dueDate) < new Date() && !isDoneStatus(t.status)).length,
+    safeTasks.filter((t: any) => t.dueDate && new Date(t.dueDate) < new Date() && !isDoneStatus(t.status, t.customStatus?.category)).length,
     [safeTasks]
   );
   const progress = safeTasks.length > 0 ? (completedTasks / safeTasks.length) * 100 : 0;
@@ -176,7 +179,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
 
   const healthScore = useMemo(() => {
     const overduePenalty = overdueTasks * 12;
-    const stalled = safeTasks.filter((t: any) => t.status === "in_progress" && t.updatedAt && differenceInDays(new Date(), new Date(t.updatedAt)) > 4).length;
+    const stalled = safeTasks.filter((t: any) => isInProgressStatus(t.status, t.customStatus?.category) && t.updatedAt && differenceInDays(new Date(), new Date(t.updatedAt)) > 4).length;
     return Math.max(0, Math.min(100, Math.round(100 - overduePenalty - stalled * 6)));
   }, [safeTasks, overdueTasks]);
 

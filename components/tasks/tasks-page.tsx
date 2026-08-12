@@ -17,6 +17,7 @@ import { ImageUpload } from "@/components/common/image-upload";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
 import { useStatuses, useWorkspaceStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
+import { isDoneStatus, isInProgressStatus } from "@/lib/constants/status";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { TaskDialog } from "./task-dialog";
 import { TableView } from "@/components/table/table-view";
@@ -188,12 +189,12 @@ export default function TasksPage() {
     createMutation.mutate({ title, description, status, priority, projectId: projectId || undefined, coverImage });
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case "done": return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
-      case "in_progress": case "in-progress": return <Clock className="h-4 w-4 text-blue-600" />;
-      default: return <Circle className="h-4 w-4 text-muted-foreground" />;
-    }
+  const getStatusIcon = (task: any) => {
+    const status = task?.status || "";
+    const category = task?.customStatus?.category;
+    if (isDoneStatus(status, category)) return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+    if (isInProgressStatus(status, category)) return <Clock className="h-4 w-4 text-blue-600" />;
+    return <Circle className="h-4 w-4 text-muted-foreground" />;
   };
 
   const getPriorityColor = (priority: string) => {
@@ -356,7 +357,7 @@ export default function TasksPage() {
                   <div className="flex items-start gap-3 flex-1 min-w-0">
                     <button onClick={() => updateMutation.mutate({ id: task.id, data: { status: task.status === "done" ? "todo" : "done" } })}
                       className="shrink-0 mt-0.5 hover:scale-110 transition-transform">
-                      {getStatusIcon(task.status)}
+                      {getStatusIcon(task)}
                     </button>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">

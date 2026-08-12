@@ -30,6 +30,7 @@ export async function GET(
             comments: true,
             subtasks: true,
             tags: true,
+            customStatus: { select: { id: true, name: true, category: true } },
           }
         },
         boards: {
