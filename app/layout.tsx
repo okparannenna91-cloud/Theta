@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 import "@vibe/core/tokens";
 import "leaflet/dist/leaflet.css";
@@ -113,12 +114,9 @@ export default function RootLayout({
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
           <meta name="apple-mobile-web-app-title" content="Theta PM" />
           <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-          <script
-            async
-            defer
+          <Script
             src="https://challenges.cloudflare.com/turnstile/v0/api.js"
-            onLoad={() => console.log("Turnstile loaded")}
-            onError={() => console.error("Turnstile failed to load")}
+            strategy="afterInteractive"
           />
         </head>
         <body className={`${inter.variable}`}>
