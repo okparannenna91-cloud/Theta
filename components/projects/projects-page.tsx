@@ -117,7 +117,7 @@ export default function ProjectsPage() {
       let filtered = projects.map((p: any) => {
           const tasks = p.tasks || [];
           const totalTasks = tasks.length;
-          const completedTasks = tasks.filter((t: any) => isDoneStatus(t.status)).length;
+          const completedTasks = tasks.filter((t: any) => isDoneStatus(t.status, t.customStatus?.category)).length;
           const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
           let status = "Active";
           if (progress === 100 && totalTasks > 0) status = "Completed";

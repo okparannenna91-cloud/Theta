@@ -90,7 +90,11 @@ export async function GET(req: Request) {
       where: whereClause,
       include: {
         tasks: {
-            select: { status: true, dueDate: true }
+            select: {
+                status: true,
+                dueDate: true,
+                customStatus: { select: { category: true } }
+            }
         },
         team: {
             include: {
