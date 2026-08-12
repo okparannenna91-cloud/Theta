@@ -117,6 +117,8 @@ export default function RootLayout({
           <Script
             src="https://challenges.cloudflare.com/turnstile/v0/api.js"
             strategy="afterInteractive"
+            crossOrigin="anonymous"
+            referrerPolicy="strict-origin-when-cross-origin"
           />
         </head>
         <body className={`${inter.variable}`}>
