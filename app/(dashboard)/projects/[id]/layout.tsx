@@ -8,7 +8,6 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { ProjectHeader } from "@/components/projects/project-header";
-import { ProjectTabBar } from "@/components/projects/project-tab-bar";
 
 export default function ProjectLayout({ children, params }: { children: React.ReactNode; params: { id: string } }) {
   const { activeWorkspaceId } = useWorkspace();
@@ -33,8 +32,8 @@ export default function ProjectLayout({ children, params }: { children: React.Re
             <Skeleton className="h-4 w-40" />
           </div>
         </div>
-        <div className="flex-1 p-8 lg:p-10">
-          <Skeleton className="h-[600px] w-full rounded-2xl" />
+        <div className="flex-1 px-8 lg:px-10 py-6">
+          <Skeleton className="h-[60vh] w-full rounded-xl" />
         </div>
       </div>
     );
@@ -59,9 +58,8 @@ export default function ProjectLayout({ children, params }: { children: React.Re
   return (
     <div className="h-full flex flex-col">
       <ProjectHeader project={project} />
-      <ProjectTabBar projectId={params.id} />
 
-      <div className="flex-1 p-8 lg:p-10 overflow-y-auto">
+      <div className="flex-1 pt-6 overflow-y-auto">
         {children}
       </div>
     </div>

@@ -208,7 +208,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
 
   if (isErrorState) {
     return (
-      <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center gap-4 p-6">
+      <div className="h-full flex flex-col items-center justify-center gap-4 p-6">
         <div className="rounded-full bg-destructive/10 p-4">
           <CalendarDays className="h-8 w-8 text-destructive" />
         </div>

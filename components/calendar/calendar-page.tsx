@@ -247,7 +247,7 @@ export default function CalendarPage({ projectId }: { projectId?: string }) {
 
   if (isError) {
     return (
-      <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center gap-4 p-6">
+      <div className="h-full flex flex-col items-center justify-center gap-4 p-6">
         <div className="rounded-full bg-destructive/10 p-4">
           <CalendarDays className="h-8 w-8 text-destructive" />
         </div>
@@ -259,7 +259,7 @@ export default function CalendarPage({ projectId }: { projectId?: string }) {
   }
 
   return (
-    <div ref={containerRef} className={cn("flex flex-col overflow-hidden", isFullScreen ? "h-screen bg-background" : "h-[calc(100vh-100px)]")}>
+    <div ref={containerRef} className={cn("flex flex-col overflow-hidden", isFullScreen ? "h-screen bg-background" : "h-full")}>
       <header className="flex items-center justify-between gap-3 px-6 py-2.5 border-b border-subtle bg-background/95 backdrop-blur-xl">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="p-1 bg-primary/10 rounded-lg shrink-0">

@@ -391,7 +391,7 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
 
     if (isError) {
         return (
-            <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center gap-4 p-6">
+            <div className="h-full flex flex-col items-center justify-center gap-4 p-6">
                 <div className="rounded-full bg-destructive/10 p-4">
                     <BarChart3 className="h-8 w-8 text-destructive" />
                 </div>
@@ -404,7 +404,7 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
 
     if (tasks.length === 0) {
         return (
-            <div className="h-[calc(100vh-100px)] flex flex-col items-center justify-center gap-4 p-6">
+            <div className="h-full flex flex-col items-center justify-center gap-4 p-6">
                 <div className="rounded-full bg-muted p-4">
                     <BarChart3 className="h-8 w-8 text-muted-foreground" />
                 </div>
