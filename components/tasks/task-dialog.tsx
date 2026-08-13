@@ -27,16 +27,20 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
-import { TaskAssignees } from "./task-assignees";
-import { TagSelector } from "./tag-selector";
-import { TimeTracker } from "./time-tracker";
-import { TaskSubtasks } from "./task-subtasks";
-import { TaskChecklist } from "./task-checklist";
-import { TaskDependencies } from "./task-dependencies";
-import { TaskAttachments } from "./task-attachments";
-import { TaskComments } from "./task-comments";
-import { TaskActivity } from "./task-activity";
-import { CustomFieldsSection } from "./task-custom-fields";
+import dynamic from "next/dynamic";
+
+const sectionFallback = () => <div className="h-12 animate-pulse rounded-lg bg-muted/50" />;
+
+const TaskAssignees = dynamic(() => import("./task-assignees").then(m => m.TaskAssignees), { ssr: false, loading: sectionFallback });
+const TagSelector = dynamic(() => import("./tag-selector").then(m => m.TagSelector), { ssr: false, loading: sectionFallback });
+const TimeTracker = dynamic(() => import("./time-tracker").then(m => m.TimeTracker), { ssr: false, loading: sectionFallback });
+const TaskSubtasks = dynamic(() => import("./task-subtasks").then(m => m.TaskSubtasks), { ssr: false, loading: sectionFallback });
+const TaskChecklist = dynamic(() => import("./task-checklist").then(m => m.TaskChecklist), { ssr: false, loading: sectionFallback });
+const TaskDependencies = dynamic(() => import("./task-dependencies").then(m => m.TaskDependencies), { ssr: false, loading: sectionFallback });
+const TaskAttachments = dynamic(() => import("./task-attachments").then(m => m.TaskAttachments), { ssr: false, loading: sectionFallback });
+const TaskComments = dynamic(() => import("./task-comments").then(m => m.TaskComments), { ssr: false, loading: sectionFallback });
+const TaskActivity = dynamic(() => import("./task-activity").then(m => m.TaskActivity), { ssr: false, loading: sectionFallback });
+const CustomFieldsSection = dynamic(() => import("./task-custom-fields").then(m => m.CustomFieldsSection), { ssr: false, loading: sectionFallback });
 
 interface TaskDialogProps {
     task: any;

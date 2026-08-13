@@ -22,6 +22,13 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    try {
+      const { enforcePlanLimit } = await import("@/lib/plan-limits");
+      await enforcePlanLimit(workspaceId, "gantt", 0);
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+
     const baselines = await prisma.baseline.findMany({
       where: { workspaceId },
       orderBy: { createdAt: "desc" },
@@ -51,6 +58,13 @@ export async function POST(req: Request) {
     const access = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!access) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    try {
+      const { enforcePlanLimit } = await import("@/lib/plan-limits");
+      await enforcePlanLimit(workspaceId, "gantt", 0);
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
     const baseline = await prisma.baseline.create({
@@ -87,6 +101,13 @@ export async function DELETE(req: Request) {
     const access = await verifyWorkspaceAccess(user.id, workspaceId);
     if (!access) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    try {
+      const { enforcePlanLimit } = await import("@/lib/plan-limits");
+      await enforcePlanLimit(workspaceId, "gantt", 0);
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
     }
 
     await prisma.baseline.deleteMany({

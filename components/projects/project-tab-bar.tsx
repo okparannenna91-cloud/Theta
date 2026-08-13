@@ -25,6 +25,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useWorkspace } from "@/hooks/use-workspace";
+import { hasGanttAccess, hasTimelineAccess, isValidPlan } from "@/lib/plan-limits";
+import { Lock } from "lucide-react";
 
 const coreTabs = [
   { label: "Overview", href: "overview", icon: LayoutDashboard },
@@ -51,6 +54,12 @@ export function ProjectTabBar({ projectId }: ProjectTabBarProps) {
   const pathname = usePathname();
   const currentTab = pathname.split("/").pop() || "overview";
   const [overflowOpen, setOverflowOpen] = useState(false);
+  const { activeWorkspace } = useWorkspace();
+  const workspacePlan = isValidPlan(activeWorkspace?.plan) ? activeWorkspace.plan : "free";
+  const lockedTabs: Record<string, boolean> = {
+    timeline: !hasTimelineAccess(workspacePlan),
+    gantt: !hasGanttAccess(workspacePlan),
+  };
 
   const isOverflowActive = overflowTabs.some(t => t.href === currentTab);
 
@@ -78,6 +87,9 @@ export function ProjectTabBar({ projectId }: ProjectTabBarProps) {
               >
                 <Icon className={cn("h-3 w-3", isActive ? "text-primary" : "text-muted-foreground/20")} />
                 <span>{tab.label}</span>
+                {lockedTabs[tab.href] && (
+                  <Lock className="h-2.5 w-2.5 text-amber-500/80" />
+                )}
                 {isActive && (
                   <span className="absolute bottom-0 left-1 right-1 h-[2px] rounded-full bg-primary/80" />
                 )}
@@ -123,6 +135,9 @@ export function ProjectTabBar({ projectId }: ProjectTabBarProps) {
                     <Link href={href} className="flex items-center gap-2.5">
                       <Icon className={cn("h-3.5 w-3.5", isActive ? "text-primary" : "text-muted-foreground/40")} />
                       <span>{tab.label}</span>
+                      {lockedTabs[tab.href] && (
+                        <Lock className="h-2.5 w-2.5 text-amber-500/80" />
+                      )}
                     </Link>
                   </DropdownMenuItem>
                 );

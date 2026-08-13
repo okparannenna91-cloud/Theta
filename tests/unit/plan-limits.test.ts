@@ -22,6 +22,9 @@ import {
   canCreateTask,
   canCreateTeam,
   enforcePlanLimit,
+  hasTimelineAccess,
+  hasGanttAccess,
+  hasAdvancedAnalyticsAccess,
   type PlanName,
 } from "@/lib/plan-limits";
 import { prisma } from "@/lib/prisma";
@@ -51,6 +54,8 @@ describe("Plan Limits — limits correctness", () => {
     expect(free.maxMemoryItems).toBe(50);
     expect(free.hasCustomAutomation).toBe(false);
     expect(free.maxAutomations).toBe(0);
+    expect(free.maxBoards).toBe(-1);
+    expect(free.maxCustomFields).toBe(0);
   });
 
   it("growth plan is strictly greater than free", () => {
@@ -82,6 +87,44 @@ describe("Plan Limits — limits correctness", () => {
   it("all plans have Nova AI enabled", () => {
     for (const plan of ["free", "growth", "pro", "theta_plus"] as PlanName[]) {
       expect(PLAN_LIMITS[plan].hasNovaAI).toBe(true);
+    }
+  });
+
+  it("timeline access requires Growth and above", () => {
+    expect(hasTimelineAccess("free")).toBe(false);
+    expect(hasTimelineAccess("growth")).toBe(true);
+    expect(hasTimelineAccess("pro")).toBe(true);
+    expect(hasTimelineAccess("theta_plus")).toBe(true);
+  });
+
+  it("gantt access requires Pro and above", () => {
+    expect(hasGanttAccess("free")).toBe(false);
+    expect(hasGanttAccess("growth")).toBe(false);
+    expect(hasGanttAccess("pro")).toBe(true);
+    expect(hasGanttAccess("theta_plus")).toBe(true);
+  });
+
+  it("gantt is strictly gated behind analytics on free/growth", () => {
+    for (const plan of ["free", "growth"] as PlanName[]) {
+      expect(hasGanttAccess(plan)).toBe(false);
+      expect(hasAdvancedAnalyticsAccess(plan)).toBe(false);
+    }
+    for (const plan of ["pro", "theta_plus"] as PlanName[]) {
+      expect(hasGanttAccess(plan)).toBe(true);
+      expect(hasAdvancedAnalyticsAccess(plan)).toBe(true);
+    }
+  });
+
+  it("custom fields scale by plan", () => {
+    expect(PLAN_LIMITS.free.maxCustomFields).toBe(0);
+    expect(PLAN_LIMITS.growth.maxCustomFields).toBe(5);
+    expect(PLAN_LIMITS.pro.maxCustomFields).toBe(-1);
+    expect(PLAN_LIMITS.theta_plus.maxCustomFields).toBe(-1);
+  });
+
+  it("kanban view (boards) is unlimited on all plans", () => {
+    for (const plan of ["free", "growth", "pro", "theta_plus"] as PlanName[]) {
+      expect(PLAN_LIMITS[plan].maxBoards).toBe(-1);
     }
   });
 });
@@ -149,5 +192,96 @@ describe("Plan Limits — enforcePlanLimit", () => {
     await expect(
       enforcePlanLimit("ws1", "tasks", 0)
     ).rejects.toThrow("deactivated");
+  });
+
+  it("blocks timeline on free plan", async () => {
+    (prisma.workspace.findUnique as any).mockResolvedValue({
+      id: "ws1", plan: "free", subscriptionStatus: "active",
+      members: [{ user: { clerkId: "c1" } }],
+    });
+    await expect(
+      enforcePlanLimit("ws1", "timeline", 0)
+    ).rejects.toThrow("Timeline");
+  });
+
+  it("allows timeline on growth plan", async () => {
+    (prisma.workspace.findUnique as any).mockResolvedValue({
+      id: "ws1", plan: "growth", subscriptionStatus: "active",
+      members: [{ user: { clerkId: "c1" } }],
+    });
+    await expect(
+      enforcePlanLimit("ws1", "timeline", 0)
+    ).resolves.not.toThrow();
+  });
+
+  it("blocks gantt on growth plan", async () => {
+    (prisma.workspace.findUnique as any).mockResolvedValue({
+      id: "ws1", plan: "growth", subscriptionStatus: "active",
+      members: [{ user: { clerkId: "c1" } }],
+    });
+    await expect(
+      enforcePlanLimit("ws1", "gantt", 0)
+    ).rejects.toThrow("Gantt");
+  });
+
+  it("allows gantt on pro plan", async () => {
+    (prisma.workspace.findUnique as any).mockResolvedValue({
+      id: "ws1", plan: "pro", subscriptionStatus: "active",
+      members: [{ user: { clerkId: "c1" } }],
+    });
+    await expect(
+      enforcePlanLimit("ws1", "gantt", 0)
+    ).resolves.not.toThrow();
+  });
+
+  it("blocks custom fields on free plan", async () => {
+    (prisma.workspace.findUnique as any).mockResolvedValue({
+      id: "ws1", plan: "free", subscriptionStatus: "active",
+      members: [{ user: { clerkId: "c1" } }],
+    });
+    await expect(
+      enforcePlanLimit("ws1", "custom_fields", 0)
+    ).rejects.toThrow("Custom fields");
+  });
+
+  it("blocks custom fields over growth limit (5/project)", async () => {
+    (prisma.workspace.findUnique as any).mockResolvedValue({
+      id: "ws1", plan: "growth", subscriptionStatus: "active",
+      members: [{ user: { clerkId: "c1" } }],
+    });
+    await expect(
+      enforcePlanLimit("ws1", "custom_fields", 5)
+    ).rejects.toThrow("Custom fields");
+    await expect(
+      enforcePlanLimit("ws1", "custom_fields", 4)
+    ).resolves.not.toThrow();
+  });
+
+  it("allows unlimited custom fields on pro", async () => {
+    (prisma.workspace.findUnique as any).mockResolvedValue({
+      id: "ws1", plan: "pro", subscriptionStatus: "active",
+      members: [{ user: { clerkId: "c1" } }],
+    });
+    await expect(
+      enforcePlanLimit("ws1", "custom_fields", 100)
+    ).resolves.not.toThrow();
+  });
+
+  it("blocks exports on free plan, allows on growth", async () => {
+    (prisma.workspace.findUnique as any).mockResolvedValue({
+      id: "ws1", plan: "free", subscriptionStatus: "active",
+      members: [{ user: { clerkId: "c1" } }],
+    });
+    await expect(
+      enforcePlanLimit("ws1", "exports", 0)
+    ).rejects.toThrow("Export");
+
+    (prisma.workspace.findUnique as any).mockResolvedValue({
+      id: "ws1", plan: "growth", subscriptionStatus: "active",
+      members: [{ user: { clerkId: "c1" } }],
+    });
+    await expect(
+      enforcePlanLimit("ws1", "exports", 0)
+    ).resolves.not.toThrow();
   });
 });

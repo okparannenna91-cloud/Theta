@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useState, useEffect } from "react"
 import * as SheetPrimitive from "@radix-ui/react-dialog"
 import { cva, type VariantProps } from "class-variance-authority"
 import { X } from "lucide-react"
@@ -59,6 +60,17 @@ const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
 >(({ side = "right", className, children, lazy, ...props }, ref) => {
+  // Defer mounting children until the open animation has mostly completed.
+  // The portal content unmounts on close, so the timer restarts on each open.
+  const [contentReady, setContentReady] = useState(!lazy);
+
+  useEffect(() => {
+    if (!lazy) return;
+    setContentReady(false);
+    const timer = setTimeout(() => setContentReady(true), 150);
+    return () => clearTimeout(timer);
+  }, [lazy]);
+
   return (
     <SheetPortal>
       <SheetOverlay />
@@ -67,10 +79,10 @@ const SheetContent = React.forwardRef<
         className={cn(sheetVariants({ side }), className)}
         {...props}
       >
-        {lazy ? (
-          <React.Suspense fallback={<div className="animate-pulse h-full w-full flex items-center justify-center" />}>
-            {children}
-          </React.Suspense>
+        {lazy && !contentReady ? (
+          <div className="animate-pulse h-full w-full flex items-center justify-center">
+            <div className="h-10 w-10 rounded-full bg-muted" />
+          </div>
         ) : (
           children
         )}

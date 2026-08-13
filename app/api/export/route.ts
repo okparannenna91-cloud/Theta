@@ -43,6 +43,23 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    const { getPlanLimits, isValidPlan } = await import("@/lib/plan-limits");
+    const { prisma } = await import("@/lib/prisma");
+    const workspace = await prisma.workspace.findUnique({
+      where: { id: workspaceId },
+      select: { plan: true },
+    });
+    const rawPlan = workspace?.plan || "free";
+    const plan = isValidPlan(rawPlan) ? rawPlan : "free";
+    const limits = getPlanLimits(plan);
+    const allowed = format === "pdf" ? limits.hasPDFExport : limits.hasExport;
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "Export is available on Growth plans and above. Upgrade to export your data." },
+        { status: 403 }
+      );
+    }
+
     const filters: Record<string, string> = {};
     for (const key of ["projectId", "status", "priority", "assigneeId", "startDate", "endDate"]) {
       const val = searchParams.get(key);

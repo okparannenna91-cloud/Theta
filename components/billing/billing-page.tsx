@@ -299,7 +299,7 @@ export default function BillingPage() {
                     <div className="space-y-3">
                       {usage.nova && <UsageMeter {...usage.nova} label="AI Requests" />}
                       {usage.storage && <UsageMeter {...usage.storage} label="File Storage" unit="MB" />}
-                      {usage.boards && <UsageMeter {...usage.boards} label="Kanban Boards" />}
+                      {usage.boards && <UsageMeter {...usage.boards} label="Kanban View" />}
                       {usage.integrations && <UsageMeter {...usage.integrations} label="Integrations" />}
                       {usage.automations && <UsageMeter {...usage.automations} label="Automations" />}
                       {usage.chat_messages && <UsageMeter {...usage.chat_messages} label="Chat Messages" />}

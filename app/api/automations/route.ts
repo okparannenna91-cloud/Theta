@@ -77,12 +77,12 @@ export async function GET(req: Request) {
             scope.projectId = projectId;
         }
 
-        const [automations, workspaceCount] = await Promise.all([
+        const [automations, currentCount] = await Promise.all([
             prisma.automation.findMany({
                 where: scope,
                 orderBy: { createdAt: "asc" },
             }),
-            prisma.automation.count({ where: { workspaceId } })
+            prisma.automation.count({ where: scope })
         ]);
 
         const workspace = await prisma.workspace.findUnique({
@@ -97,7 +97,7 @@ export async function GET(req: Request) {
             automations,
             limits: {
                 max: limits.maxAutomations,
-                current: workspaceCount,
+                current: currentCount,
             }
         });
     } catch (error) {
@@ -130,9 +130,12 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: projectError }, { status: 403 });
         }
 
-        // Check plan limits strictly with TOCTOU-safe transaction
+        // Check plan limits strictly with TOCTOU-safe transaction (automations are project-scoped)
         await prisma.$transaction(async (tx) => {
-            const count = await tx.automation.count({ where: { workspaceId: data.workspaceId } });
+            const scope = data.projectId
+                ? { workspaceId: data.workspaceId, projectId: data.projectId }
+                : { workspaceId: data.workspaceId, projectId: null };
+            const count = await tx.automation.count({ where: scope });
             await enforcePlanLimit(data.workspaceId, "automations", count);
         });
 

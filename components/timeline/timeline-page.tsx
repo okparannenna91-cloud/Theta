@@ -23,9 +23,11 @@ import { PRIORITY_OPTIONS, STATUS_OPTIONS, GROUP_BY_OPTIONS, GroupByKey } from "
 import type { ZoomLevel } from "@/components/shared/timeline/types";
 import { addDays } from "date-fns";
 import { useTaskRealtime } from "@/hooks/use-task-realtime";
+import { hasTimelineAccess, isValidPlan } from "@/lib/plan-limits";
+import { PremiumFeatureGate } from "@/components/common/premium-feature-gate";
 
 export default function TimelinePage({ projectId }: { projectId?: string }) {
-  const { activeWorkspaceId } = useWorkspace();
+  const { activeWorkspaceId, activeWorkspace } = useWorkspace();
 
   // View state
   const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("day");
@@ -173,7 +175,9 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
 
   const centerDate = useMemo(() => addDays(new Date(), dateOffset * 7), [dateOffset]);
 
-  if (isLoadingState) {
+  const workspacePlan = isValidPlan(activeWorkspace?.plan) ? activeWorkspace.plan : "free";
+
+  if (isLoadingState || !activeWorkspace) {
     return (
       <div className="space-y-6">
         <div className="flex items-center justify-between">
@@ -188,6 +192,17 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
           <Skeleton className="h-full w-full rounded-md" />
         </div>
       </div>
+    );
+  }
+
+  if (!hasTimelineAccess(workspacePlan)) {
+    return (
+      <PremiumFeatureGate
+        feature="the Timeline view"
+        title="Visualize Your Project Schedule"
+        description="The Timeline view is available on Growth plans and above. Visualize task schedules, spot conflicts, and keep your project on track."
+        ctaLabel="Upgrade to Growth"
+      />
     );
   }
 

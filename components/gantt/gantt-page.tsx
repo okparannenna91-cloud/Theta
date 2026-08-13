@@ -32,9 +32,11 @@ import { toast } from "sonner";
 import { useUser } from "@clerk/nextjs";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import type { ZoomLevel, UndoCommand } from "@/components/shared/timeline/types";
+import { hasGanttAccess, isValidPlan } from "@/lib/plan-limits";
+import { PremiumFeatureGate } from "@/components/common/premium-feature-gate";
 
 export default function GanttPage({ projectId }: { projectId?: string }) {
-    const { activeWorkspaceId } = useWorkspace();
+    const { activeWorkspaceId, activeWorkspace } = useWorkspace();
     const queryClient = useQueryClient();
     const [zoomLevel, setZoomLevel] = useState<ZoomLevel>("day");
     const [searchQuery, setSearchQuery] = useState("");
@@ -365,12 +367,25 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
         return count;
     }, [filterStatus, filterPriority, filterAssignee, filterTag, filterProject]);
 
-    if (isLoading) {
+    if (isLoading || !activeWorkspace) {
         return (
             <div className="space-y-6 p-6">
                 <Skeleton className="h-12 w-full rounded-lg" />
                 <Skeleton className="h-[600px] w-full rounded-lg" />
             </div>
+        );
+    }
+
+    const workspacePlan = isValidPlan(activeWorkspace?.plan) ? activeWorkspace.plan : "free";
+
+    if (!hasGanttAccess(workspacePlan)) {
+        return (
+            <PremiumFeatureGate
+                feature="the Gantt view"
+                title="Unlock Advanced Scheduling"
+                description="The Gantt view is available on Pro plans and above. Manage dependencies, critical paths, baselines, and auto-scheduling for your project."
+                ctaLabel="Upgrade to Pro"
+            />
         );
     }
 

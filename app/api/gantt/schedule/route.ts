@@ -25,6 +25,13 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    try {
+      const { enforcePlanLimit } = await import("@/lib/plan-limits");
+      await enforcePlanLimit(workspaceId, "gantt", 0);
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+
     const tasks = await prisma.task.findMany({
       where: { workspaceId },
       include: {

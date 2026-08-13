@@ -75,6 +75,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
 
+    // Custom fields are project-scoped (one board per project): count current fields on this board
+    const existingFields = await getFieldsForBoard(data.boardId);
+    try {
+      const { enforcePlanLimit } = await import("@/lib/plan-limits");
+      await enforcePlanLimit(board.workspaceId, "custom_fields", existingFields.length);
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+
     const field = await createField({
       name: data.name,
       boardId: data.boardId,

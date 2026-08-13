@@ -75,6 +75,13 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    try {
+      const { enforcePlanLimit } = await import("@/lib/plan-limits");
+      await enforcePlanLimit(project.workspaceId, "gantt", 0);
+    } catch (error: any) {
+      return NextResponse.json({ error: error.message }, { status: 403 });
+    }
+
     const body = await req.json();
     const { workingDays, holidays } = body;
 

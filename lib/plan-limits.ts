@@ -15,6 +15,7 @@ export interface PlanLimits {
     maxTeams: number;
     maxMembers: number;
     maxBoards: number;
+    maxCustomFields: number;          // per project (board)
     maxCalendarEvents: number;
 
     // Storage & Files
@@ -32,6 +33,8 @@ export interface PlanLimits {
     hasIntegrations: boolean;
     maxIntegrations: number;
     hasAdvancedAnalytics: boolean;
+    hasTimeline: boolean;
+    hasGantt: boolean;
     hasPrioritySupport: boolean;
     hasCustomFields: boolean;
     hasWhiteLabel: boolean;
@@ -68,7 +71,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxTasks: -1,               // UNLIMITED
         maxTeams: 1,                // 1 team
         maxMembers: 5,              // 5 members
-        maxBoards: 3,               // 3 boards
+        maxBoards: -1,              // Kanban view is a core view (unlimited)
+        maxCustomFields: 0,         // NO custom fields
         maxCalendarEvents: 10,      // 10 events
         maxStorage: 256,            // 256MB
         maxFileSize: 5,             // 5MB per file
@@ -80,6 +84,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         hasIntegrations: true,
         maxIntegrations: 1,         // 1 integration
         hasAdvancedAnalytics: false,
+        hasTimeline: false,
+        hasGantt: false,
         hasPrioritySupport: false,
         hasCustomFields: false,
         hasWhiteLabel: false,
@@ -102,7 +108,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxTasks: -1,
         maxTeams: 5,
         maxMembers: 15,
-        maxBoards: -1,              // UNLIMITED
+        maxBoards: -1,              // Kanban view (unlimited)
+        maxCustomFields: 5,         // 5 per project
         maxCalendarEvents: -1,      // UNLIMITED
         maxStorage: 5 * 1024,       // 5GB
         maxFileSize: 25,            // 25MB
@@ -114,6 +121,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         hasIntegrations: true,
         maxIntegrations: 3,         // 3 integrations
         hasAdvancedAnalytics: false,
+        hasTimeline: true,
+        hasGantt: false,
         hasPrioritySupport: false,
         hasCustomFields: true,
         hasWhiteLabel: false,
@@ -137,6 +146,7 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxTeams: -1,
         maxMembers: 50,
         maxBoards: -1,
+        maxCustomFields: -1,        // UNLIMITED
         maxCalendarEvents: -1,
         maxStorage: 50 * 1024,      // 50GB
         maxFileSize: 100,           // 100MB
@@ -148,6 +158,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         hasIntegrations: true,
         maxIntegrations: -1,        // UNLIMITED
         hasAdvancedAnalytics: true,
+        hasTimeline: true,
+        hasGantt: true,
         hasPrioritySupport: false,
         hasCustomFields: true,
         hasWhiteLabel: false,
@@ -171,6 +183,7 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         maxTeams: -1,
         maxMembers: -1,             // UNLIMITED
         maxBoards: -1,
+        maxCustomFields: -1,        // UNLIMITED
         maxCalendarEvents: -1,
         maxStorage: 500 * 1024,     // 500GB
         maxFileSize: 500,           // 500MB
@@ -182,6 +195,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {
         hasIntegrations: true,
         maxIntegrations: -1,        // UNLIMITED
         hasAdvancedAnalytics: true,
+        hasTimeline: true,
+        hasGantt: true,
         hasPrioritySupport: true,
         hasCustomFields: true,
         hasWhiteLabel: true,
@@ -273,6 +288,18 @@ export function canCreateBoard(
 }
 
 /**
+ * Check if workspace can create more custom fields in a project
+ */
+export function canCreateCustomField(
+    plan: PlanName,
+    currentFieldCount: number
+): boolean {
+    const limits = PLAN_LIMITS[plan];
+    if (limits.maxCustomFields === -1) return true;
+    return currentFieldCount < limits.maxCustomFields;
+}
+
+/**
  * Check if workspace can create more calendar events
  */
 export function canCreateCalendarEvent(
@@ -296,6 +323,20 @@ export function hasIntegrationAccess(plan: PlanName): boolean {
  */
 export function hasAdvancedAnalyticsAccess(plan: PlanName): boolean {
     return PLAN_LIMITS[plan].hasAdvancedAnalytics;
+}
+
+/**
+ * Check if workspace has access to the timeline view
+ */
+export function hasTimelineAccess(plan: PlanName): boolean {
+    return PLAN_LIMITS[plan].hasTimeline;
+}
+
+/**
+ * Check if workspace has access to the gantt view
+ */
+export function hasGanttAccess(plan: PlanName): boolean {
+    return PLAN_LIMITS[plan].hasGantt;
 }
 
 /**
@@ -342,6 +383,8 @@ export function getPlanLimitMessage(plan: PlanName, feature: string): string {
             return "Team limit reached. Upgrade your plan to create more teams.";
         case "boards":
             return "Board limit reached. Upgrade your plan to create more boards.";
+        case "custom_fields":
+            return "Custom fields are available on Growth plans and above. Upgrade to create custom fields.";
         case "calendar_events":
             return "Calendar event limit reached. Upgrade your plan to create more events.";
         case "storage":
@@ -354,6 +397,10 @@ export function getPlanLimitMessage(plan: PlanName, feature: string): string {
             return "Integration limit reached. Upgrade your plan to unlock more integrations.";
         case "analytics":
             return "Advanced analytics are available on upgraded plans.";
+        case "timeline":
+            return "The Timeline view is available on Growth plans and above. Upgrade to visualize your project schedule.";
+        case "gantt":
+            return "The Gantt view is available on Pro plans and above. Upgrade to unlock Gantt scheduling and baselines.";
         case "automations":
             return "Automation limit reached. Upgrade your plan for more automations.";
         case "sprints":
@@ -485,11 +532,15 @@ export async function enforcePlanLimit(
         case "teams": isAllowed = limits.maxTeams === -1 || currentCount < limits.maxTeams; break;
         case "boards": isAllowed = limits.maxBoards === -1 || currentCount < limits.maxBoards; break;
         case "calendar_events": isAllowed = limits.maxCalendarEvents === -1 || currentCount < limits.maxCalendarEvents; break;
-        case "nova_ai": isAllowed = limits.hasNovaAI && (limits.maxNovaRequests === -1 || currentCount < limits.maxNovaRequests); break;
+        case "nova_ai":
+        case "nova": isAllowed = limits.hasNovaAI && (limits.maxNovaRequests === -1 || currentCount < limits.maxNovaRequests); break;
         case "chat": isAllowed = limits.maxChatMessages === -1 || currentCount < limits.maxChatMessages; break;
         case "integrations": isAllowed = limits.hasIntegrations && (limits.maxIntegrations === -1 || currentCount < limits.maxIntegrations); break;
         case "analytics": isAllowed = limits.hasAdvancedAnalytics; break;
+        case "timeline": isAllowed = limits.hasTimeline; break;
+        case "gantt": isAllowed = limits.hasGantt; break;
         case "automations": isAllowed = limits.hasCustomAutomation && (limits.maxAutomations === -1 || currentCount < limits.maxAutomations); break;
+        case "custom_fields": isAllowed = limits.maxCustomFields === -1 || currentCount < limits.maxCustomFields; break;
         case "api_access": isAllowed = limits.hasAPIAccess; break;
         case "sprints": isAllowed = limits.canCreateSprints; break;
         case "goals": isAllowed = limits.canCreateGoals; break;
