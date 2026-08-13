@@ -82,8 +82,6 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import TableView from "@/components/boards/table-view";
-import MapView from "@/components/boards/map-view";
 import FilterSortBar from "@/components/boards/filter-sort-bar";
 import type { FilterConfig, SortConfig, ColumnVisibility, SavedView } from "@/components/boards/filter-sort-bar";
 import { TaskDialog } from "@/components/tasks/task-dialog";
@@ -136,7 +134,7 @@ async function deleteColumn(columnId: string, migrateToStatusId?: string) {
   return res.json();
 }
 
-function TaskCardContent({ task, memberMap, fields }: { task: any; memberMap: Record<string, any>; fields: any[] }) {
+const TaskCardContent = React.memo(function TaskCardContent({ task, memberMap, fields }: { task: any; memberMap: Record<string, any>; fields: any[] }) {
   const priorityInfo = useMemo(() => {
     switch (task.priority) {
       case "urgent":
@@ -303,9 +301,9 @@ function TaskCardContent({ task, memberMap, fields }: { task: any; memberMap: Re
       </div>
     </div>
   );
-}
+});
 
-function SortableTask({ 
+const SortableTask = React.memo(function SortableTask({ 
   task, 
   onClick, 
   isSelected, 
@@ -314,9 +312,9 @@ function SortableTask({
   fields,
 }: { 
   task: any; 
-  onClick: () => void;
+  onClick: (task: any) => void;
   isSelected: boolean;
-  onSelect: (checked: boolean) => void;
+  onSelect: (taskId: string, checked: boolean) => void;
   memberMap: Record<string, any>;
   fields: any[];
 }) {
@@ -353,7 +351,7 @@ function SortableTask({
       {...listeners}
       onClick={(e) => {
         if (transform) return;
-        onClick();
+        onClick(task);
       }}
       className={cn(
         "p-3 cursor-grab active:cursor-grabbing transition-all duration-200 group relative bg-card border shadow-sm rounded-lg",
@@ -368,14 +366,14 @@ function SortableTask({
       >
         <Checkbox 
           checked={isSelected} 
-          onCheckedChange={(checked) => onSelect(!!checked)}
+          onCheckedChange={(checked) => onSelect(task.id, !!checked)}
           className="h-3.5 w-3.5 rounded border-border data-[state=checked]:bg-primary data-[state=checked]:border-primary"
         />
       </div>
       <TaskCardContent task={task} memberMap={memberMap} fields={fields} />
     </Card>
   );
-}
+});
 
 function ColumnContainer({ 
   column, 
@@ -477,6 +475,13 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const boardRef = useRef<any>(null);
   const dragStartBoardRef = useRef<any>(null);
   const dragStartTaskRef = useRef<any>(null);
+
+  const handleOpenTask = useCallback((task: any) => setSelectedTask(task), []);
+  const handleToggleSelect = useCallback((taskId: string, checked: boolean) => {
+    setSelectedTaskIds(prev =>
+      checked ? [...prev, taskId] : prev.filter(id => id !== taskId)
+    );
+  }, []);
 
   // Filter & Sort state
   const [filterConfig, setFilterConfig] = useState<FilterConfig>({});
@@ -1227,13 +1232,9 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                               <SortableTask
                                 key={task.id}
                                 task={task}
-                                onClick={() => setSelectedTask(task)}
+                                onClick={handleOpenTask}
                                 isSelected={selectedTaskIds.includes(task.id)}
-                                onSelect={(checked) => {
-                                  setSelectedTaskIds(prev =>
-                                    checked ? [...prev, task.id] : prev.filter(id => id !== task.id)
-                                  );
-                                }}
+                                onSelect={handleToggleSelect}
                                 memberMap={memberMap}
                                 fields={customFields}
                               />
@@ -1285,27 +1286,8 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
             </DragOverlay>
           </DndContext>
         )}
-        {currentView === "table" && (
-          <div className="h-full p-6 sm:p-8 overflow-auto">
-            <TableView
-              boardId={boardId}
-              tasks={sortedTasks}
-              columns={columns}
-              groups={[]}
-              onSelectTask={setSelectedTask}
-              workspaceId={activeWorkspaceId || ""}
-              projectId={board?.projectId}
-            />
-          </div>
-        )}
-        {currentView === "map" && (
-          <div className="h-full p-6 sm:p-8 overflow-auto">
-            <MapView tasks={sortedTasks} columns={columns} onSelectTask={setSelectedTask} />
-          </div>
-        )}
       </div>
       </div>
-
       {/* New Column Dialog */}
       <Dialog open={isColumnDialogOpen} onOpenChange={setIsColumnDialogOpen}>
         <DialogContent className="sm:max-w-[425px]">

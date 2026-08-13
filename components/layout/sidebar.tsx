@@ -168,8 +168,8 @@ export const Sidebar = memo(function Sidebar() {
       if (!res.ok) return {};
       return res.json();
     },
-    enabled: !!activeWorkspaceId,
-    refetchInterval: 30_000,
+    enabled: !!activeWorkspaceId && !collapsed,
+    refetchInterval: collapsed ? false : 30_000,
     staleTime: 15_000,
   });
 
@@ -182,8 +182,8 @@ export const Sidebar = memo(function Sidebar() {
       const data = await res.json();
       return data.conversations ?? [];
     },
-    enabled: !!activeWorkspaceId,
-    refetchInterval: 30_000,
+    enabled: !!activeWorkspaceId && !collapsed,
+    refetchInterval: collapsed ? false : 30_000,
     staleTime: 15_000,
   });
 

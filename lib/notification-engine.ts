@@ -186,6 +186,20 @@ export async function notifyTaskAssignees(
   );
 }
 
+const ACCESS_CACHE_TTL = 60_000;
+const accessCache = new Map<string, { value: boolean; expires: number }>();
+
+async function cachedCanAccessProject(userId: string, projectId: string, workspaceId: string): Promise<boolean> {
+  const key = `${userId}:${projectId}`;
+  const hit = accessCache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.value;
+  const { canAccessProject } = await import("./project-permissions");
+  const { hasAccess } = await canAccessProject(userId, projectId, workspaceId);
+  accessCache.set(key, { value: hasAccess, expires: Date.now() + ACCESS_CACHE_TTL });
+  if (accessCache.size > 500) accessCache.clear();
+  return hasAccess;
+}
+
 export async function notifyWorkspaceMembers(
   workspaceId: string,
   actorId: string,
@@ -202,13 +216,10 @@ export async function notifyWorkspaceMembers(
 
     const projectId = metadata?.projectId;
     if (projectId) {
-      const { canAccessProject } = await import("./project-permissions");
       const accessResults = await Promise.all(
         otherMembers.map(async (m: any) => ({
           userId: m.userId,
-          hasAccess: (
-            await canAccessProject(m.userId, projectId, workspaceId)
-          ).hasAccess,
+          hasAccess: await cachedCanAccessProject(m.userId, projectId, workspaceId),
         }))
       );
       const accessibleUserIds = new Set(

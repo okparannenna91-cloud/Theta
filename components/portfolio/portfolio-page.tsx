@@ -8,20 +8,20 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { FolderKanban, CheckSquare, Clock, AlertTriangle, TrendingUp, PieChart as PieChartIcon, Activity, Users } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-    AreaChart, 
-    Area, 
-    XAxis, 
-    YAxis, 
-    CartesianGrid, 
-    Tooltip, 
-    ResponsiveContainer,
-    PieChart,
-    Pie,
-    Cell,
-    BarChart,
-    Bar
-} from "recharts";
+import dynamic from "next/dynamic";
+
+const AreaChart = dynamic(() => import("recharts").then(m => m.AreaChart), { ssr: false });
+const Area = dynamic(() => import("recharts").then(m => m.Area), { ssr: false });
+const XAxis = dynamic(() => import("recharts").then(m => m.XAxis), { ssr: false });
+const YAxis = dynamic(() => import("recharts").then(m => m.YAxis), { ssr: false });
+const CartesianGrid = dynamic(() => import("recharts").then(m => m.CartesianGrid), { ssr: false });
+const Tooltip = dynamic(() => import("recharts").then(m => m.Tooltip), { ssr: false });
+const ResponsiveContainer = dynamic(() => import("recharts").then(m => m.ResponsiveContainer), { ssr: false });
+const PieChart = dynamic(() => import("recharts").then(m => m.PieChart), { ssr: false });
+const Pie = dynamic(() => import("recharts").then(m => m.Pie), { ssr: false });
+const Cell = dynamic(() => import("recharts").then(m => m.Cell), { ssr: false });
+const BarChart = dynamic(() => import("recharts").then(m => m.BarChart), { ssr: false });
+const Bar = dynamic(() => import("recharts").then(m => m.Bar), { ssr: false });
 
 import { MotionWrapper, FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
 

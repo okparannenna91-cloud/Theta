@@ -48,12 +48,12 @@ export function NotificationBell() {
     }, []);
 
     const { data } = useQuery({
-        queryKey: ["notifications", "unread-count", activeWorkspaceId],
+        queryKey: ["inbox-counts", activeWorkspaceId],
         queryFn: async () => {
-            const res = await fetch(`/api/notifications?workspaceId=${activeWorkspaceId}&filter=unread&take=1`);
+            const res = await fetch(`/api/notifications/counts?workspaceId=${activeWorkspaceId}`);
             if (!res.ok) throw new Error("Failed to fetch");
             const json = await res.json();
-            return { unreadCount: json.unreadCount, notifications: json.notifications || [] };
+            return { unreadCount: json.unread || 0, notifications: [] };
         },
         enabled: !!activeWorkspaceId,
         refetchInterval: 60000,
@@ -61,12 +61,11 @@ export function NotificationBell() {
 
     useAbly(getWorkspaceChannel(activeWorkspaceId || ""), "notification", () => {
         playNotificationSound();
-        queryClient.invalidateQueries({ queryKey: ["notifications", activeWorkspaceId] });
-        queryClient.invalidateQueries({ queryKey: ["notifications", "unread-count", activeWorkspaceId] });
+        queryClient.invalidateQueries({ queryKey: ["inbox-counts", activeWorkspaceId] });
     });
 
     useAbly(getWorkspaceChannel(activeWorkspaceId || ""), "notification:count", (msg: any) => {
-        queryClient.setQueryData(["notifications", "unread-count", activeWorkspaceId], (old: any) => {
+        queryClient.setQueryData(["inbox-counts", activeWorkspaceId], (old: any) => {
             if (!old) return { unreadCount: msg.count, notifications: [] };
             return { ...old, unreadCount: msg.count };
         });

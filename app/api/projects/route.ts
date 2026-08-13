@@ -7,6 +7,7 @@ import { getProjectCount } from "@/lib/usage-tracking";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
 import { createActivity } from "@/lib/activity";
 import { StatusCategory, inferStatusCategory } from "@/lib/constants/status";
+import { cacheGetOrSet, cacheKey, cacheInvalidatePattern } from "@/lib/cache";
 import { z } from "zod";
 
 const projectSchema = z.object({
@@ -86,70 +87,85 @@ export async function GET(req: Request) {
       whereClause = { workspaceId, id: { in: accessibleProjectIds } };
     }
 
-    const projects = await prisma.project.findMany({
-      where: whereClause,
-      include: {
-        tasks: {
-            select: {
-                status: true,
-                dueDate: true,
-                customStatus: { select: { category: true } }
-            }
-        },
-        team: {
-            include: {
-                members: { select: { userId: true, role: true } }
-            }
-        },
-        _count: {
-          select: { tasks: true },
-        },
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const limitParam = searchParams.get("limit");
+    const countOnly = searchParams.get("count") === "true";
+    const limit = limitParam ? Math.max(1, parseInt(limitParam, 10) || 1) : undefined;
 
-    // Manually resolve User Data across shards
-    const allUserIds = new Set<string>();
-    projects.forEach((p: any) => {
-        p.team?.members?.forEach((m: any) => allUserIds.add(m.userId));
-        allUserIds.add(p.userId);
-    });
-
-    const users = await prisma.user.findMany({
-        where: { id: { in: Array.from(allUserIds) } },
-        select: { id: true, name: true, imageUrl: true }
-    });
-    
-    const userMap = new Map(users.map(u => [u.id, u]));
-
-    const enrichedProjects = projects.map((p: any) => ({
-        ...p,
-        user: userMap.get(p.userId) || null,
-        team: p.team ? {
-            ...p.team,
-            members: p.team.members.map((m: any) => ({
-                ...m,
-                user: userMap.get(m.userId) || null
-            }))
-        } : null
-    }));
-
-    // Calculate limits
-    const workspace = await prisma.workspace.findUnique({
-        where: { id: workspaceId },
-        select: { plan: true }
-    });
-    const plan = (workspace?.plan as any) || "free";
-    const planLimits = getPlanLimits(plan);
-
-    return NextResponse.json({
-        projects: enrichedProjects,
-        limits: {
-            max: planLimits.maxProjects,
-            current: enrichedProjects.length,
-            hasAccess: true // Project creation is allowed on all plans, just limited by count
+    const data = await cacheGetOrSet(
+      cacheKey("projects", user.id, workspaceId, teamId || "all", limit ? String(limit) : "all", countOnly ? "count" : "full"),
+      async () => {
+        if (countOnly) {
+          const count = await prisma.project.count({ where: whereClause });
+          return { count, projects: [] };
         }
-    });
+
+        const projects = await prisma.project.findMany({
+          where: whereClause,
+          include: {
+            tasks: {
+                select: {
+                    status: true,
+                    dueDate: true,
+                    customStatus: { select: { category: true } }
+                }
+            },
+            team: {
+                include: {
+                    members: { select: { userId: true, role: true } }
+                }
+            },
+            _count: {
+              select: { tasks: true },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+          ...(limit ? { take: limit } : {}),
+        });
+
+        // Manually resolve User Data across shards
+        const allUserIds = new Set<string>();
+        projects.forEach((p: any) => {
+            p.team?.members?.forEach((m: any) => allUserIds.add(m.userId));
+            allUserIds.add(p.userId);
+        });
+
+        const users = await prisma.user.findMany({
+            where: { id: { in: Array.from(allUserIds) } },
+            select: { id: true, name: true, imageUrl: true }
+        });
+
+        const userMap = new Map(users.map(u => [u.id, u]));
+
+        const enrichedProjects = projects.map((p: any) => ({
+            ...p,
+            user: userMap.get(p.userId) || null,
+            team: p.team ? {
+                ...p.team,
+                members: p.team.members.map((m: any) => ({
+                    ...m,
+                    user: userMap.get(m.userId) || null
+                }))
+            } : null
+        }));
+
+        // Calculate limits
+        const { getWorkspacePlan } = await import("@/lib/plan-limits");
+        const plan = await getWorkspacePlan(workspaceId);
+        const planLimits = getPlanLimits(plan);
+
+        return {
+            projects: enrichedProjects,
+            limits: {
+                max: planLimits.maxProjects,
+                current: enrichedProjects.length,
+                hasAccess: true // Project creation is allowed on all plans, just limited by count
+            }
+        };
+      },
+      30
+    );
+
+    return NextResponse.json(data);
   } catch (error) {
     console.error("Projects API error:", error);
     return NextResponse.json(
@@ -314,6 +330,9 @@ export async function POST(req: Request) {
     } catch (automationError) {
       console.error("Failed to trigger automations on project creation:", automationError);
     }
+
+    // Invalidate cached project lists
+    await cacheInvalidatePattern("cache:projects:*");
 
     return NextResponse.json(project);
   } catch (error: any) {

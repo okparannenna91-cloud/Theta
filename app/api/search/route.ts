@@ -24,16 +24,6 @@ interface TaskResult {
   [key: string]: unknown;
 }
 
-function extractId(raw: unknown): string {
-  if (!raw) return "";
-  if (typeof raw === "string") return raw;
-  if (typeof raw === "object") {
-    const obj = raw as Record<string, unknown>;
-    return String((obj.$oid as string) ?? obj._id ?? obj.id ?? "");
-  }
-  return String(raw);
-}
-
 export async function GET(req: Request) {
     try {
         const user = await getCurrentUser();
@@ -80,100 +70,37 @@ export async function GET(req: Request) {
         const accessibleProjectIds = await getAccessibleProjectIds(user.id, workspaceId);
 
         const searchTerm = query.trim().replace(/[\$\{\}\(\)\[\]]/g, ""); // sanitize: strip MongoDB operators
-        const FETCH_LIMIT = 50; // Fetch more to compensate for post-filter removal
 
-        // Search projects using $text if possible, fallback to contains
-        let projects: ProjectResult[] = [];
-        try {
-            const raw = await prisma.$runCommandRaw({
-                find: "Project",
-                filter: {
-                    workspaceId: { $oid: workspaceId },
-                    $text: { $search: searchTerm }
-                },
-                limit: FETCH_LIMIT,
-                projection: { name: 1, description: 1, color: 1 }
-            });
-            const rawList = (raw as any)?.cursor?.firstBatch ?? (raw as any) ?? [];
-            projects = (Array.isArray(rawList) ? rawList : []).map((p: any) => ({
-                id: extractId(p._id),
-                name: p.name || "",
-                description: p.description,
-                color: p.color,
-            })).filter(p => accessibleProjectIds.includes(p.id));
-        } catch {
-            projects = await prisma.project.findMany({
-                where: {
-                    workspaceId,
-                    id: { in: accessibleProjectIds },
-                    OR: [
-                        { name: { contains: searchTerm, mode: "insensitive" } },
-                        { description: { contains: searchTerm, mode: "insensitive" } },
-                    ],
-                },
-                take: 10,
-                select: { id: true, name: true, description: true, color: true },
-            });
-        }
+        // Search projects using contains (case-insensitive)
+        const projects: ProjectResult[] = await prisma.project.findMany({
+            where: {
+                workspaceId,
+                id: { in: accessibleProjectIds },
+                OR: [
+                    { name: { contains: searchTerm, mode: "insensitive" } },
+                    { description: { contains: searchTerm, mode: "insensitive" } },
+                ],
+            },
+            take: 10,
+            select: { id: true, name: true, description: true, color: true },
+        });
 
-        // Search tasks using $text if possible
-        let tasks: TaskResult[] = [];
-        try {
-            const raw = await prisma.$runCommandRaw({
-                find: "Task",
-                filter: {
-                    workspaceId: { $oid: workspaceId },
-                    $text: { $search: searchTerm }
-                },
-                limit: FETCH_LIMIT,
-            });
-            const rawList = (raw as any)?.cursor?.firstBatch ?? (raw as any) ?? [];
-            const rawTasks = (Array.isArray(rawList) ? rawList : []).map((t: any) => ({
-                id: extractId(t._id),
-                title: t.title || "",
-                description: t.description || "",
-                projectId: extractId(t.projectId ?? t.project_id ?? ""),
-                parentId: extractId(t.parentId ?? t.parent_id ?? ""),
-                status: t.status || "todo",
-            }));
-
-            const projectIds = [...new Set(rawTasks.map(t => t.projectId).filter(Boolean))];
-            const parentIds = [...new Set(rawTasks.map(t => t.parentId).filter(Boolean))];
-            const [resolvedProjects, resolvedParents] = await Promise.all([
-                projectIds.length > 0 ? prisma.project.findMany({
-                    where: { id: { in: projectIds } },
-                    select: { id: true, name: true }
-                }) : Promise.resolve([]),
-                parentIds.length > 0 ? prisma.task.findMany({
-                    where: { id: { in: parentIds } },
-                    select: { id: true, title: true }
-                }) : Promise.resolve([]),
-            ]);
-
-            tasks = rawTasks
-                .filter(t => accessibleProjectIds.includes(t.projectId))
-                .map(t => ({
-                    ...t,
-                    project: resolvedProjects.find(p => p.id === t.projectId) || null,
-                    parent: t.parentId ? (resolvedParents.find(p => p.id === t.parentId) || null) : null,
-                }));
-        } catch {
-            tasks = await prisma.task.findMany({
-                where: {
-                    workspaceId,
-                    projectId: { in: accessibleProjectIds },
-                    OR: [
-                        { title: { contains: searchTerm, mode: "insensitive" } },
-                        { description: { contains: searchTerm, mode: "insensitive" } },
-                    ],
-                },
-                take: 10,
-                include: {
-                    project: { select: { id: true, name: true } },
-                    parent: { select: { id: true, title: true } },
-                },
-            });
-        }
+        // Search tasks using contains (case-insensitive)
+        const tasks: TaskResult[] = await prisma.task.findMany({
+            where: {
+                workspaceId,
+                projectId: { in: accessibleProjectIds },
+                OR: [
+                    { title: { contains: searchTerm, mode: "insensitive" } },
+                    { description: { contains: searchTerm, mode: "insensitive" } },
+                ],
+            },
+            take: 10,
+            include: {
+                project: { select: { id: true, name: true } },
+                parent: { select: { id: true, title: true } },
+            },
+        });
 
         // Search team members
         const members = await prisma.workspaceMember.findMany({

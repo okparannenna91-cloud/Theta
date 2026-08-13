@@ -1,7 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, useRef } from "react";
-import * as Ably from "ably";
+import type * as Ably from "ably";
 import { useUser } from "@clerk/nextjs";
 
 const AblyContext = createContext<Ably.Realtime | null>(null);
@@ -37,23 +37,36 @@ export function AblyProvider({ children }: { children: React.ReactNode }) {
       setClient(null);
     }
 
-    const ablyClient = new Ably.Realtime({
-      authUrl: "/api/ably/token",
-      clientId: currentId,
-    });
+    let cancelled = false;
 
-    ablyClient.connection.on("connected", () => {
-      console.log("Ably Connected");
-    });
+    (async () => {
+      const AblyMod = (await import("ably")).default;
+      if (cancelled || currentId !== userIdRef.current) return;
 
-    ablyClient.connection.on("disconnected", () => {
-      console.log("Ably Disconnected");
-    });
+      const ablyClient = new AblyMod.Realtime({
+        authUrl: "/api/ably/token",
+        clientId: currentId,
+      });
 
-    clientRef.current = ablyClient;
-    setClient(ablyClient);
+      ablyClient.connection.on("connected", () => {
+        console.log("Ably Connected");
+      });
+
+      ablyClient.connection.on("disconnected", () => {
+        console.log("Ably Disconnected");
+      });
+
+      if (cancelled || currentId !== userIdRef.current) {
+        ablyClient.connection.close();
+        return;
+      }
+
+      clientRef.current = ablyClient;
+      setClient(ablyClient);
+    })();
 
     return () => {
+      cancelled = true;
       if (clientRef.current) {
         clientRef.current.connection.close();
         clientRef.current = null;

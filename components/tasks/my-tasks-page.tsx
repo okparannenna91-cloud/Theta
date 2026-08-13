@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { Card, CardContent } from "@/components/ui/card";
@@ -72,12 +72,12 @@ function priorityColor(p: string) {
   }
 }
 
-function TaskRow({
+const TaskRow = memo(function TaskRow({
   task,
   onClick,
 }: {
   task: any;
-  onClick: () => void;
+  onClick: (task: any) => void;
 }) {
   const overdue = task.dueDate && task.status !== "done" && isOverdue(task.dueDate);
   const dueToday = task.dueDate && isDueToday(task.dueDate);
@@ -85,7 +85,7 @@ function TaskRow({
   return (
     <Card
       className="group p-3 flex items-center gap-3 hover:border-primary/20 cursor-pointer transition-all shadow-sm"
-      onClick={onClick}
+      onClick={() => onClick(task)}
     >
       <button className="shrink-0 hover:scale-110 transition-transform active:scale-95 z-10">
         {task.status === "done" ? (
@@ -131,7 +131,7 @@ function TaskRow({
       </Badge>
     </Card>
   );
-}
+});
 
 function SectionHeader({
   icon: Icon,
@@ -167,6 +167,8 @@ export default function MyTasksPage() {
   const { activeWorkspaceId } = useWorkspace();
   const [userId, setUserId] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<any | null>(null);
+
+  const handleOpenTask = useCallback((task: any) => setSelectedTask(task), []);
 
   useEffect(() => {
     fetch("/api/auth/me")
@@ -284,7 +286,7 @@ export default function MyTasksPage() {
             <SectionHeader icon={AlertTriangle} label="Overdue" count={overdue.length} accent="bg-red-500/10" />
             <div className="grid gap-2">
               {overdue.map((task: any) => (
-                <TaskRow key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+                <TaskRow key={task.id} task={task} onClick={handleOpenTask} />
               ))}
             </div>
           </div>
@@ -295,7 +297,7 @@ export default function MyTasksPage() {
             <SectionHeader icon={Clock} label="Due Today" count={dueToday.length} accent="bg-amber-500/10" />
             <div className="grid gap-2">
               {dueToday.map((task: any) => (
-                <TaskRow key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+                <TaskRow key={task.id} task={task} onClick={handleOpenTask} />
               ))}
             </div>
           </div>
@@ -306,7 +308,7 @@ export default function MyTasksPage() {
             <SectionHeader icon={CalendarDays} label="Upcoming" count={upcoming.length} accent="bg-blue-500/10" />
             <div className="grid gap-2">
               {upcoming.map((task: any) => (
-                <TaskRow key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+                <TaskRow key={task.id} task={task} onClick={handleOpenTask} />
               ))}
             </div>
           </div>
@@ -317,7 +319,7 @@ export default function MyTasksPage() {
             <SectionHeader icon={ListTodo} label="No Due Date" count={noDueDate.length} accent="bg-slate-500/10" />
             <div className="grid gap-2">
               {noDueDate.map((task: any) => (
-                <TaskRow key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+                <TaskRow key={task.id} task={task} onClick={handleOpenTask} />
               ))}
             </div>
           </div>
@@ -328,7 +330,7 @@ export default function MyTasksPage() {
             <SectionHeader icon={CheckCircle2} label="Completed" count={completed.length} accent="bg-emerald-500/10" />
             <div className="grid gap-2">
               {completed.map((task: any) => (
-                <TaskRow key={task.id} task={task} onClick={() => setSelectedTask(task)} />
+                <TaskRow key={task.id} task={task} onClick={handleOpenTask} />
               ))}
             </div>
           </div>

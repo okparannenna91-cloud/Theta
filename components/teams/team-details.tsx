@@ -45,7 +45,6 @@ import {
     DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { TeamChat } from "./team-chat";
 import { TeamChatEnhanced } from "./team-chat-enhanced";
 import { usePopups } from "@/components/popups/popup-manager";
 import { format, formatDistanceToNow } from "date-fns";

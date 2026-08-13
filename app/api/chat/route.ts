@@ -114,7 +114,6 @@ export async function GET(req: Request) {
             countFilter.teamId = teamId;
         }
         const totalCount = await rawCount(countFilter);
-        console.log("[Chat API] Total count", { totalCount, effectiveWorkspaceId, teamId });
 
         const findFilter: Record<string, any> = {
             workspaceId: effectiveWorkspaceId,
@@ -171,12 +170,9 @@ export async function GET(req: Request) {
             } : null,
         }));
 
-        const { getPlanLimits } = await import("@/lib/plan-limits");
-        const workspace = await prisma.workspace.findUnique({
-            where: { id: effectiveWorkspaceId },
-            select: { plan: true }
-        });
-        const limits = getPlanLimits((workspace?.plan as any) || "free");
+        const { getPlanLimits, getWorkspacePlan } = await import("@/lib/plan-limits");
+        const plan = await getWorkspacePlan(effectiveWorkspaceId);
+        const limits = getPlanLimits(plan);
 
         let lastReadAt = null;
         if (teamId) {
@@ -265,20 +261,7 @@ export async function POST(req: Request) {
             updatedAt: now,
         };
 
-        console.log("[Chat POST] Raw inserting", { messageId, workspaceId: data.workspaceId, teamId: data.teamId });
         const result = await rawInsert(doc);
-        console.log("[Chat POST] Raw insert result", JSON.stringify(result));
-
-        const verifyCount = await rawCount({
-            workspaceId: data.workspaceId,
-            ...(data.teamId ? { teamId: data.teamId } : {}),
-            deletedAt: null,
-        });
-        console.log("[Chat POST] Verify count after insert", { count: verifyCount });
-
-        if (verifyCount === 0) {
-            console.error("[Chat POST] FATAL: Insert returned success but count is 0");
-        }
 
         let replyToData = null;
         let replyToUser = null;

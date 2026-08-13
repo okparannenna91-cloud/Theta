@@ -481,6 +481,29 @@ export function getUsageWarningMessage(
 }
 
 /**
+ * Server-side cached workspace plan lookup.
+ * Safe for server usage only (dynamic imports keep this file client-safe).
+ */
+export async function getWorkspacePlan(workspaceId: string): Promise<PlanName> {
+    const [{ prisma }, { cacheGetOrSet, cacheKey }] = await Promise.all([
+        import("./prisma"),
+        import("./cache"),
+    ]);
+    const plan = await cacheGetOrSet(
+        cacheKey("workspace-plan", workspaceId),
+        async () => {
+            const ws = await prisma.workspace.findUnique({
+                where: { id: workspaceId },
+                select: { plan: true },
+            });
+            return (ws?.plan as string) || "free";
+        },
+        60
+    );
+    return isValidPlan(plan) ? plan : "free";
+}
+
+/**
  * Server-side helper to strictly enforce plan limits.
  * Throws a 403 error if the limit is exceeded or billing is inactive.
  */

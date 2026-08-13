@@ -3,7 +3,6 @@ import { Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
 import "@vibe/core/tokens";
-import "leaflet/dist/leaflet.css";
 import { ClerkProvider } from "@clerk/nextjs";
 import { QueryProvider } from "@/components/providers/query-provider";
 import { ThemeProvider } from "@/components/providers/theme-provider";
@@ -97,7 +96,12 @@ export const viewport: Viewport = {
 import { I18nProvider } from "@/lib/i18n";
 
 import { PopupProvider } from "@/components/popups/popup-manager";
-import { CommandPalette } from "@/components/ai/command-palette";
+import dynamic from "next/dynamic";
+
+const CommandPalette = dynamic(() => import("@/components/ai/command-palette").then(m => m.CommandPalette), {
+  ssr: false,
+  loading: () => null,
+});
 
 export default function RootLayout({
   children,

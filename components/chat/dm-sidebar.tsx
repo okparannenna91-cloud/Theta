@@ -46,7 +46,7 @@ export function DmSidebar({ activeConversationId, onSelectConversation, onNewMes
       return res.json();
     },
     enabled: !!activeWorkspaceId,
-    refetchInterval: 15_000,
+    refetchInterval: 60_000,
   });
 
   const conversations: Conversation[] = data?.conversations ?? [];

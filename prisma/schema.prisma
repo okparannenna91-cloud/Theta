@@ -852,12 +852,15 @@ model ChatMessage {
   createdAt   DateTime
   updatedAt   DateTime
 
-  @@index([workspaceId])
+@@index([workspaceId])
   @@index([projectId])
   @@index([teamId])
   @@index([conversationId])
   @@index([userId])
   @@index([createdAt])
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([workspaceId, teamId, createdAt(sort: Desc)])
+  @@index([workspaceId, conversationId, createdAt(sort: Desc)])
   @@map("chat_messages")
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -73,6 +73,74 @@ async function deleteTask(id: string) {
   if (!res.ok) throw new Error("Failed to delete task");
   return res.json();
 }
+
+function getStatusIcon(task: any) {
+  const status = task?.status || "";
+  const category = task?.customStatus?.category;
+  if (isDoneStatus(status, category)) return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
+  if (isInProgressStatus(status, category)) return <Clock className="h-4 w-4 text-blue-600" />;
+  return <Circle className="h-4 w-4 text-muted-foreground" />;
+}
+
+function getPriorityColor(priority: string) {
+  switch (priority) {
+    case "high": return "bg-muted text-foreground border border-border";
+    case "medium": return "bg-muted text-muted-foreground border border-border";
+    case "low": return "bg-muted text-muted-foreground/60 border border-border";
+    default: return "bg-muted text-muted-foreground";
+  }
+}
+
+const TaskRow = memo(function TaskRow({ task, onToggle, onDelete, onOpen }: {
+  task: any;
+  onToggle: (task: any) => void;
+  onDelete: (id: string) => void;
+  onOpen: (task: any) => void;
+}) {
+  return (
+    <Card className="border-subtle hover:border-primary/30 transition-colors cursor-pointer"
+      onClick={() => onOpen(task)}>
+      <CardHeader className="p-4">
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex items-start gap-3 flex-1 min-w-0">
+            <button onClick={() => onToggle(task)}
+              className="shrink-0 mt-0.5 hover:scale-110 transition-transform">
+              {getStatusIcon(task)}
+            </button>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <span className={cn("text-sm font-medium", (task.status === "done") && "line-through text-muted-foreground")}>
+                  {task.title}
+                </span>
+                {task.fieldValues?.attachments?.length > 0 && (
+                  <Badge variant="outline" className="text-xs h-5 px-1.5 font-medium">
+                    <Paperclip className="h-2.5 w-2.5 mr-0.5 rotate-45" />
+                    {task.fieldValues.attachments.length}
+                  </Badge>
+                )}
+              </div>
+              {task.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>}
+              <div className="flex items-center gap-2 mt-2">
+                <Badge className={cn("text-xs rounded-md px-2 py-0 h-5 font-medium", getPriorityColor(task.priority))}>
+                  {task.priority}
+                </Badge>
+                {task.project && (
+                  <Badge variant="outline" className="text-xs rounded-md px-2 py-0 h-5">
+                    {task.project.name}
+                  </Badge>
+                )}
+              </div>
+            </div>
+          </div>
+          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
+            onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}>
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+    </Card>
+  );
+});
 
 export default function TasksPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -182,28 +250,24 @@ export default function TasksPage() {
     onError: (error: any) => { toast.error(error.message || "Failed to delete task"); },
   });
 
+  const handleToggleTask = useCallback((task: any) => {
+    updateMutation.mutate({ id: task.id, data: { status: task.status === "done" ? "todo" : "done" } });
+  }, [updateMutation]);
+
+  const handleDeleteTask = useCallback((id: string) => {
+    deleteMutation.mutate(id);
+  }, [deleteMutation]);
+
+  const handleOpenTask = useCallback((task: any) => {
+    setSelectedTask(task);
+    setIsDetailOpen(true);
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeWorkspaceIdRef.current) return;
     if (taskLimits.max !== -1 && taskLimits.current >= taskLimits.max) { showUpgradePrompt("tasks"); return; }
     createMutation.mutate({ title, description, status, priority, projectId: projectId || undefined, coverImage });
-  };
-
-  const getStatusIcon = (task: any) => {
-    const status = task?.status || "";
-    const category = task?.customStatus?.category;
-    if (isDoneStatus(status, category)) return <CheckCircle2 className="h-4 w-4 text-emerald-600" />;
-    if (isInProgressStatus(status, category)) return <Clock className="h-4 w-4 text-blue-600" />;
-    return <Circle className="h-4 w-4 text-muted-foreground" />;
-  };
-
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case "high": return "bg-muted text-foreground border border-border";
-      case "medium": return "bg-muted text-muted-foreground border border-border";
-      case "low": return "bg-muted text-muted-foreground/60 border border-border";
-      default: return "bg-muted text-muted-foreground";
-    }
   };
 
   const [view, setView] = useState<"list" | "table">("list");
@@ -350,47 +414,13 @@ export default function TasksPage() {
       {view === "list" ? (
         <div className="space-y-2">
           {tasks?.map((task: any) => (
-              <Card key={task.id} className="border-subtle hover:border-primary/30 transition-colors cursor-pointer"
-                onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
-              <CardHeader className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1 min-w-0">
-                    <button onClick={() => updateMutation.mutate({ id: task.id, data: { status: task.status === "done" ? "todo" : "done" } })}
-                      className="shrink-0 mt-0.5 hover:scale-110 transition-transform">
-                      {getStatusIcon(task)}
-                    </button>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5">
-                        <span className={cn("text-sm font-medium", (task.status === "done") && "line-through text-muted-foreground")}>
-                          {task.title}
-                        </span>
-                        {task.fieldValues?.attachments?.length > 0 && (
-                          <Badge variant="outline" className="text-xs h-5 px-1.5 font-medium">
-                            <Paperclip className="h-2.5 w-2.5 mr-0.5 rotate-45" />
-                            {task.fieldValues.attachments.length}
-                          </Badge>
-                        )}
-                      </div>
-                      {task.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>}
-                      <div className="flex items-center gap-2 mt-2">
-                        <Badge className={cn("text-xs rounded-md px-2 py-0 h-5 font-medium", getPriorityColor(task.priority))}>
-                          {task.priority}
-                        </Badge>
-                        {task.project && (
-                          <Badge variant="outline" className="text-xs rounded-md px-2 py-0 h-5">
-                            {task.project.name}
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(task.id); }}>
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardHeader>
-            </Card>
+              <TaskRow
+                key={task.id}
+                task={task}
+                onToggle={handleToggleTask}
+                onDelete={handleDeleteTask}
+                onOpen={handleOpenTask}
+              />
           ))}
         </div>
       ) : (

@@ -1,6 +1,7 @@
 import { prisma } from "./prisma";
 import { PlanName, getPlanLimits, getUsagePercentage, getWarningLevel } from "./plan-limits";
 import { logger } from "./logger";
+import { cacheGetOrSet, cacheKey, cacheInvalidatePattern } from "./cache";
 
 export interface UsageStats {
     projects: { current: number; max: number; percentage: number; warning: "ok" | "warning" | "critical" };
@@ -18,6 +19,24 @@ export interface UsageStats {
 
 export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
     try {
+        return await cacheGetOrSet(
+            cacheKey("usage", workspaceId),
+            async () => getUsageStatsUncached(workspaceId),
+            30
+        );
+    } catch (error) {
+        logger.error("getUsageStats Error:", error);
+        throw error;
+    }
+}
+
+export async function invalidateUsageCache(workspaceId: string): Promise<void> {
+    try {
+        await cacheInvalidatePattern(`cache:usage:${workspaceId}`);
+    } catch {}
+}
+
+async function getUsageStatsUncached(workspaceId: string): Promise<UsageStats> {
         const memberCount = await prisma.workspaceMember.count({
             where: {
                 workspaceId,
@@ -104,10 +123,6 @@ export async function getUsageStats(workspaceId: string): Promise<UsageStats> {
             integrations: createStat(integrationCount, limits.maxIntegrations),
             automations: createStat(automationCount, limits.maxAutomations),
         };
-    } catch (error) {
-        logger.error("getUsageStats Error:", error);
-        throw error;
-    }
 }
 
 export async function checkLimitExceeded(

@@ -28,6 +28,157 @@ interface TeamChatEnhancedProps {
 
 const PAGE_SIZE = 50;
 
+const formatDateLabel = (date: Date) => {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  if (d.getTime() === today.getTime()) return "Today";
+  if (d.getTime() === yesterday.getTime()) return "Yesterday";
+  return format(date, "EEEE, MMMM d");
+};
+
+interface MessageRowProps {
+  msg: any;
+  isMe: boolean;
+  isSameSender: boolean;
+  showDateSeparator: boolean;
+  currentUserId: string | undefined;
+  myUserIds: Set<string>;
+  onReply: (msg: any) => void;
+  onDelete: (id: string) => void;
+  onPin: (msg: any) => void;
+  onReactionToggle: (messageId: string, reactionId: string) => void;
+}
+
+const MessageRow = React.memo(function MessageRow({ msg, isMe, isSameSender, showDateSeparator, currentUserId, myUserIds, onReply, onDelete, onPin, onReactionToggle }: MessageRowProps) {
+  return (
+    <div className={cn(
+      "flex group relative",
+      isMe ? "justify-end" : "justify-start",
+      isSameSender ? "mt-[-0.875rem]" : showDateSeparator ? "mt-0" : "mt-3"
+    )}>
+      {/* Hover actions bar */}
+      <div className={cn(
+        "absolute z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-px px-1 py-0.5 rounded-full bg-background/95 border border-border/40 shadow-lg shadow-black/[0.04] backdrop-blur-2xl",
+        isMe ? "-top-2.5 right-0" : "-top-2.5 left-9"
+      )}>
+        <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="Reply" onClick={() => onReply(msg)}>
+          <Reply className="h-[14px] w-[14px]" />
+        </button>
+        <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="React">
+          <svg className="h-[14px] w-[14px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+        </button>
+        <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="Edit">
+          <svg className="h-[14px] w-[14px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+        </button>
+        {msg.isPinned ? (
+          <button className="h-7 w-7 rounded-full flex items-center justify-center text-amber-500/50 hover:text-amber-500 hover:bg-amber-500/10 transition-all active:scale-90" title="Unpin" onClick={() => onPin(msg)}>
+            <PinOff className="h-[14px] w-[14px]" />
+          </button>
+        ) : (
+          <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="Pin" onClick={() => onPin(msg)}>
+            <Pin className="h-[14px] w-[14px]" />
+          </button>
+        )}
+        <div className="w-px h-3.5 bg-border/20 mx-px" />
+        <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10 transition-all active:scale-90" title="Delete" onClick={() => onDelete(msg.id)}>
+          <svg className="h-[14px] w-[14px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+        </button>
+      </div>
+
+      <div className={cn("flex gap-3 max-w-[88%] sm:max-w-[72%]", isMe ? "flex-row-reverse" : "flex-row")}>
+        {!isMe && (
+          !isSameSender ? (
+            msg.user?.imageUrl ? (
+              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full shrink-0 overflow-hidden mt-0.5 ring-2 ring-background shadow-sm">
+                <Image src={msg.user.imageUrl} alt="" width={32} height={32} className="object-cover w-full h-full" />
+              </div>
+            ) : (
+              <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold bg-muted/80 mt-0.5 shadow-sm ring-1 ring-border/30">
+                {msg.user?.name?.slice(0, 2).toUpperCase() || "U"}
+              </div>
+            )
+          ) : (
+            <div className="w-7 sm:w-8 shrink-0" />
+          )
+        )}
+        <div className={cn("flex flex-col min-w-0", isMe ? "items-end" : "items-start")}>
+          {!isSameSender && !isMe && (
+            <span className="text-[12px] font-medium text-foreground/60 ml-1 mb-1">
+              {msg.user?.name || "Anonymous"}
+            </span>
+          )}
+          <div className={cn(
+            "relative px-[14px] py-[9px] sm:px-4 sm:py-[10px] text-sm leading-relaxed transition-all",
+            isMe
+              ? "bg-primary/[0.08] text-foreground rounded-[14px] rounded-br-[4px]"
+              : "bg-muted/50 text-foreground rounded-[14px] rounded-bl-[4px]"
+          )}>
+            {msg.replyTo && (
+              <div className={cn(
+                "mb-2 p-2 rounded-[10px] text-xs",
+                isMe ? "bg-primary/[0.06] text-foreground/60" : "bg-muted/80 text-muted-foreground"
+              )}>
+                <div className="font-medium mb-0.5 flex items-center gap-1.5">
+                  <Reply className="h-3 w-3 shrink-0" /> Replying to {myUserIds.has(msg.replyTo.userId) ? "you" : (msg.replyTo.user?.name || "User")}
+                </div>
+                <span className="line-clamp-2 italic opacity-70">{msg.replyTo.content}</span>
+              </div>
+            )}
+            {msg.attachment && (() => {
+              const url = (() => {
+                try { const u = new URL(msg.attachment.url); if (u.protocol === "http:" || u.protocol === "https:") return u.href; } catch {}
+                return "#";
+              })();
+              return (
+                <div className="mb-2">
+                  {msg.attachment.category === "image" ? (
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="block relative h-40 sm:h-52 w-full sm:w-72 overflow-hidden rounded-xl hover:scale-[1.01] transition-transform duration-300 ring-1 ring-black/[0.04]">
+                      <Image src={url} alt="Image" fill className="object-cover" />
+                    </a>
+                  ) : (
+                    <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 bg-black/[0.03] rounded-xl hover:bg-black/[0.06] transition-all">
+                      <div className="h-8 w-8 rounded-lg bg-black/[0.04] flex items-center justify-center shrink-0"><FileText className="h-3.5 w-3.5 text-muted-foreground/60" /></div>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-xs font-medium truncate max-w-[120px] sm:max-w-[160px]">{msg.attachment.originalName}</span>
+                        <span className="text-[10px] text-muted-foreground/60">Document</span>
+                      </div>
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
+            <div className="whitespace-pre-wrap break-words">{msg.content}</div>
+            <div className={cn(
+              "flex items-center gap-1.5 mt-0.5 select-none",
+              isMe ? "justify-end" : "justify-start"
+            )}>
+              <span className="text-[10px] leading-none text-muted-foreground/50">
+                {format(new Date(msg.createdAt), "HH:mm")}
+              </span>
+              {msg.isEdited && <span className="text-[9px] italic text-muted-foreground/40">edited</span>}
+              {msg.isPinned && <Pin className="h-2.5 w-2.5 text-amber-400/60" />}
+              {isMe && <span className="text-[9px] text-muted-foreground/40">✓✓</span>}
+            </div>
+          </div>
+          {!myUserIds.has(msg.userId) && (
+            <div className="mt-0.5">
+              <WorkspaceReactions
+                messageId={msg.id}
+                reactions={msg.reactions}
+                currentUserId={currentUserId}
+                onReactionToggle={onReactionToggle}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+});
+
 export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps) {
   const { user } = useUser();
   const { showUpgradePrompt } = usePopups();
@@ -349,15 +500,15 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
     toast.success("Retrying message...");
   };
 
-  const deleteMessage = async (messageId: string) => {
+  const deleteMessage = useCallback(async (messageId: string) => {
     try {
       const res = await fetch(`/api/chat?id=${messageId}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete");
       toast.success("Message deleted");
     } catch { toast.error("Failed to delete message"); }
-  };
+  }, []);
 
-  const togglePin = async (msg: any) => {
+  const togglePin = useCallback(async (msg: any) => {
     try {
       await fetch(`/api/chat?id=${msg.id}&workspaceId=${workspaceId}`, {
         method: "PATCH",
@@ -366,9 +517,9 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
       });
       toast.success(msg.isPinned ? "Unpinned" : "Pinned");
     } catch { toast.error("Failed to update pin"); }
-  };
+  }, [workspaceId]);
 
-  const handleReactionToggle = async (messageId: string, reactionId: string) => {
+  const handleReactionToggle = useCallback(async (messageId: string, reactionId: string) => {
     try {
       const res = await fetch("/api/chat/reaction", {
         method: "POST",
@@ -381,7 +532,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
     } catch {
       toast.error("Failed to toggle reaction");
     }
-  };
+  }, []);
 
   const toggleFullScreen = () => {
     if (!isFullScreen) {
@@ -491,17 +642,6 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
           ) : (() => {
             const sorted = [...messages].filter(m => !m.deletedAt).sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
 
-            const formatDateLabel = (date: Date) => {
-              const now = new Date();
-              const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-              const yesterday = new Date(today);
-              yesterday.setDate(yesterday.getDate() - 1);
-              const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-              if (d.getTime() === today.getTime()) return "Today";
-              if (d.getTime() === yesterday.getTime()) return "Yesterday";
-              return format(date, "EEEE, MMMM d");
-            };
-
             const isSameDay = (a: string, b: string) => {
               const da = new Date(a), db = new Date(b);
               return da.getFullYear() === db.getFullYear() && da.getMonth() === db.getMonth() && da.getDate() === db.getDate();
@@ -536,128 +676,18 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                       <div className="flex-1 h-px bg-primary/15" />
                     </div>
                   )}
-                  <FadeIn delay={0.02} className={cn(
-                    "flex group relative",
-                    isMe ? "justify-end" : "justify-start",
-                    isSameSender ? "mt-[-0.875rem]" : showDateSeparator ? "mt-0" : "mt-3"
-                  )}>
-                    {/* Hover actions bar */}
-                    <div className={cn(
-                      "absolute z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center gap-px px-1 py-0.5 rounded-full bg-background/95 border border-border/40 shadow-lg shadow-black/[0.04] backdrop-blur-2xl",
-                      isMe ? "-top-2.5 right-0" : "-top-2.5 left-9"
-                    )}>
-                      <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="Reply" onClick={() => setReplyTo(msg)}>
-                        <Reply className="h-[14px] w-[14px]" />
-                      </button>
-                      <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="React">
-                        <svg className="h-[14px] w-[14px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                      </button>
-                      <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="Edit">
-                        <svg className="h-[14px] w-[14px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
-                      </button>
-                      {msg.isPinned ? (
-                        <button className="h-7 w-7 rounded-full flex items-center justify-center text-amber-500/50 hover:text-amber-500 hover:bg-amber-500/10 transition-all active:scale-90" title="Unpin" onClick={() => togglePin(msg)}>
-                          <PinOff className="h-[14px] w-[14px]" />
-                        </button>
-                      ) : (
-                        <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-foreground hover:bg-muted/60 transition-all active:scale-90" title="Pin" onClick={() => togglePin(msg)}>
-                          <Pin className="h-[14px] w-[14px]" />
-                        </button>
-                      )}
-                      <div className="w-px h-3.5 bg-border/20 mx-px" />
-                      <button className="h-7 w-7 rounded-full flex items-center justify-center text-muted-foreground/40 hover:text-red-500 hover:bg-red-500/10 transition-all active:scale-90" title="Delete" onClick={() => deleteMessage(msg.id)}>
-                        <svg className="h-[14px] w-[14px]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      </button>
-                    </div>
-
-                    <div className={cn("flex gap-3 max-w-[88%] sm:max-w-[72%]", isMe ? "flex-row-reverse" : "flex-row")}>
-                      {!isMe && (
-                        !isSameSender ? (
-                          msg.user?.imageUrl ? (
-                            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full shrink-0 overflow-hidden mt-0.5 ring-2 ring-background shadow-sm">
-                              <Image src={msg.user.imageUrl} alt="" width={32} height={32} className="object-cover w-full h-full" />
-                            </div>
-                          ) : (
-                            <div className="h-7 w-7 sm:h-8 sm:w-8 rounded-full shrink-0 flex items-center justify-center text-[11px] font-semibold bg-muted/80 mt-0.5 shadow-sm ring-1 ring-border/30">
-                              {msg.user?.name?.slice(0, 2).toUpperCase() || "U"}
-                            </div>
-                          )
-                        ) : (
-                          <div className="w-7 sm:w-8 shrink-0" />
-                        )
-                      )}
-                      <div className={cn("flex flex-col min-w-0", isMe ? "items-end" : "items-start")}>
-                        {!isSameSender && !isMe && (
-                          <span className="text-[12px] font-medium text-foreground/60 ml-1 mb-1">
-                            {msg.user?.name || "Anonymous"}
-                          </span>
-                        )}
-                        <div className={cn(
-                          "relative px-[14px] py-[9px] sm:px-4 sm:py-[10px] text-sm leading-relaxed transition-all",
-                          isMe
-                            ? "bg-primary/[0.08] text-foreground rounded-[14px] rounded-br-[4px]"
-                            : "bg-muted/50 text-foreground rounded-[14px] rounded-bl-[4px]"
-                        )}>
-                          {msg.replyTo && (
-                            <div className={cn(
-                              "mb-2 p-2 rounded-[10px] text-xs",
-                              isMe ? "bg-primary/[0.06] text-foreground/60" : "bg-muted/80 text-muted-foreground"
-                            )}>
-                              <div className="font-medium mb-0.5 flex items-center gap-1.5">
-                                <Reply className="h-3 w-3 shrink-0" /> Replying to {myUserIds.has(msg.replyTo.userId) ? "you" : (msg.replyTo.user?.name || "User")}
-                              </div>
-                              <span className="line-clamp-2 italic opacity-70">{msg.replyTo.content}</span>
-                            </div>
-                          )}
-                          {msg.attachment && (() => {
-                            const url = (() => {
-                              try { const u = new URL(msg.attachment.url); if (u.protocol === "http:" || u.protocol === "https:") return u.href; } catch {}
-                              return "#";
-                            })();
-                            return (
-                              <div className="mb-2">
-                                {msg.attachment.category === "image" ? (
-                                  <a href={url} target="_blank" rel="noopener noreferrer" className="block relative h-40 sm:h-52 w-full sm:w-72 overflow-hidden rounded-xl hover:scale-[1.01] transition-transform duration-300 ring-1 ring-black/[0.04]">
-                                    <Image src={url} alt="Image" fill className="object-cover" />
-                                  </a>
-                                ) : (
-                                  <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2.5 p-2.5 bg-black/[0.03] rounded-xl hover:bg-black/[0.06] transition-all">
-                                    <div className="h-8 w-8 rounded-lg bg-black/[0.04] flex items-center justify-center shrink-0"><FileText className="h-3.5 w-3.5 text-muted-foreground/60" /></div>
-                                    <div className="flex flex-col min-w-0">
-                                      <span className="text-xs font-medium truncate max-w-[120px] sm:max-w-[160px]">{msg.attachment.originalName}</span>
-                                      <span className="text-[10px] text-muted-foreground/60">Document</span>
-                                    </div>
-                                  </a>
-                                )}
-                              </div>
-                            );
-                          })()}
-                          <div className="whitespace-pre-wrap break-words">{msg.content}</div>
-                          <div className={cn(
-                            "flex items-center gap-1.5 mt-0.5 select-none",
-                            isMe ? "justify-end" : "justify-start"
-                          )}>
-                            <span className="text-[10px] leading-none text-muted-foreground/50">
-                              {format(new Date(msg.createdAt), "HH:mm")}
-                            </span>
-                            {msg.isEdited && <span className="text-[9px] italic text-muted-foreground/40">edited</span>}
-                            {msg.isPinned && <Pin className="h-2.5 w-2.5 text-amber-400/60" />}
-                            {isMe && <span className="text-[9px] text-muted-foreground/40">✓✓</span>}
-                          </div>
-                        </div>
-                        {!myUserIds.has(msg.userId) && (
-                          <div className="mt-0.5">
-                            <WorkspaceReactions
-                              messageId={msg.id}
-                              reactions={msg.reactions}
-                              currentUserId={dbUser?.id || user?.id}
-                              onReactionToggle={handleReactionToggle}
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </FadeIn>
+                  <MessageRow
+                    msg={msg}
+                    isMe={isMe}
+                    isSameSender={isSameSender}
+                    showDateSeparator={showDateSeparator}
+                    currentUserId={dbUser?.id || user?.id}
+                    myUserIds={myUserIds}
+                    onReply={setReplyTo}
+                    onDelete={deleteMessage}
+                    onPin={togglePin}
+                    onReactionToggle={handleReactionToggle}
+                  />
                 </React.Fragment>
               );
             });

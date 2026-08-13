@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
 import { StatusCategory } from "@/lib/constants/status";
+import { cacheGetOrSet, cacheKey } from "@/lib/cache";
 
 export async function GET(req: Request) {
   let workspaceId: string | null = null;
@@ -76,173 +77,197 @@ export async function GET(req: Request) {
     const rangeStart = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
     const prevRangeStart = new Date(Date.now() - daysBack * 2 * 24 * 60 * 60 * 1000);
 
-    // Status records with semantic categories (used for all completion/active counting below)
-    const statusRecords = await prisma.status.findMany({
-      where: { projectId: { in: accessibleProjectIds } },
-      select: { id: true, name: true, category: true },
-    });
-    const categoryMap = new Map(
-      statusRecords.map((s) => [s.name.toLowerCase(), s.category])
-    );
-    const doneStatusIds = new Set(
-      statusRecords.filter((s) => s.category === StatusCategory.DONE).map((s) => s.id)
+    const cacheKeyStr = cacheKey(
+      "dashboard",
+      user.id,
+      workspaceId,
+      teamId || "all",
+      String(daysBack),
+      includeSubtasks ? "s" : "n"
     );
 
-    // A task is "completed" if its status slug is done/completed OR its Status record has category DONE
-    const completedStatusFilter: Record<string, unknown> = {
-      OR: [
-        { status: { in: ["done", "completed"] } },
-        ...(doneStatusIds.size > 0 ? [{ statusId: { in: Array.from(doneStatusIds) } }] : []),
-      ],
-    };
-    const notCompletedStatusFilter: Record<string, unknown> = {
-      NOT: {
+    const data = await cacheGetOrSet(cacheKeyStr, async () => {
+      const wsId = workspaceId!;
+      // Status records with semantic categories (used for all completion/active counting below)
+      const statusRecords = await prisma.status.findMany({
+        where: { projectId: { in: accessibleProjectIds } },
+        select: { id: true, name: true, category: true },
+      });
+      const categoryMap = new Map(
+        statusRecords.map((s) => [s.name.toLowerCase(), s.category])
+      );
+      const doneStatusIds = new Set(
+        statusRecords.filter((s) => s.category === StatusCategory.DONE).map((s) => s.id)
+      );
+
+      // A task is "completed" if its status slug is done/completed OR its Status record has category DONE
+      const completedStatusFilter: Record<string, unknown> = {
         OR: [
           { status: { in: ["done", "completed"] } },
           ...(doneStatusIds.size > 0 ? [{ statusId: { in: Array.from(doneStatusIds) } }] : []),
         ],
-      },
-    };
-
-    const prevPeriodWhere: Record<string, unknown> = {
-      workspaceId,
-      projectId: { in: accessibleProjectIds },
-      ...(includeSubtasks ? {} : { parentId: { equals: null } }),
-      createdAt: { lt: rangeStart, gte: prevRangeStart },
-    };
-
-    const [
-      projectsCount, tasksCount, membersCount, recentProjects, recentTasks,
-      activities, statuses, totalTaskCount,
-      prevProjectsCount, prevTasksCount, prevCompletedTaskCount, prevTotalTaskCount,
-    ] = await Promise.all([
-      prisma.project.count({ where: whereProject }),
-      prisma.task.count({ where: { ...whereTask, ...notCompletedStatusFilter } }),
-      prisma.workspaceMember.count({ where: { workspaceId } }),
-      prisma.project.findMany({
-        where: whereProject,
-        take: 5,
-        orderBy: { createdAt: "desc" },
-        include: { _count: { select: { tasks: true } } },
-      }),
-      prisma.task.findMany({
-        where: whereTask,
-        take: 5,
-        orderBy: { createdAt: "desc" },
-        include: { project: { select: { name: true } } },
-      }),
-      prisma.activity.findMany({
-        where: {
-          workspaceId,
-          createdAt: { gte: rangeStart },
-          OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }]
-        }
-      }),
-      prisma.status.findMany({ where: { projectId: { in: accessibleProjectIds } }, orderBy: { order: "asc" } }),
-      // Individual counts instead of groupBy (Prisma MongoDB crashes on nullable fields in groupBy)
-      prisma.task.count({ where: whereTask }),
-      // Previous period counts for trend calculation
-      prisma.project.count({ where: { workspaceId, id: { in: accessibleProjectIds }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
-      prisma.task.count({ where: { ...prevPeriodWhere, ...notCompletedStatusFilter } }),
-      prisma.task.count({ where: { ...prevPeriodWhere, ...completedStatusFilter } }),
-      prisma.task.count({ where: prevPeriodWhere }),
-    ]);
-
-    const completedTaskCount = await prisma.task.count({
-      where: { ...whereTask, ...completedStatusFilter },
-    });
-
-    const completionRate = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
-    const prevCompletionRate = prevTotalTaskCount > 0 ? Math.round((prevCompletedTaskCount / prevTotalTaskCount) * 100) : 0;
-
-    // Status Distribution: use semantic category from Status model
-    const statusCounts = await Promise.all(
-      statuses.map(async (s) => {
-        return prisma.task.count({ where: { ...whereTask, statusId: s.id } });
-      })
-    );
-    const statusDistribution = statuses.map((s, i) => {
-      const category = categoryMap.get(s.name.toLowerCase()) || "";
-      return {
-        name: s.name,
-        value: statusCounts[i] ?? 0,
-        category: category || undefined,
       };
-    });
+      const notCompletedStatusFilter: Record<string, unknown> = {
+        NOT: {
+          OR: [
+            { status: { in: ["done", "completed"] } },
+            ...(doneStatusIds.size > 0 ? [{ statusId: { in: Array.from(doneStatusIds) } }] : []),
+          ],
+        },
+      };
 
-    // Priority Distribution: individual counts per priority
-    const [priorityLow, priorityMedium, priorityHigh, priorityUrgent] = await Promise.all([
-      prisma.task.count({ where: { ...whereTask, priority: "low" } }),
-      prisma.task.count({ where: { ...whereTask, priority: "medium" } }),
-      prisma.task.count({ where: { ...whereTask, priority: "high" } }),
-      prisma.task.count({ where: { ...whereTask, priority: "urgent" } }),
-    ]);
-    const priorityDistribution = [
-      { name: "Low", value: priorityLow },
-      { name: "Medium", value: priorityMedium },
-      { name: "High", value: priorityHigh },
-      { name: "Urgent", value: priorityUrgent },
-    ];
+      const prevPeriodWhere: Record<string, unknown> = {
+        workspaceId: wsId,
+        projectId: { in: accessibleProjectIds },
+        ...(includeSubtasks ? {} : { parentId: { equals: null } }),
+        createdAt: { lt: rangeStart, gte: prevRangeStart },
+      };
 
-    // Build activity trends from the batched activities
-    const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-    const trendDays = Math.min(daysBack, 7);
-    const activityTrends = Array.from({ length: trendDays }, (_, i) => {
-      const d = new Date(Date.now() - (trendDays - 1 - i) * 24 * 60 * 60 * 1000);
-      const dayKey = d.toDateString();
-      return { name: dayNames[d.getDay()], activities: activities.filter(a => new Date(a.createdAt).toDateString() === dayKey).length };
-    });
-
-    const rawActivities: (typeof activities[0] & { metadata?: Record<string, unknown> })[] = await prisma.activity.findMany({
-      where: {
-        workspaceId,
+      const activityAccessFilter: Record<string, unknown> = {
         OR: [{ projectId: null }, { projectId: { in: accessibleProjectIds } }]
-      },
-      take: 10,
-      orderBy: { createdAt: "desc" },
-    }) as any;
+      };
 
-    const activityUserIds: string[] = rawActivities
-      .map(a => (a as any).userId as string | null)
-      .filter((id): id is string => id !== null);
+      const [
+        projectsCount, tasksCount, membersCount, recentProjects, recentTasks,
+        statuses, totalTaskCount,
+        prevProjectsCount, prevTasksCount, prevCompletedTaskCount, prevTotalTaskCount,
+      ] = await Promise.all([
+        prisma.project.count({ where: whereProject }),
+        prisma.task.count({ where: { ...whereTask, ...notCompletedStatusFilter } }),
+        prisma.workspaceMember.count({ where: { workspaceId: wsId } }),
+        prisma.project.findMany({
+          where: whereProject,
+          take: 5,
+          orderBy: { createdAt: "desc" },
+          include: { _count: { select: { tasks: true } } },
+        }),
+        prisma.task.findMany({
+          where: whereTask,
+          take: 5,
+          orderBy: { createdAt: "desc" },
+          include: { project: { select: { name: true } } },
+        }),
+        prisma.status.findMany({ where: { projectId: { in: accessibleProjectIds } }, orderBy: { order: "asc" } }),
+        // Individual counts instead of groupBy (Prisma MongoDB crashes on nullable fields in groupBy)
+        prisma.task.count({ where: whereTask }),
+        // Previous period counts for trend calculation
+        prisma.project.count({ where: { workspaceId: wsId, id: { in: accessibleProjectIds }, createdAt: { lt: rangeStart, gte: prevRangeStart } } }),
+        prisma.task.count({ where: { ...prevPeriodWhere, ...notCompletedStatusFilter } }),
+        prisma.task.count({ where: { ...prevPeriodWhere, ...completedStatusFilter } }),
+        prisma.task.count({ where: prevPeriodWhere }),
+      ]);
 
-    const activityUsers = activityUserIds.length > 0
-      ? await prisma.user.findMany({ where: { id: { in: activityUserIds } }, select: { id: true, name: true, imageUrl: true } })
-      : [];
-    const userMap = new Map(activityUsers.map(u => [u.id, u]));
-    const recentActivities = rawActivities
-      .filter((a): a is (typeof rawActivities[0] & { userId: string }) => a.userId !== null)
-      .map(a => ({ ...a, user: userMap.get(a.userId) || null }));
+      const completedTaskCount = await prisma.task.count({
+        where: { ...whereTask, ...completedStatusFilter },
+      });
 
-    // Workspace structure from recent projects (reuse existing data)
-    const workspaceStructure = [{
-      name: "Workspace",
-      children: recentProjects.map(p => {
-        const projectWithCount = p as typeof p & { _count: { tasks: number } };
-        return { name: p.name, size: projectWithCount._count?.tasks || 1 };
-      }),
-    }];
+      const completionRate = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
+      const prevCompletionRate = prevTotalTaskCount > 0 ? Math.round((prevCompletedTaskCount / prevTotalTaskCount) * 100) : 0;
 
-    return NextResponse.json({
-      projectsCount,
-      tasksCount,
-      membersCount,
-      completionRate,
-      trends: {
-        projects: prevProjectsCount > 0 ? Math.round(((projectsCount - prevProjectsCount) / prevProjectsCount) * 100) : 0,
-        tasks: prevTasksCount > 0 ? Math.round(((tasksCount - prevTasksCount) / prevTasksCount) * 100) : 0,
-        members: 0,
-        completionRate: completionRate - prevCompletionRate,
-      },
-      recentProjects: recentProjects.map(p => ({ id: p.id, name: p.name, tasksCount: p._count.tasks })),
-      recentTasks: recentTasks.map(t => ({ id: t.id, title: t.title, status: t.status, project: t.project, priority: t.priority })),
-      recentActivities,
-      activityTrends,
-      statusDistribution,
-      priorityDistribution,
-      workspaceStructure,
-      completionTime: [],
-    });
+      // Status Distribution: use semantic category from Status model
+      const statusCounts = await Promise.all(
+        statuses.map(async (s) => {
+          return prisma.task.count({ where: { ...whereTask, statusId: s.id } });
+        })
+      );
+      const statusDistribution = statuses.map((s, i) => {
+        const category = categoryMap.get(s.name.toLowerCase()) || "";
+        return {
+          name: s.name,
+          value: statusCounts[i] ?? 0,
+          category: category || undefined,
+        };
+      });
+
+      // Priority Distribution: individual counts per priority
+      const [priorityLow, priorityMedium, priorityHigh, priorityUrgent] = await Promise.all([
+        prisma.task.count({ where: { ...whereTask, priority: "low" } }),
+        prisma.task.count({ where: { ...whereTask, priority: "medium" } }),
+        prisma.task.count({ where: { ...whereTask, priority: "high" } }),
+        prisma.task.count({ where: { ...whereTask, priority: "urgent" } }),
+      ]);
+      const priorityDistribution = [
+        { name: "Low", value: priorityLow },
+        { name: "Medium", value: priorityMedium },
+        { name: "High", value: priorityHigh },
+        { name: "Urgent", value: priorityUrgent },
+      ];
+
+      // Build activity trends from bounded per-day counts (no unbounded fetch)
+      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const trendDays = Math.min(daysBack, 7);
+      const trendBuckets = await Promise.all(
+        Array.from({ length: trendDays }, (_, i) => {
+          const dayStart = new Date(Date.now() - (trendDays - 1 - i) * 24 * 60 * 60 * 1000);
+          dayStart.setHours(0, 0, 0, 0);
+          const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+          return prisma.activity.count({
+            where: {
+              workspaceId: wsId,
+              createdAt: { gte: dayStart, lt: dayEnd },
+              ...activityAccessFilter,
+            },
+          });
+        })
+      );
+      const activityTrends = trendBuckets.map((count, i) => {
+        const d = new Date(Date.now() - (trendDays - 1 - i) * 24 * 60 * 60 * 1000);
+        return { name: dayNames[d.getDay()], activities: count };
+      });
+
+      const rawActivities: any[] = await prisma.activity.findMany({
+        where: {
+          workspaceId: wsId,
+          ...activityAccessFilter,
+        },
+        take: 10,
+        orderBy: { createdAt: "desc" },
+      });
+
+      const activityUserIds: string[] = rawActivities
+        .map(a => (a as any).userId as string | null)
+        .filter((id): id is string => id !== null);
+
+      const activityUsers = activityUserIds.length > 0
+        ? await prisma.user.findMany({ where: { id: { in: activityUserIds } }, select: { id: true, name: true, imageUrl: true } })
+        : [];
+      const userMap = new Map(activityUsers.map(u => [u.id, u]));
+      const recentActivities = rawActivities
+        .filter((a): a is (typeof rawActivities[0] & { userId: string }) => a.userId !== null)
+        .map(a => ({ ...a, user: userMap.get(a.userId) || null }));
+
+      // Workspace structure from recent projects (reuse existing data)
+      const workspaceStructure = [{
+        name: "Workspace",
+        children: recentProjects.map(p => {
+          const projectWithCount = p as typeof p & { _count: { tasks: number } };
+          return { name: p.name, size: projectWithCount._count?.tasks || 1 };
+        }),
+      }];
+
+      return {
+        projectsCount,
+        tasksCount,
+        membersCount,
+        completionRate,
+        trends: {
+          projects: prevProjectsCount > 0 ? Math.round(((projectsCount - prevProjectsCount) / prevProjectsCount) * 100) : 0,
+          tasks: prevTasksCount > 0 ? Math.round(((tasksCount - prevTasksCount) / prevTasksCount) * 100) : 0,
+          members: 0,
+          completionRate: completionRate - prevCompletionRate,
+        },
+        recentProjects: recentProjects.map(p => ({ id: p.id, name: p.name, tasksCount: p._count.tasks })),
+        recentTasks: recentTasks.map(t => ({ id: t.id, title: t.title, status: t.status, project: t.project, priority: t.priority })),
+        recentActivities,
+        activityTrends,
+        statusDistribution,
+        priorityDistribution,
+        workspaceStructure,
+        completionTime: [],
+      };
+    }, 15);
+
+    return NextResponse.json(data);
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.error("Dashboard API error details:", {
@@ -256,4 +281,3 @@ export async function GET(req: Request) {
     );
   }
 }
-

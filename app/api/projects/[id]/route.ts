@@ -27,16 +27,7 @@ export async function GET(
       include: {
         tasks: {
           include: {
-            comments: true,
-            subtasks: true,
-            tags: true,
             customStatus: { select: { id: true, name: true, category: true } },
-          }
-        },
-        boards: {
-          include: {
-            columns: true,
-            _count: { select: { tasks: true } }
           }
         },
         team: {

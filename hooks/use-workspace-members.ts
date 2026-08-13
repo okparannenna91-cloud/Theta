@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 interface WorkspaceMember {
@@ -27,10 +28,13 @@ export function useWorkspaceMembers(workspaceId: string | null): UseWorkspaceMem
     enabled: !!workspaceId,
   });
 
-  const memberMap: Record<string, WorkspaceMember> = {};
-  for (const m of members) {
-    memberMap[m.id] = m;
-  }
+  const memberMap = useMemo(() => {
+    const map: Record<string, WorkspaceMember> = {};
+    for (const m of members) {
+      map[m.id] = m;
+    }
+    return map;
+  }, [members]);
 
   return { members, memberMap, isLoading, error: error as Error | null };
 }
