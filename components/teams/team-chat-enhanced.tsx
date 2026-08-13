@@ -69,6 +69,10 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
       .catch(() => {});
   }, []);
 
+  const myUserIds = useMemo(() => new Set([dbUser?.id, user?.id].filter(Boolean)), [dbUser?.id, user?.id]);
+  const myIdsRef = useRef(myUserIds);
+  useEffect(() => { myIdsRef.current = myUserIds; }, [myUserIds]);
+
   const markAsRead = useCallback(async () => {
     if (!teamId || !workspaceId) return;
     try {
@@ -144,8 +148,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
   const subscribeChannel = useCallback((ably: any, channel: any) => {
     channel.subscribe("message", (msg: any) => {
       const incoming = msg.data;
-      const currentUserId = dbUser?.id || user?.id;
-      if (incoming.userId === currentUserId || incoming.user?.id === currentUserId) return;
+      if (myIdsRef.current.has(incoming.userId) || myIdsRef.current.has(incoming.user?.id)) return;
       setMessages((prev) => {
         const exists = prev.some(m => m.id === incoming.id || (incoming.tempId && m.tempId === incoming.tempId));
         if (exists) return prev;
@@ -154,8 +157,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
     });
 
     channel.subscribe("message:updated", (msg: any) => {
-      const currentUserId = dbUser?.id || user?.id;
-      if (msg.data.userId === currentUserId || msg.data.user?.id === currentUserId) return;
+      if (myIdsRef.current.has(msg.data.userId) || myIdsRef.current.has(msg.data.user?.id)) return;
       setMessages((prev) => prev.map(m => m.id === msg.data.id ? { ...m, ...msg.data } : m));
     });
 
@@ -297,10 +299,11 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
 
     const tempId = Date.now().toString();
     const timestamp = new Date().toISOString();
+    const senderId = dbUser?.id || user?.id;
     const optimisticMsg: any = {
-      id: tempId, tempId, content: message, userId: user?.id, attachment, replyTo,
+      id: tempId, tempId, content: message, userId: senderId, attachment, replyTo,
       createdAt: timestamp,
-      user: { name: user?.fullName || user?.firstName || "You", imageUrl: user?.imageUrl },
+      user: { id: senderId, name: user?.fullName || user?.firstName || "You", imageUrl: user?.imageUrl },
       _optimistic: true,
     };
 
@@ -326,7 +329,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
         else toast.error("Failed to send message");
       } else {
         const savedMsg = await res.json();
-        setMessages(prev => prev.map(m => m.tempId === tempId ? { ...savedMsg, user: m.user } : m));
+        setMessages(prev => prev.map(m => m.tempId === tempId ? { ...savedMsg, tempId } : m));
         markAsRead();
       }
     } catch {
@@ -511,8 +514,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
             }
 
             return sorted.map((msg, idx) => {
-              const currentUserId = dbUser?.id || user?.id;
-              const isMe = msg.userId === currentUserId || msg.user?.id === currentUserId;
+              const isMe = myUserIds.has(msg.userId) || myUserIds.has(msg.user?.id);
               const prevMsg = idx > 0 ? sorted[idx - 1] : null;
               const isSameSender = prevMsg && prevMsg.userId === msg.userId && !prevMsg.deletedAt;
               const showDateSeparator = idx === 0 || !isSameDay(msg.createdAt, sorted[idx - 1].createdAt);
@@ -602,7 +604,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                               isMe ? "bg-primary/[0.06] text-foreground/60" : "bg-muted/80 text-muted-foreground"
                             )}>
                               <div className="font-medium mb-0.5 flex items-center gap-1.5">
-                                <Reply className="h-3 w-3 shrink-0" /> Replying to {msg.replyTo.userId === user?.id ? "you" : (msg.replyTo.user?.name || "User")}
+                                <Reply className="h-3 w-3 shrink-0" /> Replying to {myUserIds.has(msg.replyTo.userId) ? "you" : (msg.replyTo.user?.name || "User")}
                               </div>
                               <span className="line-clamp-2 italic opacity-70">{msg.replyTo.content}</span>
                             </div>
@@ -643,12 +645,12 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
                             {isMe && <span className="text-[9px] text-muted-foreground/40">✓✓</span>}
                           </div>
                         </div>
-                        {msg.userId !== user?.id && (
+                        {!myUserIds.has(msg.userId) && (
                           <div className="mt-0.5">
                             <WorkspaceReactions
                               messageId={msg.id}
                               reactions={msg.reactions}
-                              currentUserId={user?.id}
+                              currentUserId={dbUser?.id || user?.id}
                               onReactionToggle={handleReactionToggle}
                             />
                           </div>
