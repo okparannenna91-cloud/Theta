@@ -205,16 +205,21 @@ export const Sidebar = memo(function Sidebar() {
           isMobileOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-12 items-center px-3 border-b border-sidebar-border">
+        <div className="border-b border-sidebar-border px-3 py-3 space-y-2.5">
+          <Link
+            href="/dashboard"
+            onClick={closeMobile}
+            className="flex items-center px-1"
+          >
+            <Logo size={24} priority linkClassName="gap-2" wordmarkClassName="text-sidebar-foreground text-sm font-semibold" />
+          </Link>
           <Link
             href="/workspaces"
             onClick={closeMobile}
-            className="flex items-center gap-2 w-full text-left group text-sm font-medium text-sidebar-foreground rounded-md hover:bg-accent/30 transition-colors px-1 py-1"
+            className="flex items-center gap-2 w-full text-left group text-sm font-medium text-sidebar-foreground rounded-lg bg-accent/25 hover:bg-accent/40 transition-colors px-2.5 py-2"
           >
-            <Logo size={24} priority linkClassName="gap-2" wordmarkClassName="text-sidebar-foreground text-sm font-semibold" />
-            <span className="text-sidebar-muted mx-0.5">/</span>
             <span className="truncate">{activeWorkspace?.name || "Workspace"}</span>
-            <ChevronDown className="h-3 w-3 text-sidebar-muted flex-shrink-0 ml-auto opacity-0 group-hover:opacity-100 transition-opacity" />
+            <ChevronDown className="h-3.5 w-3.5 text-sidebar-muted flex-shrink-0 ml-auto" />
           </Link>
         </div>
 
