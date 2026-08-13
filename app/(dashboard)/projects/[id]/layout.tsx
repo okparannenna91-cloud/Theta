@@ -59,7 +59,7 @@ export default function ProjectLayout({ children, params }: { children: React.Re
     <div className="h-full flex flex-col">
       <ProjectHeader project={project} />
 
-      <div className="flex-1 pt-6 overflow-y-auto">
+      <div className="flex-1 pt-3 overflow-y-auto">
         {children}
       </div>
     </div>
