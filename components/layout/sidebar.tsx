@@ -1,8 +1,8 @@
 "use client";
 
-import { memo, useState, useCallback, useEffect, useMemo } from "react";
+import { memo, useState, useCallback, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
    LayoutDashboard,
@@ -15,13 +15,15 @@ import {
    Menu,
    X,
    ChevronDown,
-    CreditCard,
+     CreditCard,
      Mail,
      AtSign,
      UserCheck,
      MessageSquare,
      Archive,
      Blocks,
+     ChevronsLeft,
+     ChevronsRight,
    } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
@@ -30,20 +32,22 @@ import { useI18n } from "@/lib/i18n";
 import { Logo } from "@/components/ui/logo";
 import { useQuery } from "@tanstack/react-query";
 
-function NavItem({ href, icon: Icon, label, active, onClick }: { href: string; icon?: any; label: string; active?: boolean; onClick?: () => void }) {
+function NavItem({ href, icon: Icon, label, active, onClick, collapsed }: { href: string; icon?: any; label: string; active?: boolean; onClick?: () => void; collapsed?: boolean }) {
   return (
     <Link
       href={href}
       onClick={onClick}
+      title={collapsed ? label : undefined}
       className={cn(
         "flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors relative group",
+        collapsed && "justify-center px-0",
         active
           ? "bg-accent/50 text-sidebar-foreground font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-4 before:w-0.5 before:rounded-full before:bg-primary"
           : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-accent/30"
       )}
     >
       {Icon && <Icon className={cn("h-4 w-4 flex-shrink-0", active ? "text-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground/80")} />}
-      <span>{label}</span>
+      {!collapsed && <span>{label}</span>}
     </Link>
   );
 }
@@ -69,8 +73,37 @@ function ProjectSubItem({ href, label, active, onClick }: { href: string; label:
 export const Sidebar = memo(function Sidebar() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const router = useRouter();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [inboxExpanded, setInboxExpanded] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+  const [isPeeking, setIsPeeking] = useState(false);
+  const peekTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const toggleCollapsed = useCallback(() => {
+    setCollapsed(prev => {
+      const next = !prev;
+      try { localStorage.setItem("theta_sidebar_collapsed", String(next)); } catch {}
+      return next;
+    });
+    setIsPeeking(false);
+  }, []);
+
+  const startPeek = useCallback(() => {
+    if (peekTimer.current) clearTimeout(peekTimer.current);
+    peekTimer.current = setTimeout(() => setIsPeeking(true), 150);
+  }, []);
+
+  const stopPeek = useCallback(() => {
+    if (peekTimer.current) clearTimeout(peekTimer.current);
+    peekTimer.current = setTimeout(() => setIsPeeking(false), 200);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (peekTimer.current) clearTimeout(peekTimer.current);
+    };
+  }, []);
 
   const toggleInbox = useCallback(() => {
     setInboxExpanded(prev => {
@@ -85,12 +118,18 @@ export const Sidebar = memo(function Sidebar() {
     if (stored === "true" || pathname.startsWith("/inbox")) {
       setInboxExpanded(true);
     }
+    const collapsedStored = typeof window !== "undefined" ? localStorage.getItem("theta_sidebar_collapsed") : null;
+    if (collapsedStored === "true") {
+      setCollapsed(true);
+    }
   }, []);
   const { t } = useI18n();
   const { workspaces, activeWorkspaceId } = useWorkspace();
   const { user } = useUser();
 
   const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId);
+
+  const expanded = !collapsed || isPeeking || isMobileOpen;
 
   const projectIdMatch = pathname.match(/^\/projects\/([a-zA-Z0-9-]+)/);
   const currentProjectId = projectIdMatch?.[1] || null;
@@ -199,51 +238,61 @@ export const Sidebar = memo(function Sidebar() {
       )}
 
       <div
+        onMouseEnter={() => { if (collapsed && !isMobileOpen) startPeek(); }}
+        onMouseLeave={() => { if (isPeeking) stopPeek(); }}
         className={cn(
           "fixed lg:static inset-y-0 left-0 z-50 flex h-screen w-60 flex-col bg-sidebar text-sidebar-foreground transition-all duration-300 ease-in-out border-r border-sidebar-border/50",
           "lg:translate-x-0",
-          isMobileOpen ? "translate-x-0" : "-translate-x-full"
+          isMobileOpen ? "translate-x-0" : "-translate-x-full",
+          expanded ? "" : "lg:w-14",
+          isPeeking && "lg:absolute lg:z-[60] lg:shadow-2xl"
         )}
       >
         <div className="border-b border-sidebar-border px-3 py-3 space-y-2.5">
           <Link
             href="/dashboard"
             onClick={closeMobile}
-            className="flex items-center px-1"
+            className={cn("flex items-center px-1", !expanded && "justify-center px-0")}
           >
-            <Logo size={24} priority linkClassName="gap-2" wordmarkClassName="text-sidebar-foreground text-sm font-semibold" />
+            <Logo size={24} priority showWordmark={expanded} linkClassName="gap-2" wordmarkClassName="text-sidebar-foreground text-sm font-semibold" />
           </Link>
-          <Link
-            href="/workspaces"
-            onClick={closeMobile}
-            className="flex items-center gap-2 w-full text-left group text-sm font-medium text-sidebar-foreground rounded-lg bg-accent/25 hover:bg-accent/40 transition-colors px-2.5 py-2"
-          >
-            <span className="truncate">{activeWorkspace?.name || "Workspace"}</span>
-            <ChevronDown className="h-3.5 w-3.5 text-sidebar-muted flex-shrink-0 ml-auto" />
-          </Link>
+          {expanded && (
+            <Link
+              href="/workspaces"
+              onClick={closeMobile}
+              className="flex items-center gap-2 w-full text-left group text-sm font-medium text-sidebar-foreground rounded-lg bg-accent/25 hover:bg-accent/40 transition-colors px-2.5 py-2"
+            >
+              <span className="truncate">{activeWorkspace?.name || "Workspace"}</span>
+              <ChevronDown className="h-3.5 w-3.5 text-sidebar-muted flex-shrink-0 ml-auto" />
+            </Link>
+          )}
         </div>
 
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
-          <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={isActive("/dashboard")} onClick={closeMobile} />
-          <NavItem href="/my-tasks" icon={CheckSquare} label="My Tasks" active={isActive("/my-tasks")} onClick={closeMobile} />
+          <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={isActive("/dashboard")} onClick={closeMobile} collapsed={!expanded} />
+          <NavItem href="/my-tasks" icon={CheckSquare} label="My Tasks" active={isActive("/my-tasks")} onClick={closeMobile} collapsed={!expanded} />
           <div>
             <button
-              onClick={toggleInbox}
+              onClick={() => { if (!expanded) { router.push("/inbox?tab=all"); } else { toggleInbox(); } }}
+              title={!expanded ? "Inbox" : undefined}
               className={cn(
                 "w-full flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors relative group",
+                !expanded && "justify-center px-0",
                 isActive("/inbox")
                   ? "bg-accent/50 text-sidebar-foreground font-medium before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-4 before:w-0.5 before:rounded-full before:bg-primary"
                   : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-accent/30"
               )}
             >
               <Bell className={cn("h-4 w-4 flex-shrink-0", isActive("/inbox") ? "text-primary" : "text-sidebar-muted group-hover:text-sidebar-foreground/80")} />
-              <span className="flex-1 text-left">Inbox</span>
-              <ChevronDown className={cn(
-                "h-3 w-3 text-sidebar-muted transition-transform duration-200",
-                inboxExpanded && "rotate-180"
-              )} />
+              {expanded && <span className="flex-1 text-left">Inbox</span>}
+              {expanded && (
+                <ChevronDown className={cn(
+                  "h-3 w-3 text-sidebar-muted transition-transform duration-200",
+                  inboxExpanded && "rotate-180"
+                )} />
+              )}
             </button>
-            {inboxExpanded && (
+            {expanded && inboxExpanded && (
               <div className="ml-2 space-y-0.5 border-l border-sidebar-border pl-2 mt-0.5">
                 {[
                   { id: "all", label: "All", icon: Bell },
@@ -284,9 +333,9 @@ export const Sidebar = memo(function Sidebar() {
             )}
           </div>
 
-          <NavItem href="/projects" icon={LayoutList} label="Projects" active={isActive("/projects")} onClick={closeMobile} />
+          <NavItem href="/projects" icon={LayoutList} label="Projects" active={isActive("/projects")} onClick={closeMobile} collapsed={!expanded} />
 
-          {isProjectPage && currentProject && (
+          {expanded && isProjectPage && currentProject && (
             <div className="ml-2 space-y-0.5 border-l border-sidebar-border pl-2">
               {projectSubNav.map((item) => (
                 <ProjectSubItem key={item.href} href={item.href} label={item.label} active={pathname === item.href} onClick={closeMobile} />
@@ -294,7 +343,7 @@ export const Sidebar = memo(function Sidebar() {
             </div>
           )}
 
-          {projects && projects.length > 0 && !isProjectPage && (
+          {expanded && projects && projects.length > 0 && !isProjectPage && (
             <>
               {projects.slice(0, 8).map((p: any) => (
                 <NavItem key={p.id} href={`/projects/${p.id}`} label={p.name} active={pathname === `/projects/${p.id}` || pathname.startsWith(`/projects/${p.id}/`)} onClick={closeMobile} />
@@ -311,39 +360,52 @@ export const Sidebar = memo(function Sidebar() {
             </>
           )}
 
-          <NavItem href="/portfolio" icon={FolderKanban} label="Portfolio" active={isActive("/portfolio")} onClick={closeMobile} />
+          <NavItem href="/portfolio" icon={FolderKanban} label="Portfolio" active={isActive("/portfolio")} onClick={closeMobile} collapsed={!expanded} />
 
-          <NavItem href="/teams" icon={Users} label="Teams" active={isActive("/teams")} onClick={closeMobile} />
-          <NavItem href="/apps" icon={Blocks} label="Apps" active={isActive("/apps")} onClick={closeMobile} />
-          <NavItem href="/billing" icon={CreditCard} label="Billing" active={isActive("/billing")} onClick={closeMobile} />
+          <NavItem href="/teams" icon={Users} label="Teams" active={isActive("/teams")} onClick={closeMobile} collapsed={!expanded} />
+          <NavItem href="/apps" icon={Blocks} label="Apps" active={isActive("/apps")} onClick={closeMobile} collapsed={!expanded} />
+          <NavItem href="/billing" icon={CreditCard} label="Billing" active={isActive("/billing")} onClick={closeMobile} collapsed={!expanded} />
          </nav>
 
         <div className="px-2 py-2 border-t border-sidebar-border space-y-0.5">
           <Link
             href="/settings"
             onClick={closeMobile}
+            title={!expanded ? "Settings" : undefined}
             className={cn(
               "flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors group",
+              !expanded && "justify-center px-0",
               isActive("/settings") ? "bg-accent/50 text-sidebar-foreground font-medium" : "text-sidebar-foreground/60 hover:text-sidebar-foreground hover:bg-accent/30"
             )}
           >
             <Settings className="h-4 w-4 flex-shrink-0 text-sidebar-muted group-hover:text-sidebar-foreground/80 transition-colors" />
-            <span>Settings</span>
+            {expanded && <span>Settings</span>}
           </Link>
 
           <Link
             href="/profile"
             onClick={closeMobile}
-            className="flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors hover:bg-accent/30"
+            title={!expanded ? "Profile" : undefined}
+            className={cn("flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors hover:bg-accent/30", !expanded && "justify-center px-0")}
           >
             <UserButton afterSignOutUrl="/" />
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-medium text-sidebar-foreground truncate leading-tight">
-                {user?.fullName || "Profile"}
-              </span>
-              <span className="text-xs text-sidebar-muted truncate leading-tight">Profile</span>
-            </div>
+            {expanded && (
+              <div className="flex flex-col min-w-0">
+                <span className="text-sm font-medium text-sidebar-foreground truncate leading-tight">
+                  {user?.fullName || "Profile"}
+                </span>
+                <span className="text-xs text-sidebar-muted truncate leading-tight">Profile</span>
+              </div>
+            )}
           </Link>
+
+          <button
+            onClick={toggleCollapsed}
+            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2 mt-1 rounded-md border-t border-sidebar-border text-sm text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-accent/30 transition-colors"
+          >
+            {expanded ? <ChevronsLeft className="h-4 w-4" /> : <ChevronsRight className="h-4 w-4" />}
+          </button>
         </div>
       </div>
     </>
