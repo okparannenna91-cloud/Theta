@@ -23,6 +23,16 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
         return { hasError: true, error };
     }
 
+    componentDidCatch(error: Error, info: React.ErrorInfo) {
+        console.error("[ErrorBoundary] error:", error);
+        console.error("[ErrorBoundary] componentStack:", info.componentStack);
+        fetch("/api/debug/log", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ message: error.message, stack: error.stack, componentStack: info.componentStack }),
+        }).catch(() => {});
+    }
+
     render() {
         if (this.state.hasError) {
             if (this.props.fallback) {
