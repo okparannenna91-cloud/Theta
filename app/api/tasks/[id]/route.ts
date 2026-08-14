@@ -82,6 +82,7 @@ export async function GET(
             where: { id: task.parentId },
             select: {
               id: true, title: true, status: true, progress: true, color: true, dueDate: true,
+              completedAt: true, createdAt: true, updatedAt: true,
             },
           })
         : Promise.resolve(null),

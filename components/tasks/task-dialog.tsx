@@ -170,8 +170,11 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             title: taskDetail.parent.title,
             status: taskDetail.parent.status,
             progress: taskDetail.parent.progress,
-            color: taskDetail.parent.color,
-            dueDate: taskDetail.parent.dueDate,
+color: taskDetail.parent.color,
+        dueDate: taskDetail.parent.dueDate,
+        completedAt: taskDetail.parent.completedAt,
+        createdAt: taskDetail.parent.createdAt,
+        updatedAt: taskDetail.parent.updatedAt,
             projectId: task.projectId,
             workspaceId: task.workspaceId,
         });
@@ -783,11 +786,11 @@ const TaskDialogSidebar = React.memo(function TaskDialogSidebar({
                     <div className="pt-4 border-t space-y-2">
                         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                             <span>Created</span>
-                            <span>{format(new Date(task.createdAt), "MMM d, yyyy 'at' h:mm a")}</span>
+                            <span>{task.createdAt ? format(new Date(task.createdAt), "MMM d, yyyy 'at' h:mm a") : "—"}</span>
                         </div>
                         <div className="flex items-center justify-between text-[10px] text-muted-foreground">
                             <span>Updated</span>
-                            <span>{format(new Date(task.updatedAt), "MMM d, yyyy 'at' h:mm a")}</span>
+                            <span>{task.updatedAt ? format(new Date(task.updatedAt), "MMM d, yyyy 'at' h:mm a") : "—"}</span>
                         </div>
                         {task.completedAt && (
                             <div className="flex items-center justify-between text-[10px] text-emerald-600 dark:text-emerald-400">
