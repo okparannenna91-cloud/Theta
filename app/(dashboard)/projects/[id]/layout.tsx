@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/hooks/use-workspace";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import Link from "next/link";
@@ -23,23 +22,7 @@ export default function ProjectLayout({ children, params }: { children: React.Re
     enabled: !!params.id,
   });
 
-  if (isLoading) {
-    return (
-      <div className="h-full flex flex-col">
-        <div className="px-8 lg:px-10 py-3.5 border-b border-border/20">
-          <div className="flex items-center gap-2.5">
-            <Skeleton className="h-7 w-7 rounded-lg" />
-            <Skeleton className="h-4 w-40" />
-          </div>
-        </div>
-        <div className="flex-1 px-8 lg:px-10 py-6">
-          <Skeleton className="h-[60vh] w-full rounded-xl" />
-        </div>
-      </div>
-    );
-  }
-
-  if (!project) {
+  if (!isLoading && !project) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <Card className="max-w-md border-border/20 shadow-sm rounded-2xl">
@@ -57,7 +40,7 @@ export default function ProjectLayout({ children, params }: { children: React.Re
 
   return (
     <div className="h-full flex flex-col">
-      <ProjectHeader project={project} />
+      {project && <ProjectHeader project={project} />}
 
       <div className="flex-1 pt-3 overflow-y-auto">
         {children}

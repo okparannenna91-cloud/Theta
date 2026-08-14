@@ -216,11 +216,28 @@ export async function getAccessibleProjectIds(
   );
 }
 
+const accessCache = new Map<string, { value: boolean; expiresAt: number }>();
+const ACCESS_CACHE_TTL_MS = 30_000;
+const ACCESS_CACHE_MAX = 1000;
+
+function pruneAccessCache(): void {
+  if (accessCache.size < ACCESS_CACHE_MAX) return;
+  const now = Date.now();
+  for (const [k, e] of accessCache) {
+    if (e.expiresAt < now) accessCache.delete(k);
+  }
+}
+
 export async function canAccessProjectResource(
   userId: string,
   workspaceId: string,
   projectId: string | null | undefined
 ): Promise<boolean> {
+  const key = `${userId}:${workspaceId}:${projectId ?? ""}`;
+  const hit = accessCache.get(key);
+  if (hit && hit.expiresAt > Date.now()) return hit.value;
+
+  let result: boolean;
   if (!projectId) {
     const membership = await prisma.workspaceMember.findUnique({
       where: {
@@ -230,11 +247,14 @@ export async function canAccessProjectResource(
         },
       },
     });
-    return !!membership;
+    result = !!membership;
+  } else {
+    result = (await canAccessProject(userId, projectId, workspaceId)).hasAccess;
   }
 
-  const result = await canAccessProject(userId, projectId, workspaceId);
-  return result.hasAccess;
+  pruneAccessCache();
+  accessCache.set(key, { value: result, expiresAt: Date.now() + ACCESS_CACHE_TTL_MS });
+  return result;
 }
 
 export async function requireProjectAccess(

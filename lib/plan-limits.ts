@@ -512,29 +512,40 @@ export async function enforcePlanLimit(
     feature: string,
     currentCount: number
 ) {
-    const { prisma } = await import("./prisma");
+    const [{ prisma }, { cacheGetOrSet, cacheKey }] = await Promise.all([
+        import("./prisma"),
+        import("./cache"),
+    ]);
 
-    // 1. Fetch workspace, billing status, and owner info
-    const workspace = await prisma.workspace.findUnique({
-        where: { id: workspaceId },
-        select: {
-            plan: true,
-            subscriptionStatus: true,
-            billingStatus: true,
-            members: {
-                where: { role: "owner" },
+    // 1. Fetch workspace, billing status, and owner info (cached 60s — plan lookups
+    //    are read-heavy and rarely change; avoids a full DB round trip per mutation)
+    const workspace: any = await cacheGetOrSet(
+        cacheKey("workspace-billing", workspaceId),
+        async () => {
+            const ws = await prisma.workspace.findUnique({
+                where: { id: workspaceId },
                 select: {
-                    user: {
+                    plan: true,
+                    subscriptionStatus: true,
+                    billingStatus: true,
+                    members: {
+                        where: { role: "owner" },
                         select: {
-                            clerkId: true
+                            user: {
+                                select: {
+                                    clerkId: true
+                                }
+                            }
                         }
                     }
                 }
-            }
-        }
-    });
+            });
 
-    if (!workspace) throw new Error("Workspace not found");
+            if (!ws) throw new Error("Workspace not found");
+            return ws;
+        },
+        60
+    );
 
     const billingStatus = workspace.subscriptionStatus ?? workspace.billingStatus;
 

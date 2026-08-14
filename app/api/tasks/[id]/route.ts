@@ -797,22 +797,14 @@ export async function DELETE(
       await updateParentTask(task.parentId, task.workspaceId);
     }
 
-    // Notify via Ably
-    const workspaceChannel = getWorkspaceChannel(task.workspaceId);
-    await publishToChannel(workspaceChannel, "task:deleted", { id: params.id });
-
-    if (task.boardId) {
-      const boardChannel = getBoardChannel(task.workspaceId, task.boardId);
-      await publishToChannel(boardChannel, "task:deleted", { id: params.id });
-    }
-
-    // Per-task channels: close/open dialogs on both sides of the hierarchy
-    const taskChannel = getTaskChannel(task.workspaceId, task.id);
-    await publishToChannel(taskChannel, "task:deleted", { id: params.id });
-    if (task.parentId) {
-      const parentChannel = getTaskChannel(task.workspaceId, task.parentId);
-      await publishToChannel(parentChannel, "subtask:deleted", { id: params.id, parentTaskId: task.parentId });
-    }
+    // Notify via Ably (parallel — all channels in one round-trip wave)
+    await Promise.allSettled([
+      publishToChannel(getWorkspaceChannel(task.workspaceId), "task:deleted", { id: params.id }),
+      ...(task.boardId ? [publishToChannel(getBoardChannel(task.workspaceId, task.boardId), "task:deleted", { id: params.id })] : []),
+      // Per-task channels: close/open dialogs on both sides of the hierarchy
+      publishToChannel(getTaskChannel(task.workspaceId, task.id), "task:deleted", { id: params.id }),
+      ...(task.parentId ? [publishToChannel(getTaskChannel(task.workspaceId, task.parentId), "subtask:deleted", { id: params.id, parentTaskId: task.parentId })] : []),
+    ]);
 
     // Log Activity
     const { createActivity } = await import("@/lib/activity");

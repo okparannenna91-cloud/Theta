@@ -131,13 +131,13 @@ export async function updateParentTask(parentId: string, workspaceId: string) {
     data,
   });
 
-  // Workspace channel keeps boards, lists and dashboards in sync
+  // Workspace channel keeps boards, lists and dashboards in sync (non-blocking)
   const workspaceChannel = getWorkspaceChannel(workspaceId);
-  await publishToChannel(workspaceChannel, "task:updated", updatedParent);
+  void publishToChannel(workspaceChannel, "task:updated", updatedParent);
 
   // Per-task channel keeps any open parent dialog in sync instantly
   const taskChannel = getTaskChannel(workspaceId, parentId);
-  await publishToChannel(taskChannel, "task:updated", updatedParent);
+  void publishToChannel(taskChannel, "task:updated", updatedParent);
 
   if (updatedParent.parentId) {
     await updateParentTask(updatedParent.parentId, workspaceId);

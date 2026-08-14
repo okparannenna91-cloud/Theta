@@ -197,18 +197,9 @@ export async function POST(req: Request) {
 
 
 
-    // Get workspace metadata from primary shard
-    const workspace = await prisma.workspace.findUnique({
-      where: { id: data.workspaceId },
-      select: { plan: true },
-    });
-
-    if (!workspace) {
-      return NextResponse.json(
-        { error: "Workspace not found" },
-        { status: 404 }
-      );
-    }
+    // Get plan (cached) — workspace existence is already verified by verifyWorkspaceAccess
+    const { getWorkspacePlan } = await import("@/lib/plan-limits");
+    await getWorkspacePlan(data.workspaceId);
 
     // Get project count from correct shard
     const projectCount = await getProjectCount(data.workspaceId);
@@ -280,32 +271,35 @@ export async function POST(req: Request) {
       },
     });
 
-    for (let i = 0; i < defaultColumns.length; i++) {
-      const existingStatus = await prisma.status.findFirst({
-        where: {
-          projectId: project.id,
-          name: { equals: defaultColumns[i], mode: "insensitive" },
-        },
-      });
+    // Auto-create default statuses + columns for the board (parallel)
+    await Promise.all(
+      defaultColumns.map(async (name, i) => {
+        const existingStatus = await prisma.status.findFirst({
+          where: {
+            projectId: project.id,
+            name: { equals: name, mode: "insensitive" },
+          },
+        });
 
-      const status = existingStatus || await prisma.status.create({
-        data: {
-          name: defaultColumns[i],
-          order: i,
-          projectId: project.id,
-          workspaceId: project.workspaceId,
-          category: inferStatusCategory(defaultColumns[i]) ?? StatusCategory.TODO,
-        },
-      });
+        const status = existingStatus || await prisma.status.create({
+          data: {
+            name,
+            order: i,
+            projectId: project.id,
+            workspaceId: project.workspaceId,
+            category: inferStatusCategory(name) ?? StatusCategory.TODO,
+          },
+        });
 
-      await prisma.column.create({
-        data: {
-          name: defaultColumns[i],
-          boardId: board.id,
-          order: i,
-        },
-      });
-    }
+        await prisma.column.create({
+          data: {
+            name,
+            boardId: board.id,
+            order: i,
+          },
+        });
+      })
+    );
 
     // Log activity
     await createActivity(
@@ -320,19 +314,21 @@ export async function POST(req: Request) {
       }
     );
 
-    // Trigger Automations
-    try {
-      const { processAutomations } = await import("@/lib/automations/engine");
-      await processAutomations(data.workspaceId, "PROJECT_CREATED", {
-        projectId: project.id,
-        userId: user.id,
-      });
-    } catch (automationError) {
-      console.error("Failed to trigger automations on project creation:", automationError);
-    }
+    // Trigger Automations (network-only, non-blocking)
+    void (async () => {
+      try {
+        const { processAutomations } = await import("@/lib/automations/engine");
+        await processAutomations(data.workspaceId, "PROJECT_CREATED", {
+          projectId: project.id,
+          userId: user.id,
+        });
+      } catch (automationError) {
+        console.error("Failed to trigger automations on project creation:", automationError);
+      }
+    })();
 
-    // Invalidate cached project lists
-    await cacheInvalidatePattern("cache:projects:*");
+    // Invalidate cached project lists (memory invalidation is synchronous; remote is best-effort)
+    void cacheInvalidatePattern("cache:projects:*");
 
     return NextResponse.json(project);
   } catch (error: any) {

@@ -108,11 +108,15 @@ export async function createNotification(
     }
 
     if (!dndActive) {
-      await publishToAbly(workspaceId, notification);
-      try {
-        const { notifyWorkspace } = await import("./integrations/slack");
-        await notifyWorkspace(workspaceId, message, title);
-      } catch {}
+      // Real-time publish + Slack are network-only: fire-and-forget so notification
+      // creation never blocks the mutation response.
+      void publishToAbly(workspaceId, notification);
+      void (async () => {
+        try {
+          const { notifyWorkspace } = await import("./integrations/slack");
+          await notifyWorkspace(workspaceId, message, title);
+        } catch {}
+      })();
 
       if (preference?.emailNotifications !== false) {
         const actionUrl = (metadata as any)?.taskId

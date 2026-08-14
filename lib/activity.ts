@@ -43,7 +43,8 @@ export async function logActivity({
       },
     });
 
-    await publishActivityToAbly(workspaceId, {
+    // Ably publish is non-blocking: activity logging must never delay the mutation response
+    void publishActivityToAbly(workspaceId, {
       userId,
       action,
       entityType,

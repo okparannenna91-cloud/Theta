@@ -327,11 +327,8 @@ export async function POST(req: Request) {
     // Check plan limits strictly (subtasks are work-breakdown, they don't consume the task quota)
     if (!data.parentId) {
       try {
-        const workspace = await prisma.workspace.findUnique({
-          where: { id: data.workspaceId },
-          select: { plan: true }
-        });
-        if (!workspace) return NextResponse.json({ error: "Workspace not found" }, { status: 404 });
+        const { getWorkspacePlan } = await import("@/lib/plan-limits");
+        await getWorkspacePlan(data.workspaceId);
 
         const { getTaskCount } = await import("@/lib/usage-tracking");
         const taskCount = await getTaskCount(data.workspaceId);
@@ -389,28 +386,17 @@ export async function POST(req: Request) {
       },
     });
 
-    // Notify via Ably
-    const workspaceChannel = getWorkspaceChannel(task.workspaceId);
-    await publishToChannel(workspaceChannel, "task:created", task);
+    // Notify via Ably (parallel — all channels in one round-trip wave)
+    await Promise.allSettled([
+      publishToChannel(getWorkspaceChannel(task.workspaceId), "task:created", task),
+      ...(task.boardId ? [publishToChannel(getBoardChannel(task.workspaceId, task.boardId), "task:created", task)] : []),
+      ...(task.projectId ? [publishToChannel(getProjectChannel(task.workspaceId, task.projectId), "task:created", task)] : []),
+      ...(task.parentId ? [publishToChannel(getTaskChannel(task.workspaceId, task.parentId), "subtask:created", task)] : []),
+    ]);
 
-    if (task.boardId) {
-      const boardChannel = getBoardChannel(task.workspaceId, task.boardId);
-      await publishToChannel(boardChannel, "task:created", task);
-    }
-
-    if (task.projectId) {
-      const projectChannel = getProjectChannel(task.workspaceId, task.projectId);
-      await publishToChannel(projectChannel, "task:created", task);
-    }
-
-    // Per-task channel: parent dialog's subtask list updates instantly when a child is created
-    if (task.parentId) {
-      const parentChannel = getTaskChannel(task.workspaceId, task.parentId);
-      await publishToChannel(parentChannel, "subtask:created", task);
-    }
-
-    // Trigger Automations
-    try {
+    // Trigger Automations (network-only, non-blocking)
+    void (async () => {
+      try {
         const { processAutomations } = await import("@/lib/automations/engine");
         await processAutomations(task.workspaceId, "TASK_CREATED", {
             taskId: task.id,
@@ -419,9 +405,10 @@ export async function POST(req: Request) {
             taskTitle: task.title,
             taskPriority: task.priority,
         });
-    } catch (automationError) {
+      } catch (automationError) {
         console.error("Failed to trigger automations on task creation:", automationError);
-    }
+      }
+    })();
 
     // Log activity
     const { createActivity } = await import("@/lib/activity");
