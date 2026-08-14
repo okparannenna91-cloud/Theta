@@ -537,8 +537,8 @@ const SubtasksContent = React.memo(function SubtasksContent({ taskId, workspaceI
 const ChecklistContent = React.memo(function ChecklistContent({ taskId, workspaceId }: { taskId: string; workspaceId: string }) {
     return <TaskChecklist taskId={taskId} workspaceId={workspaceId} />;
 });
-const DependenciesContent = React.memo(function DependenciesContent({ taskId, workspaceId }: { taskId: string; workspaceId: string }) {
-    return <TaskDependencies taskId={taskId} workspaceId={workspaceId} />;
+const DependenciesContent = React.memo(function DependenciesContent({ taskId, workspaceId, projectId }: { taskId: string; workspaceId: string; projectId?: string }) {
+    return <TaskDependencies taskId={taskId} workspaceId={workspaceId} projectId={projectId} />;
 });
 const AttachmentsContent = React.memo(function AttachmentsContent({ taskId, workspaceId, attachments }: { taskId: string; workspaceId: string; attachments?: any[] }) {
     return <TaskAttachments taskId={taskId} workspaceId={workspaceId} attachments={attachments || []} />;
@@ -562,7 +562,7 @@ const LazySections = React.memo(function LazySections({ task, taskId, workspaceI
             </LazySection>
 
             <LazySection icon={Link2} title="Dependencies">
-                <DependenciesContent taskId={taskId} workspaceId={workspaceId} />
+                <DependenciesContent taskId={taskId} workspaceId={workspaceId} projectId={projectId} />
             </LazySection>
 
             <LazySection icon={Palette} title="Attachments">

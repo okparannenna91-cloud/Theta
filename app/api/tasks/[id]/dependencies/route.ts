@@ -56,6 +56,10 @@ export async function POST(req: Request, { params }: { params: { id: string } })
       return NextResponse.json({ error: "Task not found" }, { status: 404 });
     }
 
+    if (taskInfo.projectId !== predecessor.projectId) {
+      return NextResponse.json({ error: "Dependencies must be between tasks in the same project" }, { status: 400 });
+    }
+
     const hasTaskAccess = await canAccessProjectResource(user.id, workspaceId, taskInfo.projectId);
     const hasPredAccess = await canAccessProjectResource(user.id, workspaceId, predecessor.projectId);
     if (!hasTaskAccess || !hasPredAccess) {

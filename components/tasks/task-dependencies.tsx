@@ -41,9 +41,10 @@ interface TaskSearchResult {
 interface TaskDependenciesProps {
     taskId: string;
     workspaceId: string;
+    projectId?: string;
 }
 
-export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps) {
+export function TaskDependencies({ taskId, workspaceId, projectId }: TaskDependenciesProps) {
     const [searchQuery, setSearchQuery] = useState("");
     const [showSearch, setShowSearch] = useState(false);
     const [depType, setDepType] = useState<keyof typeof DEPENDENCY_TYPE_META>("FS");
@@ -66,7 +67,7 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
     const { data: searchResults, isLoading: isSearching } = useQuery<TaskSearchResult[]>({
         queryKey: ["taskSearch", workspaceId, searchQuery],
         queryFn: async () => {
-            const res = await fetch(`/api/tasks?workspaceId=${workspaceId}&search=${encodeURIComponent(searchQuery)}&exclude=${taskId}&includeSubtasks=1`);
+            const res = await fetch(`/api/tasks?workspaceId=${workspaceId}&projectId=${projectId || ""}&search=${encodeURIComponent(searchQuery)}&exclude=${taskId}&includeSubtasks=1`);
             if (!res.ok) throw new Error("Failed to search tasks");
             const data = await res.json();
             return data.tasks || [];
