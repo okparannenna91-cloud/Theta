@@ -13,6 +13,7 @@ type WorkspaceContextType = {
   isLoading: boolean;
   error: Error | null;
   switchWorkspace: (id: string) => void;
+  clearActiveWorkspace: () => void;
 };
 
 const WorkspaceContext = createContext<WorkspaceContextType | null>(null);
@@ -115,6 +116,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     window.dispatchEvent(new CustomEvent(WORKSPACE_SWITCH_EVENT, { detail: { id } }));
   }, []);
 
+  const clearActiveWorkspace = useCallback(() => {
+    setActiveWorkspaceId(null);
+    setFallbackWorkspace(null);
+    setFallbackError(null);
+    localStorage.removeItem("activeWorkspaceId");
+  }, []);
+
   const activeWorkspace = workspaces?.find((w: any) => w.id === activeWorkspaceId) || fallbackWorkspace || workspaces?.[0] || null;
 
   return (
@@ -126,6 +134,7 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
         isLoading: (isLoading && !workspaces) || fallbackLoading,
         error: error || fallbackError,
         switchWorkspace,
+        clearActiveWorkspace,
       }}
     >
       {children}

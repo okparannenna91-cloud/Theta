@@ -18,7 +18,7 @@ export default function WorkspacesPage() {
     const [deleteId, setDeleteId] = useState<string | null>(null);
     const queryClient = useQueryClient();
     const router = useRouter();
-    const { workspaces, activeWorkspaceId, switchWorkspace, isLoading, error } = useWorkspace();
+    const { workspaces, activeWorkspaceId, switchWorkspace, clearActiveWorkspace, isLoading, error } = useWorkspace();
 
     const createMutation = useMutation({
         mutationFn: async (name: string) => {
@@ -44,12 +44,22 @@ export default function WorkspacesPage() {
 
     const deleteMutation = useMutation({
         mutationFn: async (id: string) => {
-            const res = await fetch(`/api/workspaces/${id}`, { method: "DELETE" });
+            const res = await fetch(`/api/workspaces/${id}?force=true`, { method: "DELETE" });
             if (!res.ok) { const error = await res.json(); throw new Error(error.error || "Failed to delete workspace"); }
             return res.json();
         },
-        onSuccess: async () => {
+        onSuccess: async (_data, deletedId) => {
             await queryClient.refetchQueries({ queryKey: ["workspaces"] });
+            const cached = queryClient.getQueriesData({ queryKey: ["workspaces"] });
+            const fresh = (cached[0]?.[1] as any[]) || [];
+            const remaining = (Array.isArray(fresh) ? fresh : []).filter((w: any) => w.id !== deletedId);
+            if (deletedId === activeWorkspaceId) {
+                if (remaining.length > 0) {
+                    switchWorkspace(remaining[0].id);
+                } else {
+                    clearActiveWorkspace();
+                }
+            }
             setDeleteId(null);
             toast.success("Workspace deleted successfully");
         },
@@ -119,11 +129,12 @@ export default function WorkspacesPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {workspaces && workspaces.length > 0 ? workspaces?.map((ws: any) => (
                     <Card key={ws.id}
-                        className={`border shadow-sm transition-all hover:shadow-md cursor-pointer ${activeWorkspaceId === ws.id ? "ring-2 ring-primary border-primary" : "hover:border-primary/30"}`}>
+                        className={`relative border shadow-sm transition-all hover:shadow-md cursor-pointer ${activeWorkspaceId === ws.id ? "ring-2 ring-primary border-primary" : "hover:border-primary/30"}`}>
                         <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
                             {activeWorkspaceId === ws.id && <CheckCircle2 className="h-5 w-5 text-primary" />}
                             {ws.role === "owner" && (
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                <Button variant="ghost" size="icon" title="Delete workspace"
+                                    className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                     onClick={(e) => { e.stopPropagation(); setDeleteId(ws.id); }}>
                                     <Trash2 className="h-4 w-4" />
                                 </Button>
