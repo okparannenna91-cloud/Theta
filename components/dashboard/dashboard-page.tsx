@@ -145,7 +145,7 @@ export default function DashboardPage() {
       icon: Users,
       color: "text-violet-500",
       bg: "bg-violet-500/10",
-      trend: 0,
+      trend: trendPercent("members"),
     },
     {
       title: t("completion_rate"),

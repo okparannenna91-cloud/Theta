@@ -5,6 +5,17 @@ import { getAccessibleProjectIds } from "@/lib/project-permissions";
 import { StatusCategory } from "@/lib/constants/status";
 import { cacheGetOrSet, cacheKey } from "@/lib/cache";
 
+/**
+ * Growth of a displayed total since the start of the current window.
+ * `windowCreated` is the number created within the window, so the total at
+ * window start is `current - windowCreated`.
+ */
+function growthPercent(current: number, windowCreated: number): number {
+  const prev = current - windowCreated;
+  if (prev > 0) return Math.round((windowCreated / prev) * 100);
+  return windowCreated > 0 ? 100 : 0;
+}
+
 export async function GET(req: Request) {
   let workspaceId: string | null = null;
   try {
@@ -161,6 +172,13 @@ export async function GET(req: Request) {
         where: { ...whereTask, ...completedStatusFilter },
       });
 
+      // Created within the current window — used to derive growth vs window start
+      const [windowProjectsCount, windowActiveTasksCount, windowMembersCount] = await Promise.all([
+        prisma.project.count({ where: { ...whereProject, createdAt: { gte: rangeStart } } }),
+        prisma.task.count({ where: { ...whereTask, ...notCompletedStatusFilter, createdAt: { gte: rangeStart } } }),
+        prisma.workspaceMember.count({ where: { workspaceId: wsId, createdAt: { gte: rangeStart } } }),
+      ]);
+
       const completionRate = totalTaskCount > 0 ? Math.round((completedTaskCount / totalTaskCount) * 100) : 0;
       const prevCompletionRate = prevTotalTaskCount > 0 ? Math.round((prevCompletedTaskCount / prevTotalTaskCount) * 100) : 0;
 
@@ -251,9 +269,9 @@ export async function GET(req: Request) {
         membersCount,
         completionRate,
         trends: {
-          projects: prevProjectsCount > 0 ? Math.round(((projectsCount - prevProjectsCount) / prevProjectsCount) * 100) : 0,
-          tasks: prevTasksCount > 0 ? Math.round(((tasksCount - prevTasksCount) / prevTasksCount) * 100) : 0,
-          members: 0,
+          projects: growthPercent(projectsCount, windowProjectsCount),
+          tasks: growthPercent(tasksCount, windowActiveTasksCount),
+          members: growthPercent(membersCount, windowMembersCount),
           completionRate: completionRate - prevCompletionRate,
         },
         recentProjects: recentProjects.map(p => ({ id: p.id, name: p.name, tasksCount: p._count.tasks })),
