@@ -835,7 +835,6 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
       dragStartBoardRef.current = queryClient.getQueryData(["board", boardId]);
       dragStartTaskRef.current = active.data.current.task;
     } else if (type === "Column") {
-      console.log("[col] dragStart", active.id, "| type:", type);
       lastColumnOverRef.current = null;
       setActiveColumn(active.data.current.column);
       dragStartBoardRef.current = queryClient.getQueryData(["board", boardId]);
@@ -851,7 +850,6 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
 
     // Column reordering — live preview by moving the column array in the cache
     if (active.data.current?.type === "Column") {
-      console.log("[col] dragOver", activeId, "->", overId);
       if (overId !== activeId) {
         lastColumnOverRef.current = overId;
       }
@@ -941,12 +939,10 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
         return;
       }
       if (oldIndex === newIndex) {
-        console.log("[col] dragEnd EARLY-RETURN (no move) | type:", active.data.current?.type, "| hasSnapshot:", !!startBoard, "| old:", oldIndex, "new:", newIndex);
         dragStartBoardRef.current = null;
         return;
       }
 
-      console.log("[col] dragEnd SAVING | old:", oldIndex, "new:", newIndex);
       const reordered = arrayMove(baseColumns, oldIndex, newIndex).map((c: any, i: number) => ({ ...c, order: i * 1000 }));
       const snapshotBoard = startBoard || latestBoard;
       queryClient.setQueryData(["board", boardId], { ...latestBoard, columns: reordered });
