@@ -239,7 +239,7 @@ export default function ProjectsPage() {
             <>
               <h3 className="text-sm font-semibold mb-2">No projects yet</h3>
               <p className="text-sm text-muted-foreground mb-4">Create your first project to get started.</p>
-              <div className="flex gap-3">
+              <div className="flex justify-center gap-3">
                 <Button onClick={() => setIsOpen(true)} variant="outline">
                   <Plus className="h-4 w-4 mr-2" />
                   New Project
