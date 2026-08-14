@@ -8,7 +8,7 @@ import { StatusCategory, inferStatusCategory } from "@/lib/constants/status";
 
 const columnSchema = z.object({
     name: z.string().min(1),
-    order: z.number().default(0),
+    order: z.number().optional(),
     columnType: z.string().default("text"),
     settings: z.any().optional(),
     width: z.number().optional(),
@@ -44,10 +44,16 @@ export async function POST(
         const columnCount = await prisma.column.count({ where: { boardId: params.id } });
         await enforcePlanLimit(board.workspaceId, "columns", columnCount);
 
+        const lastColumn = await prisma.column.findFirst({
+            where: { boardId: params.id },
+            orderBy: { order: "desc" },
+            select: { order: true },
+        });
+
         const column = await prisma.column.create({
             data: {
                 name: data.name,
-                order: data.order ?? (await prisma.column.count({ where: { boardId: params.id } })),
+                order: data.order ?? (lastColumn?.order ?? -1000) + 1000,
                 columnType: data.columnType,
                 settings: data.settings || undefined,
                 width: data.width || 200,
