@@ -496,6 +496,7 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
 
   const boardRef = useRef<any>(null);
   const dragStartBoardRef = useRef<any>(null);
+  const lastColumnOverRef = useRef<string | null>(null);
   const dragStartTaskRef = useRef<any>(null);
 
   const handleOpenTask = useCallback((task: any) => setSelectedTask(task), []);
@@ -835,6 +836,7 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
       dragStartTaskRef.current = active.data.current.task;
     } else if (type === "Column") {
       console.log("[col] dragStart", active.id, "| type:", type);
+      lastColumnOverRef.current = null;
       setActiveColumn(active.data.current.column);
       dragStartBoardRef.current = queryClient.getQueryData(["board", boardId]);
     }
@@ -850,6 +852,9 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
     // Column reordering — live preview by moving the column array in the cache
     if (active.data.current?.type === "Column") {
       console.log("[col] dragOver", activeId, "->", overId);
+      if (overId !== activeId) {
+        lastColumnOverRef.current = overId;
+      }
       const latestBoard = queryClient.getQueryData(["board", boardId]) as any;
       if (!latestBoard) return;
       const latestColumns = latestBoard.columns || [];
@@ -925,11 +930,11 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
       const baseColumns = startBoard?.columns || latestBoard.columns || [];
       const oldIndex = baseColumns.findIndex((c: any) => c.id === activeId);
       if (oldIndex === -1) return;
-      let newIndex = baseColumns.findIndex((c: any) => c.id === overId);
-      if (newIndex === -1) {
-        const overTask = (startBoard?.tasks || latestBoard.tasks || []).find((t: any) => t.id === overId);
-        if (!overTask) return;
-        newIndex = baseColumns.findIndex((c: any) => c.id === overTask.columnId);
+      const resolvedOverId = overId !== activeId ? overId : lastColumnOverRef.current;
+      let newIndex = resolvedOverId ? baseColumns.findIndex((c: any) => c.id === resolvedOverId) : -1;
+      if (newIndex === -1 && resolvedOverId) {
+        const overTask = (startBoard?.tasks || latestBoard.tasks || []).find((t: any) => t.id === resolvedOverId);
+        if (overTask) newIndex = baseColumns.findIndex((c: any) => c.id === overTask.columnId);
       }
       if (newIndex === -1) {
         dragStartBoardRef.current = null;
@@ -962,6 +967,7 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
         toast.error("Failed to save column position");
       } finally {
         dragStartBoardRef.current = null;
+        lastColumnOverRef.current = null;
         invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
       }
       return;
