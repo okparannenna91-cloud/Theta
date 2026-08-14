@@ -920,21 +920,25 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
       const startBoard = dragStartBoardRef.current;
       const latestBoard = queryClient.getQueryData(["board", boardId]) as any;
       if (!latestBoard) return;
-      const latestColumns = latestBoard.columns || [];
-      const oldIndex = latestColumns.findIndex((c: any) => c.id === activeId);
+      const baseColumns = startBoard?.columns || latestBoard.columns || [];
+      const oldIndex = baseColumns.findIndex((c: any) => c.id === activeId);
       if (oldIndex === -1) return;
-      let newIndex = latestColumns.findIndex((c: any) => c.id === overId);
+      let newIndex = baseColumns.findIndex((c: any) => c.id === overId);
       if (newIndex === -1) {
-        const overTask = (latestBoard.tasks || []).find((t: any) => t.id === overId);
+        const overTask = (startBoard?.tasks || latestBoard.tasks || []).find((t: any) => t.id === overId);
         if (!overTask) return;
-        newIndex = latestColumns.findIndex((c: any) => c.id === overTask.columnId);
+        newIndex = baseColumns.findIndex((c: any) => c.id === overTask.columnId);
       }
-      if (oldIndex === newIndex || newIndex === -1) {
+      if (newIndex === -1) {
+        dragStartBoardRef.current = null;
+        return;
+      }
+      if (oldIndex === newIndex) {
         dragStartBoardRef.current = null;
         return;
       }
 
-      const reordered = arrayMove(latestColumns, oldIndex, newIndex).map((c: any, i: number) => ({ ...c, order: i * 1000 }));
+      const reordered = arrayMove(baseColumns, oldIndex, newIndex).map((c: any, i: number) => ({ ...c, order: i * 1000 }));
       const snapshotBoard = startBoard || latestBoard;
       queryClient.setQueryData(["board", boardId], { ...latestBoard, columns: reordered });
 
