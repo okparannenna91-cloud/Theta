@@ -417,8 +417,8 @@ export async function deleteWorkspace(workspaceId: string, userId: string, force
       },
     });
 
-    if (!membership || membership.role !== "owner") {
-      throw new Error("Only the owner can delete the workspace");
+    if (!membership || (membership.role !== "owner" && membership.role !== "admin")) {
+      throw new Error("Only the owner or an admin can delete the workspace");
     }
 
     // Check if it's the user's only workspace

@@ -132,7 +132,7 @@ export default function WorkspacesPage() {
                         className={`relative border shadow-sm transition-all hover:shadow-md cursor-pointer ${activeWorkspaceId === ws.id ? "ring-2 ring-primary border-primary" : "hover:border-primary/30"}`}>
                         <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
                             {activeWorkspaceId === ws.id && <CheckCircle2 className="h-5 w-5 text-primary" />}
-                            {ws.role === "owner" && (
+                            {(ws.role === "owner" || ws.role === "admin") && (
                                 <Button variant="ghost" size="icon" title="Delete workspace"
                                     className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                                     onClick={(e) => { e.stopPropagation(); setDeleteId(ws.id); }}>
