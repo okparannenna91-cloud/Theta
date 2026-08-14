@@ -31,6 +31,11 @@ interface TaskSearchResult {
     id: string;
     title: string;
     status: string;
+    parentId?: string | null;
+    parent?: {
+        id: string;
+        title: string;
+    } | null;
 }
 
 interface TaskDependenciesProps {
@@ -61,7 +66,7 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
     const { data: searchResults, isLoading: isSearching } = useQuery<TaskSearchResult[]>({
         queryKey: ["taskSearch", workspaceId, searchQuery],
         queryFn: async () => {
-            const res = await fetch(`/api/tasks?workspaceId=${workspaceId}&search=${encodeURIComponent(searchQuery)}&exclude=${taskId}`);
+            const res = await fetch(`/api/tasks?workspaceId=${workspaceId}&search=${encodeURIComponent(searchQuery)}&exclude=${taskId}&includeSubtasks=1`);
             if (!res.ok) throw new Error("Failed to search tasks");
             const data = await res.json();
             return data.tasks || [];
@@ -206,7 +211,14 @@ export function TaskDependencies({ taskId, workspaceId }: TaskDependenciesProps)
                                     className="w-full flex items-center gap-2 px-3 py-2 hover:bg-accent text-left transition-colors border-b last:border-b-0"
                                 >
                                     <Link2 className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                                    <span className="text-xs font-medium truncate flex-1">{task.title}</span>
+                                    <span className="text-xs font-medium truncate flex-1">
+                                        {task.title}
+                                        {task.parentId && (
+                                            <span className="block text-[10px] text-muted-foreground font-normal truncate">
+                                                Subtask of {task.parent?.title || "parent task"}
+                                            </span>
+                                        )}
+                                    </span>
                                     <span className="text-[10px] text-muted-foreground capitalize">{task.status}</span>
                                 </button>
                             ))
