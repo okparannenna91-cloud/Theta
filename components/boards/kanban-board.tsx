@@ -18,7 +18,6 @@ import {
   Edit2,
   Calendar,
 
-  LayoutGrid,
   List as ListIcon,
   Users as UsersIcon,
   ListChecks,
@@ -475,7 +474,7 @@ function getMoveViolation(task: any, targetColName: string, allTasks: any[], col
   return null;
 }
 
-export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
+export default function KanbanBoard({ boardId }: KanbanBoardProps) {
   const { activeWorkspaceId } = useWorkspace();
   const { memberMap } = useWorkspaceMembers(activeWorkspaceId);
   const { showConfirm, showUpgradePrompt } = usePopups();
@@ -491,10 +490,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const [targetColumnId, setTargetColumnId] = useState<string | null>(null);
 
   // New features state
-  const [currentView, setCurrentView] = useState("kanban");
   const [searchQuery, setSearchQuery] = useState("");
-  const [isEditingHeader, setIsEditingHeader] = useState(false);
-  const [editedName, setEditedName] = useState("");
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [presenceUsers, setPresenceUsers] = useState<any[]>([]);
 
@@ -627,12 +623,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
   boardRef.current = board;
 
-  useEffect(() => {
-    if (board) {
-      setEditedName(board.name);
-    }
-  }, [board]);
-
   const selectedTaskId = selectedTask?.id;
 
   // Keep selectedTask in sync with board data updates
@@ -642,27 +632,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       if (updated) setSelectedTask(updated);
     }
   }, [board, selectedTaskId]);
-
-  const updateBoardMutation = useMutation({
-    mutationFn: async (data: any) => {
-      const res = await fetch(`/api/boards/${boardId}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) throw new Error("Failed to update board");
-      return res.json();
-    },
-    onSuccess: () => {
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
-      setIsEditingHeader(false);
-      toast.success("Board updated");
-    },
-  });
-
-  const toggleFavorite = () => {
-    updateBoardMutation.mutate({ isFavorite: !board?.isFavorite });
-  };
 
   const sensors = useSensors(
     useSensor(NoDndPointerSensor, {
@@ -698,30 +667,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       toast.success("Column deleted");
     },
     onError: (err: any) => toast.error(err.message || "Failed to delete column"),
-  });
-
-  const deleteBoardMutation = useMutation({
-    mutationFn: async () => {
-      const res = await fetch(`/api/boards/${boardId}`, {
-        method: "DELETE",
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || "Failed to delete board");
-      }
-      return res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["boards", activeWorkspaceId] });
-      queryClient.invalidateQueries({ queryKey: ["statuses", activeWorkspaceId, board?.projectId] });
-      invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
-      setShowDeleteBoardConfirm(false);
-      toast.success("Board deleted");
-      onBack();
-    },
-    onError: (err: any) => {
-      toast.error(err.message || "Failed to delete board");
-    },
   });
 
   const createTaskMutation = useMutation({
@@ -768,7 +713,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
   const [deletingColumn, setDeletingColumn] = useState<any>(null);
   const [deleteTargetColumnId, setDeleteTargetColumnId] = useState<string | null>(null);
-  const [showDeleteBoardConfirm, setShowDeleteBoardConfirm] = useState(false);
 
   const updateColumnMutation = useMutation({
     mutationFn: async ({ id, ...data }: any) => {
@@ -1205,40 +1149,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               filteredCount={filteredTasks.length}
             />
           </div>
-          <div className="flex items-center gap-1 bg-muted rounded-lg p-1 shrink-0">
-            {[
-              { id: "kanban", icon: LayoutGrid, label: "Board" },
-            ].map(view => (
-              <Button
-                key={view.id}
-                variant={currentView === view.id ? "default" : "ghost"}
-                size="sm"
-                onClick={() => setCurrentView(view.id)}
-                className="h-8 px-2 text-xs"
-              >
-                <view.icon className="h-3.5 w-3.5 mr-1" />
-                <span className="hidden sm:inline">{view.label}</span>
-              </Button>
-            ))}
-          </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="h-8 w-8 rounded-lg shrink-0 inline-flex items-center justify-center text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground">
-                <MoreVertical className="h-4 w-4" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                className="text-destructive"
-                onSelect={(e) => {
-                  e.preventDefault();
-                  setShowDeleteBoardConfirm(true);
-                }}
-              >
-                <Trash2 className="h-3.5 w-3.5 mr-2" /> Delete Board
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 
@@ -1257,7 +1167,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
 
       {/* Main Content */}
       <div className="flex-1 overflow-hidden">
-        {currentView === "kanban" && (
           <DndContext
             sensors={sensors}
             collisionDetection={closestCorners}
@@ -1402,7 +1311,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               )}
             </DragOverlay>
           </DndContext>
-        )}
       </div>
       </div>
       {/* New Column Dialog */}
@@ -1535,38 +1443,6 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
               }}
             >
               Delete Column
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Board Confirmation Dialog */}
-      <Dialog open={showDeleteBoardConfirm} onOpenChange={setShowDeleteBoardConfirm}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Delete Board</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <p className="text-sm text-muted-foreground">
-              Delete <span className="font-medium text-foreground">&quot;{board?.name}&quot;</span>?
-              {tasks.length > 0 ? (
-                <> <span className="font-medium text-foreground">{tasks.length} task{tasks.length !== 1 ? "s" : ""}</span> will be removed from this board but kept in the project.</>
-              ) : (
-                <> This board has no tasks.</>
-              )}
-            </p>
-            <p className="text-sm text-muted-foreground">
-              Columns will be deleted. Statuses will be kept for other boards in this project.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowDeleteBoardConfirm(false)}>Cancel</Button>
-            <Button
-              variant="destructive"
-              onClick={() => deleteBoardMutation.mutate()}
-              disabled={deleteBoardMutation.isPending}
-            >
-              {deleteBoardMutation.isPending ? "Deleting..." : "Delete Board"}
             </Button>
           </DialogFooter>
         </DialogContent>

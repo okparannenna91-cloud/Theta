@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Star, MoreHorizontal } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
@@ -48,15 +48,6 @@ export function ProjectHeader({ project }: ProjectHeaderProps) {
                 {visibilityLabel}
               </Badge>
             </div>
-          </div>
-
-          <div className="flex items-center gap-0.5 shrink-0">
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-accent/30 transition-all">
-              <Star className="h-3.5 w-3.5" />
-            </Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-lg text-muted-foreground/40 hover:text-foreground hover:bg-accent/30 transition-all">
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </Button>
           </div>
         </div>
 
