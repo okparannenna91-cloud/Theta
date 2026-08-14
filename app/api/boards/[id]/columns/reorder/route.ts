@@ -23,6 +23,7 @@ export async function PATCH(
 
     const body = await req.json();
     const data = reorderSchema.parse(body);
+    console.log("[col-reorder] PATCH received:", JSON.stringify(data.columnOrders));
 
     const board = await prisma.board.findUnique({ where: { id: params.id } });
     if (!board) {
