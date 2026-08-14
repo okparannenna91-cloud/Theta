@@ -25,6 +25,7 @@ import {
   MessageSquare,
   Paperclip,
   GitBranch,
+  GripVertical,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -79,7 +80,9 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
+  horizontalListSortingStrategy,
   useSortable,
+  arrayMove,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import FilterSortBar from "@/components/boards/filter-sort-bar";
@@ -400,6 +403,28 @@ function ColumnContainer({
   );
 }
 
+const SortableColumn = React.memo(function SortableColumn({ column, children }: {
+  column: any;
+  children: (handle: { attributes: any; listeners: any }) => React.ReactNode;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: column.id,
+    data: { type: "Column", column },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className={cn("flex-shrink-0 w-[320px] h-full", isDragging && "opacity-40")}
+    >
+      <ColumnContainer column={column}>
+        {children({ attributes, listeners })}
+      </ColumnContainer>
+    </div>
+  );
+});
+
 interface KanbanBoardProps {
   boardId: string;
   onBack: () => void;
@@ -456,6 +481,7 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const { showConfirm, showUpgradePrompt } = usePopups();
   const queryClient = useQueryClient();
   const [activeTask, setActiveTask] = useState<any>(null);
+  const [activeColumn, setActiveColumn] = useState<any>(null);
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isColumnDialogOpen, setIsColumnDialogOpen] = useState(false);
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -809,7 +835,10 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
     },
   });
 
-  const columns = board?.columns || [];
+  const columns = useMemo(
+    () => [...(board?.columns || [])].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)),
+    [board]
+  );
   const tasks = board?.tasks || [];
 
   // Filter tasks
@@ -860,16 +889,39 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
       setActiveTask(active.data.current.task);
       dragStartBoardRef.current = queryClient.getQueryData(["board", boardId]);
       dragStartTaskRef.current = active.data.current.task;
+    } else if (type === "Column") {
+      setActiveColumn(active.data.current.column);
+      dragStartBoardRef.current = queryClient.getQueryData(["board", boardId]);
     }
   };
 
   const handleDragOver = useCallback((event: any) => {
     const { active, over } = event;
     if (!over) return;
-    if (active.data.current?.type !== "Task") return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
+
+    // Column reordering — live preview by moving the column array in the cache
+    if (active.data.current?.type === "Column") {
+      const latestBoard = queryClient.getQueryData(["board", boardId]) as any;
+      if (!latestBoard) return;
+      const latestColumns = latestBoard.columns || [];
+      const oldIndex = latestColumns.findIndex((c: any) => c.id === activeId);
+      if (oldIndex === -1) return;
+      let newIndex = latestColumns.findIndex((c: any) => c.id === overId);
+      if (newIndex === -1) {
+        const overTask = (latestBoard.tasks || []).find((t: any) => t.id === overId);
+        if (!overTask) return;
+        newIndex = latestColumns.findIndex((c: any) => c.id === overTask.columnId);
+      }
+      if (oldIndex === newIndex || newIndex === -1) return;
+      const reordered = arrayMove(latestColumns, oldIndex, newIndex).map((c: any, i: number) => ({ ...c, order: i * 1000 }));
+      queryClient.setQueryData(["board", boardId], { ...latestBoard, columns: reordered });
+      return;
+    }
+
+    if (active.data.current?.type !== "Task") return;
 
     const latestBoard = queryClient.getQueryData(["board", boardId]) as any;
     if (!latestBoard) return;
@@ -912,11 +964,56 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
   const handleDragEnd = useCallback(async (event: any) => {
     const { active, over } = event;
     setActiveTask(null);
+    setActiveColumn(null);
 
     if (!over) return;
 
     const activeId = active.id as string;
     const overId = over.id as string;
+
+    // Column reordering — save the new order to the API
+    if (active.data.current?.type === "Column") {
+      const startBoard = dragStartBoardRef.current;
+      const latestBoard = queryClient.getQueryData(["board", boardId]) as any;
+      if (!latestBoard) return;
+      const latestColumns = latestBoard.columns || [];
+      const oldIndex = latestColumns.findIndex((c: any) => c.id === activeId);
+      if (oldIndex === -1) return;
+      let newIndex = latestColumns.findIndex((c: any) => c.id === overId);
+      if (newIndex === -1) {
+        const overTask = (latestBoard.tasks || []).find((t: any) => t.id === overId);
+        if (!overTask) return;
+        newIndex = latestColumns.findIndex((c: any) => c.id === overTask.columnId);
+      }
+      if (oldIndex === newIndex || newIndex === -1) {
+        dragStartBoardRef.current = null;
+        return;
+      }
+
+      const reordered = arrayMove(latestColumns, oldIndex, newIndex).map((c: any, i: number) => ({ ...c, order: i * 1000 }));
+      const snapshotBoard = startBoard || latestBoard;
+      queryClient.setQueryData(["board", boardId], { ...latestBoard, columns: reordered });
+
+      try {
+        const res = await fetch(`/api/boards/${boardId}/columns/reorder`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            columnOrders: reordered.map((c: any) => ({ id: c.id, order: c.order })),
+          }),
+        });
+        if (!res.ok) throw new Error("Failed to save column position");
+      } catch {
+        if (snapshotBoard) {
+          queryClient.setQueryData(["board", boardId], snapshotBoard);
+        }
+        toast.error("Failed to save column position");
+      } finally {
+        dragStartBoardRef.current = null;
+        invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
+      }
+      return;
+    }
 
     if (active.data.current?.type !== "Task") return;
 
@@ -1181,14 +1278,25 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                 </div>
               ) : (
                 <>
+                <SortableContext items={columns.map((c: any) => c.id)} strategy={horizontalListSortingStrategy}>
                 {columns.map((column: any) => {
                   const columnTasks = sortedTasks.filter((t: any) => t.columnId === column.id);
                   const taskIds = columnTasks.map((t: any) => t.id);
                   return (
-                    <ColumnContainer key={column.id} column={column}>
+                    <SortableColumn key={column.id} column={column}>
+                      {({ attributes, listeners }) => (
+                        <>
                       {/* Column Header */}
                       <div className="p-4 border-b bg-card rounded-t-xl flex items-center justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0">
+                          <button
+                            {...attributes}
+                            {...listeners}
+                            className="cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground transition-colors shrink-0"
+                            title="Drag to reorder column"
+                          >
+                            <GripVertical className="h-4 w-4" />
+                          </button>
                           <div className="w-2 h-8 rounded-full shrink-0" style={{ backgroundColor: column.color || "#4f46e5" }} />
                           <span className="font-semibold text-sm truncate">{column.name}</span>
                           <span className="text-xs text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full font-medium">{columnTasks.length}</span>
@@ -1256,9 +1364,12 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
                           <Plus className="h-4 w-4 mr-2" /> Add Task
                         </Button>
                       </div>
-                    </ColumnContainer>
+                      </>
+                      )}
+                    </SortableColumn>
                   );
                 })}
+                </SortableContext>
               {/* New Column Button */}
               {columns.length > 0 && (
                 <div className="flex-shrink-0 w-[320px]">
@@ -1275,6 +1386,12 @@ export default function KanbanBoard({ boardId, onBack }: KanbanBoardProps) {
             )}
             </div>
             <DragOverlay>
+              {activeColumn && (
+                <div className="w-[320px] bg-card border shadow-2xl rounded-xl p-4 flex items-center gap-2 rotate-[1deg]">
+                  <div className="w-2 h-8 rounded-full shrink-0" style={{ backgroundColor: activeColumn.color || "#4f46e5" }} />
+                  <span className="font-semibold text-sm truncate">{activeColumn.name}</span>
+                </div>
+              )}
               {activeTask && (
                 <div
                   className="p-3 w-[320px] bg-card border shadow-2xl rounded-lg rotate-[1deg] scale-[1.02]"
