@@ -8,7 +8,7 @@ import {
     Settings2, Clock, Maximize2, Minimize2, Undo2, Redo2, Link2,
     GitBranch, CalendarDays, Users, Workflow, Milestone, Save,
     RotateCcw, Flag, Activity,
-    LayoutList, Eye, EyeOff, Layers, MoreHorizontal,
+    LayoutList, Eye, EyeOff, Layers, MoreHorizontal, Target,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +18,7 @@ import { ZoomController } from "@/components/shared/timeline/zoom-controller";
 import PresenceAvatars from "./presence-avatars";
 import { toPng } from "html-to-image";
 import { CreateTaskDialog } from "@/components/tasks/create-task-dialog";
+import { MilestonePanel } from "@/components/timeline/milestone-panel";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator,
@@ -199,7 +200,7 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
         toast.success("View saved");
     }, [viewName, zoomLevel, groupBy, filterStatus, filterPriority, filterAssignee, filterProject, filterTag, showCriticalPath, showWeekends, enableRollup, schedulingMode, searchQuery, savedViews, persistViews, user]);
 
-    const { data: tasksData, isLoading, isError } = useQuery({
+    const { data: tasksData, isLoading, isError, refetch } = useQuery({
         queryKey: ["gantt-tasks", activeWorkspaceId, projectId],
         queryFn: async () => {
             const params = new URLSearchParams({ workspaceId: activeWorkspaceId!, includeSubtasks: "1" });
@@ -211,6 +212,10 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
         },
         enabled: !!activeWorkspaceId
     });
+
+    const fetchTasks = useCallback(() => {
+        refetch();
+    }, [refetch]);
 
     const tasks = tasksData || [];
 
@@ -708,6 +713,22 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
                             </DropdownMenuItem>
                         </DropdownMenuContent>
                     </DropdownMenu>
+
+                    {/* Milestones */}
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="ghost" size="sm" className="h-6 text-[10px] px-2 rounded-sm flex items-center gap-1">
+                                <Target className="h-3 w-3 mr-1" /> Milestones
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-80 p-0 rounded-lg" align="end" sideOffset={8}>
+                            <MilestonePanel
+                                projectId={projectId}
+                                workspaceId={activeWorkspaceId || ""}
+                                onMilestonesChange={fetchTasks}
+                            />
+                        </PopoverContent>
+                    </Popover>
                 </div>
 
                 <div className="text-[10px] text-muted-foreground flex items-center gap-3">

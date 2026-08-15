@@ -83,8 +83,9 @@ model Workspace {
   meetings        Meeting[]
   evolutionTracking EvolutionTracking[]
   baselines        Baseline[]
-  sprints         Sprint[]
+sprints         Sprint[]
   goals           Goal[]
+  milestones      Milestone[]
 
   subscription       Subscription?
   invoices           Invoice[]
@@ -238,8 +239,8 @@ model AutomationLog {
   workspaceId   String   @db.ObjectId
   createdAt     DateTime @default(now())
 
-  automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
-  workspace  Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+automation Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([automationId])
   @@index([workspaceId])
@@ -312,7 +313,8 @@ model User {
   contextSnapshots AiContextSnapshot[]
   savedSearches   SavedSearch[]
   meetings        Meeting[]
-  goals           Goal[]
+goals           Goal[]
+  milestones      Milestone[]
   boardViews      BoardView[]
 
   @@map("users")
@@ -344,9 +346,10 @@ model Project {
   calendarEvents CalendarEvent[]
   automations  Automation[]
   schedule       ProjectSchedule?
-   sprints        Sprint[]
-   goals          Goal[]
-   statuses       Status[]
+  sprints        Sprint[]
+  goals          Goal[]
+  statuses       Status[]
+  milestones     Milestone[]
 
   @@index([workspaceId])
   @@index([userId])
@@ -1381,6 +1384,32 @@ model Baseline {
 
   @@index([workspaceId])
   @@map("baselines")
+}
+
+model Milestone {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  title       String
+  description String?
+  workspaceId String   @db.ObjectId
+  projectId   String?  @db.ObjectId
+  ownerId     String   @db.ObjectId
+  dueDate     DateTime
+  color       String?  @default("#f59e0b")
+  status      String   @default("planned") // planned, active, completed, cancelled
+  taskIds     String[] @db.ObjectId // linked tasks
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project   Project?  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  owner     User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([projectId])
+  @@index([ownerId])
+  @@index([dueDate])
+  @@index([status])
+  @@map("milestones")
 }
 
 model ProjectSchedule {

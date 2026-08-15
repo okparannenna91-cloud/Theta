@@ -25,6 +25,8 @@ import { addDays } from "date-fns";
 import { useTaskRealtime } from "@/hooks/use-task-realtime";
 import { hasTimelineAccess, isValidPlan } from "@/lib/plan-limits";
 import { PremiumFeatureGate } from "@/components/common/premium-feature-gate";
+import { MilestonePanel } from "./milestone-panel";
+import { Target } from "lucide-react";
 
 export default function TimelinePage({ projectId }: { projectId?: string }) {
   const { activeWorkspaceId, activeWorkspace } = useWorkspace();
@@ -58,7 +60,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
   const [activeViewId, setActiveViewId] = useState<string | null>(null);
 
   // Data
-  const { data: tasksData, isLoading, isError } = useQuery({
+  const { data: tasksData, isLoading, isError, refetch } = useQuery({
     queryKey: ["tasks", activeWorkspaceId, projectId],
     queryFn: async () => {
       const params = new URLSearchParams({ workspaceId: activeWorkspaceId!, limit: "500", includeSubtasks: "1" });
@@ -71,6 +73,10 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
     enabled: !!activeWorkspaceId,
     staleTime: 10_000,
   });
+
+  const fetchTasks = useCallback(() => {
+    refetch();
+  }, [refetch]);
 
   const { data: projectsData } = useQuery({
     queryKey: ["projects", activeWorkspaceId],
@@ -329,6 +335,23 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
                   Clear Filters
                 </Button>
               </div>
+            </PopoverContent>
+          </Popover>
+
+          {/* Milestones */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 md:h-7 text-[10px] md:text-[11px] rounded-md px-1.5 md:px-2">
+                <Target className="h-2.5 md:h-3 w-2.5 md:w-3 mr-0.5 md:mr-1" />
+                <span className="hidden xs:inline">Milestones</span>
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-80 p-0 rounded-lg" align="end" sideOffset={8}>
+              <MilestonePanel
+                projectId={activeWorkspaceId || ""}
+                workspaceId={activeWorkspaceId || ""}
+                onMilestonesChange={fetchTasks}
+              />
             </PopoverContent>
           </Popover>
 
