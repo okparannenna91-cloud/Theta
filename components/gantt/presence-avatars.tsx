@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useAblyContext } from "@/components/providers/ably-provider";
 import { useUser } from "@clerk/nextjs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar } from "@/components/ui/avatar";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -59,12 +59,11 @@ export default function PresenceAvatars({ workspaceId }: PresenceAvatarsProps) {
                                     exit={{ opacity: 0, scale: 0.5, x: 10 }}
                                     className="relative"
                                 >
-                                    <Avatar className="h-8 w-8 border-2 border-background ring-2 ring-primary/20 shadow-lg cursor-pointer transition-transform hover:scale-110 hover:z-10">
-                                        <AvatarImage src={member.image} />
-                                        <AvatarFallback className="bg-primary/10 text-[10px] font-semibold">
-                                            {member.name.charAt(0)}
-                                        </AvatarFallback>
-                                    </Avatar>
+                                    <Avatar
+                                        className="h-8 w-8 border-2 border-background ring-2 ring-primary/20 shadow-lg cursor-pointer transition-transform hover:scale-110 hover:z-10"
+                                        src={member.image}
+                                        fallback={member.name.charAt(0)}
+                                    />
                                     <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-background" />
                                 </motion.div>
                             </TooltipTrigger>
