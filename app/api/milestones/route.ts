@@ -49,11 +49,6 @@ export async function GET(req: NextRequest) {
       orderBy: { dueDate: "asc" },
     });
 
-    const milestonesWithCount = milestones.map(m => ({
-      ...m,
-      _count: { taskIds: m.taskIds?.length || 0 },
-    }));
-
     return NextResponse.json(milestones);
   } catch (error) {
     console.error("Get milestones error:", error);

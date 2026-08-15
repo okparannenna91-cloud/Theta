@@ -50,6 +50,12 @@ const STATUS_CONFIG: Record<MilestoneStatus, { label: string; color: string }> =
   cancelled: { label: "Cancelled", color: "bg-red-500" },
 };
 
+const toLocalInput = (iso: string) => {
+  const d = new Date(iso);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: MilestonePanelProps) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -93,7 +99,11 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
       const res = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, projectId }),
+        body: JSON.stringify({
+          ...formData,
+          dueDate: new Date(formData.dueDate).toISOString(),
+          projectId,
+        }),
       });
       if (res.ok) {
         setIsDialogOpen(false);
@@ -112,7 +122,7 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
     setFormData({
       title: milestone.title,
       description: milestone.description || "",
-      dueDate: milestone.dueDate.slice(0, 16),
+      dueDate: toLocalInput(milestone.dueDate),
       color: milestone.color,
       status: milestone.status,
       taskIds: milestone.taskIds || [],
@@ -153,7 +163,7 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
     resetForm();
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    setFormData((prev) => ({ ...prev, dueDate: tomorrow.toISOString().slice(0, 16) }));
+    setFormData((prev) => ({ ...prev, dueDate: toLocalInput(tomorrow.toISOString()) }));
     setIsDialogOpen(true);
   };
 

@@ -348,7 +348,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
             </PopoverTrigger>
             <PopoverContent className="w-80 p-0 rounded-lg" align="end" sideOffset={8}>
               <MilestonePanel
-                projectId={activeWorkspaceId || ""}
+                projectId={filterProject !== "all" ? filterProject : projectId}
                 workspaceId={activeWorkspaceId || ""}
                 onMilestonesChange={fetchTasks}
               />
