@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FolderKanban, CheckSquare, Users, TrendingUp, Target, Activity, Clock, ArrowRight, ArrowUp, ArrowDown, Minus, Sparkles } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { FolderKanban, CheckSquare, Users, TrendingUp, Target, Activity, Clock, ArrowRight, ArrowUp, ArrowDown, Minus, Sparkles, Flag, Milestone as MilestoneIcon } from "lucide-react";
+import { format, formatDistanceToNow, isPast, isToday, parseISO } from "date-fns";
 import { useI18n } from "@/lib/i18n";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useRouter } from "next/navigation";
@@ -43,6 +43,17 @@ export default function DashboardPage() {
       return res.json();
     },
     enabled: !!activeWorkspaceId,
+  });
+
+  const { data: milestones } = useQuery({
+    queryKey: ["milestones", activeWorkspaceId],
+    queryFn: async () => {
+      const res = await fetch(`/api/milestones?workspaceId=${activeWorkspaceId}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: !!activeWorkspaceId,
+    staleTime: 30_000,
   });
 
   if (!activeWorkspaceId) {
@@ -373,6 +384,94 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      <Card className="border-subtle mb-8">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center text-amber-500">
+                <MilestoneIcon className="h-4 w-4" />
+              </div>
+              <div>
+                <CardTitle className="text-base font-semibold">Milestones</CardTitle>
+                <p className="text-xs text-muted-foreground">Key project checkpoints</p>
+              </div>
+            </div>
+            {Array.isArray(milestones) && milestones.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  {milestones.filter((m) => m.status === "completed").length} of {milestones.length} completed
+                </span>
+                <div className="h-1.5 w-24 bg-muted rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-amber-500 rounded-full"
+                    style={{ width: `${Math.round((milestones.filter((m) => m.status === "completed").length / milestones.length) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        </CardHeader>
+        <CardContent>
+          {Array.isArray(milestones) && milestones.length > 0 ? (
+            <div className="space-y-2">
+              {milestones.slice(0, 6).map((ms: { id: string; title: string; status: string; dueDate: string; color: string; taskIds?: string[]; project?: { name: string } }) => {
+                const overdue = isPast(parseISO(ms.dueDate)) && !isToday(parseISO(ms.dueDate)) && ms.status !== "completed" && ms.status !== "cancelled";
+                const badgeCls =
+                  ms.status === "completed" ? "bg-emerald-500/10 text-emerald-600 border-emerald-500/20" :
+                  ms.status === "active" ? "bg-blue-500/10 text-blue-600 border-blue-500/20" :
+                  ms.status === "cancelled" ? "bg-red-500/10 text-red-500 border-red-500/20" :
+                  "bg-slate-500/10 text-slate-500 border-slate-500/20";
+                return (
+                  <div
+                    key={ms.id}
+                    className="flex items-center justify-between gap-3 p-3 rounded-lg border hover:border-primary/30 transition-colors"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: ms.color }}
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{ms.title}</p>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                          <span className={cn("truncate", overdue && "text-amber-600 font-medium")}>
+                            {format(parseISO(ms.dueDate), "MMM d, yyyy")}
+                            {overdue && " (overdue)"}
+                          </span>
+                          {ms.project?.name && (
+                            <>
+                              <span>&middot;</span>
+                              <span className="truncate">{ms.project.name}</span>
+                            </>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      {typeof ms.taskIds?.length === "number" && ms.taskIds.length > 0 && (
+                        <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Flag className="h-3 w-3" />
+                          {ms.taskIds.length}
+                        </span>
+                      )}
+                      <Badge variant="secondary" className={cn("rounded-md h-6 px-2.5 text-[11px] font-medium capitalize border", badgeCls)}>
+                        {ms.status.replace(/[_-]/g, " ")}
+                      </Badge>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-10">
+              <MilestoneIcon className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">No milestones yet</p>
+              <p className="text-xs text-muted-foreground/60 mt-1">Add milestones in Gantt or Timeline to track key checkpoints</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
         <Card className="border-subtle lg:col-span-2">

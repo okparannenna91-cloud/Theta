@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Milestone, Plus, X, Edit, Trash2, Calendar, Flag, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { Milestone, Plus, X, Edit, Trash2, Calendar, Flag, CheckCircle2, ChevronDown, ChevronUp, Search } from "lucide-react";
 import { format, parseISO, isPast, isToday } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -26,6 +26,12 @@ interface MilestoneTask {
   status: string;
   progress: number;
   dueDate?: string;
+}
+
+interface TaskOption {
+  id: string;
+  title: string;
+  status: string;
 }
 
 interface Milestone {
@@ -69,6 +75,9 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
     status: "planned" as MilestoneStatus,
     taskIds: [] as string[],
   });
+  const [projectTasks, setProjectTasks] = useState<TaskOption[]>([]);
+  const [taskSearch, setTaskSearch] = useState("");
+  const [isTasksLoading, setIsTasksLoading] = useState(false);
 
   const fetchMilestones = async () => {
     try {
@@ -89,6 +98,46 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
   useEffect(() => {
     fetchMilestones();
   }, [projectId, workspaceId]);
+
+  const pickerProjectId = projectId || editingMilestone?.project?.id;
+
+  useEffect(() => {
+    if (!isDialogOpen) return;
+    if (!pickerProjectId) {
+      setProjectTasks([]);
+      setIsTasksLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setIsTasksLoading(true);
+    fetch(`/api/tasks?workspaceId=${workspaceId}&projectId=${pickerProjectId}&includeSubtasks=1&limit=200`)
+      .then((res) => (res.ok ? res.json() : { tasks: [] }))
+      .then((data) => {
+        if (!cancelled) setProjectTasks(data.tasks || []);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setIsTasksLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isDialogOpen, workspaceId, pickerProjectId]);
+
+  const toggleTask = (id: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      taskIds: prev.taskIds.includes(id)
+        ? prev.taskIds.filter((t) => t !== id)
+        : [...prev.taskIds, id],
+    }));
+  };
+
+  const filteredTasks = useMemo(() => {
+    if (!taskSearch.trim()) return projectTasks;
+    const q = taskSearch.toLowerCase();
+    return projectTasks.filter((t) => t.title.toLowerCase().includes(q));
+  }, [projectTasks, taskSearch]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -381,6 +430,51 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
                     <SelectItem value="cancelled">Cancelled</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="grid gap-2">
+                <Label className="text-xs">Linked Tasks ({formData.taskIds.length})</Label>
+                <div className="relative">
+                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
+                  <Input
+                    value={taskSearch}
+                    onChange={(e) => setTaskSearch(e.target.value)}
+                    placeholder="Search tasks..."
+                    className="h-8 pl-7 text-xs"
+                  />
+                </div>
+                <div className="max-h-40 overflow-y-auto rounded-lg border border-border/50 divide-y divide-border/30">
+                  {isTasksLoading ? (
+                    <div className="p-3 text-[10px] text-muted-foreground/60">Loading tasks...</div>
+                  ) : filteredTasks.length === 0 ? (
+                    <div className="p-3 text-[10px] text-muted-foreground/60">
+                      {pickerProjectId ? "No tasks in this project" : "Select a project to link tasks"}
+                    </div>
+                  ) : (
+                    filteredTasks.map((task) => {
+                      const checked = formData.taskIds.includes(task.id);
+                      return (
+                        <label
+                          key={task.id}
+                          className={cn(
+                            "flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent/40 text-xs transition-colors",
+                            checked && "bg-primary/5"
+                          )}
+                        >
+                          <Checkbox checked={checked} onCheckedChange={() => toggleTask(task.id)} />
+                          <span
+                            className={cn(
+                              "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                              task.status === "done" ? "bg-emerald-500" :
+                              task.status === "in_progress" ? "bg-blue-500" :
+                              "bg-slate-400"
+                            )}
+                          />
+                          <span className="truncate flex-1 text-foreground/90">{task.title}</span>
+                        </label>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
             <DialogFooter className="gap-2">

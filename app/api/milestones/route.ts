@@ -49,7 +49,22 @@ export async function GET(req: NextRequest) {
       orderBy: { dueDate: "asc" },
     });
 
-    return NextResponse.json(milestones);
+    const allTaskIds = [...new Set(milestones.flatMap((m) => m.taskIds))];
+    const linkedTasks =
+      allTaskIds.length > 0
+        ? await prisma.task.findMany({
+            where: { id: { in: allTaskIds } },
+            select: { id: true, title: true, status: true, progress: true, dueDate: true },
+          })
+        : [];
+    const tasksById = new Map(linkedTasks.map((t) => [t.id, t]));
+
+    const milestonesWithTasks = milestones.map((m) => ({
+      ...m,
+      tasks: m.taskIds.map((id) => tasksById.get(id)).filter(Boolean),
+    }));
+
+    return NextResponse.json(milestonesWithTasks);
   } catch (error) {
     console.error("Get milestones error:", error);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
