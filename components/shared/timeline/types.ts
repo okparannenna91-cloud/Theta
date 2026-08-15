@@ -49,6 +49,15 @@ export const ZOOM_CELL_WIDTHS: CellWidths = {
   year: 280,
 };
 
+export const DAYS_PER_UNIT: CellWidths = {
+  hour: 1 / 24,
+  day: 1,
+  week: 7,
+  month: 30.44,
+  quarter: 91.25,
+  year: 365.25,
+};
+
 export const ZOOM_OPTIONS: { label: string; value: ZoomLevel }[] = [
   { label: "Day", value: "day" },
   { label: "Week", value: "week" },

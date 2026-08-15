@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import TaskBar from "./task-bar";
 import DependencyEngine from "./dependency-engine";
 import { ChevronRight, ChevronDown, Folder, FileText, Users, GripVertical, Flag, Plus, Link2, Link2Off, CalendarDays, GitBranch } from "lucide-react";
-import { ZoomLevel, TimelineVariant, ROW_HEIGHT, VISIBLE_BUFFER, SIDEBAR_WIDTH, GANTT_SIDEBAR_WIDTH, ZOOM_CELL_WIDTHS, ZOOM_CONFIG_MAP, DragState } from "@/components/shared/timeline/types";
+import { ZoomLevel, TimelineVariant, ROW_HEIGHT, VISIBLE_BUFFER, SIDEBAR_WIDTH, GANTT_SIDEBAR_WIDTH, ZOOM_CELL_WIDTHS, ZOOM_CONFIG_MAP, DragState, DAYS_PER_UNIT } from "@/components/shared/timeline/types";
 import type { UndoCommand } from "@/components/shared/timeline/types";
 import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import { UserAvatar } from "@/components/ui/user-avatar";
@@ -90,6 +90,7 @@ export default function TimelineCanvas({
     }, [collapsedIds, collapseStorageKey]);
 
     const cellWidth = ZOOM_CELL_WIDTHS[zoomLevel] || 140;
+    const pixelsPerDay = cellWidth / DAYS_PER_UNIT[zoomLevel];
 
     const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
         if (isSyncingRef.current) return;
@@ -383,86 +384,103 @@ export default function TimelineCanvas({
         return result;
     }, [collapsedIds, groupBy, allFlattenedTasks]);
 
-    const { startDate, endDate, timeUnits, headerLevels } = useMemo(() => {
-        const now = centerDate || new Date();
-        let start: Date;
-        let end: Date;
+    const buildUnitsAndLevels = useCallback((z: ZoomLevel, s: Date, e: Date) => {
         let units: { date: Date; isWeekend: boolean }[];
         type HeaderItem = { label: string; width: number; unit: string; sublabel?: string };
         const levels: HeaderItem[][] = [];
 
-        switch (zoomLevel) {
+        switch (z) {
             case "hour": {
-                start = startOfDay(addDays(now, -7));
-                end = endOfDay(addDays(now, 14));
-                const hours = eachHourOfInterval({ start, end });
+                const hours = eachHourOfInterval({ start: s, end: e });
                 units = hours.map(d => ({ date: d, isWeekend: isWeekend(d) }));
-                const days = eachDayOfInterval({ start, end });
+                const days = eachDayOfInterval({ start: s, end: e });
                 levels.push(days.map(d => ({ label: format(d, "EEE MMM d"), width: 24 * cellWidth, unit: "day" })));
                 levels.push(hours.map(h => ({ label: format(h, "HH:mm"), width: cellWidth, unit: "hour" })));
                 break;
             }
             case "day": {
-                start = startOfMonth(addDays(now, -30));
-                end = endOfMonth(addDays(now, 60));
-                const days = eachDayOfInterval({ start, end });
+                const days = eachDayOfInterval({ start: s, end: e });
                 units = days.map(d => ({ date: d, isWeekend: isWeekend(d) }));
-                const months = eachMonthOfInterval({ start, end });
+                const months = eachMonthOfInterval({ start: s, end: e });
                 levels.push(months.map(m => ({ label: format(m, "MMMM yyyy"), width: days.filter(d => d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear()).length * cellWidth, unit: "month" })));
                 levels.push(days.map(d => ({ label: format(d, "d"), sublabel: format(d, "EEE"), width: cellWidth, unit: "day" })));
                 break;
             }
             case "week": {
-                start = startOfWeek(addDays(now, -30), { weekStartsOn: 1 });
-                end = endOfWeek(addDays(now, 120), { weekStartsOn: 1 });
-                const weeks = eachWeekOfInterval({ start, end }, { weekStartsOn: 1 });
+                const weeks = eachWeekOfInterval({ start: s, end: e }, { weekStartsOn: 1 });
                 units = weeks.map(w => ({ date: w, isWeekend: false }));
-                const months = eachMonthOfInterval({ start, end });
+                const months = eachMonthOfInterval({ start: s, end: e });
                 levels.push(months.map(m => ({ label: format(m, "MMMM yyyy"), width: weeks.filter(w => w.getMonth() === m.getMonth() && w.getFullYear() === m.getFullYear()).length * cellWidth, unit: "month" })));
                 levels.push(weeks.map(w => ({ label: `W${format(w, "w")}`, sublabel: format(w, "MMM d"), width: cellWidth, unit: "week" })));
                 break;
             }
             case "month": {
-                start = startOfMonth(addDays(now, -60));
-                end = endOfMonth(addDays(now, 365));
-                const months = eachMonthOfInterval({ start, end });
+                const months = eachMonthOfInterval({ start: s, end: e });
                 units = months.map(m => ({ date: m, isWeekend: false }));
-                const quarters = eachQuarterOfInterval({ start, end });
+                const quarters = eachQuarterOfInterval({ start: s, end: e });
                 levels.push(quarters.map(q => ({ label: `Q${Math.ceil((q.getMonth() + 1) / 3)} ${format(q, "yyyy")}`, width: months.filter(m => m.getFullYear() === q.getFullYear() && Math.floor(m.getMonth() / 3) === Math.floor(q.getMonth() / 3)).length * cellWidth, unit: "quarter" })));
                 levels.push(months.map(m => ({ label: format(m, "MMM"), sublabel: format(m, "yyyy"), width: cellWidth, unit: "month" })));
                 break;
             }
             case "quarter": {
-                start = startOfQuarter(addDays(now, -90));
-                end = endOfQuarter(addDays(now, 540));
-                const quarters = eachQuarterOfInterval({ start, end });
+                const quarters = eachQuarterOfInterval({ start: s, end: e });
                 units = quarters.map(q => ({ date: q, isWeekend: false }));
                 levels.push(quarters.map(q => ({ label: format(q, "yyyy"), width: quarters.filter(innerQ => innerQ.getFullYear() === q.getFullYear()).length * cellWidth, unit: "year" })));
                 levels.push(quarters.map(q => ({ label: `Q${Math.ceil((q.getMonth() + 1) / 3)}`, sublabel: format(q, "yyyy"), width: cellWidth, unit: "quarter" })));
                 break;
             }
             case "year": {
-                start = startOfYear(addDays(now, -365));
-                end = endOfYear(addDays(now, 730));
-                const years = eachYearOfInterval({ start, end });
+                const years = eachYearOfInterval({ start: s, end: e });
                 units = years.map(y => ({ date: y, isWeekend: false }));
                 levels.push(years.map(y => ({ label: `${format(y, "yyyy")}`, width: cellWidth, unit: "year" })));
                 break;
             }
             default: {
-                start = startOfMonth(addDays(now, -30));
-                end = endOfMonth(addDays(now, 180));
-                const days = eachDayOfInterval({ start, end });
+                const days = eachDayOfInterval({ start: s, end: e });
                 units = days.map(d => ({ date: d, isWeekend: isWeekend(d) }));
-                const months = eachMonthOfInterval({ start, end });
+                const months = eachMonthOfInterval({ start: s, end: e });
                 levels.push(months.map(m => ({ label: format(m, "MMMM yyyy"), width: days.filter(d => d.getMonth() === m.getMonth() && d.getFullYear() === m.getFullYear()).length * cellWidth, unit: "month" })));
                 levels.push(days.map(d => ({ label: format(d, "d"), sublabel: format(d, "EEE"), width: cellWidth, unit: "day" })));
                 break;
             }
         }
 
-        return { startDate: start, endDate: end, timeUnits: units, headerLevels: levels };
-    }, [zoomLevel, cellWidth, centerDate]);
+        return { units, levels };
+    }, [cellWidth]);
+
+    const taskIdsKey = allFlattenedTasks.map(t => t.id).join("|");
+
+    const { startDate, endDate, timeUnits, headerLevels } = useMemo(() => {
+        const now = centerDate || new Date();
+        let start: Date;
+        let end: Date;
+
+        switch (zoomLevel) {
+            case "hour": start = startOfDay(addDays(now, -7)); end = endOfDay(addDays(now, 14)); break;
+            case "day": start = startOfMonth(addDays(now, -30)); end = endOfMonth(addDays(now, 60)); break;
+            case "week": start = startOfWeek(addDays(now, -30), { weekStartsOn: 1 }); end = endOfWeek(addDays(now, 120), { weekStartsOn: 1 }); break;
+            case "month": start = startOfMonth(addDays(now, -60)); end = endOfMonth(addDays(now, 365)); break;
+            case "quarter": start = startOfQuarter(addDays(now, -90)); end = endOfQuarter(addDays(now, 540)); break;
+            case "year": start = startOfYear(addDays(now, -365)); end = endOfYear(addDays(now, 730)); break;
+            default: start = startOfMonth(addDays(now, -30)); end = endOfMonth(addDays(now, 180));
+        }
+
+        const padDays = { hour: 1, day: 1, week: 3, month: 7, quarter: 15, year: 30 }[zoomLevel] ?? 1;
+        for (const t of allFlattenedTasks) {
+            if (t.startDate) {
+                const d = new Date(t.startDate);
+                if (d < start) start = startOfDay(addDays(d, -padDays));
+            }
+            if (t.dueDate) {
+                const d = new Date(t.dueDate);
+                if (d > end) end = endOfDay(addDays(d, padDays));
+            }
+        }
+
+        const built = buildUnitsAndLevels(zoomLevel, start, end);
+        return { startDate: start, endDate: end, timeUnits: built.units, headerLevels: built.levels };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [zoomLevel, cellWidth, centerDate, taskIdsKey]);
 
     const criticalPath = useMemo(() => {
         if (!isGantt || !showCriticalPath) return new Set<string>();
@@ -654,20 +672,17 @@ export default function TimelineCanvas({
     const sidebarWidth = isGantt ? GANTT_SIDEBAR_WIDTH : SIDEBAR_WIDTH;
     const totalTimelineWidth = timeUnits.length * cellWidth;
     const totalContentHeight = allFlattenedTasks.length * ROW_HEIGHT;
+    const todayPx = differenceInCalendarDays(startOfDay(new Date()), startOfDay(startDate)) * pixelsPerDay;
 
     useEffect(() => {
         if (scrollContainerRef.current) {
             const anchor = centerDate || new Date();
-            const anchorIdx = timeUnits.findIndex((u, i) => {
-                const next = timeUnits[i + 1]?.date;
-                if (!next) return i === timeUnits.length - 1;
-                return u.date <= anchor && anchor < next;
-            });
-            if (anchorIdx !== -1) {
-                scrollContainerRef.current.scrollLeft = anchorIdx * cellWidth - viewportWidth / 3;
+            const anchorPx = differenceInCalendarDays(startOfDay(anchor), startOfDay(startDate)) * pixelsPerDay;
+            if (anchorPx >= 0 && anchorPx <= totalTimelineWidth) {
+                scrollContainerRef.current.scrollLeft = anchorPx - viewportWidth / 3;
             }
         }
-    }, [cellWidth, timeUnits, viewportWidth, centerDate]);
+    }, [cellWidth, pixelsPerDay, totalTimelineWidth, viewportWidth, centerDate, startDate]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -902,7 +917,7 @@ export default function TimelineCanvas({
                             <DependencyEngine
                                 tasks={allFlattenedTasks}
                                 timelineStart={startDate}
-                                cellWidth={cellWidth}
+                                cellWidth={pixelsPerDay}
                                 isGantt={isGantt}
                                 onDependencyCreate={handleDependencyCreate}
                                 onDependencyDelete={handleDependencyDelete}
@@ -956,7 +971,7 @@ export default function TimelineCanvas({
                                                     isCritical: criticalPath.has(task.id),
                                                 }}
                                                 timelineStart={startDate}
-                                                cellWidth={cellWidth}
+                                                cellWidth={pixelsPerDay}
                                                 snapUnit={ZOOM_CONFIG_MAP[zoomLevel].snapUnit}
                                                 showBaseline={isGantt}
                                                 highlightVariance={isGantt}
@@ -972,10 +987,10 @@ export default function TimelineCanvas({
                         </div>
 
                         {/* Today indicator */}
-                        {timeUnits.some(u => isToday(u.date)) && (
+                        {todayPx >= 0 && todayPx <= totalTimelineWidth && (
                             <div
                                 className="absolute top-0 bottom-0 w-0.5 bg-primary/60 shadow-[0_0_10px_rgba(139,92,246,0.4)] z-30 pointer-events-none"
-                                style={{ left: timeUnits.findIndex(u => isToday(u.date)) * cellWidth + cellWidth / 2 }}
+                                style={{ left: todayPx }}
                             >
                                 <div className="sticky top-24 -translate-x-1/2 w-3 h-3 rounded-full bg-primary flex items-center justify-center shadow-2xl">
                                     <div className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />

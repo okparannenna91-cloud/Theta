@@ -135,7 +135,7 @@ export default function TaskBar({
             }
 
             const rawDelta = ue.clientX - dragStartRef.current.mouseX;
-            const unitsMoved = snapToUnit(Math.round(rawDelta / cellWidth) * 1440, snapUnit) / 1440;
+            const unitsMoved = snapToUnit((rawDelta / cellWidth) * 1440, snapUnit) / 1440;
             if (unitsMoved !== 0) {
                 const targetStart = addMinutes(parseISO(dragStartRef.current.startDate), unitsMoved * 1440).toISOString();
                 const targetDue = addMinutes(parseISO(dragStartRef.current.dueDate), unitsMoved * 1440).toISOString();
@@ -177,7 +177,7 @@ export default function TaskBar({
             onDragEnd?.();
 
             const deltaX = upEvent.clientX - startX;
-            const snappedMinutes = snapToUnit(Math.round(deltaX / cellWidth) * 1440, snapUnit);
+            const snappedMinutes = snapToUnit((deltaX / cellWidth) * 1440, snapUnit);
             const daysDelta = snappedMinutes / 1440;
             if (daysDelta === 0) return;
 
