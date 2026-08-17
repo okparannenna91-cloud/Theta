@@ -13,7 +13,10 @@ export async function GET() {
             create: { userId: user.id as string },
         });
 
-        return NextResponse.json(preferences);
+        return NextResponse.json({
+            ...preferences,
+            userCreatedAt: user.createdAt ? new Date(user.createdAt).toISOString() : null,
+        });
     } catch (error) {
         console.error("Preferences fetch error:", error);
         return NextResponse.json({ error: "Failed to fetch preferences" }, { status: 500 });

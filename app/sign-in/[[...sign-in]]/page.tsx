@@ -13,7 +13,7 @@ export default function SignInPage() {
       <div className="flex flex-col items-center gap-8 w-full max-w-sm">
         <Logo size="xl" />
         <SignIn
-          signUpUrl="/sign-up"
+          signUpUrl={`/sign-up?redirect_url=${encodeURIComponent(redirectUrl)}`}
           forceRedirectUrl={redirectUrl}
         />
       </div>

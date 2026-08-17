@@ -36,8 +36,12 @@ export function OnboardingRedirect({ children }: { children: ReactNode }) {
       return;
     }
     const onboardingComplete = preferences?.onboardingComplete;
+    const userCreatedAt = preferences?.userCreatedAt ? new Date(preferences.userCreatedAt).getTime() : null;
+    const isNewUser = userCreatedAt !== null && Date.now() - userCreatedAt < 24 * 60 * 60 * 1000;
     const hasWorkspaces = Array.isArray(workspaces) && workspaces.length > 0;
-    if (!onboardingComplete && !hasWorkspaces) {
+    // New users always go through onboarding, even when an automatic workspace
+    // ("X's Workspace") already exists — otherwise the auto-creation bypasses it.
+    if (!onboardingComplete && (isNewUser || !hasWorkspaces)) {
       setDecision("redirect");
     } else {
       setDecision("show");

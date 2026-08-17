@@ -71,9 +71,13 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const savedId = localStorage.getItem("activeWorkspaceId");
     const isValidSavedId = workspaces.find((w: any) => w.id === savedId);
 
-    if (savedId && isValidSavedId) {
+    if (isValidSavedId) {
       if (activeWorkspaceId !== savedId) setActiveWorkspaceId(savedId);
-    } else if (!activeWorkspaceId) {
+    } else {
+      // Saved id is missing OR stale (e.g. leftover from a previous account on
+      // the same browser). Always fall back to the first workspace — keeping
+      // the invalid id makes every page query a workspace the user doesn't
+      // belong to (403 / "Failed to load dashboard").
       const firstId = workspaces[0].id;
       setActiveWorkspaceId(firstId);
       localStorage.setItem("activeWorkspaceId", firstId);
