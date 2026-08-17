@@ -22,7 +22,14 @@ export default function AcceptInviteClient({ token, workspaceName }: { token: st
 
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to accept invite");
-            
+
+            // Enforce: the app opens whatever workspace is stored in
+            // localStorage["activeWorkspaceId"] on load, so write the invited
+            // workspace BEFORE redirecting — the user always lands in it.
+            if (data.workspace?.id) {
+                localStorage.setItem("activeWorkspaceId", data.workspace.id);
+            }
+
             toast.success("Welcome to " + workspaceName + "!");
             // Hard refresh to ensure layout and new context pick up the new workspace
             window.location.href = "/"; 
