@@ -12,6 +12,7 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/onboarding',
   '/api/user/preferences(.*)',
+  '/api/webhooks(.*)', // Clerk webhook: signed via Svix, must bypass session auth
 ]);
 
 const isApiRoute = createRouteMatcher([
@@ -44,7 +45,9 @@ export default clerkMiddleware(async (auth, req) => {
   // Writes are limited per user (or per IP when unauthenticated) at a generous
   // burst budget. Reads get a very high limit — a single dialog/view load
   // fires many GETs and low limits break normal usage.
-  if (isApiRoute(req)) {
+  // Webhook routes are excluded: Clerk signs them and delivers from shared IPs.
+  const isWebhookRoute = req.nextUrl.pathname.startsWith("/api/webhooks");
+  if (isApiRoute(req) && !isWebhookRoute) {
     const ip = req.ip || req.headers.get('x-forwarded-for') || '127.0.0.1';
     const method = req.method || 'GET';
     const isWrite = method === 'POST' || method === 'PATCH' || method === 'PUT' || method === 'DELETE';
