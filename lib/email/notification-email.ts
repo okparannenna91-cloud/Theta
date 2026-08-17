@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { buildEmailHeaders } from "@/lib/email";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -125,6 +126,7 @@ export async function sendActivityDigestEmail(userId: string, workspaceId: strin
       subject: `Daily Digest — ${workspace?.name || "Theta PM"}`,
       html,
       text,
+      headers: buildEmailHeaders(userId),
     });
 
     logger.info(`[Email] Activity digest sent to ${user.email}`);
@@ -187,6 +189,7 @@ export async function sendNotificationEmail(
       subject: title,
       html,
       text,
+      headers: buildEmailHeaders(userId),
     });
 
     return { success: true };

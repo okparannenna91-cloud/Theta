@@ -1,10 +1,43 @@
 import { Resend } from "resend";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const FROM_ADDRESS = "Theta PM <noreply@thetapm.site>";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://www.thetapm.site";
 const UNSUBSCRIBE_URL = `${APP_URL}/settings/notifications`;
+
+function unsubscribeSecret(): string {
+  return process.env.EMAIL_UNSUBSCRIBE_SECRET || process.env.RESEND_API_KEY || "theta-pm-unsubscribe";
+}
+
+export function buildUnsubscribeToken(userId: string): string {
+  return createHmac("sha256", unsubscribeSecret()).update(userId).digest("hex");
+}
+
+export function verifyUnsubscribeToken(userId: string, token: string): boolean {
+  if (!userId || !token) return false;
+  const expected = Buffer.from(createHmac("sha256", unsubscribeSecret()).update(userId).digest("hex"));
+  const received = Buffer.from(token);
+  return expected.length === received.length && timingSafeEqual(expected, received);
+}
+
+/**
+ * Deliverability headers: a working List-Unsubscribe (with one-click POST to a
+ * real endpoint) is a strong legitimate-bulk signal for Gmail/Outlook and keeps
+ * automated mail out of the spam folder.
+ */
+export function buildEmailHeaders(userId?: string): Record<string, string> {
+  const headers: Record<string, string> = {
+    "X-Entity-Ref-ID": randomUUID(),
+  };
+  if (userId) {
+    const oneClickUrl = `${APP_URL}/api/unsubscribe?userId=${encodeURIComponent(userId)}&t=${buildUnsubscribeToken(userId)}`;
+    headers["List-Unsubscribe"] = `<${oneClickUrl}>, <mailto:noreply@thetapm.site?subject=unsubscribe>`;
+    headers["List-Unsubscribe-Post"] = "List-Unsubscribe=One-Click";
+  }
+  return headers;
+}
 
 function buildUnsubscribeLink(userId: string): string {
   return `<a href="${UNSUBSCRIBE_URL}?userId=${userId}" style="color: #94a3b8; text-decoration: underline;">Unsubscribe from email notifications</a>`;
@@ -85,6 +118,7 @@ export async function sendInviteEmail({
             subject,
             html,
             text,
+            headers: buildEmailHeaders(userId),
         });
 
         if (error) {
@@ -108,11 +142,13 @@ export async function sendEmail({
     subject,
     html,
     text,
+    userId,
 }: {
     to: string;
     subject: string;
     html: string;
     text?: string;
+    userId?: string;
 }) {
     if (!process.env.RESEND_API_KEY) {
         console.warn("RESEND_API_KEY is not set. Skipping email send.");
@@ -126,6 +162,7 @@ export async function sendEmail({
             subject,
             html,
             text: text || buildPlainText(html),
+            headers: buildEmailHeaders(userId),
         });
 
         if (error) {
@@ -195,7 +232,7 @@ export async function sendProjectInviteEmail({
         </div>
     `;
     const { html, text } = wrapEmail(content, unsubscribe);
-    return await sendEmail({ to, subject: `You've been added to ${projectName}`, html, text });
+    return await sendEmail({ to, subject: `You've been added to ${projectName}`, html, text, userId });
 }
 
 /**
@@ -233,7 +270,7 @@ export async function sendTaskAssignmentEmail({
         </div>
     `;
     const { html, text } = wrapEmail(content, unsubscribe);
-    return await sendEmail({ to, subject: `Task assigned: ${taskTitle}`, html, text });
+    return await sendEmail({ to, subject: `Task assigned: ${taskTitle}`, html, text, userId });
 }
 
 /**
@@ -269,7 +306,7 @@ export async function sendMentionEmail({
         </div>
     `;
     const { html, text } = wrapEmail(content, unsubscribe);
-    return await sendEmail({ to, subject: `${mentionedBy} mentioned you`, html, text });
+    return await sendEmail({ to, subject: `${mentionedBy} mentioned you`, html, text, userId });
 }
 
 /**
@@ -308,7 +345,7 @@ export async function sendSprintStartedEmail({
         </div>
     `;
     const { html, text } = wrapEmail(content, unsubscribe);
-    return await sendEmail({ to, subject: `Sprint started: ${sprintName}`, html, text });
+    return await sendEmail({ to, subject: `Sprint started: ${sprintName}`, html, text, userId });
 }
 
 /**
@@ -349,7 +386,7 @@ export async function sendSprintEndedEmail({
         </div>
     `;
     const { html, text } = wrapEmail(content, unsubscribe);
-    return await sendEmail({ to, subject: `Sprint ended: ${sprintName} — ${rate}% complete`, html, text });
+    return await sendEmail({ to, subject: `Sprint ended: ${sprintName} — ${rate}% complete`, html, text, userId });
 }
 
 /**
@@ -389,7 +426,7 @@ export async function sendAutomationTriggeredEmail({
         </div>
     `;
     const { html, text } = wrapEmail(content, unsubscribe);
-    return await sendEmail({ to, subject: `Automation: ${automationName} triggered`, html, text });
+    return await sendEmail({ to, subject: `Automation: ${automationName} triggered`, html, text, userId });
 }
 
 /**
