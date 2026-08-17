@@ -147,7 +147,7 @@ export function MeetingList({ projectId }: MeetingListProps) {
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Create Meeting</DialogTitle>
-              <DialogDescription>Schedule a new meeting with agenda generation</DialogDescription>
+              <DialogDescription>Schedule a new meeting with a generated agenda</DialogDescription>
             </DialogHeader>
             <div className="space-y-4 py-4">
               <div className="space-y-2">
@@ -159,7 +159,7 @@ export function MeetingList({ projectId }: MeetingListProps) {
                 />
               </div>
               <div className="space-y-2">
-                <label className="text-xs font-medium">Topic (for AI agenda)</label>
+                <label className="text-xs font-medium">Topic (for agenda)</label>
                 <Input
                   placeholder="Product roadmap planning, Q3 review..."
                   value={newTopic}
@@ -179,7 +179,7 @@ export function MeetingList({ projectId }: MeetingListProps) {
                 <div className="p-3 rounded-lg bg-primary/5 border border-primary/10">
                   <div className="flex items-center gap-2 text-xs text-primary mb-1">
                     <Brain className="h-3 w-3" />
-                    AI will generate an agenda for this topic
+                    An agenda will be generated for this topic
                   </div>
                 </div>
               )}

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { FolderKanban, CheckSquare, Users, TrendingUp, Target, Activity, Clock, ArrowRight, ArrowUp, ArrowDown, Minus, Sparkles, Flag, Milestone as MilestoneIcon } from "lucide-react";
+import { FolderKanban, CheckSquare, Users, TrendingUp, Target, Activity, Clock, ArrowRight, ArrowUp, ArrowDown, Minus, Layers, Info, Flag, Milestone as MilestoneIcon } from "lucide-react";
 import { format, formatDistanceToNow, isPast, isToday, parseISO } from "date-fns";
 import { useI18n } from "@/lib/i18n";
 import { useWorkspace } from "@/hooks/use-workspace";
@@ -498,7 +498,7 @@ export default function DashboardPage() {
           <CardHeader className="pb-4">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-md bg-muted flex items-center justify-center text-muted-foreground">
-                <Sparkles className="h-4 w-4" />
+                <Layers className="h-4 w-4" />
               </div>
               <div>
                 <CardTitle className="text-base font-semibold">Workspace Snapshot</CardTitle>
@@ -509,7 +509,7 @@ export default function DashboardPage() {
           <CardContent>
             <div className="p-4 rounded-xl bg-muted/50 border border-primary/10">
               <div className="flex items-start gap-3">
-                <Sparkles className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
+                <Info className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
                 <div>
                   <p className="text-sm font-medium text-foreground">Overview</p>
                   <p className="text-xs text-muted-foreground mt-1">

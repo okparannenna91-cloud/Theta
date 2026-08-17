@@ -7,7 +7,7 @@ import { format } from "date-fns";
 import {
   Check, Zap, CreditCard, Calendar,
   ArrowRight, ArrowDown, AlertTriangle,
-  Users, FolderKanban, HardDrive, Bot, Headphones, Sparkles,
+  Users, FolderKanban, HardDrive, Headphones, Sparkles,
   ChevronRight, Gauge
 } from "lucide-react";
 import { toast } from "sonner";
@@ -41,7 +41,7 @@ const groupKey = (feature: string): { key: string; label: string; icon: React.Re
   if (/\b(user|team|member)\b/.test(lc)) return { key: "workspace", label: "Workspace", icon: <Users className="h-3.5 w-3.5" /> };
   if (/\b(project|task|board)\b/.test(lc)) return { key: "projects", label: "Projects & Tasks", icon: <FolderKanban className="h-3.5 w-3.5" /> };
   if (/\b(storage|mb|gb)\b/.test(lc)) return { key: "storage", label: "Storage", icon: <HardDrive className="h-3.5 w-3.5" /> };
-  if (/\b(ai|nova)\b/.test(lc)) return { key: "ai", label: "AI", icon: <Bot className="h-3.5 w-3.5" /> };
+  if (/\b(ai|nova)\b/.test(lc)) return { key: "advanced", label: "Advanced", icon: <Gauge className="h-3.5 w-3.5" /> };
   if (/\b(support|email|chat)\b/.test(lc)) return { key: "support", label: "Support", icon: <Headphones className="h-3.5 w-3.5" /> };
   if (/\b(integration|analytics|api|permission|automation)\b/.test(lc)) return { key: "advanced", label: "Advanced", icon: <Gauge className="h-3.5 w-3.5" /> };
   return { key: "enterprise", label: "Enterprise", icon: <Sparkles className="h-3.5 w-3.5" /> };
@@ -54,7 +54,7 @@ function groupFeatures(features: string[]): FeatureGroup[] {
     if (!groups.has(key)) groups.set(key, { key, label, icon, features: [] });
     groups.get(key)!.features.push(f);
   }
-  const order = ["workspace", "projects", "storage", "ai", "advanced", "support", "enterprise"];
+  const order = ["workspace", "projects", "storage", "advanced", "support", "enterprise"];
   return order.map(k => groups.get(k)).filter(Boolean) as FeatureGroup[];
 }
 
@@ -297,7 +297,6 @@ export default function BillingPage() {
                       <Sparkles className="h-4 w-4 text-primary" /> Advanced Features
                     </h4>
                     <div className="space-y-3">
-                      {usage.nova && <UsageMeter {...usage.nova} label="AI Requests" />}
                       {usage.storage && <UsageMeter {...usage.storage} label="File Storage" unit="MB" />}
                       {usage.boards && <UsageMeter {...usage.boards} label="Kanban View" />}
                       {usage.integrations && <UsageMeter {...usage.integrations} label="Integrations" />}

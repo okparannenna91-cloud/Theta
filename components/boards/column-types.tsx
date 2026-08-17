@@ -328,10 +328,10 @@ export function ColumnTypeLabel({ type }: { type: ColumnType }) {
     dropdown: "Dropdown", autoNumber: "Auto Number",
     formula: "Formula", dependencies: "Dependencies", progress: "Progress",
     timeTracking: "Time Tracking", button: "Button", week: "Week",
-    colorPicker: "Color Picker", aiSummary: "AI Summary",
-    aiText: "AI Text", aiSentiment: "AI Sentiment", aiLabel: "AI Label",
-    aiExtraction: "AI Extraction", aiPrioritization: "AI Prioritization",
-    aiWriting: "AI Writing", aiTranslation: "AI Translation",
+    colorPicker: "Color Picker", aiSummary: "Summary",
+    aiText: "Smart Text", aiSentiment: "Sentiment", aiLabel: "Label",
+    aiExtraction: "Extraction", aiPrioritization: "Prioritization",
+    aiWriting: "Writing", aiTranslation: "Translation",
     combo: "Combo Column"
   };
   return <span>{labels[type] || type}</span>;

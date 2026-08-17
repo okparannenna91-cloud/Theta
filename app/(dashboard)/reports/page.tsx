@@ -101,7 +101,7 @@ export default function ReportsPage() {
         <div>
           <h1 className="text-xl font-bold text-slate-100 tracking-tight">Reports</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            AI-generated workspace reports and analytics
+            Workspace reports and analytics
           </p>
         </div>
       </div>

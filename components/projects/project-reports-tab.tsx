@@ -50,7 +50,7 @@ export function ReportsTab({ projectId, workspaceId, projectName }: ReportsTabPr
           </div>
           <h3 className="text-sm font-semibold mb-1">Reports</h3>
           <p className="text-sm text-muted-foreground mb-4 max-w-sm">
-            AI-generated project reports and analytics are coming soon.
+            Project reports and analytics are coming soon.
           </p>
         </CardContent>
       </Card>

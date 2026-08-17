@@ -17,8 +17,8 @@ const inter = Inter({ subsets: ["latin"], variable: "--font-family" });
 export const metadata: Metadata = {
   metadataBase: new URL("https://thetapm.site"),
   title: {
-    default: "Theta PM | Advanced AI-Powered Project Management",
-    template: "%s | Theta PM AI"
+    default: "Theta PM | Project Management for High-Velocity Teams",
+    template: "%s | Theta PM"
   },
   icons: {
     icon: "/Logo.png",
@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   description: "Theta PM is the next evolution of project synchronization. Featuring real-time collaboration, Gantt charts, and strategic portfolio tracking for high-velocity teams.",
   keywords: [
     "project management software",
-    "AI project management",
+    "task management tool",
     "saas project tool",
     "team collaboration platform",
     "kanban boards",
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     },
   },
   openGraph: {
-    title: "Theta PM | Orchestrate Your Workflow with AI",
+    title: "Theta PM | Orchestrate Your Workflow",
     description: "Ship faster with sub-50ms real-time updates. The most advanced workspace for modern high-performing teams.",
     url: "https://thetapm.site",
     siteName: "Theta PM",
@@ -70,7 +70,7 @@ export const metadata: Metadata = {
         url: "/Logo.png",
         width: 1024,
         height: 1024,
-        alt: "Theta PM AI Workspace Preview",
+        alt: "Theta PM Workspace Preview",
       },
     ],
     locale: "en_US",
@@ -78,8 +78,8 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Theta PM | AI-Powered Project Synchronization",
-    description: "Experience zero-latency project management with native AI co-piloting. Built for scale.",
+    title: "Theta PM | Real-Time Project Synchronization",
+    description: "Experience zero-latency project management with real-time collaboration. Built for scale.",
     creator: "@theta_pm",
     images: ["/Logo.png"],
   },

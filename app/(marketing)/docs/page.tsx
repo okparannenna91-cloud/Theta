@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Book, Shield, Zap, Cpu } from "lucide-react";
+import { ArrowLeft, Book, Shield, Zap } from "lucide-react";
 
 export default function Documentation() {
     return (
@@ -49,15 +49,15 @@ export default function Documentation() {
                     <section>
                         <div className="flex items-center gap-3 mb-6">
                             <div className="p-3 bg-indigo-100 rounded-2xl text-indigo-600 font-bold">03</div>
-                            <h2 className="text-3xl font-bold">Meet Boots AI</h2>
+                            <h2 className="text-3xl font-bold">Automations</h2>
                         </div>
                         <p className="text-slate-600 mb-8 leading-relaxed">
-                            Boots is your integrated AI assistant. She can help you generate task descriptions, summarize project progress, and even brainstorm ideas.
-                            Access Boots by clicking the chat bubble in the bottom right corner of your dashboard.
+                            Automation rules move routine work forward automatically. When a task is moved to Done, you can automatically notify the team,
+                            update statuses, and keep every board in sync without lifting a finger.
                         </p>
                         <div className="aspect-video bg-slate-100 rounded-[2rem] border-4 border-slate-50 flex items-center justify-center text-slate-400 font-bold flex-col gap-4">
-                            <Cpu className="w-12 h-12 opacity-20" />
-                            [SCREENSHOT: Boots AI Assistant in action]
+                            <Zap className="w-12 h-12 opacity-20" />
+                            [SCREENSHOT: Automation Rules Editor]
                         </div>
                     </section>
 

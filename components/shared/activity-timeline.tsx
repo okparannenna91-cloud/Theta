@@ -58,12 +58,12 @@ const ACTION_LABELS: Record<string, string> = {
     board_created: "created board",
     sprint_started: "started sprint",
     milestone_completed: "completed milestone",
-    nova_execution: "AI executed",
-    nova_query: "AI queried",
-    nova_suggestion: "AI suggested",
-    nova_created_task: "AI created task",
-    nova_updated_project: "AI updated project",
-    ai_generation: "AI generated",
+    nova_execution: "executed automation",
+    nova_query: "queried workspace",
+    nova_suggestion: "suggested",
+    nova_created_task: "created task",
+    nova_updated_project: "updated project",
+    ai_generation: "generated",
 };
 
 function getActionLabel(action: string): string {

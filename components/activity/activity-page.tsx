@@ -18,7 +18,6 @@ import {
     History,
     CheckCircle2,
     MessageSquare,
-    Bot,
     Users,
     ChevronDown,
     ChevronRight,
@@ -97,7 +96,6 @@ function SummaryCards({ summary }: { summary: ActivitySummary | undefined }) {
         { label: "Today's Activity", value: summary.totalToday, icon: ActivityIcon, color: "text-blue-500" },
         { label: "Completed", value: summary.completedToday, icon: CheckCircle2, color: "text-emerald-500" },
         { label: "Comments", value: summary.commentsToday, icon: MessageSquare, color: "text-amber-500" },
-        { label: "AI Actions", value: summary.aiToday, icon: Bot, color: "text-violet-500" },
         { label: "Active Members", value: summary.activeMembers, icon: Users, color: "text-indigo-500" },
     ];
 
@@ -497,7 +495,6 @@ export default function ActivityPage() {
         { value: "boards", label: "Boards" },
         { value: "comments", label: "Comments" },
         { value: "members", label: "Members" },
-        { value: "ai", label: "AI" },
         { value: "integrations", label: "Integrations" },
         { value: "files", label: "Files" },
     ];

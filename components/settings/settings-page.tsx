@@ -12,7 +12,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Settings, Palette, Bell, Shield, Smartphone, Moon, Sun, Laptop,
-  Calendar, ExternalLink, Check, Zap, Globe, Lock, Code, Sparkles, Rocket, Terminal,
+  Calendar, ExternalLink, Check, Zap, Globe, Lock, Code, Sparkles, Rocket,
   Building2, Users, CreditCard
 } from "lucide-react";
 import { usePreferences } from "@/hooks/use-preferences";
@@ -376,43 +376,6 @@ export default function SettingsPage() {
               </CardContent>
             </Card>
           </div>
-        </section>
-
-        {/* MCP Server */}
-        <section>
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center">
-              <Terminal className="h-4 w-4 text-blue-500" />
-            </div>
-            <div>
-              <h2 className="text-base font-semibold">MCP Server</h2>
-              <p className="text-xs text-muted-foreground">Model Context Protocol for AI integrations</p>
-            </div>
-          </div>
-
-          <Card className="border shadow-sm">
-            <CardContent className="p-5 space-y-4">
-              <div className="flex items-center justify-between p-4 rounded-lg border">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
-                    <Terminal className="h-5 w-5 text-blue-500" />
-                  </div>
-                  <div>
-                    <h3 className="text-sm font-semibold">Theta PM MCP Server</h3>
-                    <p className="text-xs text-muted-foreground">Connect AI assistants (Claude, GPT) to your workspace via stdio transport</p>
-                  </div>
-                </div>
-                <Badge variant="outline" className="text-xs">10 tools</Badge>
-              </div>
-              <div className="p-3 rounded-lg bg-muted/50 font-mono text-xs text-muted-foreground overflow-x-auto">
-                npx theta-mcp --workspace-id={"<your-workspace-id>"}
-              </div>
-              <p className="text-xs text-muted-foreground">
-                The MCP server provides tools for tasks, projects, boards, search, analytics, and workspace management.
-                Configure in your AI client&apos;s MCP settings.
-              </p>
-            </CardContent>
-          </Card>
         </section>
 
         <div className="text-center pt-4">

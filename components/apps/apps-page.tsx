@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { RefreshCw, Trash2, CheckCircle2, Plus, Link2, Search, Zap, ArrowRight, Bot, Terminal, Download } from "lucide-react";
+import { RefreshCw, Trash2, CheckCircle2, Plus, Link2, Search, Zap, ArrowRight, Terminal, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -674,36 +674,6 @@ export default function AppsPage() {
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
-
-            {/* NL-to-Automation Section */}
-            <div className="mt-10">
-                <div className="flex items-center gap-3 mb-4">
-                    <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Bot className="h-4 w-4 text-primary" />
-                    </div>
-                    <div>
-                        <h2 className="text-base font-semibold">AI Automations</h2>
-                        <p className="text-xs text-muted-foreground">Create automations using natural language</p>
-                    </div>
-                </div>
-                <Card className="border shadow-sm">
-                    <CardContent className="p-5">
-                        <div className="flex items-center gap-3 p-4 rounded-lg bg-muted/30 border">
-                            <Bot className="h-5 w-5 text-primary flex-shrink-0" />
-                            <div className="flex-1">
-                                <p className="text-sm font-medium">Describe your automation in plain English</p>
-                                <p className="text-xs text-muted-foreground mt-0.5">
-                                    Example: &quot;When a task is moved to Done, notify the team on Slack&quot;
-                                </p>
-                            </div>
-                            <Button variant="outline" size="sm" onClick={() => toast.info("Coming soon: NL-to-Automation")}>
-                                <Zap className="h-3.5 w-3.5 mr-1.5" />
-                                Try It
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-            </div>
 
             {/* GitHub/Slack Webhooks Info */}
             <div className="mt-6">

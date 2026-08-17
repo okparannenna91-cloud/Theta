@@ -86,7 +86,7 @@ export default function OnboardingPage() {
             )}
           </Button>
           <p className="text-[11px] text-muted-foreground/80">
-            Smart AI teammates are coming soon.
+            You can create more workspaces and invite your team anytime.
           </p>
         </div>
       </div>
