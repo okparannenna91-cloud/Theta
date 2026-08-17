@@ -53,7 +53,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [createDialogDefaults, setCreateDialogDefaults] = useState<{ startDate?: string; dueDate?: string }>({});
-  const [createParent, setCreateParent] = useState<{ id: string; title: string } | null>(null);
+  const [createParent, setCreateParent] = useState<{ id: string; title: string; projectId?: string } | null>(null);
 
   // Saved views
   const [savedViews, setSavedViews] = useState<SavedView[]>([]);
@@ -156,7 +156,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
   }, []);
 
   const handleCreateSubtask = useCallback((parent: any) => {
-    setCreateParent({ id: parent.id, title: parent.title });
+    setCreateParent({ id: parent.id, title: parent.title, projectId: parent.projectId });
     setCreateDialogDefaults({});
     setIsCreateDialogOpen(true);
   }, []);
@@ -408,6 +408,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
         isOpen={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         defaultStatus="todo"
+        defaultProjectId={createParent?.projectId || (filterProject !== "all" ? filterProject : projectId)}
         defaultStartDate={createDialogDefaults.startDate}
         defaultDueDate={createDialogDefaults.dueDate}
         defaultParentId={createParent?.id}

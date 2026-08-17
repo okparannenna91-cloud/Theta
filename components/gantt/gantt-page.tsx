@@ -954,7 +954,7 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
                 />
             )}
 
-            <CreateTaskDialog isOpen={isCreateTaskOpen} onOpenChange={setIsCreateTaskOpen} />
+            <CreateTaskDialog isOpen={isCreateTaskOpen} onOpenChange={setIsCreateTaskOpen} defaultProjectId={projectId} />
         </div>
     );
 }

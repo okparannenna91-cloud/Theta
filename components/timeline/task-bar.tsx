@@ -181,12 +181,20 @@ export default function TaskBar({
             const daysDelta = snappedMinutes / 1440;
             if (daysDelta === 0) return;
 
+            // Tasks without dates have no anchor — fall back to "now" (matches the
+            // drag handler) instead of `new Date(null)` which resolves to the epoch
+            // (Jan 1970) and flings the bar off the canvas + persists garbage dates.
+            const baseStart = task.startDate || task.dueDate || new Date().toISOString();
+            const baseEnd = task.dueDate || task.startDate || new Date().toISOString();
+
             if (direction === "left") {
-                const newStart = addMinutes(new Date(task.startDate || task.dueDate), snappedMinutes);
+                const newStart = addMinutes(new Date(baseStart), snappedMinutes);
+                if (isNaN(newStart.getTime())) return;
                 setPendingVisual({ startDate: newStart.toISOString(), dueDate: task.dueDate || undefined });
                 onUpdate?.({ startDate: newStart.toISOString() });
             } else {
-                const newEnd = addMinutes(new Date(task.dueDate || task.startDate), snappedMinutes);
+                const newEnd = addMinutes(new Date(baseEnd), snappedMinutes);
+                if (isNaN(newEnd.getTime())) return;
                 setPendingVisual({ startDate: task.startDate || undefined, dueDate: newEnd.toISOString() });
                 onUpdate?.({ dueDate: newEnd.toISOString() });
             }

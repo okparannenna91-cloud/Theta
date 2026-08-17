@@ -237,6 +237,24 @@ export async function POST(req: Request) {
       );
     }
 
+    // Subtasks inherit their parent's project when no project was sent
+    // (e.g. created from the timeline/gantt "+" button, where the project
+    // selector is hidden). Avoids a silent 500 on a required field.
+    if (!data.projectId && data.parentId) {
+      const parent = await prisma.task.findUnique({
+        where: { id: data.parentId },
+        select: { projectId: true },
+      });
+      if (parent) data.projectId = parent.projectId;
+    }
+
+    if (!data.projectId) {
+      return NextResponse.json(
+        { error: "A project is required to create a task" },
+        { status: 400 }
+      );
+    }
+
     // Auto-assign board + column from status if not provided (Kanban ↔ Tasks sync).
     // Child tasks (subtasks) are never placed on boards — they live inside the parent dialog.
     let autoBoardId = data.parentId ? null : (data.boardId || null);
