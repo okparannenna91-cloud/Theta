@@ -34,4 +34,4 @@ export type NovaEventTypes = {
   };
 };
 
-export const inngest = new Inngest({ id: "theta-nova" });
+export const inngest = new Inngest({ id: "theta-p87n" });
