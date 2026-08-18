@@ -1,6 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { prisma } from "@/lib/prisma";
-import { createWorkspace } from "@/lib/workspace";
 import { logger } from "@/lib/logger";
 import { cacheGetOrSet, cacheInvalidate, cacheKey } from "@/lib/cache";
 
@@ -56,8 +55,6 @@ export async function getCurrentUser() {
   );
   timings['db_user_lookup'] = Date.now() - timings['db_user_lookup'];
 
-  let isNewUser = false;
-
   if (!user) {
     timings['clerk_currentUser'] = Date.now();
     const clerkUser = await currentUser();
@@ -77,7 +74,6 @@ export async function getCurrentUser() {
           imageUrl: clerkUser.imageUrl,
         },
       });
-      isNewUser = true;
     } catch (error: any) {
       if (error.code === "P2002") {
         user = await prisma.user.findUnique({
@@ -92,30 +88,6 @@ export async function getCurrentUser() {
   // Keep the local profile (name/email/picture) in sync with Clerk in the
   // background — throttled to at most once per 5 minutes per user.
   void refreshProfileFromClerk(user.id, userId);
-
-  if (isNewUser && user) {
-    try {
-      const userName = user.name;
-      const workspaceName = userName
-        ? `${userName}'s Workspace`
-        : "My Workspace";
-
-      await createWorkspace(user.id, workspaceName, "free");
-
-      if (user.email) {
-        (async () => {
-          try {
-            const { sendWelcomeEmail } = await import("@/lib/email");
-            await sendWelcomeEmail(user!.email!, userName || "there");
-          } catch (emailError) {
-            console.error("Failed to send welcome email:", emailError);
-          }
-        })();
-      }
-    } catch (error) {
-      console.error("Initial workspace creation failed:", error);
-    }
-  }
 
   const total = Date.now() - start;
   if (total > 200) {

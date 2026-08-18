@@ -957,6 +957,7 @@ model UserPreference {
   theme             String   @default("dark")
   dismissedPopups   Json?    @db.Json
   onboardingComplete Boolean @default(false)
+  onboarding        Json?    @db.Json
   compactMode       Boolean  @default(false)
   emailNotifications Boolean @default(true)
   pushNotifications  Boolean @default(false)

@@ -4,13 +4,11 @@ import { useEffect, useState, ReactNode } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@clerk/nextjs";
 import { useQuery } from "@tanstack/react-query";
-import { useWorkspace } from "@/hooks/use-workspace";
 
 export function OnboardingRedirect({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const { userId, isLoaded: isAuthLoaded } = useAuth();
-  const { workspaces, isLoading: isWorkspacesLoading, error: workspaceError } = useWorkspace();
 
   const { data: preferences, isLoading: isPrefsLoading, isError: isPrefsError } = useQuery({
     queryKey: ["user-preferences"],
@@ -21,32 +19,31 @@ export function OnboardingRedirect({ children }: { children: ReactNode }) {
     },
     enabled: !!userId,
     staleTime: 30_000,
+    retry: 3,
+    refetchOnMount: true,
   });
 
   const [decision, setDecision] = useState<"loading" | "redirect" | "show">("loading");
 
   useEffect(() => {
-    if (!isAuthLoaded || isPrefsLoading || isWorkspacesLoading) return;
+    if (!isAuthLoaded || isPrefsLoading) return;
     if (!userId) {
       setDecision("show");
       return;
     }
-    if (isPrefsError || workspaceError) {
-      setDecision("show");
+    if (isPrefsError) {
+      // Never silently skip onboarding: if we can't confirm completion, the
+      // onboarding page itself will make the same check and recover.
+      setDecision("redirect");
       return;
     }
     const onboardingComplete = preferences?.onboardingComplete;
-    const userCreatedAt = preferences?.userCreatedAt ? new Date(preferences.userCreatedAt).getTime() : null;
-    const isNewUser = userCreatedAt !== null && Date.now() - userCreatedAt < 24 * 60 * 60 * 1000;
-    const hasWorkspaces = Array.isArray(workspaces) && workspaces.length > 0;
-    // New users always go through onboarding, even when an automatic workspace
-    // ("X's Workspace") already exists — otherwise the auto-creation bypasses it.
-    if (!onboardingComplete && (isNewUser || !hasWorkspaces)) {
+    if (!onboardingComplete) {
       setDecision("redirect");
     } else {
       setDecision("show");
     }
-  }, [isAuthLoaded, isPrefsLoading, isWorkspacesLoading, userId, preferences, workspaces, isPrefsError, workspaceError]);
+  }, [isAuthLoaded, isPrefsLoading, userId, preferences, isPrefsError]);
 
   useEffect(() => {
     if (decision === "redirect" && pathname !== "/onboarding") {

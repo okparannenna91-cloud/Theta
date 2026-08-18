@@ -10,7 +10,6 @@ const isPublicRoute = createRouteMatcher([
   '/terms',
   '/sign-in(.*)',
   '/sign-up(.*)',
-  '/onboarding',
   '/api/user/preferences(.*)',
   '/api/webhooks(.*)', // Clerk webhook: signed via Svix, must bypass session auth
 ]);

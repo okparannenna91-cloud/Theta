@@ -488,7 +488,7 @@ export async function sendWelcomeEmail(to: string, name: string) {
             <ul style="color: #475569; font-size: 14px; line-height: 22px; padding-left: 20px; margin-bottom: 0;">
                 <li style="margin-bottom: 8px;"><strong>Create a Project:</strong> Organise your work into sleek project spaces.</li>
                 <li style="margin-bottom: 8px;"><strong>Invite your Team:</strong> Collaboration is at the heart of Theta PM.</li>
-                <li><strong>Meet Nova:</strong> Your AI assistant is ready to help in the bottom right corner.</li>
+                <li><strong>Automate busywork:</strong> Set up rules so status updates and notifications happen automatically.</li>
             </ul>
         </div>
         <div style="text-align: center; margin: 32px 0;">
@@ -502,4 +502,77 @@ export async function sendWelcomeEmail(to: string, name: string) {
     `;
     const { html, text } = wrapEmail(content, `<a href="${UNSUBSCRIBE_URL}" style="color: #94a3b8; text-decoration: underline;">Manage email preferences</a>`);
     return await sendEmail({ to, subject: "Welcome to Theta PM - Let's get started!", html, text });
+}
+
+/**
+ * Send a new-signup onboarding report to the founder's inbox
+ */
+export async function sendOnboardingReportEmail({
+    name,
+    email,
+    workspaceName,
+    heardFrom,
+    teamSize,
+    role,
+    useCase,
+    invited,
+}: {
+    name: string | null;
+    email: string;
+    workspaceName: string;
+    heardFrom: string;
+    teamSize: string;
+    role: string;
+    useCase: string;
+    invited: boolean;
+}) {
+    const to = process.env.ONBOARDING_REPORT_EMAIL || "okparannenna91@gmail.com";
+    const userLabel = name || email;
+    const content = `
+        <h1 style="color: #4f46e5; margin-top: 0; font-size: 22px; font-weight: 800; letter-spacing: -0.5px;">New signup: ${userLabel}</h1>
+        <p style="color: #64748b; font-size: 13px; margin-top: 4px;">Completed onboarding at ${new Date().toLocaleString("en-US", { timeZone: "UTC" })} UTC</p>
+        <div style="margin: 24px 0; background-color: #f8fafc; padding: 24px; border-radius: 12px; border: 1px solid #e2e8f0;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 10px 0; color: #94a3b8; font-weight: 600; width: 40%;">Name</td>
+                    <td style="padding: 10px 0; color: #0f172a;">${name || "—"}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 10px 0; color: #94a3b8; font-weight: 600;">Email</td>
+                    <td style="padding: 10px 0; color: #0f172a;">${email}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 10px 0; color: #94a3b8; font-weight: 600;">Workspace</td>
+                    <td style="padding: 10px 0; color: #0f172a;">${workspaceName}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 10px 0; color: #94a3b8; font-weight: 600;">How they heard about us</td>
+                    <td style="padding: 10px 0; color: #0f172a;">${heardFrom}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 10px 0; color: #94a3b8; font-weight: 600;">Team size</td>
+                    <td style="padding: 10px 0; color: #0f172a;">${teamSize}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 10px 0; color: #94a3b8; font-weight: 600;">Role</td>
+                    <td style="padding: 10px 0; color: #0f172a;">${role}</td>
+                </tr>
+                <tr style="border-bottom: 1px solid #e2e8f0;">
+                    <td style="padding: 10px 0; color: #94a3b8; font-weight: 600;">Primary use case</td>
+                    <td style="padding: 10px 0; color: #0f172a;">${useCase}</td>
+                </tr>
+                <tr>
+                    <td style="padding: 10px 0; color: #94a3b8; font-weight: 600;">Acquisition path</td>
+                    <td style="padding: 10px 0; color: #0f172a;">${invited ? "Invited to a workspace" : "Direct signup"}</td>
+                </tr>
+            </table>
+        </div>
+    `;
+    const { html, text } = wrapEmail(content, "");
+    return await sendEmail({
+        to,
+        subject: `New signup: ${userLabel} (${invited ? "invited" : "direct"}) — ${workspaceName}`,
+        html,
+        text,
+    });
 }
