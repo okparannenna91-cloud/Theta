@@ -203,7 +203,7 @@ export class UIDelivery {
           insightId: intervention.id,
           priority: "critical",
         },
-        `critical-${intervention.id}`
+        `critical-${intervention.category}-${intervention.workspaceId}`
       );
     }
 
@@ -222,7 +222,7 @@ export class UIDelivery {
           `Workspace alert: ${intervention.title}`,
           intervention.message,
           { category: intervention.category, level: intervention.level, insightId: intervention.id, isEscalation: true },
-          `critical-escalation-${intervention.id}`
+          `critical-escalation-${intervention.category}-${intervention.workspaceId}`
         );
       }
     }

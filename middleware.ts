@@ -12,6 +12,7 @@ const isPublicRoute = createRouteMatcher([
   '/sign-up(.*)',
   '/api/user/preferences(.*)',
   '/api/webhooks(.*)', // Clerk webhook: signed via Svix, must bypass session auth
+  '/api/inngest(.*)', // Inngest Cloud: signed via INNGEST_SIGNING_KEY, must bypass session auth
 ]);
 
 const isApiRoute = createRouteMatcher([
