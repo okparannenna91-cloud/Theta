@@ -24,6 +24,23 @@ async function fetchWorkspaces() {
   return res.json();
 }
 
+async function fetchWithRetry(url: string, attempts = 3, baseDelay = 2000) {
+  let lastError: Error | null = null;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error("Failed to fetch workspace");
+      return await res.json();
+    } catch (err) {
+      lastError = err as Error;
+      if (i < attempts - 1) {
+        await new Promise((r) => setTimeout(r, baseDelay * (i + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
 export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const { userId, isLoaded: isAuthLoaded } = useAuth();
   const queryClient = useQueryClient();
@@ -41,6 +58,11 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     enabled: !!userId,
     staleTime: 30 * 1000,
     refetchOnMount: true,
+    // Vercel cold starts can take 10-30s (Mongo connection + cache init), which
+    // outlasts the default retry window. Back off harder so the very first load
+    // after onboarding/invite acceptance survives instead of erroring out.
+    retry: 5,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 15_000),
   });
 
   const [fallbackWorkspace, setFallbackWorkspace] = useState<any>(null);
@@ -91,18 +113,16 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     setFallbackLoading(true);
     setFallbackError(null);
-    fetch(`/api/workspaces/${activeWorkspaceId}`, { signal: controller.signal })
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to fetch workspace");
-        return res.json();
-      })
+    fetchWithRetry(`/api/workspaces/${activeWorkspaceId}`, 3, 2000)
       .then((data) => {
-        if (data) setFallbackWorkspace(data);
+        if (data && !controller.signal.aborted) setFallbackWorkspace(data);
       })
       .catch((err) => {
-        if (err.name !== "AbortError") setFallbackError(err);
+        if (!controller.signal.aborted) setFallbackError(err);
       })
-      .finally(() => setFallbackLoading(false));
+      .finally(() => {
+        if (!controller.signal.aborted) setFallbackLoading(false);
+      });
     return () => controller.abort();
   }, [shouldFallback, activeWorkspaceId]);
 

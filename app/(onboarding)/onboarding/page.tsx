@@ -119,6 +119,12 @@ export default function OnboardingPage() {
                 const err = await res.json().catch(() => ({}));
                 throw new Error(err.error || "Failed to complete setup");
             }
+            const data = await res.json();
+            // Pin the created/invited workspace as active BEFORE navigating so
+            // the dashboard and sidebar load it on first paint.
+            if (data?.workspaceId) {
+                localStorage.setItem("activeWorkspaceId", data.workspaceId);
+            }
             // Invalidate cached prefs + workspaces so the dashboard layout
             // doesn't bounce us straight back to onboarding.
             await Promise.all([

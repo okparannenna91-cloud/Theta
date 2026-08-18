@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -19,6 +19,34 @@ export default function WorkspacesPage() {
     const queryClient = useQueryClient();
     const router = useRouter();
     const { workspaces, activeWorkspaceId, switchWorkspace, clearActiveWorkspace, isLoading, error } = useWorkspace();
+
+    // Transient failures (cold starts, DB reconnect) shouldn't dead-end the
+    // page — keep retrying in the background for ~40s, then fall back to the
+    // manual button (which refetches instead of reloading the whole app).
+    const [autoRetrying, setAutoRetrying] = useState(false);
+    useEffect(() => {
+        if (!error) return;
+        let cancelled = false;
+        let attempts = 0;
+        setAutoRetrying(true);
+        const timer = setInterval(async () => {
+            attempts++;
+            if (attempts > 4) {
+                clearInterval(timer);
+                if (!cancelled) setAutoRetrying(false);
+                return;
+            }
+            if (!cancelled) await queryClient.refetchQueries({ queryKey: ["workspaces"] });
+        }, 10_000);
+        return () => { cancelled = true; clearInterval(timer); };
+    }, [error, queryClient]);
+
+    const handleRetry = () => {
+        setAutoRetrying(true);
+        queryClient
+            .refetchQueries({ queryKey: ["workspaces"] })
+            .finally(() => setAutoRetrying(false));
+    };
 
     const createMutation = useMutation({
         mutationFn: async (name: string) => {
@@ -99,8 +127,17 @@ export default function WorkspacesPage() {
                         <CardTitle className="text-base">Connection Issue</CardTitle>
                         <CardDescription>We couldn&apos;t retrieve your workspaces. Please try again.</CardDescription>
                     </CardHeader>
-                    <CardContent className="flex justify-center pb-6">
-                        <Button onClick={() => window.location.reload()} variant="outline">Try Again</Button>
+                    <CardContent className="flex flex-col items-center gap-3 pb-6">
+                        <Button onClick={handleRetry} variant="outline" disabled={autoRetrying}>
+                            {autoRetrying ? (
+                                <span className="flex items-center gap-2">
+                                    <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+                                    Retrying...
+                                </span>
+                            ) : (
+                                "Try Again"
+                            )}
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
