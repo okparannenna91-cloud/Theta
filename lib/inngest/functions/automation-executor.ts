@@ -3,6 +3,7 @@ import { logger } from "@/lib/logger";
 import { prisma } from "@/lib/prisma";
 import { evaluateConditions } from "@/lib/automations/conditions";
 import { createNotification, notifyWorkspaceMembers } from "@/lib/notification-engine";
+import { MIN_OVERDUE_DUE_DATE } from "@/lib/overdue";
 import type { NotificationType } from "@/lib/notification-types";
 
 // ──────────────────────────────────────────────
@@ -618,7 +619,7 @@ export const dueDatePassedCron = inngest.createFunction(
     const overdue = await step.run("find-overdue-tasks", async () =>
       prisma.task.findMany({
         where: {
-          dueDate: { lt: new Date() },
+          dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() },
           status: { notIn: ["done", "complete", "completed", "finished", "approved"] },
         },
         select: { id: true, workspaceId: true, projectId: true, title: true, assigneeIds: true },

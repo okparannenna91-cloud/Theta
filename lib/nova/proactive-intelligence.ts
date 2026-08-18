@@ -1,6 +1,7 @@
 import { prisma } from "../prisma";
 import { logger } from "@/lib/logger";
 import { executeWithProvider } from "@/lib/langraph/model-router";
+import { MIN_OVERDUE_DUE_DATE } from "../overdue";
 
 export type InsightType =
   | "DEADLINE_RISK"
@@ -168,7 +169,7 @@ export class ProactiveIntelligenceEngine {
     const overdueTasks = await prisma.task.findMany({
       where: {
         workspaceId,
-        dueDate: { lt: new Date() },
+        dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() },
         status: { notIn: ["done", "completed", "cancelled"] },
       },
       select: { title: true, dueDate: true },

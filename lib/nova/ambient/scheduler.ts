@@ -6,6 +6,7 @@ import { InterventionScorer } from "./intervention-scorer";
 import { LLMReasoner } from "./llm-reasoner";
 import { UIDelivery } from "./ui-delivery";
 import { ContextCollector } from "./context-collector";
+import { MIN_OVERDUE_DUE_DATE } from "@/lib/overdue";
 import type { WorkspaceEvent, ObservationContext, BriefingContext } from "./types";
 
 const BRIEFING_CACHE_TTL = 1800;
@@ -107,7 +108,7 @@ export class Scheduler {
           { label: "Completed today", value: completedToday, trend: completedToday > 0 ? "up" : "stable" },
           { label: "Created today", value: createdToday, trend: createdToday > 5 ? "up" : "stable" },
           { label: "Active tasks", value: context.workspace?.taskCount ?? 0, trend: "stable" },
-          { label: "Overdue tasks", value: context.workspace ? await prisma.task.count({ where: { workspaceId, dueDate: { lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } } }) : 0, trend: "down" },
+          { label: "Overdue tasks", value: context.workspace ? await prisma.task.count({ where: { workspaceId, dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } } }) : 0, trend: "down" },
         ],
         topInsights: patterns.slice(0, 3).map((p) => p.message),
         focusAreas: [],

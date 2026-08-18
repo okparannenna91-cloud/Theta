@@ -1,6 +1,7 @@
 import { prisma } from "../prisma";
 import { logger } from "../logger";
 import { canAccessProject, canAccessProjectResource } from "../project-permissions";
+import { MIN_OVERDUE_DUE_DATE } from "../overdue";
 
 export type ContextSource = "CURRENT_TASK" | "CURRENT_DOCUMENT" | "CURRENT_PROJECT" | "CURRENT_SPRINT" | "WORKSPACE" | "HISTORICAL_MEMORY" | "CONVERSATION_HISTORY" | "PROACTIVE_INSIGHTS";
 
@@ -316,7 +317,7 @@ export class ContextSystem {
       const overdueTasks = await prisma.task.findMany({
         where: {
           workspaceId,
-          dueDate: { lt: new Date() },
+          dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() },
           status: { notIn: ["done", "completed", "cancelled"] },
         },
         select: { title: true, dueDate: true },
@@ -493,7 +494,7 @@ export class ContextSystem {
       const overdueCount = await prisma.task.count({
         where: {
           workspaceId,
-          dueDate: { lt: new Date() },
+          dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() },
           status: { notIn: ["done", "completed", "cancelled"] },
         },
       });

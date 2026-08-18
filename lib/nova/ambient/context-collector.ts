@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { WorkspaceMemory } from "./workspace-memory";
+import { MIN_OVERDUE_DUE_DATE } from "@/lib/overdue";
 import type { WorkspaceEvent, ObservationContext } from "./types";
 
 export class ContextCollector {
@@ -70,7 +71,7 @@ export class ContextCollector {
     if (!ws) return null;
 
     const overdueCount = await prisma.task.count({
-      where: { workspaceId, dueDate: { lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } },
+      where: { workspaceId, dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } },
     });
 
     return {
@@ -96,7 +97,7 @@ export class ContextCollector {
     const [taskCount, doneCount, overdueCount, blockedCount, memberCount] = await Promise.all([
       prisma.task.count({ where: { projectId } }),
       prisma.task.count({ where: { projectId, status: { in: ["done", "completed"] } } }),
-      prisma.task.count({ where: { projectId, dueDate: { lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } } }),
+      prisma.task.count({ where: { projectId, dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } } }),
       prisma.task.count({ where: { projectId, status: "blocked" } }),
       prisma.workspaceMember.count({ where: { workspace: { projects: { some: { id: projectId } } } } }),
     ]);
@@ -135,7 +136,7 @@ export class ContextCollector {
     });
     if (!task) return null;
 
-    const isOverdue = task.dueDate && task.dueDate < new Date() && task.status !== "done" && task.status !== "completed" && task.status !== "cancelled";
+    const isOverdue = task.dueDate && task.dueDate > MIN_OVERDUE_DUE_DATE && task.dueDate < new Date() && task.status !== "done" && task.status !== "completed" && task.status !== "cancelled";
 
     const [dependencyCount, blockerCount, subtaskCount, completedSubtasks] = await Promise.all([
       prisma.taskDependency.count({ where: { taskId } }),
@@ -180,7 +181,7 @@ export class ContextCollector {
 
     const [activeTaskCount, overdueTaskCount, completedTaskCount7d, totalCompletedTaskCount] = await Promise.all([
       prisma.task.count({ where: { assigneeIds: { has: userId }, status: { notIn: ["done", "completed", "cancelled"] } } }),
-      prisma.task.count({ where: { assigneeIds: { has: userId }, dueDate: { lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } } }),
+      prisma.task.count({ where: { assigneeIds: { has: userId }, dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } } }),
       prisma.task.count({ where: { assigneeIds: { has: userId }, completedAt: { gte: sevenDaysAgo } } }),
       prisma.task.count({ where: { assigneeIds: { has: userId }, status: { in: ["done", "completed"] } } }),
     ]);
@@ -212,7 +213,7 @@ export class ContextCollector {
       members.map(async (m) => {
         const [activeTasks, overdueCount, completedLast7d] = await Promise.all([
           prisma.task.count({ where: { assigneeIds: { has: m.userId }, status: { notIn: ["done", "completed", "cancelled"] } } }),
-          prisma.task.count({ where: { assigneeIds: { has: m.userId }, dueDate: { lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } } }),
+          prisma.task.count({ where: { assigneeIds: { has: m.userId }, dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } } }),
           prisma.task.count({ where: { assigneeIds: { has: m.userId }, completedAt: { gte: sevenDaysAgo } } }),
         ]);
         return {

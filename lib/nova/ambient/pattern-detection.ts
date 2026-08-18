@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
-import { WorkspaceMemory } from "./workspace-memory";
+import { MIN_OVERDUE_DUE_DATE } from "@/lib/overdue";
 import type { ObservationContext, DetectedPattern } from "./types";
 
 const STALL_THRESHOLD_DAYS = 3;
@@ -85,13 +85,13 @@ export class PatternDetector {
     }
 
     const overdueCount = await prisma.task.count({
-      where: { workspaceId: wsId, dueDate: { lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } },
+      where: { workspaceId: wsId, dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } },
     });
 
     if (overdueCount >= OVERDUE_CRITICAL_COUNT) {
       const uniqueAssignees = await prisma.task.groupBy({
         by: ["assigneeIds"],
-        where: { workspaceId: wsId, dueDate: { lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } },
+        where: { workspaceId: wsId, dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() }, status: { notIn: ["done", "completed", "cancelled"] } },
         _count: true,
       });
 

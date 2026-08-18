@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { createNotification } from "@/lib/notification-engine";
 import { sendEmail } from "@/lib/email";
 import { logger } from "@/lib/logger";
+import { MIN_OVERDUE_DUE_DATE } from "@/lib/overdue";
 
 async function findExistingReminder(userId: string, type: string, reminderKey: string, windowMinutes: number = 60) {
   const since = new Date(Date.now() - windowMinutes * 60 * 1000);
@@ -94,7 +95,7 @@ export const overdueTaskDetection = inngest.createFunction(
 
     const overdueTasks = await prisma.task.findMany({
       where: {
-        dueDate: { lt: now },
+        dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: now },
         status: { notIn: ["done", "completed", "cancelled"] },
       },
       include: { project: { select: { name: true, workspaceId: true } } },
@@ -413,7 +414,7 @@ export const dailyDigest = inngest.createFunction(
               where: { dueDate: { gte: todayStart, lte: todayEnd }, assigneeIds: { has: member.userId }, status: { notIn: ["done", "completed", "cancelled"] } },
             }),
             prisma.task.count({
-              where: { dueDate: { lt: now }, assigneeIds: { has: member.userId }, status: { notIn: ["done", "completed", "cancelled"] } },
+              where: { dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: now }, assigneeIds: { has: member.userId }, status: { notIn: ["done", "completed", "cancelled"] } },
             }),
             prisma.calendarEvent.count({
               where: { start: { gte: todayStart, lte: todayEnd }, userId: member.userId },
@@ -494,7 +495,7 @@ export const weeklyDigest = inngest.createFunction(
               where: { completedAt: { gte: weekAgo }, assigneeIds: { has: member.userId } },
             }),
             prisma.task.count({
-              where: { dueDate: { lt: now }, status: { notIn: ["done", "completed", "cancelled"] }, assigneeIds: { has: member.userId } },
+              where: { dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: now }, status: { notIn: ["done", "completed", "cancelled"] }, assigneeIds: { has: member.userId } },
             }),
             prisma.project.count({
               where: { workspaceId: ws.id, updatedAt: { lt: weekAgo } },
@@ -564,7 +565,7 @@ export const novaSuggestions = inngest.createFunction(
 
         const [overdueCount, blockedCount, unassignedCount, projectIdleCount] = await Promise.all([
           prisma.task.count({
-            where: { dueDate: { lt: now }, status: { notIn: ["done", "completed", "cancelled"] }, assigneeIds: { has: member.userId } },
+            where: { dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: now }, status: { notIn: ["done", "completed", "cancelled"] }, assigneeIds: { has: member.userId } },
           }),
           prisma.task.count({
             where: { status: "blocked", assigneeIds: { has: member.userId } },

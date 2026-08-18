@@ -3,6 +3,7 @@ import { redis } from "@/lib/redis/client";
 import { executeWithProvider } from "@/lib/langraph/model-router";
 import { logger } from "@/lib/logger";
 import { createNotification } from "@/lib/notification-engine";
+import { MIN_OVERDUE_DUE_DATE } from "@/lib/overdue";
 import type { NotificationType } from "@/lib/notification-types";
 
 const NOTIFICATION_TTL_SECONDS = 86400;
@@ -64,7 +65,7 @@ export class SmartNotifications {
             workspaceId,
             assigneeIds: { has: userId },
             status: { notIn: ["done", "completed", "cancelled"] },
-            dueDate: { lt: new Date() },
+            dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() },
           },
         }),
         prisma.task.findMany({

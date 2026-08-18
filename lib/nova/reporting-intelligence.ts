@@ -2,6 +2,7 @@ import { prisma } from "../prisma";
 import { ContextSystem } from "./context-system";
 import { SecurityGuard } from "./security-guard";
 import { redis } from "../redis/client";
+import { MIN_OVERDUE_DUE_DATE } from "../overdue";
 
 export type ReportType = "PROJECT" | "SPRINT" | "TEAM" | "EXECUTIVE" | "CLIENT";
 export type ReportFrequency = "DAILY" | "WEEKLY" | "SPRINT" | "MONTHLY" | "QUARTERLY";
@@ -157,7 +158,7 @@ export class ReportingIntelligence {
         where: {
           workspaceId,
           status: { notIn: ["done", "completed", "cancelled"] },
-          dueDate: { lt: new Date() },
+          dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() },
         },
       });
 

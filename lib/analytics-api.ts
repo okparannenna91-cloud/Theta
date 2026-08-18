@@ -2,6 +2,7 @@
 // PostHog Query API docs: https://posthog.com/docs/api/query
 
 import { prisma } from "@/lib/prisma";
+import { MIN_OVERDUE_DUE_DATE } from "@/lib/overdue";
 
 const POSTHOG_PERSONAL_API_KEY = process.env.POSTHOG_PERSONAL_API_KEY;
 const POSTHOG_PROJECT_ID = process.env.POSTHOG_PROJECT_ID;
@@ -246,7 +247,7 @@ export async function getWorkspaceAnalytics(
       prisma.task.count({
         where: {
           workspaceId,
-          dueDate: { lt: now },
+          dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: now },
           status: { notIn: ["completed", "cancelled"] },
         },
       }),

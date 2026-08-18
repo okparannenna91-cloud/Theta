@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { MIN_OVERDUE_DUE_DATE } from "@/lib/overdue";
 
 export interface MCPTool {
   name: string;
@@ -637,7 +638,7 @@ export class ThetaMCPServer {
 
     const where: Record<string, unknown> = {
       workspaceId: this.workspaceId,
-      dueDate: { lt: new Date() },
+      dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: new Date() },
       status: { notIn: ["done", "cancelled"] },
     };
     if (projectId) where.projectId = projectId;
