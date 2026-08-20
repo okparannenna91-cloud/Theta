@@ -110,9 +110,9 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
       }
     },
     update_task: {
-      description: 'Update an existing task.',
-      inputSchema: z.object({ taskId: z.string(), status: z.string().optional(), priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(), title: z.string().optional(), assigneeId: z.string().optional() }),
-      execute: async ({ taskId, status, priority, title, assigneeId }: Record<string, unknown>) => {
+      description: 'Update an existing task. taskId must be a real task id (from list_tasks or search_tasks_and_projects) — never guess or invent it. dueDate accepts an ISO date (e.g. "2026-08-21").',
+      inputSchema: z.object({ taskId: z.string(), status: z.string().optional(), priority: z.enum(['low', 'medium', 'high', 'urgent']).optional(), title: z.string().optional(), assigneeId: z.string().optional(), dueDate: z.string().optional() }),
+      execute: async ({ taskId, status, priority, title, assigneeId, dueDate }: Record<string, unknown>) => {
         await enforce(ctx, "write", "task");
         const existingTask = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true, parentId: true, workspaceId: true, status: true } });
         if (!existingTask) return { error: "Task not found." };
@@ -122,22 +122,42 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
 
         const updateData: {
           status?: string;
+          statusId?: string;
           priority?: string;
           title?: string;
           userId?: string;
+          dueDate?: Date;
           completedAt?: Date | null;
           progress?: number;
         } = {};
-        if (status) updateData.status = status as string;
         if (priority) updateData.priority = priority as string;
         if (title) updateData.title = title as string;
         if (assigneeId) updateData.userId = assigneeId as string;
+        if (dueDate) updateData.dueDate = new Date(dueDate as string);
+
+        // Resolve the requested status against the project's real Status rows
+        // (statuses are custom per workspace/project). Fall back to the raw
+        // string if no match so custom values are still allowed.
+        if (status) {
+          const requested = (status as string).trim();
+          const matched = await prisma.status.findFirst({
+            where: {
+              workspaceId,
+              projectId: existingTask.projectId,
+              name: { equals: requested, mode: "insensitive" },
+            },
+            select: { id: true, name: true, category: true },
+          });
+          updateData.statusId = matched?.id;
+          updateData.status = matched?.name ?? requested;
+        }
 
         // Completion detection (matching API route logic)
-        if (status) {
-          const completionKeywords = ['done', 'complete', 'finished', 'approved'];
-          const isNowCompleted = completionKeywords.some(kw => (status as string).toLowerCase().includes(kw));
-          const wasCompleted = completionKeywords.some(kw => (existingTask.status || '').toLowerCase().includes(kw));
+        if (updateData.status) {
+          const isNowCompleted = updateData.statusId
+            ? (await prisma.status.findUnique({ where: { id: updateData.statusId }, select: { category: true } }))?.category === "DONE"
+            : ['done', 'complete', 'finished', 'approved'].some(kw => updateData.status!.toLowerCase().includes(kw));
+          const wasCompleted = ['done', 'complete', 'finished', 'approved'].some(kw => (existingTask.status || '').toLowerCase().includes(kw));
           if (isNowCompleted && !wasCompleted) {
             updateData.completedAt = new Date();
             updateData.progress = 100;
@@ -161,7 +181,8 @@ export function buildTaskTools(ctx: ToolContext): ToolModule {
       description: 'Delete a task.',
       inputSchema: z.object({ taskId: z.string() }),
       execute: async ({ taskId }: Record<string, unknown>) => {
-        await requireToolApproval("delete_task", { taskId });
+        const approval = await requireToolApproval("delete_task", { taskId });
+        if (approval.status !== "ok") return approval;
         await enforce(ctx, "delete", "task");
         const existingTask = await prisma.task.findUnique({ where: { id: taskId as string }, select: { projectId: true, parentId: true, workspaceId: true } });
         if (!existingTask) return { error: "Task not found." };

@@ -11,13 +11,13 @@ export interface ExecutionPrinciple {
 }
 
 export const EXECUTION_PRINCIPLES: ExecutionPrinciple[] = [
-  { name: "Advisory Role", description: "Nova operates in an advisory capacity: it reasons, analyzes, and advises rather than executing workspace actions.", details: ["Cannot create, edit, delete, assign, schedule, or execute any workspace actions", "Can reason, analyze, explain, summarize, recommend, coach, and observe", "Guide users to use the Theta PM interface for any actions they need performed", "Never announce or mention this role, mode, or capability constraints in responses"] },
-  { name: "Understand Before Responding", description: "Internally reason about the user's true objective before responding.", details: ["What is the user's real objective?", "Is this a question or an action request?", "How can I help them without executing the action myself?"] },
+  { name: "Acting Copilot", description: "Flow³ is the user's copilot: it executes workspace actions through tools, not by instructing the user to click through the UI.", details: ["Create, edit, assign, schedule, and update workspace data when asked", "Use the right tool for the job; resolve entities (project, task, member) from real data before acting", "Confirm MEDIUM risk actions before executing; never attempt HIGH risk destructive actions", "Never announce or mention this role, mode, or capability constraints in responses"] },
+  { name: "Understand Before Acting", description: "Internally reason about the user's true objective before responding or acting.", details: ["What is the user's real objective?", "Is this a question or an action request?", "Which tools produce the evidence I need?"] },
   { name: "User Instructions Are Law", description: "Explicit user values always override inferred values.", details: ["Never overwrite explicit user instructions", "Infer only missing information"] },
-  { name: "Goal-Oriented Analysis", description: "Focus on the objective, not the command.", details: ["Think strategically about outcomes", "Recommend comprehensive plans for users to execute"] },
-  { name: "Autonomous Planning", description: "Generate comprehensive plans automatically when goals are described.", details: ["Generate Projects, Milestones, Tasks, Dependencies, Risks, Timeline", "Provide clear instructions for users to implement the plan"] },
-  { name: "Advisory Guidance", description: "Guide users through workflows instead of executing them directly.", details: ["Explain what tools/features to use", "Provide step-by-step instructions", "Surface relevant workspace data to inform decisions"] },
-  { name: "Proactive Intelligence", description: "Notice problems and surface useful insights.", details: ["Notice deadline risks, unassigned work, blocked tasks, sprint overload", "Recommend actions for users to take"] },
+  { name: "Goal-Oriented Execution", description: "Focus on the objective, not the command.", details: ["Think strategically about outcomes", "Break goals into concrete, verifiable actions"] },
+  { name: "Autonomous Planning", description: "Generate comprehensive plans automatically when goals are described.", details: ["Generate Projects, Milestones, Tasks, Dependencies, Risks, Timeline", "Present the plan and execute it after user confirmation"] },
+  { name: "Evidence-Based Responses", description: "Back every claim with real workspace data.", details: ["Call tools to load real tasks, projects, dates, and assignees", "Never invent projects, tasks, members, or counts"] },
+  { name: "Proactive Intelligence", description: "Notice problems and surface useful insights.", details: ["Notice deadline risks, unassigned work, blocked tasks, sprint overload", "Offer to act on insights; never act unprompted"] },
 ];
 
 export const CONFIRMATION_RULES: Record<ConfirmationLevel, string> = {
@@ -35,11 +35,21 @@ const PLANNING_KEYWORDS = ["plan", "strategy", "roadmap", "timeline", "milestone
 
 export function intentFromString(input: string): NovaIntent {
   const lower = input.toLowerCase();
-  const hasWord = (w: string) => new RegExp(`\\b${w}\\b`).test(lower);
+  // Normalize separators so tool names ("create_task") and hyphenated words
+  // ("in-progress") match the same keyword boundaries as plain words.
+  const normalized = lower.replace(/[^a-z0-9]+/g, " ");
+  const hasWord = (w: string) => new RegExp(`\\b${w}\\b`).test(normalized);
   if (NEGATION_PATTERNS.some(p => p.test(input))) return "READ";
   if (hasWord("delete") || hasWord("remove")) return "DELETE";
   if (hasWord("create") || hasWord("make") || hasWord("add")) return "CREATE";
-  if (hasWord("update") || hasWord("edit") || hasWord("modify")) return "UPDATE";
+  if (
+    hasWord("update") || hasWord("edit") || hasWord("modify") || hasWord("change") ||
+    hasWord("move") || hasWord("reschedule") || hasWord("postpone") || hasWord("extend") ||
+    hasWord("shorten") || hasWord("delay") || hasWord("advance") || hasWord("assign") ||
+    hasWord("reassign") || hasWord("unassign") || hasWord("mark") || hasWord("rename") ||
+    hasWord("transfer") || hasWord("archive") || hasWord("unarchive") || hasWord("complete") ||
+    hasWord("close") || hasWord("reopen") || hasWord("set")
+  ) return "UPDATE";
   if (hasWord("recommend") || hasWord("suggest") || hasWord("advise")) return "CONSULT";
   const isQuestion = QUESTION_PREFIXES.test(input);
   const hasGoal = GOAL_KEYWORDS.some(kw => lower.includes(kw));
@@ -47,7 +57,7 @@ export function intentFromString(input: string): NovaIntent {
   if (hasGoal && hasPlanning) return "PLAN";
   if (hasGoal) return "PLAN";
   if (hasPlanning && !isQuestion) return "PLAN";
-  if (hasWord("report") || hasWord("summarize") || hasWord("analyze")) return "REPORT";
+  if (hasWord("report") || hasWord("summarize") || hasWord("analyze") || hasWord("score") || hasWord("health") || hasWord("assess") || hasWord("evaluate")) return "REPORT";
   if (hasWord("search") || hasWord("find") || hasWord("lookup")) return "SEARCH";
   if (hasWord("automate") || hasWord("trigger")) return "AUTOMATE";
   if (hasWord("import")) return "IMPORT";

@@ -165,7 +165,7 @@ vi.mock("@/lib/nova/proactive-intelligence", () => ({
 
 vi.mock("@/lib/nova/response-formatter", () => ({
   ResponseFormatter: {
-    format: vi.fn((_route: string, response: string) => response),
+    format: vi.fn((_response: string, _formatType: string) => ({ content: _response })),
   },
 }));
 

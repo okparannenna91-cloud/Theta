@@ -107,7 +107,8 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
       description: 'Delete a document.',
       inputSchema: z.object({ id: z.string() }),
       execute: async ({ id }: Record<string, unknown>) => {
-        await requireToolApproval("delete_document", { id });
+        const approval = await requireToolApproval("delete_document", { id });
+        if (approval.status !== "ok") return approval;
         await enforce(ctx, "delete", "document");
         const doc = await prisma.document.findFirst({ where: { id: id as string, workspaceId }, select: { id: true, projectId: true } });
         if (!doc) return { success: false, message: "Document not found." };

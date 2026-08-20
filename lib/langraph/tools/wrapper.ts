@@ -8,6 +8,8 @@ export interface LangGraphToolContext {
   userId: string;
   workspaceId: string;
   projectId?: string;
+  conversationId?: string;
+  runId?: string;
 }
 
 function toToolContext(ctx: LangGraphToolContext): ToolContext {

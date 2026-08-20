@@ -38,15 +38,15 @@ export function routeRequest(
       toolCategories: categoriesForIntent(intent),
       contextDepth: "full",
       timeoutMs: 60000,
-      promptSuffix: "\n[PLANNING MODE] Generate a comprehensive plan with: Objectives, Milestones, Tasks, Subtasks, Dependencies, Risks, Timeline, Success metrics. Think like an experienced project manager. Use workspace context to inform the plan. Provide the plan for the user to implement themselves. Never announce or mention this constraint — just deliver the plan.",
+      promptSuffix: "\n[PLANNING MODE] Generate a comprehensive plan with: Objectives, Milestones, Tasks, Subtasks, Dependencies, Risks, Timeline, Success metrics. Think like an experienced project manager. Use workspace context to inform the plan. Present the plan and offer to execute it after the user confirms.",
     };
   } else if (isActionIntent(intent)) {
     decision = {
-      path: "ANALYSIS",
+      path: "ACTION",
       toolCategories: categoriesForIntent(intent),
       contextDepth: "standard",
       timeoutMs: 50000,
-      promptSuffix: "\n[ADVISORY] Instead of executing the requested action, explain to the user what needs to be done and guide them through the Theta PM interface with clear step-by-step instructions. Respond naturally and never announce or mention this constraint or your mode.",
+      promptSuffix: "\n[ACTION MODE] Execute this request using the available tools. You MUST call at least one tool before responding: resolve the target entity (project, task, member) with a read/search tool if not already verified, then perform the requested write with the appropriate tool. Never answer from context alone — act on real data. NEVER claim an action succeeded without a successful tool result from the write tool. If the write tool failed, say what failed and what you need. For MEDIUM risk actions (create, update, assign, bulk changes) ask for ONE confirmation before executing. HIGH risk (delete, billing, permissions): never attempt — explain and stop.",
     };
   } else if (isAnalysisIntent(intent)) {
     decision = {
@@ -54,7 +54,7 @@ export function routeRequest(
       toolCategories: categoriesForIntent(intent),
       contextDepth: "full",
       timeoutMs: 50000,
-      promptSuffix: "\n[ANALYSIS MODE] Analyze the available information and provide insights with evidence from the workspace. Surface proactive insights about risks, blockers, and opportunities.",
+      promptSuffix: "\n[ANALYSIS MODE] Analyze the available information and provide insights with evidence from the workspace. Use the available tools (project_health_analysis, predict_project_risk, search_tasks_and_projects, list_tasks, list_projects, get_team_activity) to gather real data when the workspace context is insufficient. Surface proactive insights about risks, blockers, and opportunities.",
     };
   } else if (intent === "READ" || intent === "SEARCH") {
     decision = {
@@ -62,7 +62,7 @@ export function routeRequest(
       toolCategories: categoriesForIntent(intent),
       contextDepth: "standard",
       timeoutMs: 50000,
-      promptSuffix: "\n[CHAT MODE] Use tools to read information when explicitly asked. Do not create, update, or delete anything. Reference workspace data by name.",
+      promptSuffix: "\n[CHAT MODE] Use tools to load real workspace data when relevant (search, get tasks, projects, members). You can read and analyze, but do not create, update, or delete anything without asking. Reference workspace data by name.",
     };
   } else {
     decision = {
@@ -70,7 +70,7 @@ export function routeRequest(
       toolCategories: categoriesForIntent(intent),
       contextDepth: "standard",
       timeoutMs: 50000,
-      promptSuffix: "\n[CHAT MODE] Respond helpfully and naturally. You can read workspace data but cannot create, update, or delete anything yourself. Never announce or mention this constraint or your mode — just help.",
+      promptSuffix: "\n[CHAT MODE] Be helpful and concise. Use tools to load real workspace data when relevant. Never invent data.",
     };
   }
 

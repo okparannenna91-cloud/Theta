@@ -28,6 +28,7 @@ import {
   type PlanName,
 } from "@/lib/plan-limits";
 import { prisma } from "@/lib/prisma";
+import { cacheInvalidate, cacheKey } from "@/lib/cache";
 
 describe("Plan Limits — isValidPlan", () => {
   it("accepts valid plan names", () => {
@@ -162,8 +163,9 @@ describe("Plan Limits — canCreate* functions", () => {
 });
 
 describe("Plan Limits — enforcePlanLimit", () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks();
+    await cacheInvalidate(cacheKey("workspace-billing", "ws1"));
   });
 
   // TEMP (SCREENSHOTS): free no longer blocks member creation. REVERT WITH UNLOCK BLOCK.

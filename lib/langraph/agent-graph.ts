@@ -6,8 +6,8 @@ import { buildLangGraphTools, type LangGraphToolContext } from "./tools";
 import { loadWorkspaceContext } from "./nodes/context-loader";
 import { loadMemory } from "./nodes/memory-loader";
 import { saveConversationMemory } from "./nodes/memory-saver";
-import { executeWithFallback } from "./nodes/provider-fallback";
 import { validateAndSanitize, optimizeResponse, runQualityGate } from "./nodes/output-validator";
+import { executeTool } from "./nodes/tool-executor";
 import { sanitizeUserInput } from "@/lib/nova/output-validator";
 import { routeRequest, type RouteDecision } from "@/lib/nova/intent-router";
 import { type NovaIntent } from "@/lib/nova/constitution/execution";
@@ -15,11 +15,25 @@ import { ParameterExtractor } from "@/lib/nova/parameter-extractor";
 import { ValidationEngine } from "@/lib/nova/validation-engine";
 import { ProactiveIntelligenceEngine } from "@/lib/nova/proactive-intelligence";
 import { ResponseFormatter } from "@/lib/nova/response-formatter";
-import { classifyComplexity, generatePlan, type ExecutionPlan } from "@/lib/nova/multi-step-planner";
 import { logger } from "@/lib/logger";
 
+const MAX_TOOL_ITERATIONS = 4;
+
+interface GraphMessage {
+  role: string;
+  content: string;
+  tool_call_id?: string;
+  tool_calls?: Array<{ name: string; args: Record<string, unknown>; id?: string }>;
+}
+
+interface PendingToolCall {
+  name: string;
+  args: Record<string, unknown>;
+  id: string;
+}
+
 const AgentState = Annotation.Root({
-  messages: Annotation<{ role: string; content: string }[]>({
+  messages: Annotation<GraphMessage[]>({
     reducer: (prev, next) => [...prev, ...next],
     default: () => [],
   }),
@@ -63,7 +77,7 @@ const AgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => "",
   }),
-  toolResults: Annotation<Array<{ toolName: string; result?: unknown; error?: string }>>({
+  toolResults: Annotation<Array<{ toolName: string; args?: Record<string, unknown>; result?: unknown; error?: string }>>({
     reducer: (prev, next) => [...prev, ...next],
     default: () => [],
   }),
@@ -83,11 +97,23 @@ const AgentState = Annotation.Root({
     reducer: (_, next) => next,
     default: () => null,
   }),
-  executionPlan: Annotation<ExecutionPlan | null>({
+  pendingToolCalls: Annotation<PendingToolCall[]>({
     reducer: (_, next) => next,
-    default: () => null,
+    default: () => [],
   }),
-  fastPathHandled: Annotation<boolean>({
+  loopCount: Annotation<number>({
+    reducer: (prev, next) => prev + next,
+    default: () => 0,
+  }),
+  toolRounds: Annotation<number>({
+    reducer: (prev, next) => prev + next,
+    default: () => 0,
+  }),
+  toolsExecutedThisPass: Annotation<boolean>({
+    reducer: (_, next) => next,
+    default: () => false,
+  }),
+  confirmationRequested: Annotation<boolean>({
     reducer: (_, next) => next,
     default: () => false,
   }),
@@ -99,7 +125,7 @@ const AgentState = Annotation.Root({
 
 type AgentStateType = typeof AgentState.State;
 
-// Node 1: classifyIntent — determine intent and route
+// Node 1: classifyIntent — determine route + model
 async function classifyIntent(state: AgentStateType): Promise<Partial<AgentStateType>> {
   const lastMessage = state.messages[state.messages.length - 1];
   const userContent = lastMessage?.content || "";
@@ -142,29 +168,31 @@ async function loadContext(state: AgentStateType): Promise<Partial<AgentStateTyp
 
   let memoryContext = "";
   if (loadedMemory.longTerm.length > 0) {
-    memoryContext = `[NOVA LONG-TERM MEMORY]\n${loadedMemory.longTerm.map(m => `- ${m.key}: ${sanitizeUserInput(m.value).substring(0, 200)}`).join("\n")}`;
+    memoryContext = `[FLOW³ LONG-TERM MEMORY]\n${loadedMemory.longTerm.map(m => `- ${m.key}: ${sanitizeUserInput(m.value).substring(0, 200)}`).join("\n")}`;
   }
 
   let ragContext = "";
-  try {
-    const { RAGPipeline } = await import("@/lib/nova/rag-pipeline");
-    const lastMsg = state.messages[state.messages.length - 1];
-    const userContent = lastMsg?.content || "";
-    const ragResults = await RAGPipeline.getContextForQuery(
-      state.toolContext.workspaceId,
-      userContent,
-      1500,
-    );
-    if (ragResults) {
-      ragContext = `[RELEVANT DOCUMENT CONTEXT]\n${ragResults}`;
-    }
-  } catch { /* RAG is best-effort */ }
+  if (process.env.RAG_ENABLED === "true") {
+    try {
+      const { RAGPipeline } = await import("@/lib/nova/rag-pipeline");
+      const lastMsg = state.messages[state.messages.length - 1];
+      const userContent = lastMsg?.content || "";
+      const ragResults = await RAGPipeline.getContextForQuery(
+        state.toolContext.workspaceId,
+        userContent,
+        1500,
+      );
+      if (ragResults) {
+        ragContext = `[RELEVANT DOCUMENT CONTEXT]\n${ragResults}`;
+      }
+    } catch { /* RAG is best-effort */ }
+  }
 
   let conversationContext = "";
   if (loadedMemory.shortTerm.length > 0) {
     const recentMessages = loadedMemory.shortTerm.slice(-10);
     const formattedHistory = recentMessages.map(m => {
-      const role = m.role === "user" ? "User" : "Nova";
+      const role = m.role === "user" ? "User" : "Flow³";
       const content = sanitizeUserInput(m.content).substring(0, 150);
       return `${role}: ${content}`;
     }).join("\n");
@@ -176,10 +204,7 @@ async function loadContext(state: AgentStateType): Promise<Partial<AgentStateTyp
   return { workspaceContext: (workspaceContext || "") + (ragContext ? "\n\n" + ragContext : ""), memoryContext, conversationContext };
 }
 
-// Node 3: loadMemory — merged into loadContext above for efficiency
-// (loadMemoryNode removed — was a no-op placeholder)
-
-// Node 4: evaluateRisk — validate action, extract params, load proactive insights
+// Node 3: evaluateRisk — validate action params, load proactive insights
 async function evaluateRisk(state: AgentStateType): Promise<Partial<AgentStateType>> {
   const userContent = state.messages[state.messages.length - 1]?.content || "";
   const extractedParams = ParameterExtractor.extract(userContent);
@@ -209,7 +234,9 @@ async function evaluateRisk(state: AgentStateType): Promise<Partial<AgentStateTy
         validationContext,
       );
 
-      if (!actionValidation.isValid || actionValidation.requiresConfirmation) {
+      // Only invalid actions return early (missing/invalid data the agent
+      // cannot resolve). Confirmation is handled at tool level (executeTool).
+      if (actionValidation && !actionValidation.isValid) {
         shouldReturn = true;
       }
     } catch {
@@ -218,7 +245,7 @@ async function evaluateRisk(state: AgentStateType): Promise<Partial<AgentStateTy
   }
 
   let proactiveInsights = null;
-  if (["ANALYSIS", "REPORT", "CHAT"].includes(state.route) && state.toolContext.workspaceId) {
+  if (state.route === "ANALYSIS" && state.toolContext.workspaceId) {
     try {
       proactiveInsights = await ProactiveIntelligenceEngine.analyzeWorkspace(state.toolContext.workspaceId);
     } catch {
@@ -231,45 +258,131 @@ async function evaluateRisk(state: AgentStateType): Promise<Partial<AgentStateTy
   return { extractedParams, actionValidation, proactiveInsights, shouldReturn };
 }
 
-// Node 5: routeToAgent — conditional: simple -> direct LLM, complex -> tool-calling
-async function routeToAgent(state: AgentStateType): Promise<Partial<AgentStateType>> {
-  if (state.route !== "ACTION" || !state.toolContext.workspaceId) {
+// Node 4: callModel — LLM inference; ACTION routes bind tools and may emit tool calls
+async function callModel(state: AgentStateType): Promise<Partial<AgentStateType>> {
+  const userContent = state.messages[state.messages.length - 1]?.content || "";
+  let model = getLangChainModel(state.routerConfig.provider, state.routerConfig.model);
+
+  // ACTION/ANALYSIS routes bind write+read tools; CHAT binds read-only tools
+  // so information queries ("show me overdue tasks") hit the real data
+  // instead of relying on injected context. After a confirmation request the
+  // model may only write the question (no tools bound).
+  const isActionRoute = (state.route === "ACTION" || state.route === "ANALYSIS") && !!state.toolContext.workspaceId && !state.confirmationRequested;
+  const isReadRoute = state.route === "CHAT" && !!state.toolContext.workspaceId && !state.confirmationRequested;
+  let toolNames: string[] = [];
+  if (isActionRoute || isReadRoute) {
+    try {
+      const { categoriesForIntent } = await import("@/lib/ai-tools/registry");
+      const categories = isActionRoute
+        ? categoriesForIntent(state.intent)
+        : categoriesForIntent("READ").filter((c) => c !== "MEMORY");
+      const tools = buildLangGraphTools(state.toolContext, categories);
+      toolNames = tools.map((t: any) => t.name || "unknown");
+      if (typeof (model as any).bindTools === "function") {
+        model = (model as any).bindTools(tools) as typeof model;
+      }
+    } catch (error) {
+      logger.warn("[Graph] callModel — tool binding failed, continuing without tools:", error);
+    }
+  }
+
+  const basePrompt = `${state.systemPrompt || "You are Flow³, Theta PM's AI copilot. You deeply understand the workspace and you both think and execute."}\nToday's date is ${new Date().toDateString()}.`;
+  const systemPrompt = [
+    basePrompt,
+    state.workspaceContext || "",
+    state.memoryContext || "",
+    state.conversationContext || "",
+    state.routeDecision?.promptSuffix || "",
+  ].filter(Boolean).join("\n\n");
+
+  const messages = [
+    new SystemMessage(systemPrompt),
+    ...state.messages.map((m) => {
+      if (m.role === "user") return new HumanMessage(m.content);
+      if (m.role === "assistant") {
+        return m.tool_calls?.length
+          ? new AIMessage({ content: m.content, tool_calls: m.tool_calls })
+          : new AIMessage(m.content);
+      }
+      if (m.role === "tool") return new ToolMessage(m.content, m.tool_call_id || "");
+      return new HumanMessage(m.content);
+    }),
+  ];
+
+  const response = await model.invoke(messages, { signal: state.signal });
+  let content = typeof response.content === "string" ? response.content : JSON.stringify(response.content);
+  const toolCalls = (response as any)?.tool_calls as Array<{ name: string; args: Record<string, unknown>; id?: string }> | undefined;
+
+  // Safety net: models sometimes return empty content as their final turn
+  // after executing tools. Synthesize a short summary from the last result
+  // so the user never receives a blank response.
+  if (!content.trim() && (!toolCalls || toolCalls.length === 0) && state.toolResults.length > 0) {
+    const last = state.toolResults[state.toolResults.length - 1];
+    const lastMsg = last.result && typeof last.result === "object"
+      ? ((last.result as any).message as string | undefined)
+      : undefined;
+    content = lastMsg ? `Done. ${lastMsg}` : `Done — executed ${last.toolName}.`;
+  }
+
+  logger.info("[Graph] callModel", { contentLength: content.length, toolCalls: toolCalls?.length ?? 0, tools: toolNames.length });
+
+  logger.info("[Graph] callModel", { contentLength: content.length, toolCalls: toolCalls?.length ?? 0, tools: toolNames.length });
+
+  const newMessages: GraphMessage[] = [...state.messages];
+  newMessages.push({ role: "assistant", content, tool_calls: toolCalls });
+
+  return {
+    // NOTE: the messages reducer APPENDS; only return NEW messages here,
+    // never a copy of state.messages (that would duplicate history and
+    // break the tool_calls <-> ToolMessage pairing).
+    messages: [{ role: "assistant", content, tool_calls: toolCalls }],
+    response: content,
+    pendingToolCalls: toolCalls?.length
+      ? toolCalls.map((tc) => ({ name: tc.name, args: tc.args ?? {}, id: tc.id || `${tc.name}-${Date.now()}` }))
+      : [],
+    loopCount: toolCalls?.length ? 1 : 0,
+    toolsExecutedThisPass: false,
+  };
+}
+
+// Node 5: toolExecutor — execute pending tool calls, feed results back to the model
+async function toolExecutor(state: AgentStateType): Promise<Partial<AgentStateType>> {
+  const calls = state.pendingToolCalls;
+  if (!calls || calls.length === 0) {
     return {};
   }
 
-  try {
-    const complexity = await classifyComplexity(
-      state.messages[state.messages.length - 1]?.content || "",
-      state.workspaceContext || "",
-    );
-    if (complexity.isComplex) {
-      const tools = buildLangGraphTools(state.toolContext);
-      const toolNames = tools.map((t: any) => t.name || "unknown");
-      const plan = await generatePlan(
-        state.messages[state.messages.length - 1]?.content || "",
-        state.workspaceContext || "",
-        toolNames,
-      );
-      if (plan.needsPlan && plan.steps.length > 0) {
-        logger.info("[Graph] routeToAgent — complex plan generated", { steps: plan.steps.length });
-        return { executionPlan: plan };
-      }
+  const lastUser = [...state.messages].reverse().find((m) => m.role === "user")?.content || "";
+  const toolMessages: GraphMessage[] = [];
+  const results: Array<{ toolName: string; args?: Record<string, unknown>; result?: unknown; error?: string }> = [];
+
+  for (const call of calls) {
+    const r = await executeTool(state.toolContext, call.name, call.args ?? {}, lastUser);
+    results.push({ toolName: call.name, args: call.args ?? {}, result: r.result, error: r.error });
+    toolMessages.push({
+      role: "tool",
+      content: r.success ? JSON.stringify(r.result ?? {}) : `Error: ${r.error}`,
+      tool_call_id: call.id,
+    });
+    if (r.success && typeof r.result === "object" && r.result !== null && (r.result as any).status === "confirmation_required") {
+      state.confirmationRequested = true;
     }
-  } catch {
-    // Planning failure — continue with simple path
   }
 
-  return {};
+  logger.info("[Graph] toolExecutor", { executed: calls.map((c) => c.name), confirmationRequested: state.confirmationRequested });
+
+  return {
+    // Only NEW messages — the reducer appends to existing state.
+    messages: toolMessages,
+    toolResults: results,
+    pendingToolCalls: [],
+    toolsExecutedThisPass: true,
+    toolRounds: 1,
+    confirmationRequested: state.confirmationRequested,
+  };
 }
 
-// Node 6: toolExecutor — execute tools from plan or direct action
-async function toolExecutor(state: AgentStateType): Promise<Partial<AgentStateType>> {
-  logger.info("[Graph] toolExecutor — Skipped, Nova is in observation mode");
-
-  return { toolResults: [], fastPathHandled: false };
-}
-
-// Node 7: qualityGate — validate, sanitize, optimize response
+// Node 6: qualityGate — validate, sanitize, optimize response
 async function qualityGate(state: AgentStateType): Promise<Partial<AgentStateType>> {
   if (!state.response) return {};
 
@@ -282,21 +395,17 @@ async function qualityGate(state: AgentStateType): Promise<Partial<AgentStateTyp
     conversationHistory: state.memoryContext,
   });
 
-  let finalResponse = qgResult.response;
-
-  // Re-execution of extracted tool calls is disabled in observation mode
-
   logger.info("[Graph] qualityGate", { passed: qgResult.passed, issues: qgResult.issues.length });
 
-  return { response: finalResponse };
+  return { response: qgResult.response };
 }
 
-// Node 8: saveMemory — persist conversation
+// Node 7: saveMemory — persist conversation
 async function saveMemoryNode(state: AgentStateType): Promise<Partial<AgentStateType>> {
   await saveConversationMemory({
     userId: state.toolContext.userId,
     workspaceId: state.toolContext.workspaceId,
-    conversationId: undefined,
+    conversationId: state.toolContext.conversationId,
     prompt: state.messages[state.messages.length - 1]?.content || "",
     response: state.response,
     toolResults: state.toolResults,
@@ -315,18 +424,34 @@ async function saveMemoryNode(state: AgentStateType): Promise<Partial<AgentState
 }
 
 // Conditional edges
-function routeAfterRisk(state: AgentStateType): "returnEarly" | "executeTools" | "callModel" {
-  if (state.shouldReturn) {
-    return "returnEarly";
+function routeAfterRisk(state: AgentStateType): "returnEarly" | "callModel" {
+  return state.shouldReturn ? "returnEarly" : "callModel";
+}
+
+function routeAfterModel(state: AgentStateType): "executeTools" | "finalize" {
+  // After a confirmation request, the model may only write the question.
+  if (state.confirmationRequested) {
+    return "finalize";
   }
-  return "executeTools";
+  return state.pendingToolCalls && state.pendingToolCalls.length > 0 ? "executeTools" : "finalize";
 }
 
-function routeAfterTools(state: AgentStateType): "callModel" {
-  return "callModel";
+function routeAfterTools(state: AgentStateType): "callModel" | "finalize" {
+  // A confirmation was requested — one final answering turn so the model
+  // writes the confirmation question (tools are unbound in that turn).
+  if (state.confirmationRequested) {
+    return "callModel";
+  }
+  // toolRounds counts only tool-EXECUTION rounds (toolExecutor +1 each).
+  // Allow MAX_TOOL_ITERATIONS rounds plus one final answering turn so the
+  // model can summarize the result of the last round.
+  if (state.toolsExecutedThisPass && state.toolRounds < MAX_TOOL_ITERATIONS + 1) {
+    return "callModel";
+  }
+  return "finalize";
 }
 
-// Return early node — sends validation/confirmation response
+// Return early node — validation failure response
 async function returnEarly(state: AgentStateType): Promise<Partial<AgentStateType>> {
   const response = state.actionValidation
     ? ValidationEngine.generateValidationMessage(state.actionValidation)
@@ -335,69 +460,28 @@ async function returnEarly(state: AgentStateType): Promise<Partial<AgentStateTyp
   return { response, shouldReturn: true };
 }
 
-// Call model node — LLM inference without tool binding (observation mode)
-async function callModel(state: AgentStateType): Promise<Partial<AgentStateType>> {
-  const userContent = state.messages[state.messages.length - 1]?.content || "";
-  const model = getLangChainModel(state.routerConfig.provider, state.routerConfig.model);
-
-  const OBSERVATION_MODE_INSTRUCTION = "\n\n**BEHAVIOR CONSTRAINT:** In this environment you cannot create, edit, delete, assign, schedule, or execute workspace actions — you reason, analyze, and advise. Keep this constraint internal: never announce it or mention your mode, capabilities, or status in responses. Respond naturally and conversationally. If the user asks you to perform an action, briefly explain how to do it in the Theta PM interface without framing it as a limitation.";
-
-  // Build system prompt
-  const basePrompt = state.systemPrompt || "You are Nova, the intelligent operating system of Theta PM.";
-  const systemPrompt = [
-    basePrompt,
-    OBSERVATION_MODE_INSTRUCTION,
-    state.workspaceContext || "",
-    state.memoryContext || "",
-    state.conversationContext || "",
-    state.routeDecision?.promptSuffix || "",
-  ].filter(Boolean).join("\n\n");
-
-  // Build action prompt
-  let actionPrompt = userContent;
-  if (state.route === "ANALYSIS") {
-    actionPrompt = `${userContent}\n\nAnalyze the available information and provide insights with evidence from the workspace.`;
-  }
-
-  const messages = [
-    new SystemMessage(systemPrompt),
-    ...state.messages.map((m) =>
-      m.role === "user"
-        ? new HumanMessage(m.content)
-        : m.role === "assistant"
-          ? new AIMessage(m.content)
-          : m.role === "tool"
-            ? new ToolMessage(m.content, (m as any).tool_call_id || "")
-            : new HumanMessage(m.content)
-    ),
-  ];
-
-  // Override last message with action prompt
-  messages[messages.length - 1] = new HumanMessage(actionPrompt);
-
-  const response = await model.invoke(messages, { signal: state.signal });
-  const content = typeof response.content === "string" ? response.content : JSON.stringify(response.content);
-
-  logger.info("[Graph] callModel", { contentLength: content.length });
-
-  const newMessages = [...state.messages];
-  newMessages.push({ role: "assistant", content });
-
-  return { messages: newMessages, response: content };
-}
-
 // Format response node
 async function formatResponse(state: AgentStateType): Promise<Partial<AgentStateType>> {
-  if (!state.response) return {};
+  // Safety net: never emit a blank response after tools ran — synthesize a
+  // summary from the last tool result.
+  let response = state.response;
+  if (!response?.trim() && state.toolResults.length > 0) {
+    const last = state.toolResults[state.toolResults.length - 1];
+    const lastMsg = last.result && typeof last.result === "object"
+      ? ((last.result as any).message as string | undefined)
+      : undefined;
+    response = lastMsg ? `Done. ${lastMsg}` : `Done — executed ${last.toolName}.`;
+  }
+  if (!response?.trim()) return {};
 
   try {
     const formatType = state.route === "ACTION" ? "action"
       : state.route === "ANALYSIS" ? "analysis"
       : "conversation";
 
-    const formatted = ResponseFormatter.format(state.response, formatType, {
+    const formatted = ResponseFormatter.format(response, formatType, {
       includeConfidence: formatType === "analysis",
-      includeProactive: !!state.proactiveInsights?.topRecommendation,
+      includeProactive: formatType === "analysis" && !!state.proactiveInsights?.topRecommendation,
       proactiveInsights: state.proactiveInsights
         ? ProactiveIntelligenceEngine.formatInsightsForDisplay(state.proactiveInsights)
         : undefined,
@@ -420,9 +504,8 @@ export function createNovaGraph() {
     .addNode("classifyIntent", classifyIntent)
     .addNode("loadContext", loadContext)
     .addNode("evaluateRisk", evaluateRisk)
-    .addNode("routeToAgent", routeToAgent)
-    .addNode("toolExecutor", toolExecutor)
     .addNode("callModel", callModel)
+    .addNode("toolExecutor", toolExecutor)
     .addNode("qualityGate", qualityGate)
     .addNode("formatResponse", formatResponse)
     .addNode("saveMemory", saveMemoryNode)
@@ -433,22 +516,27 @@ export function createNovaGraph() {
     .addEdge("classifyIntent", "loadContext")
     .addEdge("loadContext", "evaluateRisk")
 
-    // evaluateRisk -> conditional: returnEarly OR routeToAgent
+    // evaluateRisk -> conditional: returnEarly OR callModel
     .addConditionalEdges("evaluateRisk", routeAfterRisk, {
       returnEarly: "returnEarly",
-      executeTools: "routeToAgent",
+      callModel: "callModel",
     })
 
     // returnEarly -> saveMemory -> END
     .addEdge("returnEarly", "saveMemory")
     .addEdge("saveMemory", END)
 
-    // routeToAgent -> toolExecutor -> callModel
-    .addEdge("routeToAgent", "toolExecutor")
-    .addEdge("toolExecutor", "callModel")
+    // callModel -> conditional: tool calls -> toolExecutor, else finalize
+    .addConditionalEdges("callModel", routeAfterModel, {
+      executeTools: "toolExecutor",
+      finalize: "qualityGate",
+    })
 
-    // callModel -> qualityGate
-    .addEdge("callModel", "qualityGate")
+    // toolExecutor -> conditional: loop back to callModel with results, else finalize
+    .addConditionalEdges("toolExecutor", routeAfterTools, {
+      callModel: "callModel",
+      finalize: "qualityGate",
+    })
 
     // qualityGate -> formatResponse -> saveMemory -> END
     .addEdge("qualityGate", "formatResponse")
@@ -499,8 +587,11 @@ export async function runNovaGraph(input: NovaGraphInput): Promise<NovaGraphOutp
     extractedParams: undefined,
     actionValidation: null,
     proactiveInsights: null,
-    executionPlan: null,
-    fastPathHandled: false,
+    pendingToolCalls: [],
+    loopCount: 0,
+    toolRounds: 0,
+    toolsExecutedThisPass: false,
+    confirmationRequested: false,
     shouldReturn: false,
   };
 

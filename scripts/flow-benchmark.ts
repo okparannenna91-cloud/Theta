@@ -11,10 +11,10 @@
  * Requires a reachable DB and AI provider keys (loaded from .env.local).
  * Run from the repo root.
  */
+import "./env-loader.mjs";
+
 import path from "path";
 import fs from "fs";
-
-loadEnvFile(path.resolve(process.cwd(), ".env.local"));
 
 import { DecisionFramework } from "@/lib/nova/decision-framework";
 import { routeRequest } from "@/lib/nova/intent-router";
@@ -58,7 +58,7 @@ interface TaskRun {
   task: BenchmarkTask;
   status: "ok" | "error" | "blocked";
   response: string;
-  toolCalls: string[];
+  toolCalls: Array<{ toolName: string; args?: Record<string, unknown>; result?: unknown; error?: string }>;
   model: string;
   provider: string;
   durationMs: number;
@@ -79,28 +79,32 @@ function parseArgs(argv: string[]): Record<string, string> {
   return out;
 }
 
-function loadEnvFile(filePath: string): void {
-  if (!fs.existsSync(filePath)) {
-    console.warn(`[bench] No .env.local found at ${filePath} — using existing environment.`);
-    return;
-  }
-  const lines = fs.readFileSync(filePath, "utf8").split(/\r?\n/);
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line || line.startsWith("#")) continue;
-    const eq = line.indexOf("=");
-    if (eq === -1) continue;
-    const key = line.slice(0, eq).trim();
-    const value = line.slice(eq + 1).trim().replace(/^["']|["']$/g, "");
-    if (key && process.env[key] === undefined) {
-      process.env[key] = value;
-    }
-  }
-}
-
 function truncate(text: string, max = 600): string {
   if (text.length <= max) return text;
   return text.slice(0, max) + "…";
+}
+
+async function listUsersAndWorkspaces(): Promise<void> {
+  const { prisma } = await import("@/lib/prisma");
+  const users = await prisma.user.findMany({ select: { id: true, email: true, name: true } });
+  console.log(`\nUsers (${users.length}):`);
+  for (const u of users) {
+    console.log(`  ${u.id}  ${u.email ?? ""}  ${u.name ?? ""}`.trimEnd());
+  }
+  const memberships = await prisma.workspaceMember.findMany({ select: { userId: true, workspaceId: true, role: true } });
+  console.log(`\nMemberships (${memberships.length}):`);
+  for (const m of memberships) {
+    console.log(`  user=${m.userId}  workspace=${m.workspaceId}  role=${m.role}`);
+  }
+  const workspaces = await prisma.workspace.findMany({ select: { id: true, name: true } });
+  console.log(`\nWorkspaces (${workspaces.length}):`);
+  for (const w of workspaces) {
+    const [projects, tasks] = await Promise.all([
+      prisma.project.count({ where: { workspaceId: w.id } }),
+      prisma.task.count({ where: { workspaceId: w.id } }),
+    ]);
+    console.log(`  ${w.id}  ${w.name}  (projects=${projects}, tasks=${tasks})`);
+  }
 }
 
 function escapeMd(text: string): string {
@@ -123,7 +127,7 @@ function buildReport(runs: TaskRun[], startedAt: string, elapsedMs: number): str
   lines.push("|---|---|---|---|---|---|---|---|");
   for (const run of runs) {
     lines.push(
-      `| ${run.task.id} | ${run.task.category} | ${run.status} | ${escapeMd(run.model)} | ${escapeMd(run.provider)} | ${run.toolCalls.join(", ") || "—"} | ${run.durationMs}ms | [ ] |`
+      `| ${run.task.id} | ${run.task.category} | ${run.status} | ${escapeMd(run.model)} | ${escapeMd(run.provider)} | ${run.toolCalls.map((t) => t.toolName).join(", ") || "—"} | ${run.durationMs}ms | [ ] |`
     );
   }
   lines.push("", "## Per-task detail", "");
@@ -138,7 +142,13 @@ function buildReport(runs: TaskRun[], startedAt: string, elapsedMs: number): str
       } else {
         lines.push("**Actual response:**", "", "```", run.response, "```", "");
         if (run.toolCalls.length) {
-          lines.push(`**Tools called:** ${run.toolCalls.map((t) => `\`${t}\``).join(", ")}`, "");
+          lines.push(`**Tools called:** ${run.toolCalls.map((t) => `\`${t.toolName}\``).join(", ")}`, "");
+          for (const t of run.toolCalls) {
+            const argsMd = t.args ? escapeMd(JSON.stringify(t.args)) : "—";
+            const resultMd = t.result ? escapeMd(JSON.stringify(t.result)).substring(0, 400) : t.error ? `error: ${escapeMd(t.error)}` : "—";
+            lines.push(`- \`${t.toolName}\` args=\`${argsMd}\` result=\`${resultMd}\``);
+          }
+          lines.push("");
         }
       }
       lines.push(`**Model:** ${run.model} · **Provider:** ${run.provider} · **Duration:** ${run.durationMs}ms`, "");
@@ -157,16 +167,76 @@ function buildReport(runs: TaskRun[], startedAt: string, elapsedMs: number): str
   return lines.join("\n");
 }
 
+const RATE_LIMIT_RETRIES = 3;
+const RATE_LIMIT_BASE_DELAY_MS = 20000;
+const TASK_TIMEOUT_MS = 480000;
+
+function isRateLimitError(error: any): boolean {
+  const msg = (error?.message || "").toLowerCase();
+  return msg.includes("429") || msg.includes("too many requests") || msg.includes("quota exceeded") || msg.includes("rate limit");
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: NodeJS.Timeout;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`Task timed out after ${Math.round(ms / 1000)}s`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer)) as Promise<T>;
+}
+
+async function runTask(task: BenchmarkTask, userId: string, workspaceId: string): Promise<{ result: Awaited<ReturnType<typeof runNovaAgent>> | null; error?: string }> {
+  const decision = await DecisionFramework.evaluateAsync(task.prompt, { hasWorkspace: true, hasProject: false });
+  const routeDecision = routeRequest(task.prompt, decision.intent);
+
+  for (let attempt = 1; attempt <= RATE_LIMIT_RETRIES; attempt++) {
+    try {
+      const result = await withTimeout(
+        runNovaAgent(task.prompt, {
+          userId,
+          workspaceId,
+          intent: decision.intent,
+          routeDecision,
+        }),
+        TASK_TIMEOUT_MS
+      );
+      return { result };
+    } catch (error: any) {
+      if (isRateLimitError(error) && attempt < RATE_LIMIT_RETRIES) {
+        const delay = RATE_LIMIT_BASE_DELAY_MS * attempt;
+        console.log(`[bench] ${task.id} rate-limited — retrying in ${Math.round(delay / 1000)}s (attempt ${attempt}/${RATE_LIMIT_RETRIES})`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
+      }
+      return { result: null, error: error?.message || String(error) };
+    }
+  }
+  return { result: null, error: "Rate limit retries exhausted" };
+}
+
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+
+  if (args.list) {
+    await listUsersAndWorkspaces();
+    return;
+  }
+
   const userId = args.user;
   const workspaceId = args.workspace;
   const outPath = args.out ? path.resolve(process.cwd(), args.out) : path.resolve(process.cwd(), "Theta", "flow-benchmark-results.md");
   const filter = args.filter ? new RegExp(args.filter) : null;
+  const fresh = !!args.fresh;
 
   if (!userId || !workspaceId) {
-    console.error("Usage: npm run bench:flow -- --user <prisma-user-id> --workspace <workspace-id> [--out <file>] [--filter <regex>]");
+    console.error("Usage: npm run bench:flow -- --user <prisma-user-id> --workspace <workspace-id> [--out <file>] [--filter <regex>] [--fresh]");
+    console.error("       npm run bench:flow -- --list   # show users + workspaces");
     process.exit(1);
+  }
+
+  if (fresh) {
+    const { prisma } = await import("@/lib/prisma");
+    const deleted = await prisma.aiMemory.deleteMany({ where: { userId, workspaceId } });
+    console.log(`[bench] Fresh run: cleared ${deleted.count} memory rows for user ${userId} / workspace ${workspaceId}`);
   }
 
   const tasks = filter ? TASKS.filter((t) => filter.test(t.id)) : TASKS;
@@ -189,28 +259,18 @@ async function main(): Promise<void> {
       durationMs: 0,
     };
     try {
-      const decision = await DecisionFramework.evaluateAsync(task.prompt, {
-        hasWorkspace: true,
-        hasProject: false,
-      });
-      const routeDecision = routeRequest(task.prompt, decision.intent);
-
-      const result = await runNovaAgent(task.prompt, {
-        userId,
-        workspaceId,
-        intent: decision.intent,
-        routeDecision,
-      });
-
-      run.response = result.response;
-      run.model = result.model;
-      run.provider = result.provider;
-      run.toolCalls = result.toolResults.map((tr) => tr.toolName);
-      run.status = "ok";
-    } catch (error: any) {
-      run.status = "error";
-      run.error = error?.message || String(error);
-      console.error(`[bench] ${task.id} FAILED: ${run.error}`);
+      const { result, error } = await runTask(task, userId, workspaceId);
+      if (result) {
+        run.response = result.response;
+        run.model = result.model;
+        run.provider = result.provider;
+        run.toolCalls = result.toolResults.map((tr) => ({ toolName: tr.toolName, args: tr.args, result: tr.result, error: tr.error }));
+        run.status = "ok";
+      } else {
+        run.status = "error";
+        run.error = error;
+        console.error(`[bench] ${task.id} FAILED: ${run.error}`);
+      }
     } finally {
       run.durationMs = Date.now() - runStart;
       runs.push(run);

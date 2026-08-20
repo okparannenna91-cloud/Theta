@@ -15,7 +15,7 @@ export type TaskCategory = "chat" | "reasoning" | "retrieval" | "action" | "anal
 
 const MODEL_COSTS: Record<string, { input: number; output: number; tier: "low" | "medium" | "high" }> = {
   "gemini-2.5-flash": { input: 0.00015, output: 0.0006, tier: "low" },
-  "gemini-2.5-pro": { input: 0.00125, output: 0.005, tier: "medium" },
+  "gemini-3.1-pro-preview": { input: 0.00125, output: 0.005, tier: "medium" },
   "openai/gpt-4o": { input: 0.0025, output: 0.01, tier: "high" },
   "openai/gpt-4o-mini": { input: 0.00015, output: 0.0006, tier: "low" },
   "anthropic/claude-sonnet-4-20250514": { input: 0.003, output: 0.015, tier: "high" },
@@ -61,9 +61,9 @@ const CATEGORY_MODEL_MAP: Record<TaskCategory, { provider: RouterProvider; model
 };
 
 const COST_DOWNGRADE_MAP: Record<string, { provider: RouterProvider; model: string }> = {
-  "openai/gpt-4o": { provider: "gemini", model: "gemini-2.5-pro" },
-  "anthropic/claude-sonnet-4-20250514": { provider: "gemini", model: "gemini-2.5-pro" },
-  "gemini-2.5-pro": { provider: "gemini", model: "gemini-2.5-flash" },
+  "openai/gpt-4o": { provider: "gemini", model: "gemini-3.1-pro-preview" },
+  "anthropic/claude-sonnet-4-20250514": { provider: "gemini", model: "gemini-3.1-pro-preview" },
+  "gemini-3.1-pro-preview": { provider: "gemini", model: "gemini-2.5-flash" },
 };
 
 const FALLBACK_CONFIG: RouterConfig = {
@@ -100,11 +100,25 @@ async function getWorkspaceCostTier(workspaceId: string): Promise<"low" | "mediu
 }
 
 export async function routeModel(prompt: string, workspaceId?: string): Promise<RouterConfig> {
+  // Hard override for constrained accounts (e.g. exhausted free-tier quota):
+  // FORCE_MODEL=openrouter:openai/gpt-4o-mini
+  const force = process.env.FORCE_MODEL?.trim();
+  if (force && force.includes(":")) {
+    const [provider, ...rest] = force.split(":");
+    const model = rest.join(":");
+    if ((provider === "gemini" || provider === "openai" || provider === "openrouter" || provider === "cohere") && model) {
+      return { provider: provider as RouterProvider, model, reason: "FORCE_MODEL override", costTier: "low" };
+    }
+  }
+
   const category = classifyPrompt(prompt);
   const primary = CATEGORY_MODEL_MAP[category];
 
   let budgetTier: "low" | "medium" | "high" = "medium";
-  if (workspaceId) {
+  const envBudget = process.env.MODEL_BUDGET_TIER?.toLowerCase();
+  if (envBudget === "low" || envBudget === "medium" || envBudget === "high") {
+    budgetTier = envBudget;
+  } else if (workspaceId) {
     budgetTier = await getWorkspaceCostTier(workspaceId);
   }
 

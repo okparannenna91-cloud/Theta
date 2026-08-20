@@ -20,7 +20,7 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
       }
     },
     create_project: {
-      description: 'Create a new project.',
+      description: 'Create a new project. Only "name" is required — description, coverImage, color, and visibility are optional with sensible defaults. Call this immediately when the user asks to create a project; do not ask for optional fields.',
       inputSchema: z.object({
         name: z.string(),
         description: z.string().optional(),
@@ -44,7 +44,7 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
           },
         });
         await prisma.activity.create({ data: { action: "CREATED", entityType: "PROJECT", entityId: project.id, workspaceId, userId: user.id, projectId: project.id, metadata: JSON.parse(JSON.stringify({ source: "NOVA_AI", name })) } });
-        return { success: true, message: `Created project **${name}**` };
+        return { success: true, message: `Created project **${name}**`, projectId: project.id };
       }
     },
     update_project: {
@@ -62,7 +62,8 @@ export function buildProjectTools(ctx: ToolContext): ToolModule {
       description: 'Delete a project (Admin only).',
       inputSchema: z.object({ projectId: z.string() }),
       execute: async ({ projectId: id }: Record<string, unknown>) => {
-        await requireToolApproval("delete_project", { projectId: id });
+        const approval = await requireToolApproval("delete_project", { projectId: id });
+        if (approval.status !== "ok") return approval;
         await enforce(ctx, "delete", "project");
         const access = await canAccessProject(user.id, id as string, workspaceId);
         if (!access.hasAccess) return { error: "Access denied to this project." };

@@ -90,12 +90,20 @@ export class DecisionFramework {
     context?: { affectedEntityCount?: number; hasWorkspace?: boolean; hasProject?: boolean },
   ): Promise<DecisionResult> {
     const keywordIntent = intentFromString(prompt);
-    const llmIntent = await llmClassifyIntent(prompt, keywordIntent, {
-      hasWorkspace: context?.hasWorkspace ?? false,
-      hasProject: context?.hasProject ?? false,
-    });
-    const intent = llmIntent ?? keywordIntent;
-    logger.info("[DecisionFramework] Intent classified", { keywordIntent, llmIntent, finalIntent: intent });
+
+    // The LLM classifier costs an extra provider call per request. It is
+    // skipped by default (regex classification + computeDecision are used);
+    // set ENABLE_LLM_CLASSIFIER=true to opt in on accounts with quota headroom.
+    let intent = keywordIntent;
+    if (process.env.ENABLE_LLM_CLASSIFIER === "true") {
+      const llmIntent = await llmClassifyIntent(prompt, keywordIntent, {
+        hasWorkspace: context?.hasWorkspace ?? false,
+        hasProject: context?.hasProject ?? false,
+      });
+      if (llmIntent) intent = llmIntent;
+    }
+
+    logger.info("[DecisionFramework] Intent classified", { keywordIntent, finalIntent: intent });
     return computeDecision(intent, prompt, context);
   }
 

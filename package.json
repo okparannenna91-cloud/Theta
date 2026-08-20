@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
+    "bench:flow": "tsx scripts/flow-benchmark.ts",
     "postinstall": "node scripts/fix-vibe-core.cjs"
   },
   "dependencies": {

@@ -21,9 +21,13 @@ import { routeRequest, type RouteDecision } from "@/lib/nova/intent-router";
 import { logger } from "@/lib/logger";
 import {
   getPendingConfirmation,
+  isApprovalMessage,
+  isDenialMessage,
   resolveConfirmation,
   type PendingConfirmation,
 } from "@/lib/nova/confirmation";
+
+export { isApprovalMessage, isDenialMessage } from "@/lib/nova/confirmation";
 
 export const FLOW_MODELS = [
   { id: "flow-3", name: "Flow³", description: "Default Flow³ agent (model routed per intent)." },
@@ -187,17 +191,6 @@ export function extractConfirmationFromResult(toolResults: NovaAgentResult["tool
     }
   }
   return null;
-}
-
-const APPROVAL_RE = /^(yes|yep|yeah|approve|approved|confirm|confirmed|go ahead|proceed|do it|ok|okay|sure)\b/i;
-const DENIAL_RE = /^(no|nope|cancel|cancelled|deny|denied|don't|do not|stop|never mind)\b/i;
-
-export function isApprovalMessage(text: string): boolean {
-  return APPROVAL_RE.test(text.trim());
-}
-
-export function isDenialMessage(text: string): boolean {
-  return DENIAL_RE.test(text.trim());
 }
 
 /**

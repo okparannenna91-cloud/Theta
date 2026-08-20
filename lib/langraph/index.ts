@@ -28,7 +28,7 @@ export interface NovaAgentResult {
   route: string;
   provider: string;
   model: string;
-  toolResults: Array<{ toolName: string; result?: unknown; error?: string }>;
+  toolResults: Array<{ toolName: string; args?: Record<string, unknown>; result?: unknown; error?: string }>;
   durationMs: number;
 }
 
@@ -41,8 +41,14 @@ export async function runNovaAgent(prompt: string, options: NovaAgentOptions): P
 
   const result = await runNovaGraph({
     prompt,
-    systemPrompt: options.systemPrompt || "You are Nova, the intelligent operating system of Theta PM.",
-    ctx: { userId: options.userId, workspaceId: options.workspaceId, projectId: options.projectId },
+    systemPrompt: options.systemPrompt || "You are Flow³, Theta PM's AI copilot. You deeply understand the workspace and you both think and execute.",
+    ctx: {
+      userId: options.userId,
+      workspaceId: options.workspaceId,
+      projectId: options.projectId,
+      conversationId: options.conversationId,
+      runId: crypto.randomUUID(),
+    },
     intent: options.intent,
     routeDecision: options.routeDecision,
   });

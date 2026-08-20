@@ -207,3 +207,43 @@ P0 (Critical)	Production secrets in .env.local (all services compromised)	Prompt
 P1 (High)	Rate limiting broken on serverless; IDOR risks; no tests	Permission bypass potential; inconsistent confirmation enforcement; API key over-exposure; no tool call limits
 P2 (Medium)	Monolithic AI route; silent catch blocks; dead shard 4; sharding complexity; inconsistent DB access; any types	Naive risk classification; no tool timeouts; agent framework is facade; memory poisoning risk; context bloat; no streaming error recovery
 P3 (Low)	Hardcoded values; No migrations; Schema naming issues	Philosophy engine is superficial; Mem0 silent failures
+8. FLOW3 AGENT FIX SESSION (2026-08-19)
+
+8A. Fixed this session:
+- ACTION intents now route to path:"ACTION" with ACTION MODE suffix (was: ANALYSIS + advisory refusal text). Intent-router.ts suffixes rewritten for ACTION/ANALYSIS/CHAT/PLANNING.
+- intentFromString UPDATE keywords expanded (move, change, assign, reschedule, etc. now recognized).
+- messages duplication bug: nodes returned [...state.messages, new] while reducer appends -> history duplication -> OpenAI 400 "assistant message with 'tool_calls' must be followed by tool messages". Nodes now return only new messages.
+- Final-answer turn dropped after tool rounds: new toolRounds annotation; routeAfterTools -> toolRounds < MAX_TOOL_ITERATIONS + 1 (4 tool rounds + 1 answering turn).
+- Empty-content fallback in callModel ("Done - executed <tool>") when model returns empty content after tool rounds.
+- Tools now bound for ANALYSIS routes too (D4 health score used team_performance).
+- resolveToolByName added (lib/langraph/tools/index.ts): ai+service+RAG tools resolvable; service tools excluded when categories provided.
+- search_tasks_and_projects: case-insensitive + overdue:true option (dueDate not null, lt now, status notIn done/completed/cancelled).
+- update_task: dueDate added to zod schema (was silently stripped); create_project returns projectId in result so follow-up create_task can use the real id.
+- Status handling reworked per product decision: statuses are CUSTOM per workspace (Status model, @@map("statuses"), Task.statusId + customStatus relation). No hardcoded status map; update_task resolves requested status against the project's real Status rows (case-insensitive) and falls back to the raw string. Completion detection via Status.category === DONE when matched.
+- Observation-mode write block removed from lib/ai-tools wrapTool (was still blocking ALL write tools).
+- Env gates for quota resilience: ENABLE_LLM_CLASSIFIER (default off, skips LLM intent classification), RAG_ENABLED (default off, skips RAG), FORCE_MODEL=provider:model, MODEL_BUDGET_TIER (model-router.ts).
+- Today's date injected into system prompt in callModel.
+- plan-limits.test.ts: enforcePlanLimit caches workspace (cacheGetOrSet in lib/cache.ts) but tests never invalidated -> cross-test pollution (stale free/active ws1). Fixed by cacheInvalidate in beforeEach. Pre-existing failure, not Flow3-related.
+- nova-evaluation.test.ts: 6 routing tests asserted OLD observation-mode behavior (CREATE/UPDATE -> ANALYSIS). Updated to assert ACTION routing.
+
+8B. Benchmark status (Acme Digital Studio, gpt-4o-mini via OpenRouter):
+- Full 19-task run: all 19 completed without errors (baseline was 11/19 + 8 failures, zero tool calls).
+- Verified: B2 10x create_task real ids; B3 search->breakdown (asks confirmation); C1 update_task real id + Friday 2026-08-21; C4 create_dependency correct direction; D4 real health assessment (search + team_performance, LOW risk, 2 overdue); E1 create_project mirrors structure + projectId returned; E2 2 real overdue tasks moved to 2026-08-26 via update_task; B4/C3 correctly ask for missing member (no John/Sarah).
+- Known minor issues: A4 leaks a member id in response; C2 status strings are user's custom values; B3 asks confirmation instead of auto-breakdown; gpt-4o-mini occasionally passes a member id as projectId (recovers via list_tasks {}).
+- FULL SUITE GREEN: 521 passed, 1 skipped (26 files); tsc --noEmit clean.
+
+8C. Constraints:
+- Gemini free quota exhausted daily (20 req/day/model); resets midnight PT (unverified).
+- OpenRouter balance nearly exhausted: gpt-4o 402 (only 3521 tokens affordable); claude-3.5-haiku + gemini-2.0-flash-001 404 on OpenRouter. gpt-4o-mini ~.001/call is the only viable model.
+- Rerun command: npm run bench:flow -- --user 6a3fcbc46e54a1da9c76a8cd --workspace 6a7efa987888fa9e08feb2e3 --fresh [--filter "^regex$"]
+8D. PHASE 1 CLOSED (2026-08-20)
+- Two consecutive full 19/19 benchmark passes (2026-08-19T17:36Z, 2026-08-20T10:18Z) with all fixes verified; graded report at Theta/flow-benchmark-results.md (every task rubric avg >= 4.0, E2 latency-only at 3.86; no refusal/leak/hallucination).
+- Final fixes this round:
+  - intentFromString: normalize non-alphanumeric separators before keyword match (\bcreate\b never matched "create_task" because _ is a word char). Underlying cause of the risk gate never classifying tool-name prompts.
+  - Bulk gate: per-run write-tool invocation counter in executeTool (synchronous, before any await) + WRITE_TOOL_RE name prefix detection; 2nd+ invocation of same write tool -> confirmation_required. confirmationRequested state flag: toolExecutor stops further tool rounds, callModel un-binds tools, model writes ONE confirmation question. B2/C1/C2/E1 now ask before bulk writes deterministically.
+  - CHAT routes now bind read-only tools (categoriesForIntent READ minus MEMORY) so information queries hit real data.
+  - search_tasks_and_projects: query optional (overdue/projectId-only searches valid); overdue:true is task-scoped (no longer returns all projects, which A2 misread as "all behind schedule").
+  - Empty-response guard moved into formatResponse: never emit blank after tools ran (fixes A4 empty response on loop exhaustion).
+  - Benchmark per-task timeout raised to 480s; report grading via scripts/grade-report.ps1.
+- Known acceptances: B1 duplicate-project clarify (project exists); latency dimension dominated by gpt-4o-mini/OpenRouter speed (A1 51s, B2 60s, C1 64s, E1 135s, E2 91s); C2/C4 recovered cleanly from one malformed-id/duplicate-constraint error each.
+- Tests: nova-evaluation routing tests updated to ACTION-mode; plan-limits tests invalidate workspace-billing cache in beforeEach (cache pollution was pre-existing).

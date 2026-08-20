@@ -26,7 +26,8 @@ export function buildWorkspaceTools(ctx: ToolContext): ToolModule {
       description: 'Update workspace settings (Admin only).',
       inputSchema: z.object({ name: z.string().optional() }),
       execute: async ({ name }: Record<string, unknown>) => {
-        await requireToolApproval("update_workspace", { name });
+        const approval = await requireToolApproval("update_workspace", { name });
+        if (approval.status !== "ok") return approval;
         await enforce(ctx, "admin", "workspace");
         await prisma.workspace.update({ where: { id: workspaceId }, data: { ...(name ? { name: name as string } : {}) } });
         return { success: true, message: `Workspace updated to **${name}**` };

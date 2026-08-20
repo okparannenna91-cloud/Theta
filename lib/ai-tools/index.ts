@@ -58,7 +58,24 @@ export async function enforce(ctx: ToolContext, action: PermissionCheckAction, r
   await SecurityGuard.enforce({ userId: ctx.user.id, workspaceId: ctx.workspaceId, action, resourceType, projectId: extra?.projectId });
 }
 
-export async function requireToolApproval(toolName: string, params: Record<string, unknown>): Promise<void> {
+export type ToolApprovalResult =
+  | { status: "ok" }
+  | {
+      status: "confirmation_required";
+      toolName: string;
+      reason: string;
+      args: Record<string, unknown>;
+      intent: string;
+      riskLevel: string;
+    };
+
+/**
+ * Risk gate for write tools (Phase 1).
+ * HIGH risk (deletes): throws — never delegated to the AI.
+ * MEDIUM risk: returns a `confirmation_required` result so the caller stops
+ * and surfaces the confirmation instead of executing.
+ */
+export async function requireToolApproval(toolName: string, params: Record<string, unknown>): Promise<ToolApprovalResult> {
   const { DecisionFramework } = await import("@/lib/nova/decision-framework");
   const { CURRENT_STAGE } = await import("@/lib/nova/constitution/identity");
   const { isIntentAllowedAtStage, isToolAllowedAtStage } = await import("@/lib/nova/constitution/execution");
@@ -92,12 +109,16 @@ export async function requireToolApproval(toolName: string, params: Record<strin
     );
   }
   if (decision.requiresConfirmation) {
-    throw new Error(
-      `**ACTION PAUSED — CONFIRMATION REQUESTED**\n\n` +
-      `The "${toolName}" tool is classified as **MEDIUM RISK** (${decision.intent} action). ` +
-      `Please confirm before proceeding.`
-    );
+    return {
+      status: "confirmation_required",
+      toolName,
+      reason: `The "${toolName}" tool (${decision.intent}) requires your confirmation before proceeding.`,
+      args: params,
+      intent: decision.intent,
+      riskLevel: decision.riskLevel,
+    };
   }
+  return { status: "ok" };
 }
 
 const PER_TOOL_RATE_LIMIT = 10;
@@ -133,21 +154,6 @@ export function buildTools(ctx: ToolContext, categories?: ToolCategory[]) {
 
   function wrapTool(toolName: string, execute: ToolFunction): ToolFunction {
     return async (args: Record<string, unknown>) => {
-      if (isWriteTool(toolName)) {
-        telemetry.trackToolExecution({
-          userId: user.id,
-          workspaceId,
-          toolName,
-          success: false,
-          durationMs: 0,
-          errorMessage: "Nova is in observation mode — write tools are disabled",
-        });
-        return {
-          success: false,
-          message: null,
-          error: "Nova is currently in observation mode and cannot execute workspace actions. I can explain what needs to be done, but you'll need to perform the action through the Theta PM interface.",
-        };
-      }
       const limited = await isToolRateLimited(user.id, toolName);
       if (limited) {
         return { error: `Rate limit exceeded for tool: ${toolName}. Max ${PER_TOOL_RATE_LIMIT} calls per ${PER_TOOL_WINDOW_SECONDS}s.` } as Record<string, unknown>;

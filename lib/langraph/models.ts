@@ -19,11 +19,12 @@ function getModelInstance(provider: RouterProvider, model: string): BaseChatMode
             baseURL: "https://openrouter.ai/api/v1",
             defaultHeaders: {
               "HTTP-Referer": "https://thetapm.site",
-              "X-Title": "Nova AI",
+              "X-Title": "Flow³",
             },
           },
           temperature: 0.7,
           maxTokens: 4096,
+          maxRetries: 2,
         });
         break;
 
@@ -33,6 +34,7 @@ function getModelInstance(provider: RouterProvider, model: string): BaseChatMode
           apiKey: process.env.OPENAI_API_KEY,
           temperature: 0.7,
           maxTokens: 4096,
+          maxRetries: 2,
         });
         break;
 
@@ -42,6 +44,7 @@ function getModelInstance(provider: RouterProvider, model: string): BaseChatMode
           apiKey: process.env.GEMINI_API_KEY,
           temperature: 0.7,
           maxOutputTokens: 4096,
+          maxRetries: 2,
         });
         break;
 
@@ -50,6 +53,7 @@ function getModelInstance(provider: RouterProvider, model: string): BaseChatMode
           model,
           apiKey: process.env.COHERE_API_KEY,
           temperature: 0.7,
+          maxRetries: 2,
         });
         break;
 
