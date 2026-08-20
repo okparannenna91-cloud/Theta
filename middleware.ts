@@ -13,6 +13,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/user/preferences(.*)',
   '/api/webhooks(.*)', // Clerk webhook: signed via Svix, must bypass session auth
   '/api/inngest(.*)', // Inngest Cloud: signed via INNGEST_SIGNING_KEY, must bypass session auth
+  '/api/flow(.*)', // Flow³ bridge: server-to-server, Bearer FLOW_BRIDGE_SECRET (validated in-app), must bypass session auth
 ]);
 
 const isApiRoute = createRouteMatcher([
@@ -46,8 +47,11 @@ export default clerkMiddleware(async (auth, req) => {
   // burst budget. Reads get a very high limit — a single dialog/view load
   // fires many GETs and low limits break normal usage.
   // Webhook routes are excluded: Clerk signs them and delivers from shared IPs.
+  // Flow³ bridge routes are excluded: the bridge rate-limits per email (20/min)
+  // and LibreChat calls from a shared server IP.
   const isWebhookRoute = req.nextUrl.pathname.startsWith("/api/webhooks");
-  if (isApiRoute(req) && !isWebhookRoute) {
+  const isFlowBridgeRoute = req.nextUrl.pathname.startsWith("/api/flow");
+  if (isApiRoute(req) && !isWebhookRoute && !isFlowBridgeRoute) {
     const ip = req.ip || req.headers.get('x-forwarded-for') || '127.0.0.1';
     const method = req.method || 'GET';
     const isWrite = method === 'POST' || method === 'PATCH' || method === 'PUT' || method === 'DELETE';

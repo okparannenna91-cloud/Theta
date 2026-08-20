@@ -3,9 +3,8 @@
 # which executes the LangGraph agent. LibreChat agents/MCP are NOT enabled.
 #
 # Docs: https://www.librechat.ai/docs/configuration/librechat_yaml
-# NOTE: verify key names against the pinned LibreChat version during the
-# Phase 2 spike (custom endpoint options have changed between versions).
-version: 1.3.4
+# Config version matches LibreChat v0.8.7 (pinned image in docker-compose.yml).
+version: 1.3.13
 
 cache: true
 
@@ -19,6 +18,13 @@ endpoints:
     - name: Flow3
       apiKey: ${FLOW_BRIDGE_SECRET}
       baseURL: https://thetapm.site/api/flow
+      # Identity + conversation continuity via headers (supported since v0.8.x:
+      # values resolve ${ENV}, {{LIBRECHAT_USER_*}} and {{LIBRECHAT_BODY_*}}).
+      # addUser:true below is a fallback in case this version drops the header
+      # placeholders; the bridge accepts either source.
+      headers:
+        X-Flow-User: '{{LIBRECHAT_USER_EMAIL}}'
+        X-Flow-Conversation-Id: '{{LIBRECHAT_BODY_CONVERSATIONID}}'
       models:
         flow-3:
           supportsCompletion: false

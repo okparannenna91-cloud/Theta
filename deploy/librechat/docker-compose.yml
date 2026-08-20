@@ -1,6 +1,9 @@
 services:
   api:
-    image: ghcr.io/danny-avila/librechat:latest
+    # Pinned to the last stable numbered release (config v1.3.13).
+    # Do NOT float to :latest — custom endpoint options (headers, addUser,
+    # dropParams) drift between versions and silently break the bridge.
+    image: ghcr.io/danny-avila/librechat:v0.8.7
     restart: always
     ports:
       - "3080:3080"

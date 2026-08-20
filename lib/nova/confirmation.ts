@@ -93,9 +93,12 @@ export async function requestConfirmation(input: RequestConfirmationInput): Prom
 /** Fetch the currently pending confirmation for a conversation (if any). */
 export async function getPendingConfirmation(conversationId: string): Promise<PendingConfirmation | null> {
   try {
-    const raw = (await redis.get(keyFor(conversationId))) as string | null;
+    // NOTE: the Upstash REST client returns JSON-shaped values ALREADY parsed
+    // (res.json()), so `raw` may be an object — JSON.parse only when it's a string.
+    const raw = (await redis.get(keyFor(conversationId))) as string | object | null;
     if (!raw) return null;
-    const parsed = JSON.parse(raw) as PendingConfirmation;
+    const parsed =
+      typeof raw === "string" ? (JSON.parse(raw) as PendingConfirmation) : (raw as PendingConfirmation);
     if (!parsed.token || !parsed.toolName) return null;
     if (new Date(parsed.expiresAt).getTime() < Date.now()) {
       await clearConfirmation(conversationId);

@@ -139,10 +139,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Your request was blocked by security filters. Please rephrase." }, { status: 400 });
     }
 
+    const headerConversationId = req.headers.get("x-flow-conversation-id")?.trim() ?? "";
+    const bodyConversationId = typeof body.conversationId === "string" ? body.conversationId : "";
     const conversationId =
-      typeof body.conversationId === "string" && body.conversationId
-        ? body.conversationId
-        : await resolveConversationId(identity.email, sanitizedPrompt);
+      headerConversationId || bodyConversationId || (await resolveConversationId(identity.email, sanitizedPrompt));
 
     // Pending confirmation handling — the approval/denial never reaches the agent.
     const pending = await getPendingConfirmation(conversationId);

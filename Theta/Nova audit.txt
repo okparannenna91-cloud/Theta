@@ -247,3 +247,15 @@ P3 (Low)	Hardcoded values; No migrations; Schema naming issues	Philosophy engine
   - Benchmark per-task timeout raised to 480s; report grading via scripts/grade-report.ps1.
 - Known acceptances: B1 duplicate-project clarify (project exists); latency dimension dominated by gpt-4o-mini/OpenRouter speed (A1 51s, B2 60s, C1 64s, E1 135s, E2 91s); C2/C4 recovered cleanly from one malformed-id/duplicate-constraint error each.
 - Tests: nova-evaluation routing tests updated to ACTION-mode; plan-limits tests invalidate workspace-billing cache in beforeEach (cache pollution was pre-existing).
+8E. PHASE 2 SPIKE VERIFIED (2026-08-20)
+- Hardware blocker: Intel Pentium B960 has NO VT-x/SLAT - Docker Desktop/WSL2/Hyper-V cannot run on this machine (verified via systeminfo + Win32_Processor). Docker Desktop was installed but is unusable here; do not retry on this hardware.
+- Bridge verified instead via scripts/spike-bridge.ts (standalone server calling the real route handlers on localhost:3100, FORCE_MODEL=openrouter:openai/gpt-4o-mini):
+  - /api/flow/models: flow-3 + flow-3-fast; 401 without/with-wrong FLOW_BRIDGE_SECRET.
+  - Read question -> real data; single write executes; bulk write -> flow_confirm card (token+args).
+  - Approve -> executes exact gated action (task Gamma actually created, verified in DB + Activity). Cancel -> no write, pending cleared. Unrelated message while pending -> reminder reply.
+  - Rate limit 20/min/email: 21st request -> 429. Audit: Activity FLOW3_REQUEST rows with model/provider/duration/tools/confirmation.
+  - Identity: X-Flow-User header AND body user (addUser) both resolve. Continuity: body conversationId AND X-Flow-Conversation-Id header both work.
+- REAL BUG FIXED: getPendingConfirmation JSON.parse("[object Object]") crash - @upstash/redis REST returns JSON-shaped values ALREADY parsed (res.json()); JSON.parse always threw -> pending confirmations stored but never readable -> Approve/Cancel/reminder never worked via the bridge (silent, catch->null). Fixed with typeof guard in lib/nova/confirmation.ts. Unit tests missed it (they use string mocks).
+- Config: middleware.ts public matcher + rate-limit exclusion for /api/flow; librechat.yaml v1.3.13 (matches pinned v0.8.7) with X-Flow-User/X-Flow-Conversation-Id header templates + addUser fallback; docker-compose image pinned ghcr.io/danny-avila/librechat:v0.8.7.
+- Env: FLOW_BRIDGE_ENABLED=true + FLOW_BRIDGE_SECRET set in .env.local and deploy/librechat/.env (same value). Vercel env vars still needed for production bridge.
+- Remaining: real LibreChat UI verification (needs a machine with virtualization or a VPS) - resolveConversationId fallback stays until then. Spike tasks cleaned from DB.

@@ -28,14 +28,24 @@ stay `Nova*`/`nova:` until Phase 4. Do NOT rename early.
 
 ## Phase 2 — Bridge spike (LibreChat → Theta)
 
-- [ ] Files created: `lib/nova/confirmation.ts`, `lib/nova/bridge.ts`, `app/api/flow/chat/route.ts`, `app/api/flow/models/route.ts`.
-- [ ] `.env`: `FLOW_BRIDGE_ENABLED=true`, `FLOW_BRIDGE_SECRET=<long random>` (same in `deploy/librechat/.env`).
-- [ ] `middleware.ts` — add `/api/flow(.*)` to the public matcher (Clerk must NOT protect bridge routes).
-- [ ] `deploy/librechat/` — `docker compose up -d`; verify LibreChat version-pinned keys in `librechat.yaml` (custom endpoint options moved between versions: `addUser`, `dropParams`, `titleConvo`).
-- [ ] Spike checks (see `deploy/librechat/README.md`): models list, read question, write → `flow_confirm` card, "Approve" round-trip executes, "Cancel" does nothing.
-- [ ] Verify LibreChat actually sends `conversationId` → if yes, delete the `resolveConversationId` fallback in `app/api/flow/chat/route.ts`.
-- [ ] Verify `addUser: true` sends the email → if not, switch endpoint to `X-Flow-User: {{LIBRECHAT_USER_EMAIL}}` header.
-- [ ] `tests/flow-bridge.test.ts` — `npx vitest run tests/flow-bridge.test.ts` green.
+- [x] Files created: `lib/nova/confirmation.ts`, `lib/nova/bridge.ts`, `app/api/flow/chat/route.ts`, `app/api/flow/models/route.ts`.
+- [x] `.env`: `FLOW_BRIDGE_ENABLED=true`, `FLOW_BRIDGE_SECRET=<long random>` (same in `deploy/librechat/.env`). Set in `.env.local` (local) + `deploy/librechat/.env`; still needs Vercel env vars for production.
+- [x] `middleware.ts` — add `/api/flow(.*)` to the public matcher (Clerk must NOT protect bridge routes). Also excluded from the middleware IP rate limiter (bridge rate-limits per email at 20/min; LibreChat is a shared server IP).
+- [x] `deploy/librechat/` — image pinned to `ghcr.io/danny-avila/librechat:v0.8.7` (config v1.3.13), `librechat.yaml` updated with `X-Flow-User` + `X-Flow-Conversation-Id` header templates, `addUser: true` kept as fallback. Docker Desktop could NOT be used on this machine (Intel Pentium B960 — no VT-x/SLAT virtualization; Docker/WSL2/Hyper-V physically impossible). Verified the bridge via a standalone server (`scripts/spike-bridge.ts`) instead — same OpenAI-compatible protocol LibreChat uses.
+- [x] Spike checks (verified via curl against the real route handlers):
+  - Models list returns `flow-3`, `flow-3-fast`; bad/missing Bearer → 401.
+  - Read question → real tool-backed answer (projects listed).
+  - Single write → executes directly (by design).
+  - Bulk write → `flow_confirm` tool-call card (token + reason + args).
+  - "Approve" → executes the exact gated action (verified in DB).
+  - "Cancel" → no write, pending cleared.
+  - Unrelated message while pending → reminder ("There is an action awaiting your confirmation…").
+  - Rate limit: 21st request in a minute → 429.
+  - Audit: `Activity` rows `action: FLOW3_REQUEST` with model/provider/duration/tools/confirmation metadata.
+  - SSE pseudo-streaming chunks work; `X-Flow-User` header and body `user` (addUser) both resolve identity; `conversationId` body field and `X-Flow-Conversation-Id` header both drive continuity.
+- [x] FOUND + FIXED (real bug): `getPendingConfirmation` crashed with `"[object Object]" is not valid JSON` — the Upstash REST client returns JSON-shaped values already parsed (`res.json()`), so `JSON.parse(raw)` always threw → pending confirmations were stored but NEVER readable → Approve/Cancel/reminder never worked through the bridge. Fixed with a typeof guard in `lib/nova/confirmation.ts`.
+- [ ] Verify LibreChat actually sends `conversationId` / `addUser` email — BLOCKED (no Docker on this machine). Bridge accepts body `conversationId`, `X-Flow-Conversation-Id` header, body `user`, and `X-Flow-User` header, so all LibreChat variants are covered; the `resolveConversationId` fallback stays until a real LibreChat run confirms the body/header fields.
+- [x] `tests/flow-bridge.test.ts` — `npx vitest run tests/flow-bridge.test.ts` green (23/23, 2026-08-20).
 
 ## Phase 3 — Productionize the bridge
 
