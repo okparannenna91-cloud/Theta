@@ -24,6 +24,7 @@ import {
      Blocks,
      ChevronsLeft,
      ChevronsRight,
+     Sparkles,
    } from "lucide-react";
 import { UserButton } from "@clerk/nextjs";
 import { useUser } from "@clerk/nextjs";
@@ -32,12 +33,14 @@ import { useI18n } from "@/lib/i18n";
 import { Logo } from "@/components/ui/logo";
 import { useQuery } from "@tanstack/react-query";
 
-function NavItem({ href, icon: Icon, label, active, onClick, collapsed }: { href: string; icon?: any; label: string; active?: boolean; onClick?: () => void; collapsed?: boolean }) {
+function NavItem({ href, icon: Icon, label, active, onClick, collapsed, external }: { href: string; icon?: any; label: string; active?: boolean; onClick?: () => void; collapsed?: boolean; external?: boolean }) {
   return (
     <Link
       href={href}
       onClick={onClick}
       title={collapsed ? label : undefined}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noopener noreferrer" : undefined}
       className={cn(
         "flex items-center gap-3 px-3 py-1.5 rounded-md text-sm transition-colors relative group",
         collapsed && "justify-center px-0",
@@ -271,6 +274,7 @@ export const Sidebar = memo(function Sidebar() {
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={isActive("/dashboard")} onClick={closeMobile} collapsed={!expanded} />
           <NavItem href="/my-tasks" icon={CheckSquare} label="My Tasks" active={isActive("/my-tasks")} onClick={closeMobile} collapsed={!expanded} />
+          <NavItem href="https://chat.thetapm.site" icon={Sparkles} label="Flow³ AI" active={false} onClick={closeMobile} collapsed={!expanded} external />
           <div>
             <button
               onClick={() => { if (!expanded) { router.push("/inbox?tab=all"); } else { toggleInbox(); } }}

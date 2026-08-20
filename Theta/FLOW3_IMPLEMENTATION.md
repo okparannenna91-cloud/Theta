@@ -1,9 +1,9 @@
 # Flow³ Implementation Checklist
 
-Rename of the AI copilot: **Nova → Flow³**. LibreChat = chat UI shell; Theta's
-LangGraph agent = the only brain. Bridge = OpenAI-compatible endpoint inside
-Theta. Implement strictly in this order (ChatGPT review). Check off each item
-only when verified.
+Rename of the AI copilot: **Nova → Flow³**. LobeChat (Vercel, no VPS) = chat UI
+shell; Theta's LangGraph agent = the only brain. Bridge = OpenAI-compatible
+endpoint inside Theta. Implement strictly in this order (ChatGPT review). Check
+off each item only when verified.
 
 **Persona rule:** visible user-facing text says "Flow³" NOW. Code identifiers
 stay `Nova*`/`nova:` until Phase 4. Do NOT rename early.
@@ -26,12 +26,12 @@ stay `Nova*`/`nova:` until Phase 4. Do NOT rename early.
 - [ ] `Theta/Nova audit.txt` — fold in: memory prompt-injection guard, context token budget, tool-level confirmation enforcement.
 - [ ] Re-run benchmark (Phase 0 same task set) → **2 consecutive passes** before moving on.
 
-## Phase 2 — Bridge spike (LibreChat → Theta)
+## Phase 2 — Bridge spike (shell → Theta)
 
 - [x] Files created: `lib/nova/confirmation.ts`, `lib/nova/bridge.ts`, `app/api/flow/chat/route.ts`, `app/api/flow/models/route.ts`.
-- [x] `.env`: `FLOW_BRIDGE_ENABLED=true`, `FLOW_BRIDGE_SECRET=<long random>` (same in `deploy/librechat/.env`). Set in `.env.local` (local) + `deploy/librechat/.env`; still needs Vercel env vars for production.
-- [x] `middleware.ts` — add `/api/flow(.*)` to the public matcher (Clerk must NOT protect bridge routes). Also excluded from the middleware IP rate limiter (bridge rate-limits per email at 20/min; LibreChat is a shared server IP).
-- [x] `deploy/librechat/` — image pinned to `ghcr.io/danny-avila/librechat:v0.8.7` (config v1.3.13), `librechat.yaml` updated with `X-Flow-User` + `X-Flow-Conversation-Id` header templates, `addUser: true` kept as fallback. Docker Desktop could NOT be used on this machine (Intel Pentium B960 — no VT-x/SLAT virtualization; Docker/WSL2/Hyper-V physically impossible). Verified the bridge via a standalone server (`scripts/spike-bridge.ts`) instead — same OpenAI-compatible protocol LibreChat uses.
+- [x] `.env`: `FLOW_BRIDGE_ENABLED=true`, `FLOW_BRIDGE_SECRET=<long random>` (same in `deploy/lobechat/.env.example`). Set in `.env.local` (local); Vercel env vars added in Phase 3.
+- [x] `middleware.ts` — add `/api/flow(.*)` to the public matcher (Clerk must NOT protect bridge routes). Also excluded from the middleware IP rate limiter (bridge rate-limits per email at 20/min; a chat shell is a shared server).
+- [x] UI shell plan changed: LibreChat (Docker) was first chosen, but this machine has no virtualization (Intel Pentium B960 — no VT-x/SLAT; Docker/WSL2/Hyper-V impossible) and there is no VPS budget. Replaced with **LobeChat deployed to Vercel** (free tier + Neon Postgres): same OpenAI-compatible protocol, plus per-user identity via a small fork patch (see Phase 3). `deploy/librechat/` was removed; bridge was verified via a standalone server (`scripts/spike-bridge.ts`) — same protocol LibreChat/LobeChat use.
 - [x] Spike checks (verified via curl against the real route handlers):
   - Models list returns `flow-3`, `flow-3-fast`; bad/missing Bearer → 401.
   - Read question → real tool-backed answer (projects listed).
@@ -44,17 +44,20 @@ stay `Nova*`/`nova:` until Phase 4. Do NOT rename early.
   - Audit: `Activity` rows `action: FLOW3_REQUEST` with model/provider/duration/tools/confirmation metadata.
   - SSE pseudo-streaming chunks work; `X-Flow-User` header and body `user` (addUser) both resolve identity; `conversationId` body field and `X-Flow-Conversation-Id` header both drive continuity.
 - [x] FOUND + FIXED (real bug): `getPendingConfirmation` crashed with `"[object Object]" is not valid JSON` — the Upstash REST client returns JSON-shaped values already parsed (`res.json()`), so `JSON.parse(raw)` always threw → pending confirmations were stored but NEVER readable → Approve/Cancel/reminder never worked through the bridge. Fixed with a typeof guard in `lib/nova/confirmation.ts`.
-- [ ] Verify LibreChat actually sends `conversationId` / `addUser` email — BLOCKED (no Docker on this machine). Bridge accepts body `conversationId`, `X-Flow-Conversation-Id` header, body `user`, and `X-Flow-User` header, so all LibreChat variants are covered; the `resolveConversationId` fallback stays until a real LibreChat run confirms the body/header fields.
+- [ ] Verify the shell actually sends `conversationId` / identity — BLOCKED until the Phase 3 deploy. Bridge accepts body `conversationId`, `X-Flow-Conversation-Id` header, body `user`, and `X-Flow-User` header, so all variants are covered; the `resolveConversationId` fallback stays until a real shell run confirms the body/header fields.
 - [x] `tests/flow-bridge.test.ts` — `npx vitest run tests/flow-bridge.test.ts` green (23/23, 2026-08-20).
 
-## Phase 3 — Productionize the bridge
+## Phase 3 — Productionize the bridge (LobeChat on Vercel, no VPS)
 
+- [x] Fork `lobehub/lobe-chat` → `okparannenna91-cloud/lobehub`, branch `flow3-identity` (pinned upstream `v2.2.14`).
+- [x] Identity patch (`deploy/lobechat/patches/0001-flow3-identity.patch`, 17 insertions / 1 deletion, verified `git apply` clean): the chat route (`src/app/(backend)/webapi/chat/[provider]/route.ts`) sends the logged-in user's **email** as the body `user` for the provider named by `FLOW3_PROVIDER_ID` (default `flow3`) instead of LobeChat's internal UUID. This is the only change; the bridge already resolves email → Theta user + workspace (Phase 2 spike).
+- [x] Deploy kit: `deploy/lobechat/README.md` (import → Neon → env vars → domain → per-user provider setup → verification incl. two-user identity check) + `.env.example` (verified against v2.2.14 env names: `APP_URL`, `DATABASE_URL`, `AUTH_SECRET`, `AUTH_SSO_PROVIDERS`, `AUTH_DISABLE_EMAIL_PASSWORD`, `AUTH_ENABLE_MAGIC_LINK`).
+- [x] Theta sidebar: **Flow³ AI** nav item (`components/layout/sidebar.tsx`) opens `chat.thetapm.site` in a new tab — users switch between Theta pages and the chat.
+- [ ] Deploy (needs the user's Vercel + Neon accounts): import fork branch → set env vars → domain → per-user provider config. Then run the two-user identity check + full benchmark (Phase 5).
+- [ ] Vercel env on Theta: `FLOW_BRIDGE_ENABLED=true`, `FLOW_BRIDGE_SECRET=<same value>` (done with the deploy).
 - [ ] Streaming: replace pseudo-streaming word chunks with real incremental SSE if acceptable (note: agent returns full text; v1 chunks are fine).
-- [ ] Abort propagation: LibreChat abort → agent cancellation (Inngest/Ably) or documented limitation.
+- [ ] Abort propagation: shell abort → agent cancellation (Inngest/Ably) or documented limitation.
 - [ ] Confirmations: re-request pending confirmation after an unrelated user message (currently the reminder reply keeps it pending until approval/denial/expiry).
-- [ ] LibreChat auth: disable `ALLOW_REGISTRATION`, pre-create users, document password policy. Clerk SSO = later.
-- [ ] Abuse: per-email rate limit verified (20/min), audit rows (`FLOW3_REQUEST`) verified in Activity.
-- [ ] Re-run full benchmark through the LibreChat UI → **2 consecutive passes**.
 
 ## Phase 4 — Mechanical rename (LAST)
 
@@ -65,7 +68,7 @@ stay `Nova*`/`nova:` until Phase 4. Do NOT rename early.
 
 ## Phase 5 — Full-stack benchmark
 
-- [ ] Run ALL 18 benchmark tasks through the LibreChat UI on production config.
+- [ ] Run ALL 18 benchmark tasks through the LobeChat UI on production config.
 - [ ] Pass gate: no hallucination, no refusals, no internal leakage, confirmation round-trips work, rate limits hold.
 
 ---
@@ -80,10 +83,11 @@ stay `Nova*`/`nova:` until Phase 4. Do NOT rename early.
 | `lib/nova/bridge.ts` | created | OpenAI-compatible bridge (secret, identity, context, SSE, approvals) |
 | `app/api/flow/chat/route.ts` | created | bridge POST route (SSE chat.completions) |
 | `app/api/flow/models/route.ts` | created | GET /models |
-| `deploy/librechat/docker-compose.yml` | created | LibreChat + mongo |
-| `deploy/librechat/librechat.yaml` | created | custom endpoint → Theta bridge |
-| `deploy/librechat/.env.example` | created | LibreChat secrets template |
-| `deploy/librechat/README.md` | created | wiring + spike verification |
+| `deploy/lobechat/README.md` | created | LobeChat runbook (Vercel + Neon, no VPS) |
+| `deploy/lobechat/.env.example` | created | LobeChat env template (v2.2.14 names) |
+| `deploy/lobechat/patches/0001-flow3-identity.patch` | created | LobeChat identity patch (email as body `user`) |
+| `deploy/lobechat/setup.ps1` | created | clones fork + applies patch locally (sibling folder) |
+| `components/layout/sidebar.tsx` | edited (Phase 3) | Flow³ AI nav item → chat.thetapm.site |
 | `scripts/rename-nova-to-flow.mjs` | created | Phase 4 mechanical rename |
 | `tests/flow-bridge.test.ts` | created | bridge unit tests |
 | `.env.example` | edited | added `FLOW_BRIDGE_ENABLED`, `FLOW_BRIDGE_SECRET` |

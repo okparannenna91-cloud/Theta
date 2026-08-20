@@ -1,0 +1,45 @@
+diff --git a/src/app/(backend)/webapi/chat/[provider]/route.ts b/src/app/(backend)/webapi/chat/[provider]/route.ts
+index 4a6118f8..269875e9 100644
+--- a/src/app/(backend)/webapi/chat/[provider]/route.ts
++++ b/src/app/(backend)/webapi/chat/[provider]/route.ts
+@@ -1,8 +1,10 @@
+ import { type ChatCompletionErrorPayload } from '@lobechat/model-runtime';
+ import { AGENT_RUNTIME_ERROR_SET } from '@lobechat/model-runtime';
+ import { ChatErrorType } from '@lobechat/types';
++import { eq } from 'drizzle-orm';
+ 
+ import { checkAuth } from '@/app/(backend)/middleware/auth';
++import { users } from '@/database/schemas/user';
+ import { createTraceOptions, initModelRuntimeFromDB } from '@/server/modules/ModelRuntime';
+ import { type ChatStreamPayload } from '@/types/openai/chat';
+ import { createErrorResponse } from '@/utils/errorResponse';
+@@ -27,6 +29,20 @@ export const POST = checkAuth(async (req: Request, { params, userId, serverDB })
+ 
+     const data = (await req.json()) as ChatStreamPayload;
+ 
++    // Flow┬│ bridge identity: the Theta bridge resolves the user by EMAIL
++    // (X-Flow-User header or body `user` field). LobeChat's internal user id
++    // is a UUID, so for the Flow┬│ provider we send the user's email instead.
++    // Gate on FLOW3_PROVIDER_ID so other providers keep LobeChat's user id.
++    let chatUser = userId;
++    if (provider === (process.env.FLOW3_PROVIDER_ID || 'flow3')) {
++      const [flowUser] = await serverDB
++        .select({ email: users.email })
++        .from(users)
++        .where(eq(users.id, userId))
++        .limit(1);
++      if (flowUser?.email) chatUser = flowUser.email;
++    }
++
+     const tracePayload = getTracePayload(req);
+ 
+     let traceOptions = {};
+@@ -36,7 +52,7 @@ export const POST = checkAuth(async (req: Request, { params, userId, serverDB })
+     }
+ 
+     return await modelRuntime.chat(data, {
+-      user: userId,
++      user: chatUser,
+       ...traceOptions,
+       signal: req.signal,
+     });
