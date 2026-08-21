@@ -1,12 +1,11 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Menu, X, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Menu, Loader2 } from "lucide-react";
 import { HistoryRail, ConversationSummary } from "./history-rail";
 import { MessageBubble } from "./message-bubble";
 import { Composer } from "./composer";
-import { TaskTimeline, TimelineStep } from "./task-timeline";
+import { ThinkingBlock, ThinkingStep } from "./thinking-block";
 import { ConfirmationCard } from "./confirmation-card";
 
 interface ChatMessage {
@@ -23,13 +22,6 @@ interface PendingConfirmation {
   args: Record<string, unknown>;
 }
 
-const SUGGESTIONS = [
-  "Summarize my week",
-  "What tasks are at risk?",
-  "Draft a project status update",
-  "Which tasks are overdue?",
-];
-
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
@@ -41,7 +33,8 @@ export function Flow3ChatPanel() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isBooting, setIsBooting] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [steps, setSteps] = useState<TimelineStep[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [steps, setSteps] = useState<ThinkingStep[]>([]);
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null);
   const [railOpen, setRailOpen] = useState(false);
 
@@ -76,10 +69,11 @@ export function Flow3ChatPanel() {
       setRailOpen(false);
       setPendingConfirmation(null);
       setSteps([]);
+      setLoadError(null);
       setIsLoadingMessages(true);
       try {
         const res = await fetch(`/api/nova/conversations/${id}?messages=true`);
-        if (!res.ok) throw new Error("Failed to load");
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         setMessages(
           (data.messages || []).map((m: any) => ({
@@ -90,8 +84,9 @@ export function Flow3ChatPanel() {
           }))
         );
         scrollToBottom();
-      } catch {
+      } catch (err: any) {
         setMessages([]);
+        setLoadError("Couldn't load this conversation. Please try again.");
       } finally {
         setIsLoadingMessages(false);
       }
@@ -105,6 +100,7 @@ export function Flow3ChatPanel() {
     setMessages([]);
     setSteps([]);
     setPendingConfirmation(null);
+    setLoadError(null);
     setRailOpen(false);
   }, []);
 
@@ -144,6 +140,7 @@ export function Flow3ChatPanel() {
       setMessages((prev) => [...prev, userMsg, { id: assistantId, role: "assistant", content: "" }]);
       setIsStreaming(true);
       setPendingConfirmation(null);
+      setLoadError(null);
       setSteps([]);
 
       const controller = new AbortController();
@@ -185,24 +182,22 @@ export function Flow3ChatPanel() {
             }
             case "status":
             case "start": {
-              const label = data.message || (data.intent ? `Handling (${data.intent})` : "Working...");
+              const label = data.message || (data.intent ? `Handling (${data.intent})` : "Thinking...");
               setSteps((prev) => [
-                ...prev.map((s) => ({ ...s, status: "complete" as const, completedAt: Date.now() })),
+                ...prev.map((s) => ({ ...s, status: "complete" as const, completedAt: s.completedAt ?? Date.now() })),
                 {
                   id: makeId(),
-                  type: type === "start" ? "planning" : "thinking",
                   label,
                   detail: data.route ? `route: ${data.route}` : undefined,
                   status: "active",
                   startedAt: Date.now(),
                 },
               ]);
-              scrollToBottom();
               break;
             }
             case "token": {
               setSteps((prev) =>
-                prev.map((s) => ({ ...s, status: "complete" as const, completedAt: s.completedAt ?? Date.now() }))
+                prev.map((s) => ({ ...s, status: s.status === "error" ? "error" : "complete", completedAt: s.completedAt ?? Date.now() }))
               );
               setMessages((prev) =>
                 prev.map((m) => (m.id === assistantId ? { ...m, content: data.text ?? "" } : m))
@@ -224,6 +219,14 @@ export function Flow3ChatPanel() {
                 setMessages((prev) =>
                   prev.map((m) => (m.id === assistantId ? { ...m, content: data.response } : m))
                 );
+              }
+              if (data.title && activeIdRef.current) {
+                const cid = activeIdRef.current;
+                setConversations((prev) => {
+                  const exists = prev.some((c) => c.id === cid);
+                  const updated = prev.map((c) => (c.id === cid ? { ...c, title: data.title } : c));
+                  return exists ? updated : [{ id: cid, title: data.title, isPinned: false, lastMessageAt: new Date().toISOString(), createdAt: new Date().toISOString() }, ...updated];
+                });
               }
               break;
             }
@@ -275,7 +278,11 @@ export function Flow3ChatPanel() {
         }
       } finally {
         setSteps((prev) =>
-          prev.map((s) => ({ ...s, status: s.status === "error" ? "error" : "complete", completedAt: s.completedAt ?? Date.now() }))
+          prev.map((s) => ({
+            ...s,
+            status: s.status === "error" ? ("error" as const) : ("complete" as const),
+            completedAt: s.completedAt ?? Date.now(),
+          }))
         );
         setIsStreaming(false);
         abortRef.current = null;
@@ -288,7 +295,9 @@ export function Flow3ChatPanel() {
     abortRef.current?.abort();
   }, []);
 
-  const showEmptyState = messages.length === 0 && !isLoadingMessages && !isStreaming;
+  const isLoadingThread = isLoadingMessages || isBooting;
+  const lastMsg = messages[messages.length - 1];
+  const showThinking = steps.length > 0 && !pendingConfirmation && (!lastMsg || lastMsg.role !== "assistant" || isStreaming || !lastMsg.content);
 
   return (
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
@@ -324,7 +333,7 @@ export function Flow3ChatPanel() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b border-zinc-200 px-3 dark:border-zinc-800">
+        <header className="flex h-14 shrink-0 items-center gap-2.5 border-b border-zinc-200 px-4 dark:border-zinc-800">
           <button
             onClick={() => setRailOpen(true)}
             className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800 md:hidden"
@@ -332,9 +341,18 @@ export function Flow3ChatPanel() {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <h1 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100">Flow³</h1>
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-fuchsia-500 shadow-sm">
+            <span className="text-sm font-black leading-none text-white">F</span>
+          </div>
+          <h1 className="bg-gradient-to-r from-violet-600 to-fuchsia-500 bg-clip-text text-lg font-bold tracking-tight text-transparent dark:from-violet-400 dark:to-fuchsia-400">
+            Flow
+            <span className="align-super text-[11px] font-extrabold">3</span>
+          </h1>
+          <span className="rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-violet-600 dark:border-violet-800 dark:bg-violet-900/30 dark:text-violet-300">
+            Beta
+          </span>
           {isStreaming && (
-            <span className="flex items-center gap-1.5 text-xs text-violet-600 dark:text-violet-400">
+            <span className="ml-auto flex items-center gap-1.5 text-xs text-violet-500 dark:text-violet-400">
               <Loader2 className="h-3 w-3 animate-spin" />
               Working...
             </span>
@@ -342,60 +360,48 @@ export function Flow3ChatPanel() {
         </header>
 
         <div ref={scrollRef} className="flex-1 overflow-y-auto">
-          {showEmptyState ? (
-            <div className="flex h-full flex-col items-center justify-center px-6">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-500 shadow-lg">
-                <span className="text-2xl font-bold text-white">³</span>
+          <div className="mx-auto max-w-3xl space-y-5 px-4 py-6">
+            {isLoadingThread && messages.length === 0 && (
+              <div className="flex h-40 items-center justify-center">
+                <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
               </div>
-              <h2 className="mt-4 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
-                How can I help today?
-              </h2>
-              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                Ask about your projects, tasks, or anything in your workspace.
+            )}
+
+            {loadError && (
+              <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-600 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400">
+                {loadError}
               </p>
-              <div className="mt-6 grid w-full max-w-md grid-cols-1 gap-2 sm:grid-cols-2">
-                {SUGGESTIONS.map((s) => (
-                  <button
-                    key={s}
-                    onClick={() => send(s)}
-                    className="rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-left text-sm text-zinc-700 shadow-sm transition-colors hover:border-violet-300 hover:bg-violet-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-violet-600 dark:hover:bg-violet-900/20"
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <div className="mx-auto max-w-3xl space-y-4 px-4 py-6">
-              {isLoadingMessages && (
-                <div className="flex justify-center py-8">
-                  <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />
-                </div>
-              )}
-              {messages.map((m) => (
+            )}
+
+            {messages.map((m, i) => (
+              <React.Fragment key={m.id}>
+                {i === messages.length - 1 &&
+                  m.role === "assistant" &&
+                  showThinking && <ThinkingBlock steps={steps} isActive={isStreaming} />}
                 <MessageBubble
-                  key={m.id}
                   role={m.role}
                   content={m.content}
                   createdAt={m.createdAt}
-                  isStreaming={isStreaming && m.role === "assistant" && m.id === messages[messages.length - 1]?.id && !m.content}
+                  isStreaming={isStreaming && m.role === "assistant" && i === messages.length - 1 && !m.content}
                 />
-              ))}
-              {(steps.length > 0 || pendingConfirmation) && (
-                <TaskTimeline steps={steps} isStreaming={isStreaming} pendingConfirmation={pendingConfirmation} />
-              )}
-              {pendingConfirmation && (
-                <ConfirmationCard
-                  toolName={pendingConfirmation.toolName}
-                  reason={pendingConfirmation.reason}
-                  args={pendingConfirmation.args}
-                  isLoading={isStreaming}
-                  onApprove={() => send("Approve")}
-                  onDeny={() => send("Cancel")}
-                />
-              )}
-            </div>
-          )}
+              </React.Fragment>
+            ))}
+
+            {showThinking && (lastMsg?.role !== "assistant" || messages.length === 0) && (
+              <ThinkingBlock steps={steps} isActive={isStreaming} />
+            )}
+
+            {pendingConfirmation && (
+              <ConfirmationCard
+                toolName={pendingConfirmation.toolName}
+                reason={pendingConfirmation.reason}
+                args={pendingConfirmation.args}
+                isLoading={isStreaming}
+                onApprove={() => send("Approve")}
+                onDeny={() => send("Cancel")}
+              />
+            )}
+          </div>
         </div>
 
         <Composer onSend={send} onStop={stop} isStreaming={isStreaming} />

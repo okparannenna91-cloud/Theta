@@ -5,10 +5,10 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
-async function getOwnedConversation(conversationId: string, userId: string, workspaceId: string) {
+async function getOwnedConversation(conversationId: string, userId: string) {
   return prisma.aiConversation.findFirst({
-    where: { id: conversationId, userId, workspaceId },
-    select: { id: true, title: true, isPinned: true, isArchived: true, lastMessageAt: true, createdAt: true },
+    where: { id: conversationId, userId },
+    select: { id: true, title: true, isPinned: true, isArchived: true, lastMessageAt: true, createdAt: true, workspaceId: true },
   });
 }
 
@@ -26,7 +26,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const limit = Math.min(parseInt(searchParams.get("limit") || "100"), 200);
     const cursor = searchParams.get("cursor") || undefined;
 
-    const conversation = await getOwnedConversation(id, user.id, workspace.id);
+    const conversation = await getOwnedConversation(id, user.id);
     if (!conversation) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     let messages: any[] = [];
@@ -65,7 +65,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const body = await req.json();
     const { title, isPinned, isArchived } = body;
 
-    const conversation = await getOwnedConversation(id, user.id, workspace.id);
+    const conversation = await getOwnedConversation(id, user.id);
     if (!conversation) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const updated = await prisma.aiConversation.update({
@@ -93,7 +93,7 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     if (!workspace) return NextResponse.json({ error: "No workspace" }, { status: 403 });
 
     const { id } = await params;
-    const conversation = await getOwnedConversation(id, user.id, workspace.id);
+    const conversation = await getOwnedConversation(id, user.id);
     if (!conversation) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     await prisma.aiConversation.delete({ where: { id } });

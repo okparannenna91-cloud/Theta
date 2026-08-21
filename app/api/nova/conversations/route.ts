@@ -18,7 +18,7 @@ export async function GET(req: Request) {
     const cursor = searchParams.get("cursor") || undefined;
 
     const conversations = await prisma.aiConversation.findMany({
-      where: { workspaceId: workspace.id, userId: user.id, isArchived: false },
+      where: { userId: user.id, isArchived: false },
       orderBy: { lastMessageAt: "desc" },
       take: limit + 1,
       ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),

@@ -5,7 +5,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { Copy, Check, Sparkles, User } from "lucide-react";
+import { Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface MessageBubbleProps {
@@ -61,12 +61,9 @@ export const MessageBubble = memo(function MessageBubble({
   if (isUser) {
     return (
       <div className="flex justify-end animate-in fade-in slide-in-from-bottom-1 duration-200">
-        <div className="flex max-w-[85%] items-start gap-2 sm:max-w-[75%]">
+        <div className="max-w-[85%] sm:max-w-[75%]">
           <div className="rounded-2xl rounded-br-sm bg-violet-600 px-4 py-2.5 text-sm leading-relaxed text-white shadow-sm">
             <p className="whitespace-pre-wrap break-words">{content}</p>
-          </div>
-          <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-zinc-200 dark:bg-zinc-700">
-            <User className="h-4 w-4 text-zinc-600 dark:text-zinc-300" />
           </div>
         </div>
       </div>
@@ -74,30 +71,27 @@ export const MessageBubble = memo(function MessageBubble({
   }
 
   return (
-    <div className="flex justify-start animate-in fade-in slide-in-from-bottom-1 duration-200">
-      <div className="flex max-w-[85%] items-start gap-2 sm:max-w-[75%]">
-        <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500">
-          <Sparkles className="h-4 w-4 text-white" />
-        </div>
-        <div
-          className={cn(
-            "prose prose-sm prose-zinc dark:prose-invert max-w-none rounded-2xl rounded-bl-sm bg-white px-4 py-2.5 shadow-sm ring-1 ring-zinc-200 dark:bg-zinc-900 dark:ring-zinc-700",
-            "[&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
-            "[&_pre]:bg-transparent [&_pre]:p-0",
-            "[&_code:not(pre code)]:rounded [&_code:not(pre code)]:bg-zinc-100 [&_code:not(pre code)]:px-1.5 [&_code:not(pre code)]:py-0.5 [&_code:not(pre code)]:font-mono [&_code:not(pre code)]:text-[0.8em] dark:[&_code:not(pre code)]:bg-zinc-800",
-            "[&_a]:text-violet-600 [&_a]:underline dark:[&_a]:text-violet-400",
-            "[&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5",
-            "[&_table]:w-full [&_th]:border [&_th]:px-2 [&_th]:py-1 [&_td]:border [&_td]:px-2 [&_td]:py-1"
-          )}
-        >
-          <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock as any }}>
-            {content}
-          </ReactMarkdown>
-          {isStreaming && (
-            <span className="ml-0.5 inline-block h-4 w-2 animate-pulse rounded-sm bg-violet-500 align-text-bottom" />
-          )}
-        </div>
+    <div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
+      <div
+        className={cn(
+          "prose prose-sm prose-zinc dark:prose-invert max-w-none",
+          "[&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+          "[&_pre]:bg-transparent [&_pre]:p-0",
+          "[&_code:not(pre code)]:rounded [&_code:not(pre code)]:bg-zinc-100 [&_code:not(pre code)]:px-1.5 [&_code:not(pre code)]:py-0.5 [&_code:not(pre code)]:font-mono [&_code:not(pre code)]:text-[0.8em] dark:[&_code:not(pre code)]:bg-zinc-800",
+          "[&_a]:text-violet-600 [&_a]:underline dark:[&_a]:text-violet-400",
+          "[&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5",
+          "[&_table]:w-full [&_table]:text-xs [&_th]:border [&_th]:border-zinc-300 [&_th]:bg-zinc-50 [&_th]:px-2 [&_th]:py-1 [&_td]:border [&_td]:border-zinc-300 [&_td]:px-2 [&_td]:py-1 dark:[&_th]:border-zinc-700 dark:[&_th]:bg-zinc-900 dark:[&_td]:border-zinc-700",
+          "[&_blockquote]:border-violet-300 dark:[&_blockquote]:border-violet-700",
+          "[&_hr]:border-zinc-200 dark:[&_hr]:border-zinc-800"
+        )}
+      >
+        <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock as any }}>
+          {content}
+        </ReactMarkdown>
       </div>
+      {isStreaming && (
+        <span className="ml-0.5 inline-block h-4 w-2 animate-pulse rounded-sm bg-violet-500 align-text-bottom" />
+      )}
     </div>
   );
 });

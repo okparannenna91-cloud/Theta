@@ -111,7 +111,7 @@ export async function POST(req: Request) {
     let isNewConversation = false;
     if (conversationId) {
       const owned = await prisma.aiConversation.findFirst({
-        where: { id: conversationId, userId: user.id, workspaceId },
+        where: { id: conversationId, userId: user.id },
         select: { id: true, title: true },
       });
       if (!owned) {
@@ -134,17 +134,12 @@ export async function POST(req: Request) {
       })
       .catch((e: unknown) => logger.error("[Flow3] Failed to persist user message:", e));
 
+    let titlePromise: Promise<string> | null = null;
     if (isNewConversation) {
-      import("@/lib/nova/conversation-title")
+      titlePromise = import("@/lib/nova/conversation-title")
         .then(({ generateConversationTitle }) => generateConversationTitle(sanitizedPrompt))
-        .then((title) =>
-          prisma.aiConversation.update({
-            where: { id: conversationId },
-            data: { title },
-            select: { id: true },
-          })
-        )
-        .catch(() => {});
+        .catch(() => "");
+      void titlePromise;
     }
 
     const encoder = new TextEncoder();
@@ -265,6 +260,19 @@ export async function POST(req: Request) {
           const { incrementNovaUsage } = await import("@/lib/usage-tracking");
           await incrementNovaUsage(workspaceId, user.id).catch(() => {});
 
+          let finalTitle: string | null = null;
+          if (titlePromise) {
+            const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000));
+            const generated = await Promise.race([titlePromise, timeout]);
+            finalTitle =
+              generated && generated.trim()
+                ? generated.trim().slice(0, 60)
+                : sanitizedPrompt.split(/\s+/).slice(0, 7).join(" ").slice(0, 60);
+            await prisma.aiConversation
+              .update({ where: { id: conversationId }, data: { title: finalTitle }, select: { id: true } })
+              .catch((e: unknown) => logger.error("[Flow3] Title persist failed:", e));
+          }
+
           await persistAssistantMessage(result.response);
 
           // Audit trail (mirrors the bridge path).
@@ -292,6 +300,7 @@ export async function POST(req: Request) {
             response: result.response,
             durationMs: Date.now() - requestStart,
             route: result.route,
+            ...(finalTitle ? { title: finalTitle } : {}),
           });
           controller.close();
         } catch (streamError: any) {
