@@ -452,7 +452,7 @@ export class ContextSystem {
 
   public static async loadWorkspaceOverview(workspaceId: string): Promise<string> {
     try {
-      const [projects, taskCounts, memberCount, recentActivity, teamWorkload] = await Promise.all([
+      const { projects, taskCounts, memberCount, recentActivity, teamWorkload, memberNameById } = await Promise.all([
         prisma.project.findMany({
           where: { workspaceId },
           select: { id: true, name: true },
@@ -483,7 +483,18 @@ export class ContextSystem {
           orderBy: { _count: { id: "desc" } },
           take: 10,
         }),
-      ]);
+      ]).then(async ([projects, taskCounts, memberCount, recentActivity, teamWorkload]) => {
+        let memberNameById = new Map<string, string>();
+        const workloadUserIds = teamWorkload.map((w) => w.userId).filter((id): id is string => Boolean(id));
+        if (workloadUserIds.length > 0) {
+          const users = await prisma.user.findMany({
+            where: { id: { in: workloadUserIds } },
+            select: { id: true, name: true },
+          });
+          memberNameById = new Map(users.filter((u) => u.name).map((u) => [u.id, u.name as string]));
+        }
+        return { projects, taskCounts, memberCount, recentActivity, teamWorkload, memberNameById };
+      });
 
       const statusCounts: Record<string, number> = {};
       for (const group of taskCounts) {
@@ -515,9 +526,12 @@ export class ContextSystem {
       sections.push(`Team members: ${memberCount}`);
 
       if (teamWorkload.length > 0) {
-        const workloadLines = teamWorkload.map(
-          (w) => `  - ${w.userId}: ${w._count.id} active tasks`
-        );
+        const workloadLines = teamWorkload
+          .filter((w) => w.userId)
+          .map((w) => {
+            const displayName = memberNameById.get(w.userId as string) || "Unknown member";
+            return `  - ${displayName}: ${w._count.id} active task${w._count.id === 1 ? "" : "s"}`;
+          });
         sections.push(`Team workload:\n${workloadLines.join("\n")}`);
       }
 
