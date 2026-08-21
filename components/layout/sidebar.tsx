@@ -274,7 +274,7 @@ export const Sidebar = memo(function Sidebar() {
         <nav className="flex-1 overflow-y-auto py-3 px-2 space-y-0.5">
           <NavItem href="/dashboard" icon={LayoutDashboard} label="Dashboard" active={isActive("/dashboard")} onClick={closeMobile} collapsed={!expanded} />
           <NavItem href="/my-tasks" icon={CheckSquare} label="My Tasks" active={isActive("/my-tasks")} onClick={closeMobile} collapsed={!expanded} />
-          <NavItem href="https://chat.thetapm.site" icon={Sparkles} label="Flow³ AI" active={false} onClick={closeMobile} collapsed={!expanded} external />
+          <NavItem href="/flow3" icon={Sparkles} label="Flow³ AI" active={isActive("/flow3")} onClick={closeMobile} collapsed={!expanded} />
           <div>
             <button
               onClick={() => { if (!expanded) { router.push("/inbox?tab=all"); } else { toggleInbox(); } }}
