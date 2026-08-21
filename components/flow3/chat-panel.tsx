@@ -220,12 +220,20 @@ export function Flow3ChatPanel() {
                   prev.map((m) => (m.id === assistantId ? { ...m, content: data.response } : m))
                 );
               }
-              if (data.title && activeIdRef.current) {
-                const cid = activeIdRef.current;
+              break;
+            }
+            case "title": {
+              const cid = data.conversationId || activeIdRef.current;
+              if (cid && data.title) {
                 setConversations((prev) => {
                   const exists = prev.some((c) => c.id === cid);
                   const updated = prev.map((c) => (c.id === cid ? { ...c, title: data.title } : c));
-                  return exists ? updated : [{ id: cid, title: data.title, isPinned: false, lastMessageAt: new Date().toISOString(), createdAt: new Date().toISOString() }, ...updated];
+                  return exists
+                    ? updated
+                    : [
+                        { id: cid, title: data.title, isPinned: false, lastMessageAt: new Date().toISOString(), createdAt: new Date().toISOString() },
+                        ...updated,
+                      ];
                 });
               }
               break;

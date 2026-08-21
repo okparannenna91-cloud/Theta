@@ -21,6 +21,7 @@ export interface NovaAgentOptions {
   systemPrompt?: string;
   intent: NovaIntent;
   routeDecision: RouteDecision;
+  persistPrismaMessages?: boolean;
 }
 
 export interface NovaAgentResult {
@@ -48,6 +49,7 @@ export async function runNovaAgent(prompt: string, options: NovaAgentOptions): P
       projectId: options.projectId,
       conversationId: options.conversationId,
       runId: crypto.randomUUID(),
+      persistPrismaMessages: options.persistPrismaMessages,
     },
     intent: options.intent,
     routeDecision: options.routeDecision,

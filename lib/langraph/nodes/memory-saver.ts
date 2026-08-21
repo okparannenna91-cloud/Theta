@@ -7,10 +7,11 @@ export interface SaveMemoryOptions {
   prompt: string;
   response: string;
   toolResults?: Array<{ toolName: string; result?: unknown; error?: string }>;
+  persistPrismaMessages?: boolean;
 }
 
 export async function saveConversationMemory(options: SaveMemoryOptions): Promise<void> {
-  const { userId, workspaceId, conversationId, prompt, response, toolResults } = options;
+  const { userId, workspaceId, conversationId, prompt, response, toolResults, persistPrismaMessages = true } = options;
 
   try {
     const { MemorySystem } = await import("@/lib/nova/memory-system");
@@ -37,7 +38,7 @@ export async function saveConversationMemory(options: SaveMemoryOptions): Promis
     }
 
     // Save to Prisma aiConversation if conversationId exists
-    if (conversationId) {
+    if (conversationId && persistPrismaMessages) {
       const { prisma } = await import("@/lib/prisma");
       await prisma.aiMessage.create({
         data: {

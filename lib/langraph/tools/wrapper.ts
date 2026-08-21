@@ -10,6 +10,7 @@ export interface LangGraphToolContext {
   projectId?: string;
   conversationId?: string;
   runId?: string;
+  persistPrismaMessages?: boolean;
 }
 
 function toToolContext(ctx: LangGraphToolContext): ToolContext {

@@ -409,6 +409,7 @@ async function saveMemoryNode(state: AgentStateType): Promise<Partial<AgentState
     prompt: state.messages[state.messages.length - 1]?.content || "",
     response: state.response,
     toolResults: state.toolResults,
+    persistPrismaMessages: state.toolContext.persistPrismaMessages !== false,
   }).catch(() => {});
 
   try {

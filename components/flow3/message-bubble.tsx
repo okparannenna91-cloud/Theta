@@ -74,15 +74,26 @@ export const MessageBubble = memo(function MessageBubble({
     <div className="animate-in fade-in slide-in-from-bottom-1 duration-200">
       <div
         className={cn(
-          "prose prose-sm prose-zinc dark:prose-invert max-w-none",
-          "[&_p:first-child]:mt-0 [&_p:last-child]:mb-0",
+          "max-w-none text-[0.925rem] leading-relaxed text-zinc-800 dark:text-zinc-200",
+          "[&>*:first-child]:mt-0 [&>*:last-child]:mb-0",
+          "[&_p]:my-3 [&_p]:leading-relaxed",
+          "[&_h1]:mb-2 [&_h1]:mt-6 [&_h1]:text-lg [&_h1]:font-semibold",
+          "[&_h2]:mb-2 [&_h2]:mt-6 [&_h2]:text-base [&_h2]:font-semibold",
+          "[&_h3]:mb-1.5 [&_h3]:mt-5 [&_h3]:text-sm [&_h3]:font-semibold",
+          "[&_h4]:mb-1.5 [&_h4]:mt-4 [&_h4]:text-sm [&_h4]:font-semibold",
+          "[&_ul]:my-3 [&_ul]:list-disc [&_ul]:space-y-1.5 [&_ul]:pl-6",
+          "[&_ol]:my-3 [&_ol]:list-decimal [&_ol]:space-y-1.5 [&_ol]:pl-6",
+          "[&_li]:leading-relaxed [&_li>p]:my-1",
+          "[&_strong]:font-semibold [&_strong]:text-zinc-900 dark:[&_strong]:text-zinc-100",
           "[&_pre]:bg-transparent [&_pre]:p-0",
-          "[&_code:not(pre code)]:rounded [&_code:not(pre code)]:bg-zinc-100 [&_code:not(pre code)]:px-1.5 [&_code:not(pre code)]:py-0.5 [&_code:not(pre code)]:font-mono [&_code:not(pre code)]:text-[0.8em] dark:[&_code:not(pre code)]:bg-zinc-800",
+          "[&_code:not(pre code)]:rounded [&_code:not(pre code)]:bg-zinc-100 [&_code:not(pre code)]:px-1.5 [&_code:not(pre code)]:py-0.5 [&_code:not(pre code)]:font-mono [&_code:not(pre code)]:text-[0.85em] dark:[&_code:not(pre code)]:bg-zinc-800",
           "[&_a]:text-violet-600 [&_a]:underline dark:[&_a]:text-violet-400",
-          "[&_ul]:my-2 [&_ol]:my-2 [&_li]:my-0.5",
-          "[&_table]:w-full [&_table]:text-xs [&_th]:border [&_th]:border-zinc-300 [&_th]:bg-zinc-50 [&_th]:px-2 [&_th]:py-1 [&_td]:border [&_td]:border-zinc-300 [&_td]:px-2 [&_td]:py-1 dark:[&_th]:border-zinc-700 dark:[&_th]:bg-zinc-900 dark:[&_td]:border-zinc-700",
-          "[&_blockquote]:border-violet-300 dark:[&_blockquote]:border-violet-700",
-          "[&_hr]:border-zinc-200 dark:[&_hr]:border-zinc-800"
+          "[&_blockquote]:my-3 [&_blockquote]:border-l-2 [&_blockquote]:border-violet-300 [&_blockquote]:pl-4 [&_blockquote]:italic dark:[&_blockquote]:border-violet-700",
+          "[&_table]:my-3 [&_table]:w-full [&_table]:text-xs",
+          "[&_th]:border [&_th]:border-zinc-300 [&_th]:bg-zinc-50 [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:text-left [&_th]:font-semibold",
+          "[&_td]:border [&_td]:border-zinc-300 [&_td]:px-2.5 [&_td]:py-1.5",
+          "dark:[&_th]:border-zinc-700 dark:[&_th]:bg-zinc-900 dark:[&_td]:border-zinc-700",
+          "[&_hr]:my-4 [&_hr]:border-zinc-200 dark:[&_hr]:border-zinc-800"
         )}
       >
         <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ code: CodeBlock as any }}>

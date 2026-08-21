@@ -226,6 +226,7 @@ export async function POST(req: Request) {
             conversationId,
             intent,
             routeDecision,
+            persistPrismaMessages: false,
           });
 
           // A tool asked for confirmation → surface the card.
@@ -260,19 +261,6 @@ export async function POST(req: Request) {
           const { incrementNovaUsage } = await import("@/lib/usage-tracking");
           await incrementNovaUsage(workspaceId, user.id).catch(() => {});
 
-          let finalTitle: string | null = null;
-          if (titlePromise) {
-            const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 10000));
-            const generated = await Promise.race([titlePromise, timeout]);
-            finalTitle =
-              generated && generated.trim()
-                ? generated.trim().slice(0, 60)
-                : sanitizedPrompt.split(/\s+/).slice(0, 7).join(" ").slice(0, 60);
-            await prisma.aiConversation
-              .update({ where: { id: conversationId }, data: { title: finalTitle }, select: { id: true } })
-              .catch((e: unknown) => logger.error("[Flow3] Title persist failed:", e));
-          }
-
           await persistAssistantMessage(result.response);
 
           // Audit trail (mirrors the bridge path).
@@ -300,8 +288,21 @@ export async function POST(req: Request) {
             response: result.response,
             durationMs: Date.now() - requestStart,
             route: result.route,
-            ...(finalTitle ? { title: finalTitle } : {}),
           });
+
+          if (titlePromise) {
+            const timeout = new Promise<null>((resolve) => setTimeout(() => resolve(null), 18000));
+            const generated = await Promise.race([titlePromise, timeout]);
+            const finalTitle =
+              generated && generated.trim()
+                ? generated.trim().slice(0, 60)
+                : sanitizedPrompt.split(/\s+/).slice(0, 7).join(" ").replace(/[^\w\s'-]/g, "").trim().slice(0, 60);
+            await prisma.aiConversation
+              .update({ where: { id: conversationId }, data: { title: finalTitle || "New Conversation" }, select: { id: true } })
+              .catch((e: unknown) => logger.error("[Flow3] Title persist failed:", e));
+            sendSSE("title", { conversationId, title: finalTitle || "New Conversation" });
+          }
+
           controller.close();
         } catch (streamError: any) {
           logger.error("[Flow3 SSE] Stream error:", streamError);
