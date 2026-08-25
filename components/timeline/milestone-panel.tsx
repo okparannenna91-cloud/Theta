@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Milestone, Plus, X, Edit, Trash2, Calendar, Flag, CheckCircle2, ChevronDown, ChevronUp, Search } from "lucide-react";
 import { format, parseISO, isPast, isToday } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
+import { useWorkspaceStatuses } from "@/hooks/use-statuses";
 
 interface MilestonePanelProps {
   projectId?: string;
@@ -26,12 +27,16 @@ interface MilestoneTask {
   status: string;
   progress: number;
   dueDate?: string;
+  isCompleted: boolean;
+  statusCategory: string | null;
 }
 
 interface TaskOption {
   id: string;
   title: string;
   status: string;
+  statusId?: string | null;
+  customStatus?: { id: string; name: string; category: string } | null;
 }
 
 interface Milestone {
@@ -56,6 +61,19 @@ const STATUS_CONFIG: Record<MilestoneStatus, { label: string; color: string }> =
   cancelled: { label: "Cancelled", color: "bg-red-500" },
 };
 
+const PRESET_COLORS = [
+  "#f59e0b",
+  "#3b82f6",
+  "#10b981",
+  "#ef4444",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
+  "#f97316",
+  "#84cc16",
+  "#6366f1",
+];
+
 const toLocalInput = (iso: string) => {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
@@ -78,8 +96,20 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
   const [projectTasks, setProjectTasks] = useState<TaskOption[]>([]);
   const [taskSearch, setTaskSearch] = useState("");
   const [isTasksLoading, setIsTasksLoading] = useState(false);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>(projectId || "");
 
-  const fetchMilestones = async () => {
+  const { data: workspaceStatuses } = useWorkspaceStatuses(workspaceId);
+  const statusCategoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    if (Array.isArray(workspaceStatuses)) {
+      for (const s of workspaceStatuses) {
+        if (s.category) map.set(s.id, s.category);
+      }
+    }
+    return map;
+  }, [workspaceStatuses]);
+
+  const fetchMilestones = useCallback(async () => {
     try {
       const params = new URLSearchParams({ workspaceId });
       if (projectId) params.set("projectId", projectId);
@@ -93,13 +123,13 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [projectId, workspaceId]);
 
   useEffect(() => {
     fetchMilestones();
-  }, [projectId, workspaceId]);
+  }, [fetchMilestones]);
 
-  const pickerProjectId = projectId || editingMilestone?.project?.id;
+  const pickerProjectId = projectId || selectedProjectId || editingMilestone?.project?.id;
 
   useEffect(() => {
     if (!isDialogOpen) return;
@@ -141,7 +171,8 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!projectId) return;
+    const targetProjectId = projectId || selectedProjectId;
+    if (!targetProjectId) return;
     try {
       const url = editingMilestone ? `/api/milestones/${editingMilestone.id}` : "/api/milestones";
       const method = editingMilestone ? "PATCH" : "POST";
@@ -151,7 +182,7 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
         body: JSON.stringify({
           ...formData,
           dueDate: new Date(formData.dueDate).toISOString(),
-          projectId,
+          projectId: targetProjectId,
         }),
       });
       if (res.ok) {
@@ -201,10 +232,11 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
       status: "planned",
       taskIds: [],
     });
+    setTaskSearch("");
   };
 
   const handleNew = () => {
-    if (!projectId) {
+    if (!projectId && !selectedProjectId) {
       alert("Please select a project to create milestones");
       return;
     }
@@ -305,7 +337,7 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
                     {ms.tasks && ms.tasks.length > 0 && (
                       <span className="flex items-center gap-0.5">
                         <Flag className="h-2.5 w-2.5" />
-                        {ms.tasks.filter((t) => t.status === "done").length}/{ms.tasks.length} tasks
+                        {ms.tasks.filter((t) => t.isCompleted).length}/{ms.tasks.length} tasks
                       </span>
                     )}
                     {ms.owner && (
@@ -329,8 +361,9 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
                           <span
                             className={cn(
                               "w-1.5 h-1.5 rounded-full flex-shrink-0",
-                              task.status === "done" ? "bg-emerald-500" :
-                              task.status === "in_progress" ? "bg-blue-500" :
+                              task.isCompleted ? "bg-emerald-500" :
+                              task.statusCategory === "IN_PROGRESS" ? "bg-blue-500" :
+                              task.statusCategory === "BLOCKED" ? "bg-red-500" :
                               "bg-slate-400"
                             )}
                           />
@@ -370,6 +403,19 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
           </DialogHeader>
           <form onSubmit={handleSubmit}>
             <div className="grid gap-4 py-4">
+              {!projectId && (
+                <div className="grid gap-2">
+                  <Label htmlFor="project" className="text-xs">Project *</Label>
+                  <Select value={selectedProjectId} onValueChange={setSelectedProjectId}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Select project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No project</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="grid gap-2">
                 <Label htmlFor="title" className="text-xs">Title *</Label>
                 <Input
@@ -404,14 +450,21 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
                   />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="color" className="text-xs">Color</Label>
-                  <Input
-                    id="color"
-                    type="color"
-                    value={formData.color}
-                    onChange={(e) => setFormData({ ...formData, color: e.target.value })}
-                    className="h-8 w-full cursor-pointer"
-                  />
+                  <Label className="text-xs">Color</Label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {PRESET_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        type="button"
+                        className={cn(
+                          "w-6 h-6 rounded-full border-2 transition-all",
+                          formData.color === color ? "border-foreground scale-110" : "border-transparent hover:scale-105"
+                        )}
+                        style={{ backgroundColor: color }}
+                        onClick={() => setFormData({ ...formData, color })}
+                      />
+                    ))}
+                  </div>
                 </div>
               </div>
               <div className="grid gap-2">
@@ -431,51 +484,54 @@ export function MilestonePanel({ projectId, workspaceId, onMilestonesChange }: M
                   </SelectContent>
                 </Select>
               </div>
-              <div className="grid gap-2">
-                <Label className="text-xs">Linked Tasks ({formData.taskIds.length})</Label>
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
-                  <Input
-                    value={taskSearch}
-                    onChange={(e) => setTaskSearch(e.target.value)}
-                    placeholder="Search tasks..."
-                    className="h-8 pl-7 text-xs"
-                  />
-                </div>
-                <div className="max-h-40 overflow-y-auto rounded-lg border border-border/50 divide-y divide-border/30">
-                  {isTasksLoading ? (
-                    <div className="p-3 text-[10px] text-muted-foreground/60">Loading tasks...</div>
-                  ) : filteredTasks.length === 0 ? (
-                    <div className="p-3 text-[10px] text-muted-foreground/60">
-                      {pickerProjectId ? "No tasks in this project" : "Select a project to link tasks"}
-                    </div>
-                  ) : (
-                    filteredTasks.map((task) => {
-                      const checked = formData.taskIds.includes(task.id);
-                      return (
-                        <label
-                          key={task.id}
-                          className={cn(
-                            "flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent/40 text-xs transition-colors",
-                            checked && "bg-primary/5"
-                          )}
-                        >
-                          <Checkbox checked={checked} onCheckedChange={() => toggleTask(task.id)} />
-                          <span
+              {pickerProjectId && (
+                <div className="grid gap-2">
+                  <Label className="text-xs">Linked Tasks ({formData.taskIds.length})</Label>
+                  <div className="relative">
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground/50" />
+                    <Input
+                      value={taskSearch}
+                      onChange={(e) => setTaskSearch(e.target.value)}
+                      placeholder="Search tasks..."
+                      className="h-8 pl-7 text-xs"
+                    />
+                  </div>
+                  <div className="max-h-40 overflow-y-auto rounded-lg border border-border/50 divide-y divide-border/30">
+                    {isTasksLoading ? (
+                      <div className="p-3 text-[10px] text-muted-foreground/60">Loading tasks...</div>
+                    ) : filteredTasks.length === 0 ? (
+                      <div className="p-3 text-[10px] text-muted-foreground/60">
+                        {pickerProjectId ? "No tasks in this project" : "Select a project to link tasks"}
+                      </div>
+                    ) : (
+                      filteredTasks.map((task) => {
+                        const checked = formData.taskIds.includes(task.id);
+                        return (
+                          <label
+                            key={task.id}
                             className={cn(
-                              "w-1.5 h-1.5 rounded-full flex-shrink-0",
-                              task.status === "done" ? "bg-emerald-500" :
-                              task.status === "in_progress" ? "bg-blue-500" :
-                              "bg-slate-400"
+                              "flex items-center gap-2 px-2 py-1.5 cursor-pointer hover:bg-accent/40 text-xs transition-colors",
+                              checked && "bg-primary/5"
                             )}
-                          />
-                          <span className="truncate flex-1 text-foreground/90">{task.title}</span>
-                        </label>
-                      );
-                    })
-                  )}
+                          >
+                            <Checkbox checked={checked} onCheckedChange={() => toggleTask(task.id)} />
+                            <span
+                              className={cn(
+                                "w-1.5 h-1.5 rounded-full flex-shrink-0",
+                                (task.customStatus?.category || statusCategoryMap.get(task.statusId || "")) === "DONE" ? "bg-emerald-500" :
+                                (task.customStatus?.category || statusCategoryMap.get(task.statusId || "")) === "IN_PROGRESS" ? "bg-blue-500" :
+                                (task.customStatus?.category || statusCategoryMap.get(task.statusId || "")) === "BLOCKED" ? "bg-red-500" :
+                                "bg-slate-400"
+                              )}
+                            />
+                            <span className="truncate flex-1 text-foreground/90">{task.title}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
             <DialogFooter className="gap-2">
               <Button type="button" variant="outline" onClick={() => { setIsDialogOpen(false); resetForm(); }}>

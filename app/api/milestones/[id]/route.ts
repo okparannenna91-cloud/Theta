@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logActivity, buildActivityMetadata } from "@/lib/activity";
 import { z } from "zod";
 
 const updateMilestoneSchema = z.object({
@@ -32,16 +33,6 @@ export async function GET(
       },
     });
 
-    let tasks: any[] = [];
-    if (milestone && milestone.taskIds && milestone.taskIds.length > 0) {
-      tasks = await prisma.task.findMany({
-        where: { id: { in: milestone.taskIds } },
-        select: { id: true, title: true, status: true, progress: true, dueDate: true, assigneeIds: true },
-      });
-    }
-
-    const milestoneWithTasks = milestone ? { ...milestone, tasks } : null;
-
     if (!milestone) {
       return NextResponse.json({ error: "Milestone not found" }, { status: 404 });
     }
@@ -52,6 +43,35 @@ export async function GET(
     if (!hasAccess) {
       return NextResponse.json({ error: "Access denied" }, { status: 403 });
     }
+
+    let tasks: any[] = [];
+    if (milestone.taskIds && milestone.taskIds.length > 0) {
+      const rawTasks = await prisma.task.findMany({
+        where: { id: { in: milestone.taskIds } },
+        select: { id: true, title: true, status: true, statusId: true, progress: true, dueDate: true, assigneeIds: true },
+      });
+
+      const statusIds = [...new Set(rawTasks.map((t) => t.statusId).filter((id): id is string => Boolean(id)))];
+      const statusRecords = statusIds.length > 0
+        ? await prisma.status.findMany({ where: { id: { in: statusIds } }, select: { id: true, category: true } })
+        : [];
+      const categoryByStatusId = new Map(statusRecords.map((s) => [s.id, s.category]));
+      const DONE_KEYWORDS = ["done", "complete", "finished", "closed", "resolved", "shipped", "approved", "archived", "merged", "delivered"];
+
+      tasks = rawTasks.map((t) => {
+        let isCompleted = false;
+        const category = t.statusId ? (categoryByStatusId.get(t.statusId) || null) : null;
+        if (category) {
+          isCompleted = category.toUpperCase() === "DONE";
+        }
+        if (!isCompleted) {
+          isCompleted = DONE_KEYWORDS.some((kw) => t.status.toLowerCase().includes(kw));
+        }
+        return { ...t, isCompleted, statusCategory: category };
+      });
+    }
+
+    const milestoneWithTasks = { ...milestone, tasks };
 
     return NextResponse.json(milestoneWithTasks);
   } catch (error) {
@@ -110,8 +130,8 @@ export async function PATCH(
       },
     });
 
-    const addedTasks = newTaskIds.filter((t) => !oldTaskIds.includes(t));
-    const removedTasks = oldTaskIds.filter((t) => !newTaskIds.includes(t));
+    const addedTasks = newTaskIds.filter((t: string) => !oldTaskIds.includes(t));
+    const removedTasks = oldTaskIds.filter((t: string) => !newTaskIds.includes(t));
 
     if (addedTasks.length > 0) {
       await prisma.task.updateMany({
@@ -125,6 +145,27 @@ export async function PATCH(
         data: { isMilestone: false },
       });
     }
+
+    const changes: Record<string, { old: unknown; new: unknown }> = {};
+    if (data.title && data.title !== milestone.title) changes.title = { old: milestone.title, new: data.title };
+    if (data.status && data.status !== milestone.status) changes.status = { old: milestone.status, new: data.status };
+    if (data.dueDate && new Date(data.dueDate).getTime() !== milestone.dueDate.getTime()) changes.dueDate = { old: milestone.dueDate.toISOString(), new: data.dueDate };
+
+    await logActivity({
+      userId: user.id,
+      workspaceId: milestone.workspaceId,
+      action: "UPDATED",
+      entityType: "MILESTONE",
+      entityId: id,
+      projectId: milestone.projectId || undefined,
+      metadata: buildActivityMetadata({
+        entityName: updated.title,
+        projectName: updated.project?.name,
+        changes,
+        tasksAdded: addedTasks.length,
+        tasksRemoved: removedTasks.length,
+      }),
+    });
 
     return NextResponse.json(updated);
   } catch (error) {
@@ -172,6 +213,19 @@ export async function DELETE(
     }
 
     await prisma.milestone.delete({ where: { id } });
+
+    await logActivity({
+      userId: user.id,
+      workspaceId: milestone.workspaceId,
+      action: "DELETED",
+      entityType: "MILESTONE",
+      entityId: id,
+      projectId: milestone.projectId || undefined,
+      metadata: buildActivityMetadata({
+        entityName: milestone.title,
+        linkedTaskCount: milestone.taskIds.length,
+      }),
+    });
 
     return NextResponse.json({ success: true });
   } catch (error) {

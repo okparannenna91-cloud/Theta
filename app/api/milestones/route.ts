@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { logActivity, buildActivityMetadata } from "@/lib/activity";
 import { z } from "zod";
 
 const milestoneSchema = z.object({
@@ -54,14 +55,34 @@ export async function GET(req: NextRequest) {
       allTaskIds.length > 0
         ? await prisma.task.findMany({
             where: { id: { in: allTaskIds } },
-            select: { id: true, title: true, status: true, progress: true, dueDate: true },
+            select: { id: true, title: true, status: true, statusId: true, progress: true, dueDate: true },
           })
         : [];
     const tasksById = new Map(linkedTasks.map((t) => [t.id, t]));
 
+    const allStatusIds = [...new Set(linkedTasks.map((t) => t.statusId).filter((id): id is string => Boolean(id)))];
+    const statusRecords = allStatusIds.length > 0
+      ? await prisma.status.findMany({ where: { id: { in: allStatusIds } }, select: { id: true, category: true } })
+      : [];
+    const categoryByStatusId = new Map(statusRecords.map((s) => [s.id, s.category]));
+
+    const DONE_KEYWORDS = ["done", "complete", "finished", "closed", "resolved", "shipped", "approved", "archived", "merged", "delivered"];
+    function isTaskCompleted(task: { status: string; statusId: string | null }): boolean {
+      if (task.statusId) {
+        const cat = categoryByStatusId.get(task.statusId);
+        if (cat) return cat.toUpperCase() === "DONE";
+      }
+      return DONE_KEYWORDS.some((kw) => task.status.toLowerCase().includes(kw));
+    }
+
     const milestonesWithTasks = milestones.map((m) => ({
       ...m,
-      tasks: m.taskIds.map((id) => tasksById.get(id)).filter(Boolean),
+      tasks: m.taskIds.map((id) => {
+        const t = tasksById.get(id);
+        if (!t) return null;
+        const category = t.statusId ? (categoryByStatusId.get(t.statusId) || null) : null;
+        return { ...t, isCompleted: isTaskCompleted(t), statusCategory: category };
+      }).filter(Boolean),
     }));
 
     return NextResponse.json(milestonesWithTasks);
@@ -124,6 +145,22 @@ export async function POST(req: NextRequest) {
         data: { isMilestone: true },
       });
     }
+
+    await logActivity({
+      userId: user.id,
+      workspaceId: workspace.workspaceId,
+      action: "CREATED",
+      entityType: "MILESTONE",
+      entityId: milestone.id,
+      projectId: data.projectId,
+      metadata: buildActivityMetadata({
+        entityName: data.title,
+        projectName: milestone.project?.name,
+        linkedTaskCount: data.taskIds?.length || 0,
+        status: data.status,
+        dueDate: data.dueDate,
+      }),
+    });
 
     return NextResponse.json(milestone);
   } catch (error) {

@@ -1387,6 +1387,13 @@ model Baseline {
   @@map("baselines")
 }
 
+enum MilestoneStatus {
+  planned
+  active
+  completed
+  cancelled
+}
+
 model Milestone {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
   title       String
@@ -1396,7 +1403,7 @@ model Milestone {
   ownerId     String   @db.ObjectId
   dueDate     DateTime
   color       String?  @default("#f59e0b")
-  status      String   @default("planned") // planned, active, completed, cancelled
+  status      MilestoneStatus @default(planned)
   taskIds     String[] @db.ObjectId // linked tasks
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

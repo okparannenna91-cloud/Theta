@@ -208,6 +208,7 @@ export const Sidebar = memo(function Sidebar() {
     { label: "Kanban", href: `/projects/${currentProjectId}/kanban` },
     { label: "Timeline", href: `/projects/${currentProjectId}/timeline` },
     { label: "Gantt", href: `/projects/${currentProjectId}/gantt` },
+    { label: "Milestones", href: `/projects/${currentProjectId}/milestones` },
     { label: "Team", href: `/projects/${currentProjectId}/team` },
     { label: "Automations", href: `/projects/${currentProjectId}/automations` },
     { label: "Fields", href: `/projects/${currentProjectId}/fields` },
