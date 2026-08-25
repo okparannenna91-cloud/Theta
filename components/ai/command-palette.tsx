@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import {
-  Calendar,
   Settings,
   Plus,
   FileText,
@@ -154,7 +153,6 @@ export function CommandPalette() {
             <CommandGroup heading={<span className="text-xs font-medium text-muted-foreground px-2 py-4 block">Navigation</span>}>
               {[
                 { label: "Dashboard", route: "/dashboard", icon: Zap, color: "text-amber-500" },
-                { label: "Calendar", route: "/calendar", icon: Calendar, color: "text-primary" },
                 { label: "Settings", route: "/settings", icon: Settings, color: "text-slate-500" },
               ].map((item) => (
                 <CommandItem 
