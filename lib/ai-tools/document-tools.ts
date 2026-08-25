@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { DocumentIntelligence } from "@/lib/nova/document-intelligence";
 import { PROMPT_TEMPLATES } from "@/lib/constants/templates";
 import { type ToolContext, type ToolModule, enforce, auditToolExecution, requireToolApproval } from "./index";
+import { STATUS_TODO } from "@/lib/constants/status";
 
 export function buildDocumentTools(ctx: ToolContext): ToolModule {
   const { user, workspaceId, projectId } = ctx;
@@ -72,7 +73,7 @@ export function buildDocumentTools(ctx: ToolContext): ToolModule {
           const doc = await tx.document.create({ data: { title: title as string, content: content as string, workspaceId, userId: user.id, tags: analysis.relatedDocumentIds } });
           if (targetProjectId) {
             await Promise.all(analysis.actionItems.map(async (item) => {
-              await tx.task.create({ data: { title: item.title, description: `Auto-extracted from: ${title}`, priority: item.priority ?? "medium", status: "todo", workspaceId, projectId: targetProjectId!, userId: user.id } });
+              await tx.task.create({ data: { title: item.title, description: `Auto-extracted from: ${title}`, priority: item.priority ?? "medium", status: STATUS_TODO, workspaceId, projectId: targetProjectId!, userId: user.id } });
             }));
           }
           for (const dec of analysis.decisions) {

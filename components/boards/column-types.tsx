@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { isDoneStatus, isInProgressStatus, isTodoStatus } from "@/lib/constants/status";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -111,9 +112,9 @@ export function ColumnValue({ column, value, task, onChange }: {
       return (
         <Badge className={cn(
           "text-[10px] font-bold px-2 py-0.5 rounded-md border-none",
-          value === "done" ? "bg-emerald-500/10 text-emerald-600" :
-          value === "in_progress" || value === "in-progress" ? "bg-amber-500/10 text-amber-600" :
-          value === "todo" ? "bg-slate-500/10 text-slate-600" :
+          isDoneStatus(value) ? "bg-emerald-500/10 text-emerald-600" :
+          isInProgressStatus(value) ? "bg-amber-500/10 text-amber-600" :
+          isTodoStatus(value) ? "bg-slate-500/10 text-slate-600" :
           "bg-indigo-500/10 text-indigo-600"
         )}>
           {value || "Todo"}

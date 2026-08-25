@@ -2,6 +2,7 @@ import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { generateWithGemini } from "@/lib/gemini";
+import { STATUS_BACKLOG, STATUS_TODO } from "@/lib/constants/status";
 
 const AutomationConditionSchema = z.object({
   field: z.string(),
@@ -248,7 +249,7 @@ export function getAutomationTemplates(): Array<{
         trigger: "TASK_CREATED",
         conditions: [],
         actions: [
-          { type: "move_task", params: { status: "backlog", columnId: "backlog" } },
+          { type: "move_task", params: { status: STATUS_BACKLOG, columnId: "backlog" } },
         ],
       },
     },
@@ -274,7 +275,7 @@ export function getAutomationTemplates(): Array<{
         trigger: "PROJECT_CREATED",
         conditions: [],
         actions: [
-          { type: "create_task", params: { title: "Project Kickoff", status: "todo", priority: "medium" } },
+          { type: "create_task", params: { title: "Project Kickoff", status: STATUS_TODO, priority: "medium" } },
         ],
       },
     },
@@ -352,7 +353,7 @@ export async function suggestAutomations(
         trigger: "PROJECT_CREATED",
         conditions: [],
         actions: [
-          { type: "create_task", params: { title: "Project Kickoff", status: "todo", priority: "medium" } },
+          { type: "create_task", params: { title: "Project Kickoff", status: STATUS_TODO, priority: "medium" } },
         ],
       },
     });
@@ -395,7 +396,7 @@ export async function suggestAutomations(
         trigger: "TASK_CREATED",
         conditions: [],
         actions: [
-          { type: "move_task", params: { status: "backlog", columnId: "backlog" } },
+          { type: "move_task", params: { status: STATUS_BACKLOG, columnId: "backlog" } },
         ],
       },
     });

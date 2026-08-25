@@ -135,7 +135,7 @@ export default function DependencyEngine({
         };
         document.addEventListener("mousemove", onMove);
         document.addEventListener("mouseup", onUp);
-    }, [isGantt]);
+    }, [isGantt, onDependencyCreate]);
 
     if (!isGantt) return null;
 

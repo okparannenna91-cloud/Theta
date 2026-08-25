@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import {
@@ -29,7 +30,7 @@ export function DmNewMessage({ open, onOpenChange, onSelectUser }: DmNewMessageP
     enabled: !!activeWorkspaceId && open,
   });
 
-  const members: { id: string; name: string; email: string; imageUrl: string | null; role: string }[] = data ?? [];
+  const members: { id: string; name: string; email: string; imageUrl: string | null; role: string }[] = useMemo(() => data ?? [], [data]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return members;
@@ -93,7 +94,7 @@ export function DmNewMessage({ open, onOpenChange, onSelectUser }: DmNewMessageP
               >
                 {member.imageUrl ? (
                   <div className="h-9 w-9 rounded-full overflow-hidden ring-2 ring-background shrink-0">
-                    <img src={member.imageUrl} alt="" className="object-cover w-full h-full" />
+                    <Image src={member.imageUrl} alt="" width={36} height={36} className="object-cover w-full h-full" />
                   </div>
                 ) : (
                   <div className="h-9 w-9 rounded-full bg-muted/80 flex items-center justify-center text-[12px] font-semibold text-muted-foreground/70 shrink-0 ring-2 ring-background">

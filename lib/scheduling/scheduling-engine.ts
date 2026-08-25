@@ -1,5 +1,6 @@
 import { addMinutes, differenceInMinutes, startOfDay, isWeekend, addDays, format, parseISO } from "date-fns";
 import type { WorkingDayConfig, Holiday } from "@/components/shared/timeline/types";
+import { isDoneStatus, isInProgressStatus, STATUS_DONE, STATUS_IN_PROGRESS } from "@/lib/constants/status";
 
 export type DependencyType = "FS" | "SS" | "FF" | "SF";
 
@@ -407,10 +408,10 @@ export function calculateProgressRollup(tasks: any[]): any[] {
         node.children.forEach(rollup);
         const total = node.children.reduce((sum: number, c: any) => sum + (c.progress || 0), 0);
         node.progress = Math.round(total / node.children.length);
-        if (node.children.every((c: any) => c.status === "done")) {
-            node.status = "done";
-        } else if (node.children.some((c: any) => c.status === "in_progress")) {
-            node.status = "in_progress";
+        if (node.children.every((c: any) => isDoneStatus(c.status))) {
+            node.status = STATUS_DONE;
+        } else if (node.children.some((c: any) => isInProgressStatus(c.status))) {
+            node.status = STATUS_IN_PROGRESS;
         }
         const earliestStart = node.children.reduce((min: Date | null, c: any) => {
             const d = c.startDate ? new Date(c.startDate) : null;

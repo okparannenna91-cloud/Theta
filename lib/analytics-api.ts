@@ -3,6 +3,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { MIN_OVERDUE_DUE_DATE } from "@/lib/overdue";
+import { isDoneStatus, taskCategoryWhere, taskCategoryWhereNot, StatusCategory } from "@/lib/constants/status";
 
 const POSTHOG_PERSONAL_API_KEY = process.env.POSTHOG_PERSONAL_API_KEY;
 const POSTHOG_PROJECT_ID = process.env.POSTHOG_PROJECT_ID;
@@ -180,7 +181,7 @@ async function calculateTeamProductivity(
     by: ["userId"],
     where: {
       workspaceId,
-      status: "completed",
+      ...(await taskCategoryWhere(prisma, StatusCategory.DONE, workspaceId)),
       updatedAt: { gte: thirtyDaysAgo },
     },
     _count: true,
@@ -224,7 +225,7 @@ async function getMostActiveProjects(
       projectId: p.id,
       name: p.name,
       taskCount: p.tasks.length,
-      completedCount: p.tasks.filter((t) => t.status === "completed").length,
+      completedCount: p.tasks.filter((t) => isDoneStatus(t.status)).length,
     }))
     .filter((p) => p.taskCount > 0)
     .sort((a, b) => b.taskCount - a.taskCount)
@@ -242,13 +243,14 @@ export async function getWorkspaceAnalytics(
     await Promise.all([
       prisma.task.count({ where: { workspaceId, createdAt: { gte: sinceDate } } }),
       prisma.task.count({
-        where: { workspaceId, status: "completed", updatedAt: { gte: sinceDate } },
+        where: { workspaceId, ...(await taskCategoryWhere(prisma, StatusCategory.DONE, workspaceId)), updatedAt: { gte: sinceDate } },
       }),
       prisma.task.count({
         where: {
           workspaceId,
           dueDate: { gte: MIN_OVERDUE_DUE_DATE, lt: now },
-          status: { notIn: ["completed", "cancelled"] },
+          status: { notIn: ["cancelled"] },
+          ...(await taskCategoryWhereNot(prisma, StatusCategory.DONE, workspaceId)),
         },
       }),
       prisma.task.groupBy({ by: ["status"], where: { workspaceId }, _count: true }),

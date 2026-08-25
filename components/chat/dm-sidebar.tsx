@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Image from "next/image";
 import { useQuery } from "@tanstack/react-query";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { cn } from "@/lib/utils";
@@ -49,7 +50,7 @@ export function DmSidebar({ activeConversationId, onSelectConversation, onNewMes
     refetchInterval: 60_000,
   });
 
-  const conversations: Conversation[] = data?.conversations ?? [];
+  const conversations: Conversation[] = useMemo(() => data?.conversations ?? [], [data?.conversations]);
 
   const filtered = useMemo(() => {
     if (!search.trim()) return conversations;
@@ -116,7 +117,7 @@ export function DmSidebar({ activeConversationId, onSelectConversation, onNewMes
                   <div className="relative shrink-0 mt-0.5">
                     {participant?.imageUrl ? (
                       <div className="h-8 w-8 rounded-full overflow-hidden ring-2 ring-background">
-                        <img src={participant.imageUrl} alt="" className="object-cover w-full h-full" />
+                        <Image src={participant.imageUrl} alt="" width={32} height={32} className="object-cover w-full h-full" />
                       </div>
                     ) : (
                       <div className={cn(

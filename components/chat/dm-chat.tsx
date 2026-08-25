@@ -148,7 +148,7 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
       name: user?.fullName || user?.firstName || "User",
       imageUrl: user?.imageUrl,
     }).catch(() => {});
-  }, [user?.id, user?.fullName, user?.firstName, user?.imageUrl]);
+  }, [user?.id, user?.fullName, user?.firstName, user?.imageUrl, dbUser?.id]);
 
   const connectAbly = useCallback(async () => {
     if (!user?.id || !conversationId) return;

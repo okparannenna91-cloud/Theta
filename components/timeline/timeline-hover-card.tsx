@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import { format, parseISO } from "date-fns";
 import { CalendarDays, User, Flag, Tag, CheckCircle2, Target } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isDoneStatus } from "@/lib/constants/status";
 import { getPriorityColor, getStatusColor } from "./timeline-utils";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
@@ -119,7 +120,7 @@ export function TimelineHoverCard({ task }: TimelineHoverCardProps) {
           </div>
         )}
 
-        {task.status === "done" && (
+        {isDoneStatus(task.status) && (
           <div className="flex items-center gap-1.5 text-[11px] text-emerald-500 font-medium">
             <CheckCircle2 className="h-3.5 w-3.5" />
             Completed

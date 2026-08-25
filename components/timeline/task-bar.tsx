@@ -5,6 +5,7 @@ import { differenceInDays, startOfDay, addMinutes, addDays, parseISO } from "dat
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { isDoneStatus, isBlockedStatus } from "@/lib/constants/status";
 import { Milestone, AlertCircle, CheckCircle2, GripVertical } from "lucide-react";
 import { GanttTooltip } from "@/components/gantt/gantt-tooltip";
 
@@ -156,7 +157,7 @@ export default function TaskBar({
 
         document.addEventListener("mousemove", onMouseMove);
         document.addEventListener("mouseup", onMouseUp);
-    }, [onUpdate, task, snapUnit, cellWidth, onDragStart, onDragEnd]);
+    }, [onUpdate, task, snapUnit, snapToUnit, cellWidth, onDragStart, onDragEnd]);
 
     const handleResizeStart = useCallback((e: React.MouseEvent, direction: "left" | "right") => {
         e.preventDefault();
@@ -202,7 +203,7 @@ export default function TaskBar({
 
         document.addEventListener("mousemove", onMouseMove);
         document.addEventListener("mouseup", onMouseUp);
-    }, [onUpdate, task, snapUnit, cellWidth, onDragStart, onDragEnd]);
+    }, [onUpdate, task, snapUnit, snapToUnit, cellWidth, onDragStart, onDragEnd]);
 
     const priorityStyles: any = {
         urgent: "from-red-500/40 to-orange-500/20 border-red-500/50 shadow-red-500/10",
@@ -401,9 +402,9 @@ export default function TaskBar({
 
                 <div className="flex items-center justify-between w-full gap-2 overflow-hidden pointer-events-none">
                     <div className="flex items-center gap-1.5 overflow-hidden min-w-0">
-                        {task.status === "done" ? (
+                        {isDoneStatus(task.status) ? (
                             <CheckCircle2 className="h-3 w-3 text-emerald-500 flex-shrink-0" />
-                        ) : task.status === "blocked" || task.status === "stuck" ? (
+                        ) : isBlockedStatus(task.status) ? (
                             <AlertCircle className="h-3 w-3 text-rose-500 flex-shrink-0" />
                         ) : null}
                         <span className="text-[10px] font-semibold truncate">

@@ -180,3 +180,98 @@ export const PRIORITY_VALUES = [
   PRIORITY_HIGH,
   PRIORITY_URGENT,
 ] as const;
+
+// ── Prisma category-aware query helpers ──────────────────────────────────────
+
+/**
+ * Get all Status IDs that belong to a given category.
+ * Optionally scoped to a workspace.
+ */
+export async function getStatusIdsByCategory(
+  prismaClient: any,
+  category: StatusCategory,
+  workspaceId?: string,
+): Promise<string[]> {
+  const where: any = { category };
+  if (workspaceId) where.workspaceId = workspaceId;
+  const statuses = await prismaClient.status.findMany({ where, select: { id: true } });
+  return statuses.map((s: any) => s.id);
+}
+
+/**
+ * Build a Prisma where clause for tasks whose statusId belongs to a category.
+ * Includes a fallback for tasks with no statusId but matching the name.
+ */
+export async function taskCategoryWhere(
+  prismaClient: any,
+  category: StatusCategory,
+  workspaceId?: string,
+) {
+  const ids = await getStatusIdsByCategory(prismaClient, category, workspaceId);
+  const nameFallbacks = category === StatusCategory.DONE
+    ? ["done", "completed", "complete", "closed", "resolved"]
+    : category === StatusCategory.TODO
+    ? ["todo", "backlog", "to_do", "not_started", "open", "new"]
+    : category === StatusCategory.IN_PROGRESS
+    ? ["in_progress", "in-progress"]
+    : category === StatusCategory.BLOCKED
+    ? ["blocked"]
+    : [];
+
+  if (ids.length === 0 && nameFallbacks.length === 0) {
+    return { statusId: { in: ["__NONE__"] } };
+  }
+
+  return {
+    OR: [
+      ...(ids.length > 0 ? [{ statusId: { in: ids } }] : []),
+      ...(nameFallbacks.length > 0 ? [{ statusId: null, status: { in: nameFallbacks } }] : []),
+    ],
+  };
+}
+
+/**
+ * Negated version — tasks NOT in a given category.
+ */
+export async function taskCategoryWhereNot(
+  prismaClient: any,
+  category: StatusCategory,
+  workspaceId?: string,
+) {
+  const ids = await getStatusIdsByCategory(prismaClient, category, workspaceId);
+  const nameFallbacks = category === StatusCategory.DONE
+    ? ["done", "completed", "complete", "closed", "resolved"]
+    : category === StatusCategory.TODO
+    ? ["todo", "backlog", "to_do", "not_started", "open", "new"]
+    : category === StatusCategory.IN_PROGRESS
+    ? ["in_progress", "in-progress"]
+    : category === StatusCategory.BLOCKED
+    ? ["blocked"]
+    : [];
+
+  const conditions: any[] = [];
+  if (ids.length > 0) conditions.push({ statusId: { notIn: ids } });
+  if (nameFallbacks.length > 0) conditions.push({ statusId: null, status: { notIn: nameFallbacks } });
+
+  if (conditions.length === 0) return {};
+  if (conditions.length === 1) return conditions[0];
+  return { AND: conditions };
+}
+
+/**
+ * Build a Prisma where clause for tasks matching ANY of multiple categories.
+ */
+export async function taskCategoriesWhere(
+  prismaClient: any,
+  categories: StatusCategory[],
+  workspaceId?: string,
+) {
+  const allIds: string[] = [];
+  for (const cat of categories) {
+    const ids = await getStatusIdsByCategory(prismaClient, cat, workspaceId);
+    allIds.push(...ids);
+  }
+  const uniqueIds = Array.from(new Set(allIds));
+  if (uniqueIds.length === 0) return { statusId: { in: ["__NONE__"] } };
+  return { statusId: { in: uniqueIds } };
+}

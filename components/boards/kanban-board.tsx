@@ -96,7 +96,7 @@ import { useStatuses } from "@/hooks/use-statuses";
 import { usePopups } from "@/components/popups/popup-manager";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { getBoardChannel } from "@/lib/ably";
-import { isDoneColumnName, isTodoColumnName } from "@/lib/constants/status";
+import { isDoneColumnName, isTodoColumnName, isDoneStatus } from "@/lib/constants/status";
 
 async function fetchBoard(id: string) {
   const res = await fetch(`/api/boards/${id}`);
@@ -169,7 +169,7 @@ const TaskCardContent = React.memo(function TaskCardContent({ task, memberMap, f
 
   const subtaskProgress = useMemo(() => {
     if (!task.children?.length) return null;
-    const done = task.children.filter((c: any) => c.status === "completed").length;
+    const done = task.children.filter((c: any) => isDoneStatus(c.status)).length;
     return { done, total: task.children.length };
   }, [task.children]);
 
@@ -560,7 +560,7 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
     ablyTimerRef.current = setTimeout(() => {
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
     }, 500);
-  }, [queryClient, boardId]);
+  }, [queryClient, boardId, activeWorkspaceId]); // eslint-disable-line react-hooks/exhaustive-deps -- board is defined after this callback via useQuery
 
   const ablyClient = useAbly(boardChannel, "task:created", handleAblyUpdate);
   useAbly(boardChannel, "task:updated", handleAblyUpdate);
@@ -784,7 +784,7 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
     () => [...(board?.columns || [])].sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0)),
     [board]
   );
-  const tasks = board?.tasks || [];
+  const tasks = useMemo(() => board?.tasks || [], [board?.tasks]);
 
   // Filter tasks
   const filteredTasks = useMemo(() => tasks.filter((task: any) => {
@@ -1095,7 +1095,7 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
       setTimeout(() => { reorderRef.current -= 1; }, 1000);
     }
-  }, [queryClient, boardId]);
+  }, [queryClient, boardId, activeWorkspaceId]); // eslint-disable-line react-hooks/exhaustive-deps -- board is defined after this callback via useQuery
 
   if (isLoading) {
     return (

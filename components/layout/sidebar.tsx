@@ -124,7 +124,7 @@ export const Sidebar = memo(function Sidebar() {
     if (collapsedStored === "true") {
       setCollapsed(true);
     }
-  }, []);
+  }, [pathname]);
   const { t } = useI18n();
   const { workspaces, activeWorkspaceId } = useWorkspace();
   const { user } = useUser();

@@ -62,7 +62,7 @@ export default function Page({ params }: { params: { id: string } }) {
     if (!isLoading && !projectBoard && !createBoard.isPending && activeWorkspaceId) {
       createBoard.mutate();
     }
-  }, [isLoading, projectBoard, createBoard.isPending, activeWorkspaceId]);
+  }, [isLoading, projectBoard, createBoard, activeWorkspaceId]);
 
   if (isLoading || !activeWorkspaceId) {
     return (

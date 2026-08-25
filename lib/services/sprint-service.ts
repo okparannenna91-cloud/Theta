@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
 import { cacheGet, cacheSet, cacheInvalidate, cacheKey } from "@/lib/cache";
+import { isDoneStatus, isInProgressStatus, isTodoStatus, taskCategoryWhereNot, StatusCategory } from "@/lib/constants/status";
 
 export interface CreateSprintInput {
   name: string;
@@ -84,9 +85,9 @@ function buildSprintStats(sprint: SprintRecord, tasks: Awaited<ReturnType<typeof
   const msRemaining = sprint.endDate.getTime() - now.getTime();
   const daysRemaining = Math.max(0, Math.ceil(msRemaining / 86400000));
 
-  const completedTasks = tasks.filter((t) => t.status === "completed").length;
-  const inProgressTasks = tasks.filter((t) => t.status === "in_progress").length;
-  const todoTasks = tasks.filter((t) => t.status === "todo").length;
+  const completedTasks = tasks.filter((t) => isDoneStatus(t.status)).length;
+  const inProgressTasks = tasks.filter((t) => isInProgressStatus(t.status)).length;
+  const todoTasks = tasks.filter((t) => isTodoStatus(t.status)).length;
   const totalTasks = tasks.length;
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
   const estimatedHours = tasks.reduce((sum, t) => sum + (t.estimatedHours ?? 0), 0);
@@ -263,7 +264,7 @@ export async function completeSprint(sprintId: string): Promise<SprintWithStats>
   }
 
   const incompleteTasks = await prisma.task.findMany({
-    where: { sprintId, status: { not: "completed" } },
+    where: { sprintId, ...(await taskCategoryWhereNot(prisma, StatusCategory.DONE)) },
     select: { id: true, title: true },
   });
 
@@ -280,7 +281,7 @@ export async function completeSprint(sprintId: string): Promise<SprintWithStats>
     const targetSprintId = nextSprint?.id ?? null;
 
     await prisma.task.updateMany({
-      where: { sprintId, status: { not: "completed" } },
+      where: { sprintId, ...(await taskCategoryWhereNot(prisma, StatusCategory.DONE)) },
       data: { sprintId: targetSprintId },
     });
 
@@ -405,7 +406,7 @@ export async function getSprintBurndown(sprintId: string): Promise<SprintBurndow
 
   const completedTaskDates = new Map<string, number>();
   for (const task of tasks) {
-    if (task.status === "completed" && task.createdAt) {
+    if (isDoneStatus(task.status) && task.createdAt) {
       const dateStr = task.createdAt.toISOString().split("T")[0];
       completedTaskDates.set(dateStr, (completedTaskDates.get(dateStr) ?? 0) + 1);
     }
@@ -463,7 +464,7 @@ export async function getSprintVelocity(
     });
 
     const committed = tasks.length;
-    const completed = tasks.filter((t) => t.status === "completed").length;
+    const completed = tasks.filter((t) => isDoneStatus(t.status)).length;
 
     velocityData.push({
       sprintId: sprint.id,
@@ -505,7 +506,7 @@ export async function getSprintRetrospective(sprintId: string): Promise<SprintRe
   const velocity = await getSprintVelocity(sprint.projectId, 5);
 
   const completedTasks = tasks
-    .filter((t) => t.status === "completed" && t.completedAt)
+    .filter((t) => isDoneStatus(t.status) && t.completedAt)
     .map((t) => ({
       id: t.id,
       title: t.title,
@@ -513,7 +514,7 @@ export async function getSprintRetrospective(sprintId: string): Promise<SprintRe
     }));
 
   const incompleteTasks = tasks
-    .filter((t) => t.status !== "completed")
+    .filter((t) => !isDoneStatus(t.status))
     .map((t) => ({
       id: t.id,
       title: t.title,

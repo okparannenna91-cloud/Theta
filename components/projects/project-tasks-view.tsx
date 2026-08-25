@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, CheckCircle2, Circle, Clock, Paperclip, Trash2, ListChecks } from "lucide-react";
 import { useStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
-import { isDoneStatus, isInProgressStatus } from "@/lib/constants/status";
+import { isDoneStatus, isInProgressStatus, isBlockedStatus, isTodoStatus, STATUS_DONE, STATUS_TODO } from "@/lib/constants/status";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { toast } from "sonner";
@@ -166,25 +166,25 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-emerald-500" />
                   <span className="text-[10px] text-muted-foreground/50">
-                    {tasks.filter((t: any) => t.status === "done").length} done
+                    {tasks.filter((t: any) => isDoneStatus(t.status)).length} done
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-blue-500" />
                   <span className="text-[10px] text-muted-foreground/50">
-                    {tasks.filter((t: any) => t.status === "in_progress" || t.status === "in-progress").length} in progress
+                    {tasks.filter((t: any) => isInProgressStatus(t.status)).length} in progress
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-red-500" />
                   <span className="text-[10px] text-muted-foreground/50">
-                    {tasks.filter((t: any) => t.status === "blocked" || t.status === "stuck").length} blocked
+                    {tasks.filter((t: any) => isBlockedStatus(t.status)).length} blocked
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
                   <span className="text-[10px] text-muted-foreground/50">
-                    {tasks.filter((t: any) => t.status !== "done" && t.status !== "in_progress" && t.status !== "in-progress" && t.status !== "blocked" && t.status !== "stuck").length} backlog
+                    {tasks.filter((t: any) => !isDoneStatus(t.status) && !isInProgressStatus(t.status) && !isBlockedStatus(t.status)).length} backlog
                   </span>
                 </div>
                 <div className="ml-auto flex items-center gap-1.5">
@@ -192,7 +192,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                   <div className="h-1.5 w-20 bg-muted/30 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full bg-primary/50"
-                      style={{ width: `${tasks.length > 0 ? (tasks.filter((t: any) => t.status === "done").length / tasks.length) * 100 : 0}%` }}
+                      style={{ width: `${tasks.length > 0 ? (tasks.filter((t: any) => isDoneStatus(t.status)).length / tasks.length) * 100 : 0}%` }}
                     />
                   </div>
                 </div>
@@ -218,13 +218,13 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                             <CardHeader className="p-4">
                                 <div className="flex items-start justify-between gap-4">
                                     <div className="flex items-start gap-3 flex-1 min-w-0">
-                                        <button onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: task.id, data: { status: task.status === "done" ? "todo" : "done" } }); }}
+                                        <button onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: task.id, data: { status: isDoneStatus(task.status) ? STATUS_TODO : STATUS_DONE } }); }}
                                             className="shrink-0 mt-0.5 hover:scale-110 transition-transform">
                                             {getStatusIcon(task)}
                                         </button>
                                         <div className="flex-1 min-w-0">
                                             <div className="flex items-center gap-2 mb-0.5">
-                                                <span className={cn("text-sm font-medium", task.status === "done" && "line-through text-muted-foreground")}>
+                                                <span className={cn("text-sm font-medium", isDoneStatus(task.status) && "line-through text-muted-foreground")}>
                                                     {task.title}
                                                 </span>
                                                 {task.fieldValues?.attachments?.length > 0 && (
@@ -276,7 +276,7 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                                             onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
                                             <CardHeader className="p-3">
                                                 <div className="flex items-start justify-between gap-2">
-                                                    <span className={cn("text-sm font-medium leading-snug", task.status === "done" && "line-through text-muted-foreground")}>
+                                                    <span className={cn("text-sm font-medium leading-snug", isDoneStatus(task.status) && "line-through text-muted-foreground")}>
                                                         {task.title}
                                                     </span>
                                                     <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100"
@@ -318,21 +318,21 @@ export function ProjectTasksView({ project }: ProjectTasksViewProps) {
                                 <tr key={task.id} className="border-b border-subtle hover:bg-muted/20 transition-colors group cursor-pointer"
                                     onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
                                     <td className="p-3 text-center">
-                                        <button onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: task.id, data: { status: task.status === "done" ? "todo" : "done" } }); }}
+                                        <button onClick={(e) => { e.stopPropagation(); updateMutation.mutate({ id: task.id, data: { status: isDoneStatus(task.status) ? STATUS_TODO : STATUS_DONE } }); }}
                                             className="hover:scale-110 transition-transform">
                                             {getStatusIcon(task)}
                                         </button>
                                     </td>
                                     <td className="p-3">
-                                        <span className={cn("text-sm font-medium truncate max-w-[200px]", task.status === "done" && "line-through text-muted-foreground")}>
+                                        <span className={cn("text-sm font-medium truncate max-w-[200px]", isDoneStatus(task.status) && "line-through text-muted-foreground")}>
                                             {task.title}
                                         </span>
                                     </td>
                                     <td className="p-3">
                                         <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                                             <div className={cn("h-1.5 w-1.5 rounded-full",
-                                                task.status === "done" ? "bg-emerald-500" :
-                                                task.status === "in_progress" ? "bg-blue-500" : "bg-muted-foreground"
+                                                isDoneStatus(task.status) ? "bg-emerald-500" :
+                                                isInProgressStatus(task.status) ? "bg-blue-500" : "bg-muted-foreground"
                                             )} />
                                             {task.status.replace(/[_-]/g, " ")}
                                         </div>

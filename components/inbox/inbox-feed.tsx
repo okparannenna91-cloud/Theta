@@ -72,7 +72,7 @@ export function InboxFeed({ workspaceId, activeTab }: InboxFeedProps) {
     if (inView && hasNextPage) fetchNextPage();
   }, [inView, hasNextPage, fetchNextPage]);
 
-  const notifications = data?.pages.flatMap(page => page.notifications) || [];
+  const notifications = useMemo(() => data?.pages.flatMap(page => page.notifications) || [], [data?.pages]);
   const unreadCount = data?.pages[0]?.unreadCount || 0;
 
   const updateMutation = useMutation({

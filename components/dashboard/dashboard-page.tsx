@@ -13,6 +13,7 @@ import { useWorkspace } from "@/hooks/use-workspace";
 import { useRouter } from "next/navigation";
 import { ActivityTimeline } from "@/components/shared/activity-timeline";
 import { cn } from "@/lib/utils";
+import { isDoneStatus } from "@/lib/constants/status";
 import dynamic from "next/dynamic";
 
 const AreaChart = dynamic(() => import("recharts").then(m => m.AreaChart), { ssr: false });
@@ -366,7 +367,7 @@ export default function DashboardPage() {
                     variant="secondary"
                     className={cn(
                       "rounded-md h-7 px-3 text-xs font-medium",
-                      (task.status === "done")
+                      (isDoneStatus(task.status))
                         ? "bg-emerald-500/10 text-emerald-600 border border-emerald-500/20"
                         : "bg-primary/10 text-primary border border-primary/20"
                     )}

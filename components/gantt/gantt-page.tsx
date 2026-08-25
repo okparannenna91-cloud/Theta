@@ -217,7 +217,7 @@ export default function GanttPage({ projectId }: { projectId?: string }) {
         refetch();
     }, [refetch]);
 
-    const tasks = tasksData || [];
+    const tasks = useMemo(() => tasksData || [], [tasksData]);
 
     // Extract unique tags from tasks
     const allTags = useMemo(() => {

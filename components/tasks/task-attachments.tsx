@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import Image from "next/image";
 import { FileText, Image as ImageIcon, Film, Music, Archive, File, Trash2, Download, ExternalLink, Paperclip, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FileUpload } from "@/components/common/file-upload";
@@ -239,10 +240,13 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
                     <DialogTitle className="sr-only">Image Preview</DialogTitle>
                     <div className="relative w-full flex items-center justify-center">
                         {lightboxUrl && (
-                            <img
+                            <Image
                                 src={lightboxUrl}
                                 alt="Preview"
+                                width={800}
+                                height={600}
                                 className="max-w-full max-h-[80vh] object-contain rounded-lg"
+                                unoptimized
                             />
                         )}
                     </div>

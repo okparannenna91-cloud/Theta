@@ -29,6 +29,7 @@ import {
 } from "./cell-utils";
 import { getEditorForColumn } from "./cell-editors";
 import { CellDisplay } from "./cell-display";
+import { isDoneStatus, STATUS_DONE, STATUS_TODO } from "@/lib/constants/status";
 
 interface TableViewProps {
   tasks: any[];
@@ -404,7 +405,7 @@ export function TableView({
         if (!editingCell && activeCell && visibleColumns[activeCell.col]?.type === "checkbox") {
           const row = groupedTasks.flatMap(g => g.tasks)[activeCell.row];
           if (row) {
-            const newStatus = row.status === "done" ? "todo" : "done";
+            const newStatus = isDoneStatus(row.status) ? STATUS_TODO : STATUS_DONE;
             setTasks(prev => prev.map(t => t.id === row.id ? { ...t, status: newStatus } : t));
             updateMutation.mutate({ id: row.id, data: { status: newStatus } });
           }
@@ -433,7 +434,7 @@ export function TableView({
         break;
       }
     }
-  }, [activeCell, editingCell, visibleColumns, groupedTasks, collapsedGroups, contextMenu, onSelectTask, saveCell, editValue, startEditing, updateMutation, copyToClipboard, pasteFromClipboard, handleUndo, handleRedo, exportCSV, selectedRows, tasks]);
+  }, [activeCell, editingCell, visibleColumns, groupedTasks, collapsedGroups, contextMenu, onSelectTask, saveCell, editValue, startEditing, updateMutation, copyToClipboard, pasteFromClipboard, handleUndo, handleRedo, exportCSV, selectedRows]);
 
   /* ─── Column resize ─── */
   const resizingCol = useRef<string | null>(null);
@@ -506,7 +507,7 @@ export function TableView({
 
   /* ─── Create task ─── */
   const createTask = useCallback(() => {
-    createMutation.mutate({ title: "New task", workspaceId, projectId, status: "todo", priority: "medium" });
+    createMutation.mutate({ title: "New task", workspaceId, projectId, status: STATUS_TODO, priority: "medium" });
   }, [createMutation, workspaceId, projectId]);
 
   return (
@@ -864,7 +865,7 @@ export function TableView({
                       ) : (
                         <div className="cursor-default" onClick={() => {
                           if (col.type === "checkbox") {
-                            const newStatus = task.status === "done" ? "todo" : "done";
+                            const newStatus = isDoneStatus(task.status) ? STATUS_TODO : STATUS_DONE;
                             setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
                             updateMutation.mutate({ id: task.id, data: { status: newStatus } });
                           }
@@ -975,12 +976,12 @@ export function TableView({
                 </button>
                 <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => {
-                    const newStatus = contextMenu.row.status === "done" ? "todo" : "done";
+                    const newStatus = isDoneStatus(contextMenu.row.status) ? STATUS_TODO : STATUS_DONE;
                     setTasks(prev => prev.map(t => t.id === contextMenu.row.id ? { ...t, status: newStatus } : t));
                     updateMutation.mutate({ id: contextMenu.row.id, data: { status: newStatus } });
                     setContextMenu(null);
                   }}>
-                  {contextMenu.row?.status === "done" ? "Mark Incomplete" : "Mark Complete"}
+                  {isDoneStatus(contextMenu.row?.status) ? "Mark Incomplete" : "Mark Complete"}
                 </button>
                 <button className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-xs rounded-md hover:bg-accent text-left transition-colors"
                   onClick={() => { setSelectedRows(new Set([contextMenu.row.id])); duplicateSelected(); setContextMenu(null); }}>

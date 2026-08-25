@@ -3,7 +3,7 @@ import { logger } from "@/lib/logger";
 import { enforcePlanLimit } from "@/lib/plan-limits";
 import { getProjectCount } from "@/lib/usage-tracking";
 import { createActivity } from "@/lib/activity";
-import { StatusCategory, inferStatusCategory } from "@/lib/constants/status";
+import { StatusCategory, inferStatusCategory, STATUS_DONE, STATUS_TODO, isDoneStatus } from "@/lib/constants/status";
 
 export interface NormalizedSyncItem {
   externalId: string;
@@ -273,8 +273,8 @@ function workItemStatusMapping(item: {
   status?: string | null;
 }): { status: string; completedAt: Date | null } | null {
   if (!WORK_ITEM_TYPES.includes(item.type)) return null;
-  if (item.status === "closed") return { status: "done", completedAt: new Date() };
-  return { status: "todo", completedAt: null };
+  if (item.status === "closed") return { status: STATUS_DONE, completedAt: new Date() };
+  return { status: STATUS_TODO, completedAt: null };
 }
 
 export async function createTaskForSyncedItem(
@@ -284,7 +284,7 @@ export async function createTaskForSyncedItem(
   boardId?: string | null,
 ) {
   const mapping = workItemStatusMapping(item);
-  const status = mapping?.status ?? "todo";
+  const status = mapping?.status ?? STATUS_TODO;
   const completedAt = mapping?.completedAt ?? null;
 
   const { boardId: resolvedBoardId, columnId: resolvedColumnId } = await resolveBoardAndColumn(
@@ -445,12 +445,12 @@ export async function updateTaskFromSyncedItem(item: any): Promise<any | null> {
   };
 
   if (WORK_ITEM_TYPES.includes(item.type)) {
-    if (item.status === "closed" && task.status !== "done") {
-      data.status = "done";
+    if (item.status === "closed" && !isDoneStatus(task.status)) {
+      data.status = STATUS_DONE;
       data.completedAt = new Date();
       data.columnId = await resolveColumnForItem(task.boardId, item, "done");
-    } else if (item.status === "open" && (task.status === "done" || task.completedAt)) {
-      data.status = "todo";
+    } else if (item.status === "open" && (isDoneStatus(task.status) || task.completedAt)) {
+      data.status = STATUS_TODO;
       data.completedAt = null;
       data.columnId = await resolveColumnForItem(task.boardId, item, "todo");
     }

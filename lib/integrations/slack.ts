@@ -3,6 +3,7 @@ import { decrypt } from "@/lib/crypto";
 import { signOAuthState, generateCodeChallenge } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
 import { getAppUrl } from "@/lib/app-url";
+import { isDoneStatus, isInProgressStatus, STATUS_TODO } from "@/lib/constants/status";
 
 export interface SlackConfig {
   teamId: string;
@@ -328,17 +329,16 @@ export async function sendDailyStandup(
       orderBy: [{ status: "asc" }, { priority: "desc" }],
     });
 
-    const active = tasks.filter((t) => t.status === "in_progress");
+    const active = tasks.filter((t) => isInProgressStatus(t.status));
     const completedToday = tasks.filter(
       (t) =>
-        (t.status === "done" || t.status === "completed") &&
+        isDoneStatus(t.status) &&
         t.completedAt &&
         t.completedAt >= startOfDay
     );
     const upcoming = tasks.filter(
       (t) =>
-        t.status !== "done" &&
-        t.status !== "completed" &&
+        !isDoneStatus(t.status) &&
         t.dueDate &&
         new Date(t.dueDate) <= new Date(now.getTime() + 2 * 86400000)
     );
@@ -449,7 +449,7 @@ export async function sendSprintSummary(
     });
 
     const completed = tasks.filter(
-      (t) => t.status === "done" || t.status === "completed"
+      (t) => isDoneStatus(t.status)
     );
     const total = tasks.length;
     const completionRate = total > 0 ? Math.round((completed.length / total) * 100) : 0;
@@ -489,7 +489,7 @@ export async function sendSprintSummary(
     for (const t of tasks) {
       const entry = byType.get(t.taskType) ?? { done: 0, total: 0 };
       entry.total++;
-      if (t.status === "done" || t.status === "completed") entry.done++;
+      if (isDoneStatus(t.status)) entry.done++;
       byType.set(t.taskType, entry);
     }
 
@@ -616,7 +616,7 @@ async function handleCreateCommand(
       workspaceId,
       projectId: project.id,
       userId: user?.id ?? project.userId,
-      status: "todo",
+      status: STATUS_TODO,
       priority: "medium",
     },
   });
@@ -836,7 +836,7 @@ async function createTaskFromMessage(
       workspaceId,
       projectId: project.id,
       userId: slackUser?.id ?? project.userId,
-      status: "todo",
+      status: STATUS_TODO,
       priority: "medium",
     },
   });
@@ -903,7 +903,7 @@ export async function handleInteractiveAction(
         const task = await prisma.task.findUnique({ where: { id: taskId } });
         if (task) {
           const updateData: Record<string, any> = { status: newStatus };
-          if (newStatus === "done" || newStatus === "completed") {
+          if (isDoneStatus(newStatus)) {
             updateData.completedAt = new Date();
           }
           await prisma.task.update({ where: { id: taskId }, data: updateData });

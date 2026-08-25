@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { TaskDialog } from "@/components/tasks/task-dialog";
 import { cn } from "@/lib/utils";
+import { isDoneStatus } from "@/lib/constants/status";
 
 function startOfDay(d: Date) {
   const s = new Date(d);
@@ -79,7 +80,7 @@ const TaskRow = memo(function TaskRow({
   task: any;
   onClick: (task: any) => void;
 }) {
-  const overdue = task.dueDate && task.status !== "done" && isOverdue(task.dueDate);
+  const overdue = task.dueDate && !isDoneStatus(task.status) && isOverdue(task.dueDate);
   const dueToday = task.dueDate && isDueToday(task.dueDate);
 
   return (
@@ -88,7 +89,7 @@ const TaskRow = memo(function TaskRow({
       onClick={() => onClick(task)}
     >
       <button className="shrink-0 hover:scale-110 transition-transform active:scale-95 z-10">
-        {task.status === "done" ? (
+        {isDoneStatus(task.status) ? (
           <CheckCircle2 className="h-4 w-4 text-emerald-500" />
         ) : (
           <Circle className="h-4 w-4 text-slate-300 hover:text-emerald-500/50" />
@@ -99,7 +100,7 @@ const TaskRow = memo(function TaskRow({
         <h4
           className={cn(
             "text-sm font-medium truncate group-hover:text-primary transition-colors",
-            task.status === "done" && "line-through text-muted-foreground opacity-60"
+            isDoneStatus(task.status) && "line-through text-muted-foreground opacity-60"
           )}
         >
           {task.title}
@@ -195,17 +196,17 @@ export default function MyTasksPage() {
   const now = new Date();
 
   const overdue = allTasks.filter(
-    (t: any) => t.status !== "done" && t.dueDate && isOverdue(t.dueDate)
+    (t: any) => !isDoneStatus(t.status) && t.dueDate && isOverdue(t.dueDate)
   );
   const dueToday = allTasks.filter(
-    (t: any) => t.status !== "done" && t.dueDate && isDueToday(t.dueDate)
+    (t: any) => !isDoneStatus(t.status) && t.dueDate && isDueToday(t.dueDate)
   );
   const upcoming = allTasks.filter(
-    (t: any) => t.status !== "done" && t.dueDate && isUpcoming(t.dueDate)
+    (t: any) => !isDoneStatus(t.status) && t.dueDate && isUpcoming(t.dueDate)
   );
-  const completed = allTasks.filter((t: any) => t.status === "done");
+  const completed = allTasks.filter((t: any) => isDoneStatus(t.status));
   const noDueDate = allTasks.filter(
-    (t: any) => t.status !== "done" && !t.dueDate
+    (t: any) => !isDoneStatus(t.status) && !t.dueDate
   );
 
   const totalActive = overdue.length + dueToday.length + upcoming.length + noDueDate.length;

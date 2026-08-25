@@ -378,7 +378,7 @@ export function TeamChatEnhanced({ teamId, workspaceId }: TeamChatEnhancedProps)
       console.error("[Chat] Ably setup error:", error);
       setReconnecting(true);
     }
-  }, [teamId, user?.id, subscribeChannel]);
+  }, [teamId, workspaceId, user?.id, subscribeChannel]);
 
   useEffect(() => {
     if (teamId && workspaceId && !fetchedRef.current) fetchMessages();

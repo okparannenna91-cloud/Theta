@@ -10,6 +10,7 @@ import {
 import { format } from "date-fns";
 import type { Column } from "./types";
 import { getStatusColor, getPriorityMeta } from "./cell-utils";
+import { isDoneStatus } from "@/lib/constants/status";
 
 export function CellDisplay({
   col, value, row, onClick, isActive,
@@ -17,7 +18,7 @@ export function CellDisplay({
   col: Column; value: any; row: any; onClick: () => void; isActive?: boolean;
 }) {
   if (col.type === "checkbox") {
-    const isDone = col.id === "__checkbox" ? row.status === "done" : Boolean(value);
+    const isDone = col.id === "__checkbox" ? isDoneStatus(row.status) : Boolean(value);
     return (
       <span className="flex items-center justify-center h-full cursor-pointer" onClick={e => { e.stopPropagation(); onClick(); }}>
         {isDone
@@ -28,7 +29,7 @@ export function CellDisplay({
   }
 
   if (col.type === "title") {
-    const isDone = row.status === "done";
+    const isDone = isDoneStatus(row.status);
     const subtaskCount = row.subtasks?.length || 0;
     const completedSubtasks = row.subtasks?.filter((s: any) => s.completed).length || 0;
     const depCount = row.dependencies?.length || row.dependsOn?.length || 0;
@@ -128,7 +129,7 @@ export function CellDisplay({
     if (!value) return <span className="text-xs text-muted-foreground/20">—</span>;
     let d: Date;
     try { d = new Date(value); if (isNaN(d.getTime())) throw new Error("invalid"); } catch { return <span className="text-xs">{String(value)}</span>; }
-    const isOverdue = col.id === "dueDate" && d < new Date() && row.status !== "done";
+    const isOverdue = col.id === "dueDate" && d < new Date() && !isDoneStatus(row.status);
     return (
       <span className={cn("inline-flex items-center gap-1 text-xs", isOverdue ? "text-red-500 font-medium" : "text-muted-foreground/60")}>
         <CalendarDays className="h-3 w-3" strokeWidth={1.5} />

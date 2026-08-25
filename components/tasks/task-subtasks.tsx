@@ -27,6 +27,7 @@ import { useAbly } from "@/hooks/use-ably";
 import { getWorkspaceChannel, getTaskChannel } from "@/lib/ably";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { useWorkspaceStatuses, FALLBACK_STATUSES } from "@/hooks/use-statuses";
+import { isDoneStatus, STATUS_TODO, STATUS_DONE } from "@/lib/constants/status";
 
 interface SubtaskChild {
     id: string;
@@ -196,7 +197,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
                     parentId: taskId,
                     workspaceId,
                     ...(projectId ? { projectId } : {}),
-                    status: "todo",
+                    status: STATUS_TODO,
                 }),
             });
             if (!res.ok) {
@@ -250,7 +251,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    status: completed ? "completed" : "todo",
+                    status: completed ? STATUS_DONE : STATUS_TODO,
                     progress: completed ? 100 : 0,
                 }),
             });
@@ -264,7 +265,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
             queryClient.setQueryData<SubtaskChild[]>(["task-children", taskId], (prev = []) =>
                 prev.map((c) =>
                     c.id === id
-                        ? { ...c, status: completed ? "completed" : "todo", progress: completed ? 100 : 0 }
+                        ? { ...c, status: completed ? STATUS_DONE : STATUS_TODO, progress: completed ? 100 : 0 }
                         : c
                 )
             );
@@ -334,13 +335,13 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
 
     const filtered = useMemo(() => {
         const list = Array.isArray(children) ? children : [];
-        if (filter === "active") return list.filter((c) => c.status !== "completed");
-        if (filter === "done") return list.filter((c) => c.status === "completed");
+        if (filter === "active") return list.filter((c) => !isDoneStatus(c.status));
+        if (filter === "done") return list.filter((c) => isDoneStatus(c.status));
         return list;
     }, [children, filter]);
 
     const childList = Array.isArray(children) ? children : [];
-    const completedCount = childList.filter((c) => c.status === "completed").length;
+    const completedCount = childList.filter((c) => isDoneStatus(c.status)).length;
     const totalCount = childList.length;
     const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
@@ -418,7 +419,7 @@ export function TaskSubtasks({ taskId, workspaceId, projectId, onOpenChild }: Ta
                                     onToggle={() =>
                                         toggleSubtaskMutation.mutate({
                                             id: subtask.id,
-                                            completed: subtask.status !== "completed",
+                                            completed: !isDoneStatus(subtask.status),
                                         })
                                     }
                                     onRename={(title) =>
@@ -517,7 +518,7 @@ function SortableSubtaskRow({
         if (editing) setEditTitle(subtask.title);
     }, [editing, subtask.title]);
 
-    const completed = subtask.status === "completed";
+    const completed = isDoneStatus(subtask.status);
     const overdue = !completed && subtask.dueDate && new Date(subtask.dueDate) < new Date();
 
     const statusInfo =

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { isDoneStatus, isInProgressStatus, taskCategoryWhereNot, StatusCategory } from "@/lib/constants/status";
 
 export type BurndownPoint = {
   date: string;
@@ -147,7 +148,8 @@ export async function getWorkloadChart(
   const tasks = await prisma.task.findMany({
     where: {
       ...taskScope(workspaceId, projectId, includeSubtasks),
-      status: { notIn: ["completed", "cancelled"] },
+      status: { notIn: ["cancelled"] },
+      ...(await taskCategoryWhereNot(prisma, StatusCategory.DONE, workspaceId)),
     },
     select: {
       assigneeIds: true,
@@ -181,8 +183,8 @@ export async function getWorkloadChart(
       };
 
       existing.totalTasks++;
-      if (task.status === "completed") existing.completedTasks++;
-      else if (task.status === "in_progress") existing.inProgressTasks++;
+      if (isDoneStatus(task.status)) existing.completedTasks++;
+      else if (isInProgressStatus(task.status)) existing.inProgressTasks++;
       else existing.todoTasks++;
 
       existing.estimatedHours += task.estimatedHours || 0;
@@ -298,12 +300,12 @@ export async function getProjectAnalytics(
   });
 
   const total = tasks.length;
-  const completed = tasks.filter((t) => t.status === "completed").length;
+  const completed = tasks.filter((t) => isDoneStatus(t.status)).length;
   const overdue = tasks.filter(
     (t) =>
       t.dueDate &&
       t.dueDate < new Date() &&
-      t.status !== "completed" &&
+      !isDoneStatus(t.status) &&
       t.status !== "cancelled"
   ).length;
 

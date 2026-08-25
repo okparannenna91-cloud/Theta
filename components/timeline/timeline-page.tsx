@@ -90,7 +90,7 @@ export default function TimelinePage({ projectId }: { projectId?: string }) {
   });
 
   const projects = projectsData || [];
-  const allTasks = tasksData || [];
+  const allTasks = useMemo(() => tasksData || [], [tasksData]);
 
   // Load saved views from localStorage
   useEffect(() => {

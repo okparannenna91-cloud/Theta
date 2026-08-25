@@ -201,7 +201,7 @@ export function ProjectActivity({ projectId, workspaceId }: ProjectActivityProps
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
-  const allActivities: ActivityItem[] = data?.pages.flatMap((page) => page.activities) || [];
+  const allActivities: ActivityItem[] = useMemo(() => data?.pages.flatMap((page) => page.activities) || [], [data?.pages]);
 
   const counts = useMemo(() => {
     const tally: Record<string, number> = { all: allActivities.length };

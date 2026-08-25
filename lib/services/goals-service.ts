@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
+import { isDoneStatus } from "@/lib/constants/status";
 
 export interface CreateGoalInput {
   title: string;
@@ -95,7 +96,7 @@ async function getTaskCountsForKRs(
   });
 
   const taskIdToStatus = new Map(
-    tasks.map((t) => [t.id, { completed: t.completedAt !== null || t.status === "done" || t.status === "completed" }]),
+    tasks.map((t) => [t.id, { completed: t.completedAt !== null || isDoneStatus(t.status) }]),
   );
 
   for (const kr of keyResults) {

@@ -24,6 +24,7 @@ const BarChart = dynamic(() => import("recharts").then(m => m.BarChart), { ssr: 
 const Bar = dynamic(() => import("recharts").then(m => m.Bar), { ssr: false });
 
 import { MotionWrapper, FadeIn, ScaleIn } from "@/components/common/motion-wrapper";
+import { isDoneStatus } from "@/lib/constants/status";
 
 export function PortfolioPage() {
     const { activeWorkspaceId } = useWorkspace();
@@ -73,7 +74,7 @@ export function PortfolioPage() {
     );
 
     const projectHealth = projects?.map((p: any) => {
-        const completed = p.tasks?.filter((t: any) => t.status === "done").length || 0;
+        const completed = p.tasks?.filter((t: any) => isDoneStatus(t.status)).length || 0;
         const total = p.tasks?.length || 0;
         const progress = total > 0 ? (completed / total) * 100 : 0;
         return { ...p, progress, completed, total };

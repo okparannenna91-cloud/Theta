@@ -17,7 +17,7 @@ import { ImageUpload } from "@/components/common/image-upload";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { usePopups } from "@/components/popups/popup-manager";
 import { useStatuses, useWorkspaceStatuses, getStatusValue, FALLBACK_STATUSES } from "@/hooks/use-statuses";
-import { isDoneStatus, isInProgressStatus } from "@/lib/constants/status";
+import { isDoneStatus, isInProgressStatus, STATUS_DONE, STATUS_TODO } from "@/lib/constants/status";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
 import { TaskDialog } from "./task-dialog";
 import { TableView } from "@/components/table/table-view";
@@ -109,7 +109,7 @@ const TaskRow = memo(function TaskRow({ task, onToggle, onDelete, onOpen }: {
             </button>
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-0.5">
-                <span className={cn("text-sm font-medium", (task.status === "done") && "line-through text-muted-foreground")}>
+                <span className={cn("text-sm font-medium", (isDoneStatus(task.status)) && "line-through text-muted-foreground")}>
                   {task.title}
                 </span>
                 {task.fieldValues?.attachments?.length > 0 && (
@@ -146,7 +146,7 @@ export default function TasksPage() {
   const [isOpen, setIsOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [status, setStatus] = useState("todo");
+  const [status, setStatus] = useState(STATUS_TODO);
   const [priority, setPriority] = useState("medium");
   const [projectId, setProjectId] = useState("");
   const [coverImage, setCoverImage] = useState("");
@@ -232,7 +232,7 @@ export default function TasksPage() {
     onSuccess: () => {
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceIdRef.current });
       setIsOpen(false);
-      setTitle(""); setDescription(""); setStatus("todo"); setPriority("medium"); setProjectId(""); setCoverImage("");
+      setTitle(""); setDescription(""); setStatus(STATUS_TODO); setPriority("medium"); setProjectId(""); setCoverImage("");
       toast.success("Task created successfully");
     },
     onError: (error: any) => { toast.error(error.message || "Failed to create task"); },
@@ -251,7 +251,7 @@ export default function TasksPage() {
   });
 
   const handleToggleTask = useCallback((task: any) => {
-    updateMutation.mutate({ id: task.id, data: { status: task.status === "done" ? "todo" : "done" } });
+    updateMutation.mutate({ id: task.id, data: { status: isDoneStatus(task.status) ? STATUS_TODO : STATUS_DONE } });
   }, [updateMutation]);
 
   const handleDeleteTask = useCallback((id: string) => {

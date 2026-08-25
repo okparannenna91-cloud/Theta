@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { isDoneStatus } from "@/lib/constants/status";
 
 const DEPENDENCY_TYPE_META: Record<string, { label: string; dot: string; className: string }> = {
     FS: { label: "Finish → Start", dot: "bg-violet-500", className: "bg-violet-100 text-violet-600 dark:bg-violet-900/30 dark:text-violet-400" },
@@ -254,7 +255,7 @@ export function TaskDependencies({ taskId, workspaceId, projectId }: TaskDepende
                                 )}
                                 <span className={cn(
                                     "text-[10px] px-1.5 py-0.5 rounded-full font-medium capitalize",
-                                    dep.predecessor?.status === "done"
+                                    isDoneStatus(dep.predecessor?.status)
                                         ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400"
                                         : "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400"
                                 )}>

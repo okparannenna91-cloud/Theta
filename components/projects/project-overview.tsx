@@ -8,7 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Progress } from "@/components/ui/progress";
 import { format, differenceInDays, parseISO, isAfter } from "date-fns";
 import { cn } from "@/lib/utils";
-import { isDoneStatus, isInProgressStatus } from "@/lib/constants/status";
+import { isDoneStatus, isInProgressStatus, isBlockedStatus } from "@/lib/constants/status";
 import {
   Calendar,
   User,
@@ -186,7 +186,7 @@ export function ProjectOverview({ project }: ProjectOverviewProps) {
   const healthStatus = healthScore >= 70 ? "HEALTHY" : healthScore >= 40 ? "AT_RISK" : "CRITICAL";
 
   const stuckTasks = useMemo(() =>
-    safeTasks.filter((t: any) => t.status === "blocked" || t.status === "stuck").length,
+    safeTasks.filter((t: any) => isBlockedStatus(t.status)).length,
     [safeTasks]
   );
 

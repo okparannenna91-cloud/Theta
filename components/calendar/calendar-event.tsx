@@ -11,6 +11,7 @@ import type { CalendarEvent } from "./calendar-types";
 import { useWorkspace } from "@/hooks/use-workspace";
 import { useWorkspaceMembers } from "@/hooks/use-workspace-members";
 import { UserAvatar } from "@/components/ui/user-avatar";
+import Image from "next/image";
 
 const statusLabels: Record<string, string> = {
   todo: "To Do",
@@ -96,7 +97,7 @@ export function CalendarEventBar({ event, onMouseEnter, onMouseLeave, onMouseDow
               {assigneeMembers.slice(0, 2).map((m: any) => (
                 <div key={m.id} className="h-3.5 w-3.5 rounded-full ring-1 ring-background overflow-hidden"
                   title={m.name} style={{ backgroundColor: m.color || "#e2e8f0" }}>
-                  {m.imageUrl && <img src={m.imageUrl} alt="" className="h-full w-full object-cover" />}
+                  {m.imageUrl && <Image src={m.imageUrl} alt="" width={14} height={14} className="h-full w-full object-cover" />}
                 </div>
               ))}
               {assigneeMembers.length > 2 && (

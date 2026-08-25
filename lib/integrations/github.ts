@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { decrypt, encrypt } from "@/lib/crypto";
 import { logger } from "@/lib/logger";
+import { isDoneStatus, STATUS_DONE, STATUS_TODO } from "@/lib/constants/status";
 
 const GITHUB_API_URL = "https://api.github.com";
 
@@ -484,14 +485,14 @@ export class GitHubIntegration {
     );
 
     const isCompleted =
-      task.status === "done" || task.status === "completed";
+      isDoneStatus(task.status);
 
     if (issueState === "closed" && !isCompleted) {
       // GitHub issue was closed – update Theta PM task
       await prisma.task.update({
         where: { id: taskId },
         data: {
-          status: "done",
+          status: STATUS_DONE,
           completedAt: new Date(),
         },
       });
@@ -636,7 +637,7 @@ export class GitHubIntegration {
       await prisma.task.update({
         where: { id: linkedTask.id },
         data: {
-          status: "done",
+          status: STATUS_DONE,
           completedAt: new Date(),
         },
       });
@@ -648,7 +649,7 @@ export class GitHubIntegration {
       await prisma.task.update({
         where: { id: linkedTask.id },
         data: {
-          status: "todo",
+          status: STATUS_TODO,
           completedAt: null,
         },
       });
@@ -706,7 +707,7 @@ export class GitHubIntegration {
       await prisma.task.update({
         where: { id: linkedTask.id },
         data: {
-          status: "done",
+          status: STATUS_DONE,
           completedAt: new Date(),
         },
       });
@@ -771,7 +772,7 @@ export class GitHubIntegration {
     if (!task) throw new Error("Task not found");
 
     const metadata = (task.customFieldMetadata as TaskMetadata) || {};
-    const isCompleted = task.status === "done" || task.status === "completed";
+    const isCompleted = isDoneStatus(task.status);
 
     // Sync linked GitHub issue state
     if (metadata.githubIssueNumber && metadata.githubOwner && metadata.githubRepo) {
