@@ -2,6 +2,10 @@
 
 import { useState, useRef, useEffect, useCallback, memo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { GripVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -91,11 +95,12 @@ function getPriorityColor(priority: string) {
   }
 }
 
-const TaskRow = memo(function TaskRow({ task, onToggle, onDelete, onOpen }: {
+const TaskRow = memo(function TaskRow({ task, onToggle, onDelete, onOpen, dragHandleProps }: {
   task: any;
   onToggle: (task: any) => void;
   onDelete: (id: string) => void;
   onOpen: (task: any) => void;
+  dragHandleProps?: Record<string, any>;
 }) {
   return (
     <Card className="border-subtle hover:border-primary/30 transition-colors cursor-pointer"
@@ -103,6 +108,10 @@ const TaskRow = memo(function TaskRow({ task, onToggle, onDelete, onOpen }: {
       <CardHeader className="p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 flex-1 min-w-0">
+            <div {...dragHandleProps} className="shrink-0 mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+              onClick={(e) => e.stopPropagation()}>
+              <GripVertical className="h-4 w-4" />
+            </div>
             <button onClick={() => onToggle(task)}
               className="shrink-0 mt-0.5 hover:scale-110 transition-transform">
               {getStatusIcon(task)}
@@ -141,6 +150,26 @@ const TaskRow = memo(function TaskRow({ task, onToggle, onDelete, onOpen }: {
     </Card>
   );
 });
+
+function SortableTaskRow({ task, onToggle, onDelete, onOpen }: {
+  task: any;
+  onToggle: (task: any) => void;
+  onDelete: (id: string) => void;
+  onOpen: (task: any) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id });
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 50 : undefined,
+  };
+  return (
+    <div ref={setNodeRef} style={style} {...attributes}>
+      <TaskRow task={task} onToggle={onToggle} onDelete={onDelete} onOpen={onOpen} dragHandleProps={listeners} />
+    </div>
+  );
+}
 
 export default function TasksPage() {
   const [isOpen, setIsOpen] = useState(false);
@@ -273,6 +302,38 @@ export default function TasksPage() {
   const [view, setView] = useState<"list" | "table">("list");
   const [selectedTask, setSelectedTask] = useState<any>(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const oldIndex = tasks.findIndex((t: any) => t.id === active.id);
+    const newIndex = tasks.findIndex((t: any) => t.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+
+    const reordered = arrayMove(tasks, oldIndex, newIndex);
+    const updates = reordered.map((t: any, i: number) => ({ id: t.id, order: i * 1000 }));
+
+    queryClient.setQueryData(["tasks", activeWorkspaceId, filters], (old: any) => {
+      if (!old) return old;
+      const taskList = Array.isArray(old?.tasks) ? old.tasks : Array.isArray(old) ? old : [];
+      const updated = arrayMove(taskList, oldIndex, newIndex);
+      return Array.isArray(old?.tasks) ? { ...old, tasks: updated } : updated;
+    });
+
+    fetch("/api/tasks/batch", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ updates }),
+    }).catch(() => {
+      queryClient.invalidateQueries({ queryKey: ["tasks", activeWorkspaceId, filters] });
+    });
+  }, [tasks, activeWorkspaceId, filters, queryClient]);
 
   if (isLoading) {
     return (
@@ -412,17 +473,21 @@ export default function TasksPage() {
       )}
 
       {view === "list" ? (
-        <div className="space-y-2">
-          {tasks?.map((task: any) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                onToggle={handleToggleTask}
-                onDelete={handleDeleteTask}
-                onOpen={handleOpenTask}
-              />
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={tasks?.map((t: any) => t.id) || []} strategy={verticalListSortingStrategy}>
+            <div className="space-y-2">
+              {tasks?.map((task: any) => (
+                <SortableTaskRow
+                  key={task.id}
+                  task={task}
+                  onToggle={handleToggleTask}
+                  onDelete={handleDeleteTask}
+                  onOpen={handleOpenTask}
+                />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       ) : (
         <div className="border rounded-lg overflow-hidden bg-card h-full">
           <TableView

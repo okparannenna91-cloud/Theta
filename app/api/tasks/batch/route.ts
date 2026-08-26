@@ -57,6 +57,7 @@ export async function PATCH(req: Request) {
                         ...(data.isMilestone !== undefined ? { isMilestone: data.isMilestone } : {}),
                         ...(data.parentId !== undefined ? { parentId: data.parentId } : {}),
                         ...(data.schedulingMode !== undefined ? { schedulingMode: data.schedulingMode } : {}),
+                        ...(data.order !== undefined ? { order: data.order } : {}),
                     },
                 });
 
