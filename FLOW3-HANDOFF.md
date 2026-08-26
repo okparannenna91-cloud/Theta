@@ -1,6 +1,23 @@
-# Flow³ Native Chat — Build Status & Handoff
+# Flow³ Native Chat — PARKED (ship later when stronger)
 
-Date: 2026-08-21 · Branch: `main` @ f46681c · Working dir: `C:\Users\NAOMIS\Desktop\021 - Copy`
+Date: 2026-08-21 · Branch: `main` @ 0e1653f · Working dir: `C:\Users\NAOMIS\Desktop\021 - Copy`
+
+## STATUS: Hidden from UI, code intact
+- Sidebar nav item REMOVED (`components/layout/sidebar.tsx`, commit 0e1653f) — Flow³ no longer visible to users
+- All code remains: `/flow3` page, `/api/flow3/chat` SSE route, `/api/nova/conversations` CRUD, all components in `components/flow3/`
+- To re-launch: re-add `<NavItem href="/flow3" icon={Sparkles} label="Flow³ AI" active={isActive("/flow3")} onClick={closeMobile} collapsed={!expanded} />` after the My Tasks NavItem + restore `Sparkles` import
+
+## Shipped before parking (all live in production)
+- Native chat at /flow3: SSE streaming, persisted history (aiConversation/aiMessage), auto-titles (LLM w/ fallback), confirmation cards, Grok-style collapsible thinking strip, bubble-free AI prose w/ explicit spacing utilities, styled wordmark header
+- Fixes along the way: double-persistence eliminated (persistPrismaMessages flag through LangGraph), workspace-agnostic history links, title generated within request lifetime (18s race), member names resolved in workspace overview context (no more raw UUIDs — context-system.ts loadWorkspaceOverview + constitution rule forbidding ID exposure)
+- UUID fix commit 510f5b9 was mid-deploy when Vercel token died; verify it went live on next check
+
+## Known leftovers when resuming
+1. Verify deploys of 510f5b9 (UUID fix) + 0e1653f (sidebar hide) completed OK
+2. Old duplicated aiMessage rows from pre-fix era may still exist in prod DB (display dedupe not needed post-fix; optional cleanup script if user complains about old chats)
+3. Prod MONGODB_URI ambiguity: 5 env entries exist (base empty, _1.._4); runtime resolution unverified — URI_1 old DB, _2/_3 dead Atlas clusters, _4 empty. App works, so whichever resolves at runtime is correct; don't touch
+4. Vercel API token in `C:\Users\NAOMIS\AppData\Roaming\xdg.data\com.vercel.cli\auth.json` EXPIRED as of 2026-08-21 ~18:49 UTC — needs refresh before any Vercel CLI/API work
+5. Follow-ups: attachments support, chat export, keyboard shortcuts
 
 ## Goal
 Native Flow³ chat UI inside Theta PM at `/flow3`, powered by the existing Nova backend

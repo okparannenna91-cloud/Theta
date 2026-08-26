@@ -264,6 +264,55 @@ Be specific. Reference actual task names. Return ONLY the JSON array, or an empt
     }
   }
 
+  static async getCachedNotifications(
+    workspaceId: string,
+    userId: string,
+  ): Promise<SmartNotification[]> {
+    try {
+      const keys = await redis.keys(`smart-notif:${workspaceId}:${userId}:*`);
+      if (keys.length === 0) return [];
+
+      const notifications: SmartNotification[] = [];
+      for (const key of keys) {
+        const raw = await redis.get(key);
+        if (typeof raw === "string") {
+          try {
+            notifications.push(JSON.parse(raw));
+          } catch {
+            // skip corrupt entries
+          }
+        }
+      }
+
+      return notifications.sort((a, b) => {
+        const priorityOrder: Record<string, number> = {
+          urgent: 0,
+          high: 1,
+          medium: 2,
+          low: 3,
+        };
+        return (priorityOrder[a.priority] ?? 3) - (priorityOrder[b.priority] ?? 3);
+      });
+    } catch (error) {
+      logger.warn("[SmartNotifications] Failed to read cached notifications:", error);
+      return [];
+    }
+  }
+
+  static async clearCachedNotifications(
+    workspaceId: string,
+    userId: string,
+  ): Promise<void> {
+    try {
+      const keys = await redis.keys(`smart-notif:${workspaceId}:${userId}:*`);
+      if (keys.length > 0) {
+        await redis.del(...keys);
+      }
+    } catch (error) {
+      logger.warn("[SmartNotifications] Failed to clear cached notifications:", error);
+    }
+  }
+
   static getNotificationPriority(
     notification: SmartNotification,
   ): SmartNotification["priority"] {

@@ -69,6 +69,33 @@ async function resolveActorUserId(
   }
 }
 
+async function checkAutomationPermissions(
+  workspaceId: string,
+  userId: string,
+  actionType: string
+): Promise<{ allowed: boolean; reason?: string }> {
+  try {
+    const membership = await prisma.workspaceMember.findFirst({
+      where: { userId, workspaceId },
+      select: { role: true },
+    });
+
+    if (!membership) {
+      return { allowed: false, reason: "User is not a member of this workspace" };
+    }
+
+    const adminOnlyActions = ["create_task", "create_project", "update_task", "set_status", "set_priority", "assign_task", "move_task", "update_custom_field", "add_comment"];
+    if (adminOnlyActions.includes(actionType) && membership.role === "viewer") {
+      return { allowed: false, reason: `Viewer role cannot perform "${actionType}"` };
+    }
+
+    return { allowed: true };
+  } catch (error) {
+    logger.warn("[AutomationExecutor] Permission check failed, allowing action:", error);
+    return { allowed: true };
+  }
+}
+
 async function getActorName(workspaceId: string, userId?: string): Promise<string> {
   if (!userId) return "Someone";
   try {
@@ -252,6 +279,12 @@ async function executeAction(
   const targetTaskId = str(action.params.taskId) || context.taskId || undefined;
   const actorId = (await resolveActorUserId(workspaceId, context.userId)) || "";
 
+  const permCheck = await checkAutomationPermissions(workspaceId, actorId || context.userId || "", action.type);
+  if (!permCheck.allowed) {
+    logger.warn(`[AutomationExecutor] Permission denied for ${action.type}: ${permCheck.reason}`);
+    return { ok: false, detail: `Permission denied: ${permCheck.reason}` };
+  }
+
   switch (action.type) {
     case "create_task": {
       const title = str(action.params.title || action.params.name || action.params.value);
@@ -281,6 +314,20 @@ async function executeAction(
     case "set_status":
     case "move_task": {
       if (!targetTaskId) return { ok: false, detail: `${action.type} requires a target task` };
+
+      const VALID_TASK_FIELDS = new Set([
+        "status", "priority", "assigneeIds", "description", "title",
+        "dueDate", "startDate", "progress", "taskType", "color",
+      ]);
+
+      const requestedFields = Object.keys(action.params).filter((k) =>
+        !["taskId", "columnId"].includes(k)
+      );
+      const invalidFields = requestedFields.filter((k) => !VALID_TASK_FIELDS.has(k));
+      if (invalidFields.length > 0) {
+        return { ok: false, detail: `Invalid fields for ${action.type}: ${invalidFields.join(", ")}. Valid fields: ${Array.from(VALID_TASK_FIELDS).join(", ")}` };
+      }
+
       const status =
         action.type === "set_status" || action.type === "move_task"
           ? str(action.params.status ?? action.params.columnId ?? action.params.value)
@@ -297,6 +344,26 @@ async function executeAction(
       if (action.params.priority) data.priority = str(action.params.priority);
       if (action.params.assigneeId) data.assigneeIds = [str(action.params.assigneeId)];
       if (action.params.description !== undefined) data.description = str(action.params.description);
+      if (action.params.title) data.title = str(action.params.title);
+      if (action.params.taskType) data.taskType = str(action.params.taskType);
+      if (action.params.color) data.color = str(action.params.color);
+      if (action.params.progress !== undefined) {
+        const progress = Number(action.params.progress);
+        if (isNaN(progress) || progress < 0 || progress > 100) {
+          return { ok: false, detail: "progress must be a number between 0 and 100" };
+        }
+        data.progress = progress;
+      }
+      if (action.params.dueDate) {
+        const d = new Date(str(action.params.dueDate));
+        if (isNaN(d.getTime())) return { ok: false, detail: "Invalid dueDate" };
+        data.dueDate = d;
+      }
+      if (action.params.startDate) {
+        const d = new Date(str(action.params.startDate));
+        if (isNaN(d.getTime())) return { ok: false, detail: "Invalid startDate" };
+        data.startDate = d;
+      }
 
       if (Object.keys(data).length === 0) return { ok: false, detail: "No fields to update" };
 
@@ -304,7 +371,7 @@ async function executeAction(
       if (!task) return { ok: false, detail: "Target task not found" };
 
       await prisma.task.update({ where: { id: targetTaskId }, data });
-      return { ok: true, detail: `Updated task ${targetTaskId}` };
+      return { ok: true, detail: `Updated task ${targetTaskId}: ${Object.keys(data).join(", ")}` };
     }
 
     case "set_priority": {
@@ -447,14 +514,24 @@ async function executeAction(
       const projectContext = await getProjectName(context.projectId);
       const title = buildNotificationTitle(context.trigger || "", action, context);
       const message = buildNotificationMessage(context.trigger || "", action, context, actorName, projectContext);
-      await notifyWorkspaceMembers(
-        workspaceId,
-        actorId,
-        "smart_alert" as NotificationType,
-        title,
-        message,
-        { projectId: context.projectId, actorId: context.userId, actorName }
-      );
+      try {
+        const { sendNotificationEmail } = await import("@/lib/email/notification-email");
+        const targetUserId = str(action.params.userId || action.params.assigneeId || context.assigneeId || actorId);
+        if (targetUserId) {
+          const deepLink = context.taskId ? `/tasks/${context.taskId}` : context.projectId ? `/projects/${context.projectId}` : undefined;
+          await sendNotificationEmail(targetUserId, title, message, deepLink ? `https://www.thetapm.site${deepLink}` : undefined);
+        }
+      } catch (error) {
+        logger.warn("[AutomationExecutor] Failed to send email, falling back to in-app notification:", error);
+        await notifyWorkspaceMembers(
+          workspaceId,
+          actorId,
+          "smart_alert" as NotificationType,
+          title,
+          message,
+          { projectId: context.projectId, actorId: context.userId, actorName }
+        );
+      }
       return { ok: true, detail: "Email notification sent" };
     }
 
@@ -604,6 +681,101 @@ export async function triggerAutomation(
     name: "automation/triggered",
     data: { ruleId, triggerType, context },
   });
+}
+
+// ──────────────────────────────────────────────
+//  DRY-RUN / PREVIEW MODE
+// ──────────────────────────────────────────────
+
+export interface DryRunResult {
+  ruleId: string;
+  ruleName: string;
+  wouldFire: boolean;
+  conditionsMet: boolean;
+  actions: Array<{
+    type: string;
+    wouldExecute: boolean;
+    description: string;
+    params: Record<string, unknown>;
+  }>;
+  errors: string[];
+}
+
+export async function dryRunAutomation(
+  ruleId: string,
+  context: TriggerContext,
+): Promise<DryRunResult> {
+  const rule = await prisma.automation.findUnique({ where: { id: ruleId } });
+  if (!rule) {
+    return {
+      ruleId,
+      ruleName: "Unknown",
+      wouldFire: false,
+      conditionsMet: false,
+      actions: [],
+      errors: ["Rule not found"],
+    };
+  }
+
+  const conditionsMet = await evaluateConditions(rule.condition, context as Record<string, unknown>);
+  const normalizedActions = normalizeActions(rule.action, rule.actionValue);
+
+  const actionPreviews = normalizedActions.map((action) => {
+    let description = "";
+    switch (action.type) {
+      case "create_task":
+        description = `Would create task "${action.params.title || "Untitled"}"`;
+        break;
+      case "update_task":
+      case "set_status":
+      case "move_task":
+        description = `Would update task ${context.taskId || "target"} — set ${Object.keys(action.params).join(", ")}`;
+        break;
+      case "set_priority":
+        description = `Would set priority to "${action.params.priority || action.params.value}"`;
+        break;
+      case "assign_task":
+        description = `Would assign task to ${action.params.assigneeId || action.params.userId || "user"}`;
+        break;
+      case "send_notification":
+        description = `Would send notification "${action.params.title || "Automation Alert"}"`;
+        break;
+      case "send_message":
+      case "notify_channel":
+        description = `Would post message to team chat`;
+        break;
+      case "send_email":
+        description = `Would send email to ${action.params.userId || context.assigneeId || "user"}`;
+        break;
+      case "add_comment":
+        description = `Would add comment: "${String(action.params.content || action.params.message || "").substring(0, 50)}"`;
+        break;
+      case "update_custom_field":
+        description = `Would set custom field ${action.params.fieldKey || action.params.field} = ${action.params.value}`;
+        break;
+      case "create_project":
+        description = `Would create project "${action.params.name || action.params.title}"`;
+        break;
+      default:
+        description = `Would execute ${action.type}`;
+    }
+
+    return {
+      type: action.type,
+      wouldExecute: conditionsMet,
+      description,
+      params: action.params as Record<string, unknown>,
+    };
+  });
+
+  return {
+    ruleId: rule.id,
+    ruleName: rule.name,
+    wouldFire: conditionsMet,
+    conditionsMet,
+    actions: actionPreviews,
+    errors: [],
+  };
 }
 
 // ──────────────────────────────────────────────

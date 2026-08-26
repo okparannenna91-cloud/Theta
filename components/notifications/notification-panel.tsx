@@ -20,7 +20,7 @@ export function NotificationPanel({ workspaceId, onClose }: NotificationPanelPro
     const { data, isLoading, isError } = useQuery({
         queryKey: ["notifications", "panel", workspaceId],
         queryFn: async () => {
-            const res = await fetch(`/api/notifications?workspaceId=${workspaceId}&take=10`);
+            const res = await fetch(`/api/notifications?workspaceId=${workspaceId}&take=8`);
             if (!res.ok) throw new Error("Failed to fetch");
             return res.json();
         },

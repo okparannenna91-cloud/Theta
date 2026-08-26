@@ -386,7 +386,7 @@ export const smartAlerts = inngest.createFunction(
 // ──────────────────────────────────────────────
 
 export const dailyDigest = inngest.createFunction(
-  { id: "notif-daily-digest", triggers: [{ cron: "TZ(UTC) 6 7 * * *" }] },
+  { id: "notif-daily-digest", triggers: [{ cron: "TZ(UTC) 0 7 * * *" }] },
   async ({ step }) => {
     logger.info("[Notif] Daily digest started");
     const now = new Date();
@@ -613,7 +613,7 @@ export const novaSuggestions = inngest.createFunction(
 // ──────────────────────────────────────────────
 
 export const insightDigestEmail = inngest.createFunction(
-  { id: "notif-insight-digest-email", triggers: [{ cron: "TZ(UTC) 8 * * 1" }] }, // Monday 8am UTC
+  { id: "notif-insight-digest-email", triggers: [{ cron: "TZ(UTC) 0 8 * * 1" }] }, // Monday 8am UTC
   async ({ step }) => {
     logger.info("[Notif] Insight digest email started");
 

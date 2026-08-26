@@ -302,12 +302,12 @@ Rules:
 
     if (unassignedCount > 3) {
       suggestions.push({
-        name: "Auto-assign to Team Lead",
+        name: "Notify Admins of Unassigned Tasks",
         trigger: { type: "TASK_CREATED", conditions: { assigneeIds: "empty" } },
         actions: [
-          { type: "update_task", params: { assigneeId: "team_lead" } },
+          { type: "send_notification", params: { title: "Unassigned Task", message: "A new task has no assignee" } },
         ],
-        explanation: `Detected ${unassignedCount} unassigned tasks. This rule auto-assigns new tasks to the team lead.`,
+        explanation: `Detected ${unassignedCount} unassigned tasks. This rule notifies workspace admins when new tasks lack an assignee.`,
       });
     }
 

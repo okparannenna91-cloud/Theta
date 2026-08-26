@@ -107,8 +107,8 @@ export class AutomationIntelligence {
     }
 
     if (lower.includes("assign")) {
-      action = "update_task";
-      config.assigneeId = lower.includes("qa") ? "QA_ROLE" : "LEAD_ROLE";
+      action = "send_notification";
+      config.notifyRole = "admin";
     } else if (lower.includes("status") || lower.includes("update status")) {
       action = "update_task";
       config.status = lower.includes("done") ? "done" : lower.includes("progress") ? "in_progress" : "todo";

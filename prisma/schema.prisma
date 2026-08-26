@@ -316,6 +316,7 @@ model User {
 goals           Goal[]
   milestones      Milestone[]
   boardViews      BoardView[]
+  fieldAuditLogs CustomFieldAuditLog[]
 
   @@map("users")
 }
@@ -471,6 +472,7 @@ model Task {
   @@index([workspaceId, projectId, status])
   @@index([workspaceId, status, dueDate])
   @@index([boardId, status])
+  fieldAuditLogs CustomFieldAuditLog[]
 }
 
 model TaskDependency {
@@ -664,7 +666,7 @@ model Column {
   order     Int      @default(0)
   wipLimit  Int?
   color     String?
-  columnType String  @default("text") // text, number, date, status, people, timeline, connectBoard, mirror, priority, tags, checkbox, link, email, phone, files, location, country, worldClock, rating, vote, dropdown, autoNumber, formula, dependencies, progress, timeTracking, button, week, colorPicker, aiSummary, aiText, aiSentiment, aiLabel, aiExtraction, aiPrioritization, aiWriting, aiTranslation, combo
+  columnType String  @default("text") // text, number, date, status, people, timeline, connectBoard, mirror, priority, tags, checkbox, link, email, phone, files, location, country, worldClock, rating, vote, dropdown, dependencies, progress, timeTracking, button, week, colorPicker, aiSummary, aiText, aiSentiment, aiLabel, aiExtraction, aiPrioritization, aiWriting, aiTranslation, combo
   settings   Json?   @db.Json           // Column-specific configuration (options, formulas, etc.)
   width      Int?    @default(200)       // Column width in px
   visible    Boolean @default(true)      // Hide/show column
@@ -673,6 +675,7 @@ model Column {
   updatedAt DateTime @updatedAt
 
   board Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  fieldAuditLogs CustomFieldAuditLog[]
 
   @@index([boardId])
   @@map("columns")
@@ -732,6 +735,7 @@ model Notification {
   metadata    Json?    @db.Json
   groupKey    String?
   groupCount  Int      @default(1)
+  deliveryStatus String @default("pending") // pending, sent, delivered, failed
   workspaceId String   @db.ObjectId
   userId      String   @db.ObjectId
   createdAt   DateTime @default(now())
@@ -739,13 +743,58 @@ model Notification {
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliveryLogs NotificationDeliveryLog[]
 
   @@index([workspaceId])
   @@index([userId])
   @@index([createdAt])
   @@index([userId, read])
   @@index([userId, createdAt])
+  @@index([deliveryStatus])
   @@map("notifications")
+}
+
+model NotificationDeliveryLog {
+  id             String   @id @default(auto()) @map("_id") @db.ObjectId
+  notificationId String   @db.ObjectId
+  channel        String   // email, push, ably, slack
+  status         String   // pending, sent, delivered, failed
+  error          String?
+  attempt        Int      @default(1)
+  maxAttempts    Int      @default(3)
+  nextRetryAt    DateTime?
+  metadata       Json?    @db.Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  notification Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  @@index([notificationId])
+  @@index([status])
+  @@index([nextRetryAt])
+  @@map("notification_delivery_logs")
+}
+
+model CustomFieldAuditLog {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  taskId      String   @db.ObjectId
+  fieldId     String   @db.ObjectId
+  userId      String   @db.ObjectId
+  action      String   // create, update, delete
+  oldValue    Json?    @db.Json
+  newValue    Json?    @db.Json
+  metadata    Json?    @db.Json
+  createdAt   DateTime @default(now())
+
+  task  Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  field Column @relation(fields: [fieldId], references: [id], onDelete: Cascade)
+  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId])
+  @@index([fieldId])
+  @@index([userId])
+  @@index([createdAt])
+  @@map("custom_field_audit_logs")
 }
 
 model ProactiveInsight {

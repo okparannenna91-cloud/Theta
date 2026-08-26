@@ -20,8 +20,6 @@ export type FieldType =
   | "vote"
   | "files"
   | "location"
-  | "autoNumber"
-  | "formula"
   | "progress"
   | "timeTracking"
   | "colorPicker";
@@ -86,8 +84,6 @@ const DEFAULT_SETTINGS: Record<FieldType, Record<string, unknown>> = {
   vote: { allowDownvote: false },
   files: { maxFiles: 10, acceptedTypes: "" },
   location: { defaultCenter: { lat: 0, lng: 0 }, zoom: 12 },
-  autoNumber: { prefix: "", startAt: 1 },
-  formula: { expression: "" },
   progress: { min: 0, max: 100, unit: "%" },
   timeTracking: { estimate: false },
   colorPicker: { defaultColor: "#000000", presetColors: [] as string[] },
@@ -135,17 +131,7 @@ function parseFieldValues(raw: unknown): Record<string, unknown> {
   }
 }
 
-function parseMetadata(raw: unknown): Record<string, unknown> {
-  if (!raw) return {};
-  if (typeof raw === "object" && !Array.isArray(raw)) {
-    return raw as Record<string, unknown>;
-  }
-  try {
-    return JSON.parse(String(raw));
-  } catch {
-    return {};
-  }
-}
+const parseMetadata = parseFieldValues;
 
 function nextOrder(order: number | undefined, maxOrder: number): number {
   return order ?? maxOrder + 1;
@@ -227,38 +213,40 @@ export async function updateField(
 
 export async function deleteField(fieldId: string): Promise<void> {
   try {
-    const tasksOnBoard = await prisma.task.findMany({
-      where: {
-        boardId: { not: null },
-        fieldValues: { not: null },
-      },
-      select: { id: true, fieldValues: true, boardId: true },
-    });
-
     const field = await prisma.column.findUnique({ where: { id: fieldId } });
     if (!field) {
       throw new Error(`Field ${fieldId} not found`);
     }
 
-    const affected = tasksOnBoard.filter((t) => t.boardId === field.boardId);
+    const affected = await prisma.task.findMany({
+      where: {
+        boardId: field.boardId,
+        fieldValues: { not: null },
+      },
+      select: { id: true, fieldValues: true },
+    });
 
-    const cleanupOps = affected.map((task) => {
-      const values = parseFieldValues(task.fieldValues);
-      if (fieldId in values) {
+    const cleanupOps = affected
+      .filter((t) => {
+        const values = parseFieldValues(t.fieldValues);
+        return fieldId in values;
+      })
+      .map((task) => {
+        const values = parseFieldValues(task.fieldValues);
         delete values[fieldId];
         return prisma.task.update({
           where: { id: task.id },
           data: { fieldValues: values as object },
         });
-      }
-      return null;
-    });
+      });
 
-    await Promise.all(cleanupOps);
+    if (cleanupOps.length > 0) {
+      await prisma.$transaction(cleanupOps);
+    }
 
     await prisma.column.delete({ where: { id: fieldId } });
 
-    logger.info(`Deleted custom field ${fieldId} and cleaned up ${affected.length} tasks`);
+    logger.info(`Deleted custom field ${fieldId} and cleaned up ${cleanupOps.length} tasks`);
   } catch (err) {
     logger.error("Failed to delete custom field", err);
     throw err;
@@ -332,29 +320,30 @@ export async function setFieldValue(
       throw new Error(`Invalid value for field "${field.name}": ${validation.error}`);
     }
 
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
-    if (!task) throw new Error(`Task ${taskId} not found`);
+    await prisma.$transaction(async (tx) => {
+      const task = await tx.task.findUnique({ where: { id: taskId } });
+      if (!task) throw new Error(`Task ${taskId} not found`);
 
-    const values = parseFieldValues(task.fieldValues);
-    values[fieldId] = value;
+      const values = parseFieldValues(task.fieldValues);
+      values[fieldId] = value;
 
-    const metadata = parseMetadata(task.customFieldMetadata);
-    metadata[fieldId] = {
-      fieldType: field.columnType,
-      fieldName: field.name,
-      updatedAt: new Date().toISOString(),
-    };
+      const metadata = parseMetadata(task.customFieldMetadata);
+      metadata[fieldId] = {
+        fieldType: field.columnType,
+        fieldName: field.name,
+        updatedAt: new Date().toISOString(),
+      };
 
-    const nativeSync = await buildNativeSyncData(field, value, task);
-    const updateData: any = {
-      fieldValues: values as object,
-      customFieldMetadata: metadata as object,
-      ...nativeSync,
-    };
+      const nativeSync = await buildNativeSyncData(field, value, { projectId: task.projectId, boardId: task.boardId });
 
-    await prisma.task.update({
-      where: { id: taskId },
-      data: updateData,
+      await tx.task.update({
+        where: { id: taskId },
+        data: {
+          fieldValues: values as object,
+          customFieldMetadata: metadata as object,
+          ...nativeSync,
+        },
+      });
     });
   } catch (err) {
     logger.error("Failed to set field value", err);
@@ -371,9 +360,6 @@ export async function setMultipleFieldValues(
   values: Record<string, unknown>,
 ): Promise<void> {
   try {
-    const task = await prisma.task.findUnique({ where: { id: taskId } });
-    if (!task) throw new Error(`Task ${taskId} not found`);
-
     const fieldIds = Object.keys(values);
     if (fieldIds.length === 0) return;
 
@@ -383,8 +369,6 @@ export async function setMultipleFieldValues(
 
     const fieldMap = new Map(fields.map((f) => [f.id, f]));
 
-    const currentValues = parseFieldValues(task.fieldValues);
-    const currentMetadata = parseMetadata(task.customFieldMetadata);
     let hasError = false;
     let errorMsg = "";
 
@@ -402,31 +386,42 @@ export async function setMultipleFieldValues(
         errorMsg = `Invalid value for field "${field.name}": ${validation.error}`;
         break;
       }
-
-      currentValues[fieldId] = value;
-      currentMetadata[fieldId] = {
-        fieldType: field.columnType,
-        fieldName: field.name,
-        updatedAt: new Date().toISOString(),
-      };
     }
 
     if (hasError) throw new Error(errorMsg);
 
-    const nativeSync: Record<string, unknown> = {};
-    for (const field of fields) {
-      if (currentValues[field.id] !== undefined) {
-        Object.assign(nativeSync, await buildNativeSyncData(field, currentValues[field.id], task));
-      }
-    }
+    await prisma.$transaction(async (tx) => {
+      const task = await tx.task.findUnique({ where: { id: taskId } });
+      if (!task) throw new Error(`Task ${taskId} not found`);
 
-    await prisma.task.update({
-      where: { id: taskId },
-      data: {
-        fieldValues: currentValues as object,
-        customFieldMetadata: currentMetadata as object,
-        ...nativeSync,
-      },
+      const currentValues = parseFieldValues(task.fieldValues);
+      const currentMetadata = parseMetadata(task.customFieldMetadata);
+
+      for (const [fieldId, value] of Object.entries(values)) {
+        const field = fieldMap.get(fieldId)!;
+        currentValues[fieldId] = value;
+        currentMetadata[fieldId] = {
+          fieldType: field.columnType,
+          fieldName: field.name,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+
+      const nativeSync: Record<string, unknown> = {};
+      for (const field of fields) {
+        if (values[field.id] !== undefined) {
+          Object.assign(nativeSync, await buildNativeSyncData(field, values[field.id], { projectId: task.projectId, boardId: task.boardId }));
+        }
+      }
+
+      await tx.task.update({
+        where: { id: taskId },
+        data: {
+          fieldValues: currentValues as object,
+          customFieldMetadata: currentMetadata as object,
+          ...nativeSync,
+        },
+      });
     });
   } catch (err) {
     logger.error("Failed to set multiple field values", err);
@@ -513,30 +508,27 @@ export async function bulkUpdateFieldValues(
       select: { id: true, fieldValues: true, customFieldMetadata: true, projectId: true, boardId: true },
     });
 
-    const updates = await Promise.all(
-      tasks.map(async (task) => {
-        const currentValues = parseFieldValues(task.fieldValues);
-        currentValues[fieldId] = value;
+    const updates = tasks.map((task) => {
+      const currentValues = parseFieldValues(task.fieldValues);
+      currentValues[fieldId] = value;
 
-        const currentMetadata = parseMetadata(task.customFieldMetadata);
-        currentMetadata[fieldId] = {
-          fieldType: field.columnType,
-          fieldName: field.name,
-          updatedAt: new Date().toISOString(),
-        };
+      const currentMetadata = parseMetadata(task.customFieldMetadata);
+      currentMetadata[fieldId] = {
+        fieldType: field.columnType,
+        fieldName: field.name,
+        updatedAt: new Date().toISOString(),
+      };
 
-        const nativeSync = await buildNativeSyncData(field, value, task);
+      return prisma.task.update({
+        where: { id: task.id },
+        data: {
+          fieldValues: currentValues as object,
+          customFieldMetadata: currentMetadata as object,
+        },
+      });
+    });
 
-        return prisma.task.update({
-          where: { id: task.id },
-          data: {
-            fieldValues: currentValues as object,
-            customFieldMetadata: currentMetadata as object,
-            ...nativeSync,
-          },
-        });
-      })
-    );
+    await prisma.$transaction(updates);
 
     logger.info(`Bulk updated field ${fieldId} on ${updates.length} tasks`);
     return updates.length;
@@ -555,25 +547,37 @@ export async function filterTasksByField(
   fieldId: string,
   operator: string,
   value: unknown,
+  limit: number = 500,
 ): Promise<string[]> {
   try {
     const field = await prisma.column.findUnique({ where: { id: fieldId } });
     if (!field) throw new Error(`Field ${fieldId} not found`);
 
-    const tasks = await prisma.task.findMany({
-      where: { boardId },
-      select: { id: true, fieldValues: true },
-    });
-
+    let cursor: string | undefined;
     const matched: string[] = [];
 
-    for (const task of tasks) {
-      const values = parseFieldValues(task.fieldValues);
-      const fieldValue = values[fieldId];
+    while (matched.length < limit) {
+      const tasks = await prisma.task.findMany({
+        where: { boardId },
+        select: { id: true, fieldValues: true },
+        take: 100,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      });
 
-      if (matchesFilter(fieldValue, operator, value)) {
-        matched.push(task.id);
+      if (tasks.length === 0) break;
+
+      for (const task of tasks) {
+        const values = parseFieldValues(task.fieldValues);
+        const fieldValue = values[fieldId];
+
+        if (matchesFilter(fieldValue, operator, value)) {
+          matched.push(task.id);
+          if (matched.length >= limit) break;
+        }
       }
+
+      cursor = tasks[tasks.length - 1].id;
+      if (tasks.length < 100) break;
     }
 
     return matched;
@@ -647,19 +651,32 @@ export async function sortTasksByField(
   boardId: string,
   fieldId: string,
   direction: "asc" | "desc",
+  limit: number = 500,
 ): Promise<string[]> {
   try {
     const field = await prisma.column.findUnique({ where: { id: fieldId } });
     if (!field) throw new Error(`Field ${fieldId} not found`);
 
-    const tasks = await prisma.task.findMany({
-      where: { boardId },
-      select: { id: true, fieldValues: true },
-    });
+    let cursor: string | undefined;
+    const allTasks: { id: string; fieldValues: unknown }[] = [];
+
+    while (allTasks.length < limit) {
+      const tasks = await prisma.task.findMany({
+        where: { boardId },
+        select: { id: true, fieldValues: true },
+        take: 100,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+      });
+
+      if (tasks.length === 0) break;
+      allTasks.push(...tasks);
+      cursor = tasks[tasks.length - 1].id;
+      if (tasks.length < 100) break;
+    }
 
     const multiplier = direction === "asc" ? 1 : -1;
 
-    const sorted = [...tasks].sort((a, b) => {
+    const sorted = allTasks.slice(0, limit).sort((a, b) => {
       const aVal = parseFieldValues(a.fieldValues)[fieldId];
       const bVal = parseFieldValues(b.fieldValues)[fieldId];
       return compareForSort(aVal, bVal, multiplier);
@@ -751,14 +768,6 @@ export function validateFieldValue(
       return validateFiles(value, settings);
     case "location":
       return validateLocation(value);
-    case "autoNumber":
-      return typeof value === "number" && Number.isInteger(value)
-        ? { valid: true }
-        : { valid: false, error: "Auto number must be an integer" };
-    case "formula":
-      return typeof value === "number" || typeof value === "string"
-        ? { valid: true }
-        : { valid: false, error: "Formula result must be a number or string" };
     case "progress":
       return validateProgress(value, settings);
     case "timeTracking":

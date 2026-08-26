@@ -29,6 +29,143 @@ function isDndActive(dndEnabled: boolean, dndStart: string | null, dndEnd: strin
   }
 }
 
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX = 30;
+const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
+
+function isRateLimited(userId: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(userId);
+  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
+    rateLimitMap.set(userId, { count: 1, windowStart: now });
+    return false;
+  }
+  entry.count++;
+  if (entry.count > RATE_LIMIT_MAX) return true;
+  return false;
+}
+
+if (rateLimitMap.size > 10_000) {
+  const cutoff = Date.now() - RATE_LIMIT_WINDOW_MS;
+  for (const [key, val] of rateLimitMap) {
+    if (val.windowStart < cutoff) rateLimitMap.delete(key);
+  }
+}
+
+const TYPE_PREFERENCE_MAP: Record<string, keyof { emailNotifications: boolean; pushNotifications: boolean }> = {
+  task_assigned: "emailNotifications",
+  task_mentioned: "emailNotifications",
+  comment_reply: "emailNotifications",
+  reminder: "emailNotifications",
+};
+
+function shouldSendForType(
+  type: string,
+  preference: { emailNotifications?: boolean; pushNotifications?: boolean } | null,
+): { email: boolean; push: boolean } {
+  const emailKey = TYPE_PREFERENCE_MAP[type];
+  return {
+    email: emailKey ? (preference?.[emailKey] ?? true) : (preference?.emailNotifications !== false),
+    push: preference?.pushNotifications !== false,
+  };
+}
+
+const MAX_RETRIES = 3;
+const RETRY_DELAYS_MS = [5_000, 30_000, 120_000];
+
+async function logDeliveryAttempt(
+  notificationId: string,
+  channel: string,
+  status: string,
+  error?: string,
+  attempt: number = 1,
+): Promise<void> {
+  try {
+    await prisma.notificationDeliveryLog.create({
+      data: {
+        notificationId,
+        channel,
+        status,
+        error,
+        attempt,
+        maxAttempts: MAX_RETRIES,
+        nextRetryAt: status === "failed" && attempt < MAX_RETRIES
+          ? new Date(Date.now() + RETRY_DELAYS_MS[attempt - 1])
+          : null,
+      },
+    });
+  } catch {
+    // delivery log failure is non-critical
+  }
+}
+
+async function updateNotificationDeliveryStatus(
+  notificationId: string,
+  status: string,
+): Promise<void> {
+  try {
+    await prisma.notification.update({
+      where: { id: notificationId },
+      data: { deliveryStatus: status },
+    });
+  } catch {
+    // non-critical
+  }
+}
+
+export async function retryFailedDeliveries(): Promise<number> {
+  try {
+    const pending = await prisma.notificationDeliveryLog.findMany({
+      where: {
+        status: "failed",
+        attempt: { lt: MAX_RETRIES },
+        nextRetryAt: { lte: new Date() },
+      },
+      include: { notification: true },
+      take: 50,
+    });
+
+    let retried = 0;
+    for (const log of pending) {
+      const { notification, channel } = log;
+      try {
+        if (channel === "email") {
+          const deepLink = (notification.metadata as any)?.deepLink;
+          const taskId = (notification.metadata as any)?.taskId;
+          const actionUrl = deepLink
+            ? `https://www.thetapm.site${deepLink}`
+            : taskId
+              ? `https://www.thetapm.site/tasks/${taskId}`
+              : undefined;
+          await sendNotificationEmail(notification.userId, notification.title, notification.message, actionUrl);
+        } else if (channel === "push") {
+          await sendPushNotification(notification.userId, notification.title, notification.message);
+        } else if (channel === "ably") {
+          const ably = getAblyServer();
+          const channelName = getWorkspaceChannel(notification.workspaceId);
+          const ch = ably.channels.get(channelName);
+          await ch.publish("notification", notification);
+        }
+        await logDeliveryAttempt(notification.id, channel, "sent", undefined, log.attempt + 1);
+        retried++;
+      } catch (err) {
+        await logDeliveryAttempt(
+          notification.id,
+          channel,
+          "failed",
+          err instanceof Error ? err.message : String(err),
+          log.attempt + 1,
+        );
+      }
+    }
+
+    return retried;
+  } catch (err) {
+    console.error("Failed to retry deliveries:", err);
+    return 0;
+  }
+}
+
 export async function createNotification(
   userId: string,
   workspaceId: string,
@@ -42,6 +179,11 @@ export async function createNotification(
   const category = getNotificationCategory(type);
 
   try {
+    if (isRateLimited(userId)) {
+      console.warn(`[NotificationEngine] Rate limited for user ${userId}`);
+      return null;
+    }
+
     const preference = await prisma.userPreference.findUnique({ where: { userId } });
     const dndActive = isDndActive(
       preference?.dndEnabled || false,
@@ -87,6 +229,7 @@ export async function createNotification(
             archived: false,
             groupKey,
             groupCount: 1,
+            deliveryStatus: "pending",
           },
         });
       }
@@ -103,31 +246,73 @@ export async function createNotification(
           read: false,
           archived: false,
           groupCount: 1,
+          deliveryStatus: "pending",
         },
       });
     }
 
     if (!dndActive) {
-      // Real-time publish + Slack are network-only: fire-and-forget so notification
-      // creation never blocks the mutation response.
-      void publishToAbly(workspaceId, notification);
-      void (async () => {
-        try {
-          const { notifyWorkspace } = await import("./integrations/slack");
-          await notifyWorkspace(workspaceId, message, title);
-        } catch {}
-      })();
+      const typePrefs = shouldSendForType(type, preference);
 
-      if (preference?.emailNotifications !== false) {
-        const actionUrl = (metadata as any)?.taskId
-          ? `https://www.thetapm.site/tasks`
-          : undefined;
-        sendNotificationEmail(userId, title, message, actionUrl).catch(() => {});
+      const deliveryPromises: Promise<void>[] = [];
+
+      deliveryPromises.push(
+        publishToAbly(workspaceId, notification)
+          .then(() => updateNotificationDeliveryStatus(notification.id, "sent"))
+          .catch(async (err) => {
+            await logDeliveryAttempt(notification.id, "ably", "failed", err instanceof Error ? err.message : String(err));
+            await updateNotificationDeliveryStatus(notification.id, "failed");
+          })
+      );
+
+      deliveryPromises.push(
+        (async () => {
+          try {
+            const { notifyWorkspace } = await import("./integrations/slack");
+            await notifyWorkspace(workspaceId, message, title);
+            await logDeliveryAttempt(notification.id, "slack", "sent");
+          } catch (err) {
+            await logDeliveryAttempt(notification.id, "slack", "failed", err instanceof Error ? err.message : String(err));
+          }
+        })()
+      );
+
+      if (typePrefs.email) {
+        deliveryPromises.push(
+          (async () => {
+            try {
+              const deepLink = (metadata as any)?.deepLink || (metadata as any)?.link;
+              const taskId = (metadata as any)?.taskId;
+              const actionUrl = deepLink
+                ? `https://www.thetapm.site${deepLink}`
+                : taskId
+                  ? `https://www.thetapm.site/tasks/${taskId}`
+                  : undefined;
+              await sendNotificationEmail(userId, title, message, actionUrl);
+              await logDeliveryAttempt(notification.id, "email", "sent");
+            } catch (err) {
+              await logDeliveryAttempt(notification.id, "email", "failed", err instanceof Error ? err.message : String(err));
+            }
+          })()
+        );
       }
 
-      if (preference?.pushNotifications !== false) {
-        sendPushNotification(userId, title, message).catch(() => {});
+      if (typePrefs.push) {
+        deliveryPromises.push(
+          (async () => {
+            try {
+              await sendPushNotification(userId, title, message);
+              await logDeliveryAttempt(notification.id, "push", "sent");
+            } catch (err) {
+              await logDeliveryAttempt(notification.id, "push", "failed", err instanceof Error ? err.message : String(err));
+            }
+          })()
+        );
       }
+
+      void Promise.allSettled(deliveryPromises);
+    } else {
+      await updateNotificationDeliveryStatus(notification.id, "sent");
     }
 
     return notification;

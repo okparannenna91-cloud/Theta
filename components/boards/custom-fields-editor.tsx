@@ -263,20 +263,6 @@ const FIELD_TYPES: FieldTypeConfig[] = [
     category: "advanced",
   },
   {
-    type: "autoNumber",
-    label: "Auto Number",
-    icon: <TrendingUp className="h-4 w-4" />,
-    description: "Auto-incrementing number",
-    category: "advanced",
-  },
-  {
-    type: "formula",
-    label: "Formula",
-    icon: <Calculator className="h-4 w-4" />,
-    description: "Calculated value",
-    category: "advanced",
-  },
-  {
     type: "progress",
     label: "Progress",
     icon: <BarChart3 className="h-4 w-4" />,
@@ -687,8 +673,7 @@ export default function CustomFieldsEditor({
     fieldType === "dropdown" ||
     fieldType === "status" ||
     fieldType === "number" ||
-    fieldType === "rating" ||
-    fieldType === "formula";
+    fieldType === "rating";
 
   const categories: { key: string; label: string; types: FieldTypeConfig[] }[] =
     [
@@ -1386,20 +1371,7 @@ export default function CustomFieldsEditor({
                           onChange={(e) => setMaxStars(e.target.value)}
                           className="h-8 bg-background border-border text-foreground text-sm w-24"
                         />
-                      </div>
-                    )}
-
-                    {fieldType === "formula" && (
-                      <div className="space-y-1">
-                        <Label className="text-muted-foreground text-xs">Formula</Label>
-                        <Textarea
-                          value={formula}
-                          onChange={(e) => setFormula(e.target.value)}
-                          placeholder="e.g. field1 + field2 * 0.1"
-                          rows={3}
-                          className="bg-background border-border text-foreground text-sm placeholder:text-muted-foreground/50 resize-none"
-                        />
-                      </div>
+                       </div>
                     )}
                   </div>
                 </div>

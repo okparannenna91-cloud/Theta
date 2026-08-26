@@ -13,6 +13,40 @@ async function ensureNovaInitialized(): Promise<void> {
 }
 
 // ──────────────────────────────────────────────
+//  LOOP PREVENTION
+//  Track rule IDs that have already fired in the current
+//  execution chain. Stored per-request via AsyncLocalStorage
+//  or as a module-level WeakRef map keyed by execution context.
+// ──────────────────────────────────────────────
+
+const MAX_CHAIN_DEPTH = 5;
+const activeExecutions = new Map<string, Set<string>>();
+
+function getExecutionKey(context: TriggerContext): string {
+  return `${context.workspaceId}:${context.taskId || ""}:${context.userId || ""}`;
+}
+
+function hasFiredRule(executionKey: string, ruleId: string): boolean {
+  return activeExecutions.get(executionKey)?.has(ruleId) ?? false;
+}
+
+function markFiredRule(executionKey: string, ruleId: string): void {
+  if (!activeExecutions.has(executionKey)) {
+    activeExecutions.set(executionKey, new Set());
+  }
+  activeExecutions.get(executionKey)!.add(ruleId);
+
+  // Auto-cleanup after 60 seconds to prevent memory leaks
+  setTimeout(() => {
+    const current = activeExecutions.get(executionKey);
+    if (current) {
+      current.delete(ruleId);
+      if (current.size === 0) activeExecutions.delete(executionKey);
+    }
+  }, 60_000);
+}
+
+// ──────────────────────────────────────────────
 //  UNIFIED AUTOMATION ENGINE
 //  Single entry point for all trigger firing.
 //  1) Optionally feeds the Nova ambient observation pipeline (if enabled).
@@ -63,6 +97,8 @@ export interface TriggerContext {
   assigneeId?: string;
   oldValue?: unknown;
   newValue?: unknown;
+  _automationChainDepth?: number;
+  _firedRuleIds?: string[];
   [key: string]: unknown;
 }
 
@@ -117,12 +153,28 @@ async function dispatchRules(
   context: Omit<TriggerContext, "workspaceId"> & { workspaceId?: string },
 ): Promise<void> {
   try {
+    const chainDepth = (Number(context._automationChainDepth) || 0) + 1;
+    if (chainDepth > MAX_CHAIN_DEPTH) {
+      logger.warn(`[AutomationEngine] Chain depth ${chainDepth} exceeds max ${MAX_CHAIN_DEPTH} — stopping to prevent loop`, {
+        workspaceId,
+        trigger,
+      });
+      return;
+    }
+
+    const executionKey = getExecutionKey(context as TriggerContext);
+    const previouslyFired = new Set(Array.isArray(context._firedRuleIds) ? context._firedRuleIds : []);
+
     const rules = await prisma.automation.findMany({
       where: { workspaceId, active: true, trigger },
     });
 
     const matched: Array<{ id: string }> = [];
     for (const rule of rules) {
+      if (previouslyFired.has(rule.id)) {
+        logger.debug(`[AutomationEngine] Skipping rule ${rule.id} — already fired in this chain`);
+        continue;
+      }
       if (!matchesProjectScope(rule.projectId, context.projectId as string | null | undefined)) continue;
       if (!evaluateConditions(rule.condition, context as Record<string, unknown>)) continue;
       matched.push({ id: rule.id });
@@ -130,14 +182,25 @@ async function dispatchRules(
 
     if (matched.length === 0) return;
 
+    for (const rule of matched) {
+      markFiredRule(executionKey, rule.id);
+    }
+
     const { triggerAutomation } = await import("@/lib/inngest/functions/automation-executor");
     await Promise.allSettled(
-      matched.map((rule) => triggerAutomation(rule.id, trigger, context))
+      matched.map((rule) =>
+        triggerAutomation(rule.id, trigger, {
+          ...context,
+          _automationChainDepth: chainDepth,
+          _firedRuleIds: [...previouslyFired, ...matched.map((r) => r.id)],
+        })
+      )
     );
 
     logger.info(`[AutomationEngine] Dispatched ${matched.length} rule(s) for ${trigger}`, {
       workspaceId,
       projectId: context.projectId,
+      chainDepth,
     });
   } catch (error) {
     logger.warn("[AutomationEngine] Rule dispatch failed:", error);
