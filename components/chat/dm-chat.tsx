@@ -34,7 +34,6 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
   const [conversation, setConversation] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
-  const [dbUser, setDbUser] = useState<any>(null);
   const [replyTo, setReplyTo] = useState<any>(null);
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -55,13 +54,6 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
     if (!conversation?.participants) return null;
     return conversation.participants[0] || null;
   }, [conversation]);
-
-  useEffect(() => {
-    fetch("/api/auth/me")
-      .then(res => res.json())
-      .then(data => setDbUser(data))
-      .catch(() => {});
-  }, []);
 
   useEffect(() => {
     if (!conversationId || !workspaceId) return;
@@ -113,7 +105,8 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
   const subscribeChannel = useCallback((ably: any, channel: any) => {
     channel.subscribe("message", (msg: any) => {
       const incoming = msg.data;
-      const currentUserId = dbUser?.id || user?.id;
+      const currentUserId = user?.id;
+      if (!currentUserId) return;
       if (incoming.userId === currentUserId || incoming.user?.id === currentUserId) return;
       setMessages((prev) => {
         const exists = prev.some(m => m.id === incoming.id || (incoming.tempId && m.tempId === incoming.tempId));
@@ -148,7 +141,7 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
       name: user?.fullName || user?.firstName || "User",
       imageUrl: user?.imageUrl,
     }).catch(() => {});
-  }, [user?.id, user?.fullName, user?.firstName, user?.imageUrl, dbUser?.id]);
+  }, [user?.id, user?.fullName, user?.firstName, user?.imageUrl]);
 
   const connectAbly = useCallback(async () => {
     if (!user?.id || !conversationId) return;
@@ -453,7 +446,7 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
             };
 
             return sorted.map((msg, idx) => {
-              const currentUserId = dbUser?.id || user?.id;
+              const currentUserId = user?.id;
               const isMe = msg.userId === currentUserId || msg.user?.id === currentUserId;
               const prevMsg = idx > 0 ? sorted[idx - 1] : null;
               const isSameSender = prevMsg && prevMsg.userId === msg.userId && !prevMsg.deletedAt;
