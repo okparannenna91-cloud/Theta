@@ -178,7 +178,7 @@ export async function GET(req: Request) {
           predecessors: true,
           successors: true,
         },
-        orderBy: parentId ? { order: "asc" } : { createdAt: "desc" },
+        orderBy: parentId ? { order: "asc" } : [{ order: "asc" }, { createdAt: "desc" }],
         skip: (page - 1) * limit,
         take: limit,
       }),
