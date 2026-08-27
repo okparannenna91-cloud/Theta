@@ -55,6 +55,8 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
     return conversation.participants[0] || null;
   }, [conversation]);
 
+  const currentUserDbId = useMemo(() => conversation?.currentUserId || null, [conversation]);
+
   useEffect(() => {
     if (!conversationId || !workspaceId) return;
     fetch(`/api/chat/dm/conversations?workspaceId=${workspaceId}`)
@@ -105,7 +107,7 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
   const subscribeChannel = useCallback((ably: any, channel: any) => {
     channel.subscribe("message", (msg: any) => {
       const incoming = msg.data;
-      const currentUserId = user?.id;
+      const currentUserId = currentUserDbId;
       if (!currentUserId) return;
       if (incoming.userId === currentUserId || incoming.user?.id === currentUserId) return;
       setMessages((prev) => {
@@ -124,7 +126,7 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
     });
 
     channel.subscribe("typing", (msg: any) => {
-      if (msg.data.userId === user?.id) return;
+      if (msg.data.userId === currentUserDbId) return;
       setTypingUsers(prev => ({ ...prev, [msg.data.userId]: { name: msg.data.name, timestamp: Date.now() } }));
       setTimeout(() => {
         setTypingUsers(prev => {
@@ -137,11 +139,11 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
     });
 
     channel.presence.enter({
-      id: user?.id,
+      id: currentUserDbId,
       name: user?.fullName || user?.firstName || "User",
       imageUrl: user?.imageUrl,
     }).catch(() => {});
-  }, [user?.id, user?.fullName, user?.firstName, user?.imageUrl]);
+  }, [currentUserDbId, user?.fullName, user?.firstName, user?.imageUrl]);
 
   const connectAbly = useCallback(async () => {
     if (!user?.id || !conversationId) return;
@@ -203,12 +205,12 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessage(e.target.value);
-    if (!channelRef.current || !user?.id) return;
+    if (!channelRef.current || !currentUserDbId) return;
     const now = Date.now();
     if (now - lastTypedRef.current > 2000) {
       channelRef.current.publish("typing", {
-        userId: user.id,
-        name: user.fullName || user.firstName || "Someone",
+        userId: currentUserDbId,
+        name: user?.fullName || user?.firstName || "Someone",
       });
       lastTypedRef.current = now;
     }
@@ -216,13 +218,13 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
 
   const sendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    if ((!message.trim() && !attachment) || !conversationId || !workspaceId) return;
+    if ((!message.trim() && !attachment) || !conversationId || !workspaceId || !currentUserDbId) return;
 
     const tempId = Date.now().toString();
     const optimisticMsg: any = {
-      id: tempId, tempId, content: message, userId: user?.id, attachment, replyTo,
+      id: tempId, tempId, content: message, userId: currentUserDbId, attachment, replyTo,
       createdAt: new Date().toISOString(),
-      user: { name: user?.fullName || user?.firstName || "You", imageUrl: user?.imageUrl },
+      user: { id: currentUserDbId, name: user?.fullName || user?.firstName || "You", imageUrl: user?.imageUrl },
       _optimistic: true,
     };
 
@@ -446,7 +448,7 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
             };
 
             return sorted.map((msg, idx) => {
-              const currentUserId = user?.id;
+              const currentUserId = currentUserDbId;
               const isMe = msg.userId === currentUserId || msg.user?.id === currentUserId;
               const prevMsg = idx > 0 ? sorted[idx - 1] : null;
               const isSameSender = prevMsg && prevMsg.userId === msg.userId && !prevMsg.deletedAt;
@@ -525,7 +527,7 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
                               isMe ? "bg-primary/[0.06] text-foreground/60" : "bg-muted/80 text-muted-foreground"
                             )}>
                               <div className="font-medium mb-0.5 flex items-center gap-1.5">
-                                <Reply className="h-3 w-3 shrink-0" /> Replying to {msg.replyTo.userId === user?.id ? "you" : (msg.replyTo.user?.name || "User")}
+                                <Reply className="h-3 w-3 shrink-0" /> Replying to {msg.replyTo.userId === currentUserDbId ? "you" : (msg.replyTo.user?.name || "User")}
                               </div>
                               <span className="line-clamp-2 italic opacity-70">{msg.replyTo.content}</span>
                             </div>
@@ -573,7 +575,7 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
                                 onClick={() => handleReactionToggle(msg.id, emoji)}
                                 className={cn(
                                   "flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] transition-all",
-                                  (userIds as string[]).includes(user?.id || "")
+                                  (userIds as string[]).includes(currentUserDbId || "")
                                     ? "bg-primary/10 text-primary"
                                     : "bg-muted/60 text-muted-foreground/60 hover:bg-muted/80"
                                 )}

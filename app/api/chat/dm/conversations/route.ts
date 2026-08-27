@@ -90,6 +90,8 @@ export async function GET(req: Request) {
         id: conv.id,
         type: conv.type,
         participants,
+        participantIds: conv.participantIds,
+        currentUserId: user.id,
         lastMessage: lastMsg ? {
           id: lastMsg._id,
           content: lastMsg.content,
