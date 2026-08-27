@@ -103,14 +103,15 @@ const TaskRow = memo(function TaskRow({ task, onToggle, onDelete, onOpen, dragHa
   dragHandleProps?: Record<string, any>;
 }) {
   return (
-    <Card className="border-subtle hover:border-primary/30 transition-colors cursor-pointer"
+    <Card className="border-subtle hover:border-primary/30 transition-colors cursor-pointer group"
       onClick={() => onOpen(task)}>
       <CardHeader className="p-4">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-3 flex-1 min-w-0">
-            <div {...dragHandleProps} className="shrink-0 mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground transition-colors"
+            <div {...dragHandleProps} title="Drag to reorder" aria-label="Drag to reorder"
+              className="shrink-0 -ml-1 p-1.5 rounded-md cursor-grab active:cursor-grabbing text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent hover:border-border transition-all"
               onClick={(e) => e.stopPropagation()}>
-              <GripVertical className="h-4 w-4" />
+              <GripVertical className="h-5 w-5" />
             </div>
             <button onClick={() => onToggle(task)}
               className="shrink-0 mt-0.5 hover:scale-110 transition-transform">
