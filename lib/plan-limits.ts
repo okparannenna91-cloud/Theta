@@ -214,12 +214,7 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {    free: {
     },
 };
 
-// TEMP (SCREENSHOTS): Unlock every feature on the Free plan.
-// All client gates and API enforcement read from PLAN_LIMITS, so this single
-// override unlocks everything (timeline, gantt, analytics, export, custom
-// fields, automations, members, storage, etc.) for free workspaces.
-// TODO: REVERT THIS BLOCK AFTER SCREENSHOTS ARE TAKEN.
-PLAN_LIMITS.free = { ...PLAN_LIMITS.theta_plus };
+
 
 /**
  * Check if user can create more workspaces
