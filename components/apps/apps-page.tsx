@@ -182,11 +182,16 @@ export default function AppsPage() {
             showUpgradePrompt("integrations");
             return;
         }
-        if (provider.linkOnly || ["trello","woocommerce","slack"].includes(provider.id)) {
+        if (provider.linkOnly || ["trello","woocommerce"].includes(provider.id)) {
             setSelectedProvider(provider);
             setManualInputs({});
             setIsManualOpen(true);
             setIsDetailOpen(false);
+            return;
+        }
+        if (provider.id === "slack") {
+            window.open(`/api/integrations/slack?workspaceId=${activeWorkspaceId}`, "_blank", "width=600,height=700");
+            toast.info(`Connecting to ${provider.name}...`);
             return;
         }
         window.open(`/api/integrations/${provider.id}/connect?workspaceId=${activeWorkspaceId}`, "_blank", "width=600,height=700");
@@ -203,7 +208,6 @@ export default function AppsPage() {
             const payload: Record<string, any> = { workspaceId: activeWorkspaceId };
             if (selectedProvider.id === "figma") payload.config_url = manualInputs.figmaUrl;
             else if (selectedProvider.id === "canva") payload.config_url = manualInputs.canvaUrl;
-            else if (selectedProvider.id === "slack") payload.webhookUrl = manualInputs.webhookUrl;
             else if (selectedProvider.id === "trello") { payload.apiKey = manualInputs.apiKey; payload.token = manualInputs.token; }
             else if (selectedProvider.id === "woocommerce") { payload.siteUrl = manualInputs.siteUrl; payload.consumerKey = manualInputs.consumerKey; payload.consumerSecret = manualInputs.consumerSecret; }
             else Object.assign(payload, manualInputs);
@@ -482,7 +486,7 @@ export default function AppsPage() {
             )}
 
             <Dialog open={isDetailOpen} onOpenChange={(o) => { setIsDetailOpen(o); if (!o) { setIsFullscreen(false); setIsEditingUrl(false); } }}>
-                <DialogContent className={cn("sm:max-w-md", selectedProvider && isConnected(selectedProvider.id) && (selectedProvider.id === "figma" || selectedProvider.id === "canva") && "sm:max-w-2xl max-h-[85vh] overflow-y-auto")}>
+                <DialogContent className={cn("sm:max-w-md", selectedProvider && isConnected(selectedProvider.id) && "sm:max-w-2xl max-h-[85vh] overflow-y-auto")}>
                     {selectedProvider && (() => {
                         const connected = isConnected(selectedProvider.id);
                         const Logo = selectedProvider.Logo;
@@ -620,16 +624,70 @@ export default function AppsPage() {
                                         </div>
                                     );
                                 })()}
+                                {connected && selectedProvider.id === "slack" && (() => {
+                                    const rec = getRecord("slack");
+                                    const cfg: any = rec?.config || {};
+                                    return (
+                                        <div className="border rounded-xl overflow-hidden bg-card">
+                                            <div className="px-4 py-3 border-b bg-muted/20 flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                                    <span className="text-xs font-semibold tracking-widest uppercase">Slack Workspace</span>
+                                                    <Badge className="h-5 px-2 text-[10px] bg-emerald-600">Live</Badge>
+                                                </div>
+                                                <Badge variant="outline" className="text-[10px]">{cfg.teamName || cfg.teamId || "Connected"}</Badge>
+                                            </div>
+                                            <div className="p-3 space-y-3">
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <div className="p-2.5 rounded-lg border bg-muted/20">
+                                                        <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Channel</p>
+                                                        <p className="text-xs font-medium truncate">{cfg.channelName ? `#${cfg.channelName}` : cfg.channelId ? `#${cfg.channelId}` : "No channel linked"}</p>
+                                                        <p className="text-[11px] text-muted-foreground truncate">{cfg.teamName || "Workspace"}</p>
+                                                    </div>
+                                                    <div className="p-2.5 rounded-lg border bg-muted/20">
+                                                        <p className="text-[10px] font-semibold tracking-widest uppercase text-muted-foreground">Commands</p>
+                                                        <p className="text-xs font-mono">/theta create</p>
+                                                        <p className="text-[11px] text-muted-foreground">/theta status, /theta assign</p>
+                                                    </div>
+                                                </div>
+                                                <div className="rounded-lg border p-3 bg-muted/20 space-y-1.5">
+                                                    <p className="text-xs font-semibold flex items-center gap-1.5"><Terminal className="h-3 w-3" /> What’s live</p>
+                                                    <ul className="text-[11px] text-muted-foreground list-disc pl-4 space-y-0.5">
+                                                        <li>Task notifications in Slack channel</li>
+                                                        <li>Daily standup & sprint summaries</li>
+                                                        <li>Slash commands + message actions → Theta tasks</li>
+                                                    </ul>
+                                                </div>
+                                                <p className="text-[11px] text-muted-foreground">Manage channel in Slack app settings. Disconnect to revoke.</p>
+                                            </div>
+                                        </div>
+                                    );
+                                })()}
                                 {connected && selectedProvider.canSync && (
-                                    <div className="border rounded-lg p-3 space-y-3">
-                                        <div className="flex items-center justify-between">
-                                            <p className="text-xs font-medium text-foreground uppercase tracking-wide">
-                                                Synced Items {syncedItems.length > 0 && `(${syncedItems.length})`}
-                                            </p>
-                                            <Button variant="ghost" size="sm" className="h-6 px-2 text-xs" onClick={() => loadSyncedItems(selectedProvider.id)} disabled={isItemsLoading}>
+                                    <div className="border rounded-xl overflow-hidden bg-card">
+                                        <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
+                                            <div className="flex items-center gap-2">
+                                                <div className="h-2 w-2 rounded-full bg-primary animate-pulse" />
+                                                <span className="text-xs font-semibold tracking-widest uppercase">Synced Items</span>
+                                                {syncedItems.length > 0 && <Badge variant="secondary" className="h-5 px-2 text-[10px]">{syncedItems.length}</Badge>}
+                                            </div>
+                                            <Button variant="ghost" size="sm" className="h-7 px-2.5 text-xs" onClick={() => loadSyncedItems(selectedProvider.id)} disabled={isItemsLoading}>
                                                 <RefreshCw className={cn("h-3 w-3 mr-1", isItemsLoading && "animate-spin")} />Refresh
                                             </Button>
                                         </div>
+                                        <div className="p-3">
+                                            {(() => {
+                                                const linked = syncedItems.filter(s => s.extra?.linkedProjectId).length;
+                                                const imported = syncedItems.filter(s => s.imported).length;
+                                                if (syncedItems.length > 0) return (
+                                                    <div className="flex gap-2 mb-3">
+                                                        <span className="text-[11px] px-2 py-1 rounded bg-muted">{syncedItems.length} total</span>
+                                                        {linked > 0 && <span className="text-[11px] px-2 py-1 rounded bg-primary/10 text-primary">{linked} linked</span>}
+                                                        {imported > 0 && <span className="text-[11px] px-2 py-1 rounded bg-emerald-500/10 text-emerald-600">{imported} imported</span>}
+                                                    </div>
+                                                );
+                                                return null;
+                                            })()}
                                         {isItemsLoading ? (
                                             <div className="space-y-2">
                                                 <Skeleton className="h-8 w-full" />
@@ -642,17 +700,27 @@ export default function AppsPage() {
                                             </p>
                                         ) : (
                                             <>
-                                                <div className="max-h-48 overflow-y-auto space-y-2">
+                                                <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
                                                     {syncedItems.map(item => (
-                                                        <div key={item.id} className="flex items-start gap-2 rounded-md border bg-muted/20 p-2">
-                                                            <div className="flex-1 min-w-0">
-                                                                <p className="text-xs font-medium text-foreground truncate">{item.title}</p>
-                                                                <p className="text-[10px] text-muted-foreground capitalize">
-                                                                    {item.type}{item.status ? ` · ${item.status}` : ""}
+                                                        <div key={item.id} className="flex items-start gap-3 rounded-xl border bg-background hover:border-primary/20 p-3 transition-colors">
+                                                            <div className="flex-1 min-w-0 space-y-1">
+                                                                <p className="text-xs font-semibold text-foreground truncate flex items-center gap-1.5">{item.title} {item.url && <a href={item.url} target="_blank" rel="noreferrer" className="text-muted-foreground hover:text-primary"><ExternalLink className="h-3 w-3" /></a>}</p>
+                                                                <p className="text-[10px] text-muted-foreground capitalize flex items-center gap-1.5 flex-wrap">
+                                                                    <Badge variant="outline" className="h-4 px-1.5 text-[10px] capitalize">{item.type}</Badge>
+                                                                    {item.status && <Badge variant={item.status === "private" ? "secondary" : "outline"} className="h-4 px-1.5 text-[10px] capitalize">{item.status}</Badge>}
                                                                     {isContainerType(item.type) && item.extra?.linkedProjectId
-                                                                        ? ` · Linked to ${projectNameMap[item.extra.linkedProjectId] || "project"}`
-                                                                        : item.imported ? " · Imported" : ""}
+                                                                        ? <span className="text-primary">· Linked to {projectNameMap[item.extra.linkedProjectId] || "project"}</span>
+                                                                        : item.imported ? <span className="text-emerald-600">· Imported</span> : ""}
                                                                 </p>
+                                                                {(item.extra?.language || item.extra?.stars != null || item.extra?.price || item.extra?.sku) && (
+                                                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                                                        {item.extra?.language && <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted">{String(item.extra.language)}</span>}
+                                                                        {item.extra?.stars != null && <span className="text-[10px] flex items-center gap-0.5">★ {String(item.extra.stars)}</span>}
+                                                                        {item.extra?.price && <span className="text-[10px] font-medium">${String(item.extra.price)}</span>}
+                                                                        {item.extra?.sku && <span className="text-[10px] text-muted-foreground">SKU {String(item.extra.sku)}</span>}
+                                                                        {item.extra?.stock && <Badge variant={String(item.extra.stock)==="instock" ? "default" : "outline"} className="h-4 px-1 text-[9px]">{String(item.extra.stock)}</Badge>}
+                                                                    </div>
+                                                                )}
                                                             </div>
                                                             {isContainerType(item.type) ? (
                                                                 <Button
@@ -695,6 +763,7 @@ export default function AppsPage() {
                                             </>
                                         )}
                                     </div>
+                                </div>
                                 )}
                             </>
                         );
@@ -769,33 +838,63 @@ export default function AppsPage() {
                         </DialogTitle>
                         <DialogDescription>Enter your credentials to complete the connection.</DialogDescription>
                     </DialogHeader>
-                    <div className="space-y-4">
-                        {selectedProvider?.id === "figma" && <>
-                            <Label>Figma File URL</Label>
-                            <Input placeholder="https://www.figma.com/file/..." value={manualInputs.figmaUrl || ""} onChange={e => setManualInputs({ figmaUrl: e.target.value })} />
-                        </>}
-                        {selectedProvider?.id === "canva" && <>
-                            <Label>Canva Share URL</Label>
-                            <Input placeholder="https://www.canva.com/design/..." value={manualInputs.canvaUrl || ""} onChange={e => setManualInputs({ canvaUrl: e.target.value })} />
-                        </>}
-                        {selectedProvider?.id === "slack" && <>
-                            <Label>Slack Webhook URL</Label>
-                            <Input placeholder="https://hooks.slack.com/services/..." value={manualInputs.webhookUrl || ""} onChange={e => setManualInputs({ webhookUrl: e.target.value })} />
-                        </>}
-                        {selectedProvider?.id === "trello" && <>
-                            <Label>Trello API Key</Label>
-                            <Input placeholder="Your API key..." value={manualInputs.apiKey || ""} onChange={e => setManualInputs({ ...manualInputs, apiKey: e.target.value })} />
-                            <Label>Access Token</Label>
-                            <Input placeholder="Your token..." value={manualInputs.token || ""} onChange={e => setManualInputs({ ...manualInputs, token: e.target.value })} />
-                        </>}
-                        {selectedProvider?.id === "woocommerce" && <>
-                            <Label>Store URL</Label>
-                            <Input placeholder="https://mystore.com" value={manualInputs.siteUrl || ""} onChange={e => setManualInputs({ ...manualInputs, siteUrl: e.target.value })} />
-                            <Label>Consumer Key</Label>
-                            <Input placeholder="ck_..." value={manualInputs.consumerKey || ""} onChange={e => setManualInputs({ ...manualInputs, consumerKey: e.target.value })} />
-                            <Label>Consumer Secret</Label>
-                            <Input placeholder="cs_..." type="password" value={manualInputs.consumerSecret || ""} onChange={e => setManualInputs({ ...manualInputs, consumerSecret: e.target.value })} />
-                        </>}
+                    <div className="space-y-5">
+                        {selectedProvider?.id === "figma" && (
+                            <div className="space-y-3">
+                                <div>
+                                    <Label className="text-xs font-semibold">Figma File URL</Label>
+                                    <p className="text-[11px] text-muted-foreground">Share → Copy link. Must be “Anyone with link can view”.</p>
+                                </div>
+                                <Input placeholder="https://www.figma.com/file/ABC123/My-Design" value={manualInputs.figmaUrl || ""} onChange={e => setManualInputs({ ...manualInputs, figmaUrl: e.target.value })} className="h-9" />
+                                <p className="text-[11px] text-muted-foreground">Supports /file/ and /proto/ links with <code className="px-1 py-0.5 rounded bg-muted text-[10px]">?node-id=</code> for frame focus.</p>
+                            </div>
+                        )}
+                        {selectedProvider?.id === "canva" && (
+                            <div className="space-y-3">
+                                <div>
+                                    <Label className="text-xs font-semibold">Canva Share URL</Label>
+                                    <p className="text-[11px] text-muted-foreground">Share → Copy link. Anyone with link can view.</p>
+                                </div>
+                                <Input placeholder="https://www.canva.com/design/DAG.../view" value={manualInputs.canvaUrl || ""} onChange={e => setManualInputs({ ...manualInputs, canvaUrl: e.target.value })} className="h-9" />
+                            </div>
+                        )}
+                        {selectedProvider?.id === "trello" && (
+                            <div className="space-y-4">
+                                <div className="rounded-lg border p-3 bg-muted/20">
+                                    <p className="text-xs font-semibold">Connect Trello</p>
+                                    <p className="text-[11px] text-muted-foreground">Get your API key at <a href="https://trello.com/app-key" target="_blank" rel="noreferrer" className="text-primary underline">trello.com/app-key</a> then generate a Token.</p>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold">Trello API Key</Label>
+                                    <Input placeholder="e.g. 8a1b2c3d4e5f..." value={manualInputs.apiKey || ""} onChange={e => setManualInputs({ ...manualInputs, apiKey: e.target.value })} className="h-9 font-mono text-xs" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold">Access Token</Label>
+                                    <Input placeholder="Paste token (starts with ATTA...)" value={manualInputs.token || ""} onChange={e => setManualInputs({ ...manualInputs, token: e.target.value })} className="h-9 font-mono text-xs" />
+                                    <p className="text-[11px] text-muted-foreground">Token needs read access to your boards.</p>
+                                </div>
+                            </div>
+                        )}
+                        {selectedProvider?.id === "woocommerce" && (
+                            <div className="space-y-4">
+                                <div className="rounded-lg border p-3 bg-muted/20">
+                                    <p className="text-xs font-semibold">Connect WooCommerce</p>
+                                    <p className="text-[11px] text-muted-foreground">WooCommerce → Settings → Advanced → REST API → Add key (Read). Must be HTTPS.</p>
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold">Store URL</Label>
+                                    <Input placeholder="https://mystore.com" value={manualInputs.siteUrl || ""} onChange={e => setManualInputs({ ...manualInputs, siteUrl: e.target.value })} className="h-9" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold">Consumer Key</Label>
+                                    <Input placeholder="ck_..." value={manualInputs.consumerKey || ""} onChange={e => setManualInputs({ ...manualInputs, consumerKey: e.target.value })} className="h-9 font-mono text-xs" />
+                                </div>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold">Consumer Secret</Label>
+                                    <Input placeholder="cs_..." type="password" value={manualInputs.consumerSecret || ""} onChange={e => setManualInputs({ ...manualInputs, consumerSecret: e.target.value })} className="h-9 font-mono text-xs" />
+                                </div>
+                            </div>
+                        )}
                     </div>
                     <DialogFooter className="gap-2">
                         <Button variant="outline" onClick={() => setIsManualOpen(false)}>Cancel</Button>
