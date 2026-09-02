@@ -36,9 +36,9 @@ const PROVIDERS = [
     },
     {
         id: "slack", name: "Slack", category: "Communication",
-        description: "Send real-time notifications, task updates, and alerts directly to your Slack workspace.",
+        description: "Connect via OAuth to send notifications, daily standups and use /theta slash commands.",
         Logo: SlackLogo, bg: "bg-white", iconColor: "",
-        canSync: false, linkOnly: true, badge: "Popular",
+        canSync: false, linkOnly: false, badge: "Popular",
     },
     {
         id: "asana", name: "Asana", category: "Productivity",
