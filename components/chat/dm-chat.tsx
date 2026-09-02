@@ -41,6 +41,7 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
   const [typingUsers, setTypingUsers] = useState<Record<string, { name: string; timestamp: number }>>({});
   const [showDetails, setShowDetails] = useState(false);
   const [reconnecting, setReconnecting] = useState(false);
+  const [participantOnline, setParticipantOnline] = useState(false);
 
   const ablyRef = useRef<any>(null);
   const channelRef = useRef<any>(null);
@@ -143,6 +144,17 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
       name: user?.fullName || user?.firstName || "User",
       imageUrl: user?.imageUrl,
     }).catch(() => {});
+
+    const updateParticipantPresence = async () => {
+      try {
+        const members = await channel.presence.get();
+        const otherPresent = members.some((m: any) => m.data?.id && m.data.id !== currentUserDbId);
+        setParticipantOnline(otherPresent);
+      } catch {}
+    };
+
+    updateParticipantPresence();
+    channel.presence.subscribe(["enter", "leave", "update"], updateParticipantPresence);
   }, [currentUserDbId, user?.fullName, user?.firstName, user?.imageUrl]);
 
   const connectAbly = useCallback(async () => {
@@ -364,7 +376,7 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
               )}
               <span className={cn(
                 "absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background",
-                isConnected ? "bg-green-500" : "bg-gray-400"
+                participantOnline ? "bg-green-500" : "bg-gray-400"
               )} />
             </div>
             <div className="min-w-0">
@@ -374,9 +386,9 @@ export function DmChat({ conversationId, workspaceId, onBack }: DmChatProps) {
               <div className="flex items-center gap-2 mt-0.5">
                 <span className={cn(
                   "text-[10px] font-medium",
-                  isConnected ? "text-green-600/70" : "text-muted-foreground/40"
+                  participantOnline ? "text-green-600/70" : "text-muted-foreground/40"
                 )}>
-                  {isConnected ? "Online" : "Offline"}
+                  {participantOnline ? "Online" : "Offline"}
                 </span>
                 {reconnecting && (
                   <span className="text-[10px] font-medium text-blue-500/70 animate-pulse">Reconnecting...</span>
