@@ -21,12 +21,12 @@ const nextConfig = {
     },
   },
 
-  // Enforce canonical domain: always redirect to https://www.thetapm.site
+  // Enforce canonical domain: always redirect to https://www.thetapm.site (except API - Slack OAuth needs exact redirect_uri match)
   async redirects() {
     return [
-      // http://thetapm.site/* → https://www.thetapm.site/*
+      // http://thetapm.site/* → https://www.thetapm.site/* (skip /api/* to keep OAuth redirect_uri stable)
       {
-        source: '/:path*',
+        source: '/:path((?!api).*)*',
         has: [{ type: 'host', value: 'thetapm.site' }],
         destination: 'https://www.thetapm.site/:path*',
         permanent: true, // 308

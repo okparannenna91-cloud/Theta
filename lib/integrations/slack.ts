@@ -126,7 +126,10 @@ export function getSlackAuthUrl(
   codeVerifier?: string
 ): string {
   const clientId = process.env.SLACK_CLIENT_ID;
-  const redirectUri = getAppUrl("/api/integrations/slack/callback");
+  // Slack app must have this exact URI whitelisted. We normalize to non-www https to match the
+  // currently configured redirect (error showed www was not whitelisted). Also supports localhost for dev.
+  const rawRedirect = getAppUrl("/api/integrations/slack/callback");
+  const redirectUri = rawRedirect.includes("localhost") ? rawRedirect : rawRedirect.replace("https://www.", "https://").replace("http://www.", "https://").replace("http://", "https://");
 
   const statePayload: Record<string, any> = { workspaceId };
   let url =
@@ -157,7 +160,8 @@ export async function exchangeSlackCode(
 ): Promise<any> {
   const clientId = process.env.SLACK_CLIENT_ID;
   const clientSecret = process.env.SLACK_CLIENT_SECRET;
-  const redirectUri = getAppUrl("/api/integrations/slack/callback");
+  const rawRedirect = getAppUrl("/api/integrations/slack/callback");
+  const redirectUri = rawRedirect.includes("localhost") ? rawRedirect : rawRedirect.replace("https://www.", "https://").replace("http://www.", "https://").replace("http://", "https://");
 
   const form = new URLSearchParams();
   form.append("code", code);
