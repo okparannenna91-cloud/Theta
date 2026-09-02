@@ -195,9 +195,17 @@ export default function AppsPage() {
             return;
         }
         try {
+            const payload: Record<string, any> = { workspaceId: activeWorkspaceId };
+            if (selectedProvider.id === "figma") payload.config_url = manualInputs.figmaUrl;
+            else if (selectedProvider.id === "canva") payload.config_url = manualInputs.canvaUrl;
+            else if (selectedProvider.id === "slack") payload.webhookUrl = manualInputs.webhookUrl;
+            else if (selectedProvider.id === "trello") { payload.apiKey = manualInputs.apiKey; payload.token = manualInputs.token; }
+            else if (selectedProvider.id === "woocommerce") { payload.siteUrl = manualInputs.siteUrl; payload.consumerKey = manualInputs.consumerKey; payload.consumerSecret = manualInputs.consumerSecret; }
+            else Object.assign(payload, manualInputs);
+
             const res = await fetch(`/api/integrations/${selectedProvider.id}/connect`, {
                 method: "POST", headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ workspaceId: activeWorkspaceId, ...manualInputs })
+                body: JSON.stringify(payload)
             });
             if (res.ok) { toast.success(`${selectedProvider.name} connected!`); setIsManualOpen(false); fetchIntegrations(); }
             else { const d = await res.json(); toast.error(d.error || "Failed to connect."); }
