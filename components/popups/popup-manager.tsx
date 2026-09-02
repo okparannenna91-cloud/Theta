@@ -3,12 +3,11 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { X, Rocket, ShieldAlert, AlertTriangle, CreditCard, Info, Trash2, UserPlus, Zap, Clock } from "lucide-react";
+import { X, Rocket, ShieldAlert, AlertTriangle, CreditCard, Info, Trash2, UserPlus, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type PopupType = 
     | "upgrade" 
-    | "trial_expiration"
     | "billing_warning" 
     | "destructive" 
     | "info" 
@@ -32,7 +31,6 @@ interface PopupContextType {
     showUpgradePrompt: (feature: string) => void;
     showConfirm: (data: Omit<PopupData, "id" | "type"> & { id?: string }) => void;
     showInfo: (title: string, description: string) => void;
-    showTrialExpiration: (daysLeft: number) => void;
     showBillingFailure: () => void;
     dismissPopup: (id: string) => void;
 }
@@ -80,19 +78,6 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
         setActivePopup({ id: "info", type: "info", title, description });
     }, []);
 
-    const showTrialExpiration = useCallback((daysLeft: number) => {
-        setActivePopup({
-            id: "trial_expiration",
-            type: "trial_expiration",
-            title: daysLeft <= 0 ? "Trial Expired" : "Trial Ending Soon",
-            description: daysLeft <= 0 
-                ? "Your free trial has ended. Select a plan to continue accessing your workspace and projects."
-                : `Your trial ends in ${daysLeft} days. Upgrade now to ensure uninterrupted service for your team.`,
-            actionLabel: "Choose a Plan",
-            data: { daysLeft }
-        });
-    }, []);
-
     const showBillingFailure = useCallback(() => {
         setActivePopup({
             id: "billing_failure",
@@ -107,7 +92,6 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
     const getIcon = () => {
         switch (activePopup?.type) {
             case "upgrade": return <Zap className="w-6 h-6 text-amber-600" />;
-            case "trial_expiration": return <Clock className="w-6 h-6 text-orange-600" />;
             case "billing_warning": return <ShieldAlert className="w-6 h-6 text-rose-600" />;
             case "destructive": return <Trash2 className="w-6 h-6 text-rose-600" />;
             default: return <Info className="w-6 h-6 text-blue-600" />;
@@ -117,7 +101,6 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
     const getIconContainerClass = () => {
         switch (activePopup?.type) {
             case "upgrade": return "bg-amber-100";
-            case "trial_expiration": return "bg-orange-100";
             case "billing_warning":
             case "destructive": return "bg-rose-100";
             default: return "bg-blue-100";
@@ -130,7 +113,6 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
             showUpgradePrompt,
             showConfirm,
             showInfo,
-            showTrialExpiration,
             showBillingFailure,
             dismissPopup
         }}>
@@ -176,7 +158,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
                                     </Button>
                                     <Button 
                                         onClick={() => {
-                                            if (activePopup.type === "upgrade" || activePopup.type === "trial_expiration") {
+                                            if (activePopup.type === "upgrade") {
                                                 window.location.href = "/billing";
                                             } else if (activePopup.onAction) {
                                                 activePopup.onAction();
@@ -191,7 +173,7 @@ export function PopupProvider({ children }: { children: React.ReactNode }) {
                                                 : "bg-indigo-600 hover:bg-indigo-700 shadow-indigo-500/30"
                                         }`}
                                     >
-                                        {activePopup.actionLabel || (activePopup.type === "upgrade" || activePopup.type === "trial_expiration" ? "View Plans" : "Continue")}
+                                        {activePopup.actionLabel || (activePopup.type === "upgrade" ? "View Plans" : "Continue")}
                                     </Button>
                                 </div>
                             </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Clock, ShieldAlert, Info } from "lucide-react";
+import { Clock, ShieldAlert, Info } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import Link from "next/link";
@@ -42,31 +42,6 @@ export function SubscriptionStatusBanner({
           <Link href="/billing">
             <Button variant="default" size="sm" className="shrink-0 bg-blue-600 hover:bg-blue-700 text-white">
               View Plans
-            </Button>
-          </Link>
-        </div>
-      </Card>
-    );
-  }
-
-  if (status === "trialing" && trialDaysRemaining <= 0) {
-    return (
-      <Card className="mb-6 p-4 border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-800">
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <AlertCircle className="h-5 w-5 text-red-600 dark:text-red-400 shrink-0" />
-            <div>
-              <p className="text-sm font-medium text-red-800 dark:text-red-300">
-                Trial expired
-              </p>
-              <p className="text-xs text-red-600 dark:text-red-400 mt-0.5">
-                Your free trial has ended. Select a plan to continue.
-              </p>
-            </div>
-          </div>
-          <Link href="/billing">
-            <Button variant="default" size="sm" className="shrink-0 bg-red-600 hover:bg-red-700 text-white">
-              Choose a Plan
             </Button>
           </Link>
         </div>
