@@ -497,6 +497,26 @@ export default function AppsPage() {
                                         </Button>
                                     )}
                                 </div>
+                                {connected && (selectedProvider.id === "figma" || selectedProvider.id === "canva") && (() => {
+                                    const rec = getRecord(selectedProvider.id);
+                                    const url = rec?.config?.url as string | undefined;
+                                    if (!url) return null;
+                                    const embedUrl = selectedProvider.id === "figma"
+                                        ? `https://www.figma.com/embed?embed_host=astra&url=${encodeURIComponent(url)}`
+                                        : url;
+                                    return (
+                                        <div className="border rounded-lg p-3 space-y-3">
+                                            <p className="text-xs font-medium text-foreground uppercase tracking-wide">Linked File</p>
+                                            <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all block">{url}</a>
+                                            <div className="aspect-[16/10] w-full overflow-hidden rounded border bg-muted">
+                                                <iframe src={embedUrl} className="w-full h-full" allowFullScreen loading="lazy" title={`${selectedProvider.name} embed`} />
+                                            </div>
+                                            <Button variant="outline" size="sm" className="w-full h-8 text-xs" onClick={() => window.open(url, "_blank")}>
+                                                Open in {selectedProvider.name} <ArrowRight className="h-3 w-3 ml-1" />
+                                            </Button>
+                                        </div>
+                                    );
+                                })()}
                                 {connected && selectedProvider.canSync && (
                                     <div className="border rounded-lg p-3 space-y-3">
                                         <div className="flex items-center justify-between">
