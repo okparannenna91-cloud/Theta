@@ -28,7 +28,7 @@ export default function DashboardPage() {
   const { t } = useI18n();
   const { activeWorkspaceId } = useWorkspace();
   const router = useRouter();
-  const [timeRange, setTimeRange] = useState<"7" | "30">("7");
+  const [timeRange, setTimeRange] = useState<"7" | "30">("30");
   const [includeSubtasks, setIncludeSubtasks] = useState(false);
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["dashboard", activeWorkspaceId, timeRange, includeSubtasks],
@@ -245,6 +245,8 @@ export default function DashboardPage() {
                     tickLine={false}
                     tick={{ fontSize: 12, fill: "hsl(var(--muted-foreground))" }}
                     dy={10}
+                    interval="preserveStartEnd"
+                    minTickGap={12}
                   />
                   <YAxis
                     axisLine={false}

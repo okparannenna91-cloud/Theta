@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getAccessibleProjectIds } from "@/lib/project-permissions";
 import { StatusCategory } from "@/lib/constants/status";
 import { cacheGetOrSet, cacheKey } from "@/lib/cache";
+import { format } from "date-fns";
 
 /**
  * Growth of a displayed total since the start of the current window.
@@ -212,8 +213,7 @@ export async function GET(req: Request) {
       ];
 
       // Build activity trends from bounded per-day counts (no unbounded fetch)
-      const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-      const trendDays = Math.min(daysBack, 7);
+      const trendDays = Math.min(Math.max(daysBack, 1), 30);
       const trendBuckets = await Promise.all(
         Array.from({ length: trendDays }, (_, i) => {
           const dayStart = new Date(Date.now() - (trendDays - 1 - i) * 24 * 60 * 60 * 1000);
@@ -230,7 +230,7 @@ export async function GET(req: Request) {
       );
       const activityTrends = trendBuckets.map((count, i) => {
         const d = new Date(Date.now() - (trendDays - 1 - i) * 24 * 60 * 60 * 1000);
-        return { name: dayNames[d.getDay()], activities: count };
+        return { name: format(d, "MMM dd"), activities: count };
       });
 
       const rawActivities: any[] = await prisma.activity.findMany({

@@ -159,7 +159,7 @@ export function PortfolioPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="h-[300px]">
-                            {analyticsData?.tasksOverTime?.length > 0 ? (
+                            {Array.isArray(analyticsData?.tasksOverTime) && analyticsData.tasksOverTime.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={analyticsData.tasksOverTime}>
                                         <defs>
@@ -173,7 +173,7 @@ export function PortfolioPage() {
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} strokeOpacity={0.1} />
-                                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700}} dy={10} />
+                                        <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fontSize: 9, fontWeight: 700}} dy={10} interval="preserveStartEnd" minTickGap={8} />
                                         <YAxis hide />
                                         <Tooltip 
                                           contentStyle={{borderRadius: '24px', border: 'none', boxShadow: '0 10px 40px rgba(0,0,0,0.1)', fontSize: '10px', fontWeight: 700}} 
