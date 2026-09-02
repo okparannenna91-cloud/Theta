@@ -48,7 +48,7 @@ export default function Page({ params }: { params: { id: string } }) {
       <div className="flex items-center gap-2 text-[11px] text-muted-foreground/70 border border-border/40 rounded-lg px-3 py-2 bg-muted/20 w-fit">
         <Layers className="h-3.5 w-3.5 text-primary/70" />
         <span>
-          Field values are editable in the task dialog, shown on Kanban cards, and available to filters, automations and exports.
+          Field values are editable in the task dialog, shown on Kanban cards, and available to filters and exports.
         </span>
       </div>
 

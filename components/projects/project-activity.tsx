@@ -49,7 +49,7 @@ interface ProjectActivityProps {
   workspaceId: string;
 }
 
-type FilterValue = "all" | "task" | "comment" | "project" | "member" | "file" | "automation" | "dependency";
+type FilterValue = "all" | "task" | "comment" | "project" | "member" | "file" | "dependency";
 
 const FILTERS: { value: FilterValue; label: string; dot?: string }[] = [
   { value: "all", label: "All" },
@@ -59,7 +59,6 @@ const FILTERS: { value: FilterValue; label: string; dot?: string }[] = [
   { value: "member", label: "Members", dot: "bg-violet-500" },
   { value: "file", label: "Files", dot: "bg-orange-500" },
   { value: "dependency", label: "Dependencies", dot: "bg-cyan-500" },
-  { value: "automation", label: "Automation", dot: "bg-primary" },
 ];
 
 const TYPE_META: Record<string, { label: string; chip: string; dot: string }> = {
@@ -69,7 +68,6 @@ const TYPE_META: Record<string, { label: string; chip: string; dot: string }> = 
   member: { label: "Member", chip: "bg-violet-500/10 text-violet-600 dark:text-violet-400", dot: "bg-violet-500" },
   file: { label: "File", chip: "bg-orange-500/10 text-orange-600 dark:text-orange-400", dot: "bg-orange-500" },
   dependency: { label: "Dependency", chip: "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400", dot: "bg-cyan-500" },
-  automation: { label: "Automation", chip: "bg-primary/10 text-primary", dot: "bg-primary" },
   other: { label: "Update", chip: "bg-muted text-muted-foreground", dot: "bg-muted-foreground" },
 };
 
@@ -82,7 +80,6 @@ function classifyActivity(a: ActivityItem): string {
   if (entityType === "team" || entityType === "member" || action.includes("member")) return "member";
   if (entityType === "file" || action.includes("upload") || action.includes("attachment")) return "file";
   if (entityType === "dependency" || action.includes("dependency")) return "dependency";
-  if (entityType === "ai" || action.startsWith("nova")) return "automation";
   return "other";
 }
 

@@ -58,7 +58,6 @@ const ACTION_LABELS: Record<string, string> = {
     board_created: "created board",
     sprint_started: "started sprint",
     milestone_completed: "completed milestone",
-    nova_execution: "executed automation",
     nova_query: "queried workspace",
     nova_suggestion: "suggested",
     nova_created_task: "created task",

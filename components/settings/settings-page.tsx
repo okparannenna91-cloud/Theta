@@ -366,7 +366,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <h3 className="text-sm font-semibold">API Access</h3>
-                  <p className="text-xs text-muted-foreground mt-1">Programmatic access for automation</p>
+                  <p className="text-xs text-muted-foreground mt-1">Generate API key for programmatic access</p>
                 </div>
                 <Button variant="outline" className="w-full" onClick={() => showUpgradePrompt("api_access")}>
                   {["free", "growth"].includes(currentPlan) ? (

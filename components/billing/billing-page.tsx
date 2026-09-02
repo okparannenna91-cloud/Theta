@@ -43,7 +43,7 @@ const groupKey = (feature: string): { key: string; label: string; icon: React.Re
   if (/\b(storage|mb|gb)\b/.test(lc)) return { key: "storage", label: "Storage", icon: <HardDrive className="h-3.5 w-3.5" /> };
   if (/\b(ai|nova)\b/.test(lc)) return { key: "advanced", label: "Advanced", icon: <Gauge className="h-3.5 w-3.5" /> };
   if (/\b(support|email|chat)\b/.test(lc)) return { key: "support", label: "Support", icon: <Headphones className="h-3.5 w-3.5" /> };
-  if (/\b(integration|analytics|api|permission|automation)\b/.test(lc)) return { key: "advanced", label: "Advanced", icon: <Gauge className="h-3.5 w-3.5" /> };
+  if (/\b(integration|analytics|api|permission)\b/.test(lc)) return { key: "advanced", label: "Advanced", icon: <Gauge className="h-3.5 w-3.5" /> };
   return { key: "enterprise", label: "Enterprise", icon: <Sparkles className="h-3.5 w-3.5" /> };
 };
 
@@ -300,7 +300,6 @@ export default function BillingPage() {
                       {usage.storage && <UsageMeter {...usage.storage} label="File Storage" unit="MB" />}
                       {usage.boards && <UsageMeter {...usage.boards} label="Kanban View" />}
                       {usage.integrations && <UsageMeter {...usage.integrations} label="Integrations" />}
-                      {usage.automations && <UsageMeter {...usage.automations} label="Automations" />}
                       {usage.chat_messages && <UsageMeter {...usage.chat_messages} label="Chat Messages" />}
                     </div>
                   </div>
