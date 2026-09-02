@@ -527,17 +527,26 @@ export default function AppsPage() {
                                     const url = rec?.config?.url as string | undefined;
                                     if (!url) return null;
                                     const isFigma = selectedProvider.id === "figma";
+                                    const isProto = url.includes("/proto/");
+                                    const isFile = url.includes("/file/") || url.includes("/design/");
+                                    const fileKey = (() => { try { const m = url.match(/\/(?:file|design|proto)\/([a-zA-Z0-9]+)/); return m ? m[1].slice(0, 8) + "…" : null; } catch { return null; } })();
                                     const embedUrl = isFigma ? `https://www.figma.com/embed?embed_host=astra&url=${encodeURIComponent(url)}` : null;
                                     const updatedAt = rec?.updatedAt ? new Date(rec.updatedAt).toLocaleString() : null;
                                     return (
                                         <div className="border rounded-xl overflow-hidden bg-card">
                                             <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                                <div className="flex items-center gap-2 min-w-0">
+                                                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse shrink-0" />
                                                     <span className="text-xs font-semibold tracking-widest uppercase">Live Preview</span>
-                                                    <Badge variant="secondary" className="h-5 px-2 text-[10px]">Live</Badge>
+                                                    <Badge variant="secondary" className="h-5 px-2 text-[10px] shrink-0">Live</Badge>
+                                                    {isFigma && fileKey && <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-mono hidden sm:inline-flex">{fileKey}</Badge>}
+                                                    {isProto && <Badge className="h-5 px-2 text-[10px] bg-violet-600">Prototype</Badge>}
+                                                    {isFile && !isProto && <Badge variant="outline" className="h-5 px-2 text-[10px]">File</Badge>}
                                                 </div>
-                                                <div className="flex items-center gap-1">
+                                                <div className="flex items-center gap-1 shrink-0">
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIframeLoading(true)} title="Reload">
+                                                        <RefreshCw className="h-3.5 w-3.5" />
+                                                    </Button>
                                                     {isFigma && (
                                                         <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsFullscreen(v => !v)} title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}>
                                                             {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
@@ -562,17 +571,34 @@ export default function AppsPage() {
                                                     </div>
                                                 ) : (
                                                     <div className="flex gap-2">
-                                                        <Input value={editUrlValue} onChange={e => setEditUrlValue(e.target.value)} placeholder={isFigma ? "https://www.figma.com/file/..." : "https://www.canva.com/design/..."} className="h-8 text-xs flex-1" />
+                                                        <Input value={editUrlValue} onChange={e => setEditUrlValue(e.target.value)} placeholder={isFigma ? "https://www.figma.com/file/... or /proto/..." : "https://www.canva.com/design/..."} className="h-8 text-xs flex-1" />
                                                         <Button size="sm" className="h-8 text-xs" onClick={handleUpdateUrl}>Save</Button>
                                                         <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setIsEditingUrl(false)}><X className="h-3 w-3" /></Button>
                                                     </div>
                                                 )}
-                                                {updatedAt && <p className="text-[11px] text-muted-foreground">Linked {updatedAt} · Workspace scoped</p>}
+                                                {updatedAt && <p className="text-[11px] text-muted-foreground">Linked {updatedAt} · Workspace scoped · {isFigma ? (isProto ? "Prototype — interactive" : "File — zoom, pan, inspect") : "Shared link"}</p>}
                                                 {isFigma ? (
-                                                    <div className={cn("relative w-full overflow-hidden rounded-lg border bg-muted", isFullscreen ? "aspect-[16/9] h-[60vh]" : "aspect-[16/10]")}>
-                                                        {iframeLoading && <div className="absolute inset-0 flex items-center justify-center bg-muted"><Skeleton className="absolute inset-0" /><span className="relative text-xs text-muted-foreground">Loading Figma…</span></div>}
-                                                        <iframe src={embedUrl!} className="w-full h-full" allowFullScreen loading="lazy" title={`${selectedProvider.name} embed`} referrerPolicy="strict-origin-when-cross-origin" onLoad={() => setIframeLoading(false)} />
-                                                    </div>
+                                                    <>
+                                                        <div className={cn("relative w-full overflow-hidden rounded-lg border bg-muted", isFullscreen ? "h-[62vh] aspect-auto" : "aspect-[16/10]")}>
+                                                            {iframeLoading && <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-2 bg-muted"><Skeleton className="absolute inset-0" /><span className="relative text-xs font-medium">Loading Figma…</span><span className="relative text-[11px] text-muted-foreground">If private, set Share → Anyone with link can view</span></div>}
+                                                            <iframe key={embedUrl!} src={embedUrl!} className="w-full h-full" allowFullScreen loading="lazy" title={`${selectedProvider.name} embed`} referrerPolicy="strict-origin-when-cross-origin" onLoad={() => setIframeLoading(false)} />
+                                                        </div>
+                                                        <div className="grid grid-cols-3 gap-2">
+                                                            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => handleCopyUrl(url)}>{copied ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}{copied ? "Copied" : "Copy link"}</Button>
+                                                            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => setIframeLoading(true)}><RefreshCw className="h-3 w-3 mr-1" />Reload</Button>
+                                                            <Button size="sm" className="h-7 text-xs" onClick={() => window.open(url, "_blank")}><ExternalLink className="h-3 w-3 mr-1" />Open</Button>
+                                                        </div>
+                                                        <div className="rounded-lg border p-3 bg-muted/20 space-y-2">
+                                                            <p className="text-xs font-semibold flex items-center gap-1.5"><Terminal className="h-3 w-3" /> Design handoff</p>
+                                                            <p className="text-[11px] text-muted-foreground">Use Figma’s right panel to copy CSS, inspect, and comment. Comments stay in Figma — paste a frame link (with <code className="px-1 py-0.5 rounded bg-muted text-[10px]">?node-id=</code>) to focus the preview.</p>
+                                                            <div className="flex flex-wrap gap-1.5">
+                                                                <Badge variant="outline" className="text-[10px]">Pan & zoom</Badge>
+                                                                <Badge variant="outline" className="text-[10px]">Inspect</Badge>
+                                                                <Badge variant="outline" className="text-[10px]">Prototype play</Badge>
+                                                                <Badge variant="outline" className="text-[10px]">Live updates</Badge>
+                                                            </div>
+                                                        </div>
+                                                    </>
                                                 ) : (
                                                     <div className="space-y-2">
                                                         <div className="aspect-[16/9] w-full rounded-lg border bg-gradient-to-br from-[#00C4CC]/20 via-white to-[#7B61FF]/20 flex flex-col items-center justify-center p-6 text-center">
