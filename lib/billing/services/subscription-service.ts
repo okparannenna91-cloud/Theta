@@ -40,6 +40,12 @@ export class SubscriptionService {
       },
     });
 
+    try {
+      const { cacheInvalidate, cacheKey } = await import("@/lib/cache");
+      await cacheInvalidate(cacheKey("workspace-plan", workspaceId));
+      await cacheInvalidate(cacheKey("workspace-billing", workspaceId));
+    } catch {}
+
     const plan = BILLING_PLAN_LOOKUP[planKey];
     await prisma.subscription.create({
       data: {
@@ -124,6 +130,14 @@ export class SubscriptionService {
         canceledAt: null,
       },
     });
+
+    // CRITICAL: Invalidate plan/billing caches so unlock is instant (was 60s stale)
+    try {
+      const { cacheInvalidate } = await import("@/lib/cache");
+      const { cacheKey } = await import("@/lib/cache");
+      await cacheInvalidate(cacheKey("workspace-plan", workspaceId));
+      await cacheInvalidate(cacheKey("workspace-billing", workspaceId));
+    } catch {}
 
     await prisma.billingLog.create({
       data: {
@@ -366,6 +380,7 @@ export class SubscriptionService {
         where: { id: workspaceId },
         data: { plan: newPlanKey },
       });
+      try { const { cacheInvalidate, cacheKey } = await import("@/lib/cache"); await cacheInvalidate(cacheKey("workspace-plan", workspaceId)); await cacheInvalidate(cacheKey("workspace-billing", workspaceId)); } catch {}
     }
 
     if (proration.direction === "downgrade" && proration.creditAmount > 0) {
