@@ -74,7 +74,7 @@ const nextConfig = {
               "img-src 'self' data: blob: https://*.cloudinary.com https://img.clerk.com https://*.gravatar.com",
               "connect-src 'self' https://*.ably.io wss://*.ably.io https://*.ably.net wss://*.ably.net https://*.ably-realtime.com wss://*.ably-realtime.com https://*.upstash.io https://api.clerk.com https://clerk.thetapm.site wss://clerk.thetapm.site https://*.clerk.com https://api.openai.com https://*.posthog.com https://api.posthog.com https://accounts.google.com https://*.googleapis.com https://oauth2.googleapis.com https://vercel.live",
               "font-src 'self' data:",
-              "frame-src 'self' https://clerk.thetapm.site https://*.accounts.dev https://*.clerk.accounts.dev https://clerk.com https://accounts.google.com https://vercel.live",
+              "frame-src 'self' https://clerk.thetapm.site https://*.accounts.dev https://*.clerk.accounts.dev https://clerk.com https://accounts.google.com https://vercel.live https://www.figma.com https://figma.com https://*.figma.com https://www.canva.com https://canva.com https://*.canva.com https://embed.figma.com",
               "worker-src 'self' blob: https://clerk.thetapm.site https://*.clerk.com",
               "object-src 'none'",
               "base-uri 'self'",

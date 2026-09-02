@@ -501,16 +501,28 @@ export default function AppsPage() {
                                     const rec = getRecord(selectedProvider.id);
                                     const url = rec?.config?.url as string | undefined;
                                     if (!url) return null;
-                                    const embedUrl = selectedProvider.id === "figma"
+                                    const isFigma = selectedProvider.id === "figma";
+                                    const embedUrl = isFigma
                                         ? `https://www.figma.com/embed?embed_host=astra&url=${encodeURIComponent(url)}`
-                                        : url;
+                                        : null;
                                     return (
                                         <div className="border rounded-lg p-3 space-y-3">
                                             <p className="text-xs font-medium text-foreground uppercase tracking-wide">Linked File</p>
                                             <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all block">{url}</a>
-                                            <div className="aspect-[16/10] w-full overflow-hidden rounded border bg-muted">
-                                                <iframe src={embedUrl} className="w-full h-full" allowFullScreen loading="lazy" title={`${selectedProvider.name} embed`} />
-                                            </div>
+                                            {isFigma ? (
+                                                <div className="aspect-[16/10] w-full overflow-hidden rounded border bg-muted">
+                                                    <iframe src={embedUrl!} className="w-full h-full" allowFullScreen loading="lazy" title={`${selectedProvider.name} embed`} referrerPolicy="strict-origin-when-cross-origin" />
+                                                </div>
+                                            ) : (
+                                                <div className="flex items-center gap-3 p-3 rounded border bg-muted/30">
+                                                    <div className="w-10 h-10 rounded bg-[#00C4CC] flex items-center justify-center text-white text-xs font-bold shrink-0">C</div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-xs font-medium truncate">Canva Design</p>
+                                                        <p className="text-[11px] text-muted-foreground">Opens in Canva — embedding is blocked by Canva</p>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <p className="text-[11px] text-muted-foreground">If the preview is blocked, open directly in {selectedProvider.name}.</p>
                                             <Button variant="outline" size="sm" className="w-full h-8 text-xs" onClick={() => window.open(url, "_blank")}>
                                                 Open in {selectedProvider.name} <ArrowRight className="h-3 w-3 ml-1" />
                                             </Button>
