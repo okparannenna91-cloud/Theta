@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, useMemo } from "react";
-import { RefreshCw, Trash2, CheckCircle2, Plus, Link2, Search, Zap, ArrowRight, Terminal, Download } from "lucide-react";
+import { RefreshCw, Trash2, CheckCircle2, Plus, Link2, Search, Zap, ArrowRight, Terminal, Download, Copy, Check, ExternalLink, Pencil, Maximize2, Minimize2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -100,6 +100,11 @@ export default function AppsPage() {
     const [repoCreateNew, setRepoCreateNew] = useState(false);
     const [newRepoProjectName, setNewRepoProjectName] = useState("");
     const [isLinking, setIsLinking] = useState(false);
+    const [isEditingUrl, setIsEditingUrl] = useState(false);
+    const [editUrlValue, setEditUrlValue] = useState("");
+    const [copied, setCopied] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
+    const [iframeLoading, setIframeLoading] = useState(true);
 
     const fetchIntegrations = useCallback(async () => {
         if (!activeWorkspaceId) return;
@@ -279,12 +284,32 @@ export default function AppsPage() {
     const isContainerType = (t: string) => ["repo", "board", "project"].includes(t);
     const isWorkItemType = (t: string) => ["issue", "card", "task"].includes(t);
 
+    const handleCopyUrl = async (url: string) => {
+        try { await navigator.clipboard.writeText(url); setCopied(true); toast.success("Link copied"); setTimeout(() => setCopied(false), 2000); } catch { toast.error("Copy failed"); }
+    };
+    const handleUpdateUrl = async () => {
+        if (!activeWorkspaceId || !selectedProvider || !editUrlValue.trim()) { toast.error("Enter a URL"); return; }
+        try {
+            const payload: Record<string, any> = { workspaceId: activeWorkspaceId };
+            if (selectedProvider.id === "figma") payload.config_url = editUrlValue.trim();
+            else if (selectedProvider.id === "canva") payload.config_url = editUrlValue.trim();
+            const res = await fetch(`/api/integrations/${selectedProvider.id}/connect`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+            if (res.ok) { toast.success("Link updated"); setIsEditingUrl(false); fetchIntegrations(); } else { const d = await res.json().catch(() => ({})); toast.error(d.error || "Update failed"); }
+        } catch { toast.error("Update failed"); }
+    };
+
     const openDetail = (provider: any) => {
         setSelectedProvider(provider);
         setIsDetailOpen(true);
         setSyncedItems([]);
         setImportProjectId("");
         setRepoProjectId("");
+        setIsEditingUrl(false);
+        setIsFullscreen(false);
+        setIframeLoading(true);
+        const rec = integrations.find(i => i.provider === provider.id);
+        if (rec?.config?.url) setEditUrlValue(rec.config.url as string);
+        else setEditUrlValue("");
         if (isConnected(provider.id) && provider.canSync) {
             loadSyncedItems(provider.id);
             loadImportProjects();
@@ -456,8 +481,8 @@ export default function AppsPage() {
                 </div>
             )}
 
-            <Dialog open={isDetailOpen} onOpenChange={setIsDetailOpen}>
-                <DialogContent className="sm:max-w-md">
+            <Dialog open={isDetailOpen} onOpenChange={(o) => { setIsDetailOpen(o); if (!o) { setIsFullscreen(false); setIsEditingUrl(false); } }}>
+                <DialogContent className={cn("sm:max-w-md", selectedProvider && isConnected(selectedProvider.id) && (selectedProvider.id === "figma" || selectedProvider.id === "canva") && "sm:max-w-2xl max-h-[85vh] overflow-y-auto")}>
                     {selectedProvider && (() => {
                         const connected = isConnected(selectedProvider.id);
                         const Logo = selectedProvider.Logo;
@@ -502,30 +527,70 @@ export default function AppsPage() {
                                     const url = rec?.config?.url as string | undefined;
                                     if (!url) return null;
                                     const isFigma = selectedProvider.id === "figma";
-                                    const embedUrl = isFigma
-                                        ? `https://www.figma.com/embed?embed_host=astra&url=${encodeURIComponent(url)}`
-                                        : null;
+                                    const embedUrl = isFigma ? `https://www.figma.com/embed?embed_host=astra&url=${encodeURIComponent(url)}` : null;
+                                    const updatedAt = rec?.updatedAt ? new Date(rec.updatedAt).toLocaleString() : null;
                                     return (
-                                        <div className="border rounded-lg p-3 space-y-3">
-                                            <p className="text-xs font-medium text-foreground uppercase tracking-wide">Linked File</p>
-                                            <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all block">{url}</a>
-                                            {isFigma ? (
-                                                <div className="aspect-[16/10] w-full overflow-hidden rounded border bg-muted">
-                                                    <iframe src={embedUrl!} className="w-full h-full" allowFullScreen loading="lazy" title={`${selectedProvider.name} embed`} referrerPolicy="strict-origin-when-cross-origin" />
+                                        <div className="border rounded-xl overflow-hidden bg-card">
+                                            <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/20">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                                    <span className="text-xs font-semibold tracking-widest uppercase">Live Preview</span>
+                                                    <Badge variant="secondary" className="h-5 px-2 text-[10px]">Live</Badge>
                                                 </div>
-                                            ) : (
-                                                <div className="flex items-center gap-3 p-3 rounded border bg-muted/30">
-                                                    <div className="w-10 h-10 rounded bg-[#00C4CC] flex items-center justify-center text-white text-xs font-bold shrink-0">C</div>
-                                                    <div className="min-w-0 flex-1">
-                                                        <p className="text-xs font-medium truncate">Canva Design</p>
-                                                        <p className="text-[11px] text-muted-foreground">Opens in Canva — embedding is blocked by Canva</p>
+                                                <div className="flex items-center gap-1">
+                                                    {isFigma && (
+                                                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setIsFullscreen(v => !v)} title={isFullscreen ? "Exit fullscreen" : "Fullscreen"}>
+                                                            {isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}
+                                                        </Button>
+                                                    )}
+                                                    <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => window.open(url, "_blank")} title="Open in new tab">
+                                                        <ExternalLink className="h-3.5 w-3.5" />
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                            <div className="p-3 space-y-3">
+                                                {!isEditingUrl ? (
+                                                    <div className="flex items-start gap-2 p-2.5 rounded-lg border bg-muted/30">
+                                                        <Link2 className="h-3.5 w-3.5 text-muted-foreground mt-0.5 shrink-0" />
+                                                        <a href={url} target="_blank" rel="noreferrer" className="text-xs text-primary underline break-all flex-1 min-w-0">{url}</a>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => handleCopyUrl(url)}>
+                                                            {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                                                        </Button>
+                                                        <Button variant="ghost" size="icon" className="h-6 w-6 shrink-0" onClick={() => { setEditUrlValue(url); setIsEditingUrl(true); }}>
+                                                            <Pencil className="h-3 w-3" />
+                                                        </Button>
                                                     </div>
+                                                ) : (
+                                                    <div className="flex gap-2">
+                                                        <Input value={editUrlValue} onChange={e => setEditUrlValue(e.target.value)} placeholder={isFigma ? "https://www.figma.com/file/..." : "https://www.canva.com/design/..."} className="h-8 text-xs flex-1" />
+                                                        <Button size="sm" className="h-8 text-xs" onClick={handleUpdateUrl}>Save</Button>
+                                                        <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setIsEditingUrl(false)}><X className="h-3 w-3" /></Button>
+                                                    </div>
+                                                )}
+                                                {updatedAt && <p className="text-[11px] text-muted-foreground">Linked {updatedAt} · Workspace scoped</p>}
+                                                {isFigma ? (
+                                                    <div className={cn("relative w-full overflow-hidden rounded-lg border bg-muted", isFullscreen ? "aspect-[16/9] h-[60vh]" : "aspect-[16/10]")}>
+                                                        {iframeLoading && <div className="absolute inset-0 flex items-center justify-center bg-muted"><Skeleton className="absolute inset-0" /><span className="relative text-xs text-muted-foreground">Loading Figma…</span></div>}
+                                                        <iframe src={embedUrl!} className="w-full h-full" allowFullScreen loading="lazy" title={`${selectedProvider.name} embed`} referrerPolicy="strict-origin-when-cross-origin" onLoad={() => setIframeLoading(false)} />
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-2">
+                                                        <div className="aspect-[16/9] w-full rounded-lg border bg-gradient-to-br from-[#00C4CC]/20 via-white to-[#7B61FF]/20 flex flex-col items-center justify-center p-6 text-center">
+                                                            <div className="w-12 h-12 rounded-xl bg-[#00C4CC] flex items-center justify-center text-white font-black mb-3">C</div>
+                                                            <p className="text-sm font-semibold">Canva Design Linked</p>
+                                                            <p className="text-xs text-muted-foreground max-w-xs">Canva blocks direct embeds. Open in Canva for live editing — changes reflect via the shared link.</p>
+                                                        </div>
+                                                        <div className="grid grid-cols-2 gap-2">
+                                                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={() => handleCopyUrl(url)}>{copied ? <Check className="h-3 w-3 mr-1" /> : <Copy className="h-3 w-3 mr-1" />}{copied ? "Copied" : "Copy link"}</Button>
+                                                            <Button size="sm" className="h-8 text-xs bg-[#00C4CC] hover:bg-[#00a8af]" onClick={() => window.open(url, "_blank")}><ExternalLink className="h-3 w-3 mr-1" />Open in Canva</Button>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                                <div className="flex gap-2">
+                                                    <Button variant="outline" size="sm" className="flex-1 h-8 text-xs" onClick={() => window.open(url, "_blank")}>Open in {selectedProvider.name} <ExternalLink className="h-3 w-3 ml-1" /></Button>
+                                                    <Button variant="ghost" size="sm" className="h-8 text-xs" onClick={() => { setEditUrlValue(url); setIsEditingUrl(true); }}><Pencil className="h-3 w-3 mr-1" />Edit link</Button>
                                                 </div>
-                                            )}
-                                            <p className="text-[11px] text-muted-foreground">If the preview is blocked, open directly in {selectedProvider.name}.</p>
-                                            <Button variant="outline" size="sm" className="w-full h-8 text-xs" onClick={() => window.open(url, "_blank")}>
-                                                Open in {selectedProvider.name} <ArrowRight className="h-3 w-3 ml-1" />
-                                            </Button>
+                                            </div>
                                         </div>
                                     );
                                 })()}
