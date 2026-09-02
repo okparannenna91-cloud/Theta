@@ -40,9 +40,9 @@ export function evaluateConditions(
         break;
       case "contains":
         if (typeof fieldValue === "string") {
-          if (!fieldValue.includes(String(condition.value))) return false;
+          if (!fieldValue.toLowerCase().includes(String(condition.value).toLowerCase())) return false;
         } else if (Array.isArray(fieldValue)) {
-          if (!fieldValue.some((v) => String(v).includes(String(condition.value)))) return false;
+          if (!fieldValue.some((v) => String(v).toLowerCase().includes(String(condition.value).toLowerCase()))) return false;
         } else {
           return false;
         }

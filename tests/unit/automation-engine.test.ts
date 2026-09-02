@@ -224,6 +224,28 @@ describe("Automation Engine — processAutomations", () => {
     expect(triggerAutomation).toHaveBeenCalledTimes(1);
   });
 
+  it("evaluates contains conditions case-insensitively", async () => {
+    prismaMock.automation.findMany.mockResolvedValueOnce([
+      { id: "rule-cond", trigger: "TASK_CREATED", projectId: null,
+        condition: JSON.stringify([{ field: "taskTitle", operator: "contains", value: "fix" }]) },
+    ]);
+
+    await processAutomations("ws1", "TASK_CREATED", { userId: "u1", taskTitle: "Fix login bug" });
+
+    expect(triggerAutomation).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not dispatch a contains condition that does not match", async () => {
+    prismaMock.automation.findMany.mockResolvedValueOnce([
+      { id: "rule-cond", trigger: "TASK_CREATED", projectId: null,
+        condition: JSON.stringify([{ field: "taskTitle", operator: "contains", value: "urgent" }]) },
+    ]);
+
+    await processAutomations("ws1", "TASK_CREATED", { userId: "u1", taskTitle: "Fix login bug" });
+
+    expect(triggerAutomation).not.toHaveBeenCalled();
+  });
+
   it("maps each legacy trigger to its canonical event type", async () => {
     const triggers = Object.keys(TRIGGER_TO_EVENT) as AutomationTrigger[];
     expect(triggers).toHaveLength(13);

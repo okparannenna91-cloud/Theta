@@ -78,8 +78,8 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {    free: {
         hasNovaAI: true,
         maxNovaRequests: 20,        // 20/month
         maxMemoryItems: 50,         // 50 memory items
-        hasCustomAutomation: false,
-        maxAutomations: 0,          // NONE
+        hasCustomAutomation: true,
+        maxAutomations: -1,         // UNLIMITED (opened for free plan)
         hasIntegrations: true,
         maxIntegrations: 1,         // 1 integration
         hasAdvancedAnalytics: false,
