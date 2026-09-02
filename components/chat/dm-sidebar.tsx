@@ -110,8 +110,8 @@ export function DmSidebar({ activeConversationId, onSelectConversation, onNewMes
                   className={cn(
                     "w-full flex items-start gap-2.5 px-3 py-2.5 rounded-[10px] text-left transition-all",
                     activeConversationId === conv.id
-                      ? "bg-accent"
-                      : "hover:bg-muted/50"
+                      ? "bg-muted/50"
+                      : "hover:bg-muted/30"
                   )}
                 >
                   <div className="relative shrink-0 mt-0.5">
