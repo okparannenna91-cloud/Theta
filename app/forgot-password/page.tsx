@@ -40,10 +40,10 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4">
+    <div className="flex items-center justify-center min-h-screen p-4 bg-background text-foreground">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Forgot Password</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Forgot Password</h1>
           <p className="text-sm text-muted-foreground mt-2">
             Enter your email address and we&apos;ll send you a reset code.
           </p>
@@ -59,20 +59,20 @@ export default function ForgotPasswordPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="you@example.com"
               required
             />
           </div>
 
           {error && (
-            <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/50 p-3 rounded-lg">
+            <div className="text-sm text-red-400 bg-red-950/50 border border-red-900/30 p-3 rounded-lg">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="text-sm text-green-500 bg-green-50 dark:bg-green-950/50 p-3 rounded-lg">
+            <div className="text-sm text-emerald-400 bg-emerald-950/30 border border-emerald-900/30 p-3 rounded-lg">
               {success}
             </div>
           )}

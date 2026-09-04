@@ -75,7 +75,7 @@ export function CommandPalette() {
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
-      <div className="relative overflow-hidden bg-white/80 dark:bg-slate-950/80 backdrop-blur-3xl border-primary/20 rounded-lg shadow-sm">
+      <div className="relative overflow-hidden bg-card/80 backdrop-blur-3xl border border-border/40 rounded-lg shadow-xl">
         {/* Background Element */}
         <div className="absolute top-0 right-0 -z-10 w-64 h-64 bg-primary/10 blur-[80px] rounded-full pointer-events-none" />
         
@@ -124,7 +124,7 @@ export function CommandPalette() {
                       <p className="text-sm font-semibold">{cmd.command}</p>
                       <p className="text-xs font-medium text-muted-foreground">{cmd.description}</p>
                     </div>
-                    <CommandShortcut className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded text-xs font-medium text-muted-foreground">Shortcut</CommandShortcut>
+                    <CommandShortcut className="bg-muted border border-border/40 px-2 py-1 rounded text-xs font-medium text-muted-foreground">Shortcut</CommandShortcut>
                   </CommandItem>
                 ))}
               </CommandGroup>
@@ -135,7 +135,7 @@ export function CommandPalette() {
                 <CommandGroup heading={<span className="text-xs font-medium text-muted-foreground px-2 py-4 block">Core Operations</span>}>
               <CommandItem 
                 onSelect={() => runCommand(() => router.push("/tasks"))}
-                className="flex items-center gap-4 p-4 rounded-lg hover:bg-slate-500/10 aria-selected:bg-slate-500/10 cursor-pointer transition-all group mb-2"
+                className="flex items-center gap-4 p-4 rounded-lg hover:bg-muted/50 aria-selected:bg-muted/50 cursor-pointer transition-all group mb-2"
               >
                 <div className="h-10 w-10 bg-blue-600/5 rounded-lg flex items-center justify-center text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all">
                   <Plus className="h-5 w-5" />
@@ -151,16 +151,16 @@ export function CommandPalette() {
             <CommandSeparator className="my-2 bg-border" />
             
             <CommandGroup heading={<span className="text-xs font-medium text-muted-foreground px-2 py-4 block">Navigation</span>}>
-              {[
+                {[
                 { label: "Dashboard", route: "/dashboard", icon: Zap, color: "text-amber-500" },
-                { label: "Settings", route: "/settings", icon: Settings, color: "text-slate-500" },
+                { label: "Settings", route: "/settings", icon: Settings, color: "text-muted-foreground" },
               ].map((item) => (
                 <CommandItem 
                   key={item.route}
                   onSelect={() => runCommand(() => router.push(item.route))}
-                  className="flex items-center gap-4 p-4 rounded-lg hover:bg-slate-500/10 aria-selected:bg-slate-500/10 cursor-pointer transition-all group mb-2"
+                  className="flex items-center gap-4 p-4 rounded-lg hover:bg-muted/50 aria-selected:bg-muted/50 cursor-pointer transition-all group mb-2"
                 >
-                  <div className={cn("h-10 w-10 bg-slate-500/5 rounded-lg flex items-center justify-center group-hover:bg-slate-800 group-hover:text-white transition-all", item.color)}>
+                  <div className={cn("h-10 w-10 bg-muted rounded-lg flex items-center justify-center group-hover:bg-foreground group-hover:text-background transition-all", item.color)}>
                     <item.icon className="h-5 w-5" />
                   </div>
                   <p className="text-sm font-semibold">{item.label}</p>

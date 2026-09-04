@@ -5,7 +5,7 @@ import { cn } from "@/lib/utils";
 function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800", className)}
+      className={cn("animate-pulse rounded-xl bg-muted", className)}
       {...props}
     />
   );
@@ -13,7 +13,7 @@ function Skeleton({ className, ...props }: React.HTMLAttributes<HTMLDivElement>)
 
 function CardSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn("rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4", className)}>
+    <div className={cn("rounded-xl border border-border/50 bg-card p-4", className)}>
       <div className="space-y-3">
         <Skeleton className="h-4 w-1/3" />
         <Skeleton className="h-3 w-2/3" />
@@ -26,7 +26,7 @@ function CardSkeleton({ className }: { className?: string }) {
 function TableSkeleton({ rows = 5, cols = 4 }: { rows?: number; cols?: number }) {
   return (
     <div className="space-y-2">
-      <div className="flex gap-4 pb-2 border-b border-slate-200 dark:border-slate-800">
+      <div className="flex gap-4 pb-2 border-b border-border/50">
         {Array.from({ length: cols }).map((_, i) => (
           <Skeleton key={i} className="h-3 flex-1" />
         ))}

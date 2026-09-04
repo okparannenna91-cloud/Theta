@@ -90,7 +90,7 @@ export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
   maximumScale: 5,
-  themeColor: "#7c3aed",
+  themeColor: "#000000",
 };
 
 import { I18nProvider } from "@/lib/i18n";
@@ -110,10 +110,11 @@ export default function RootLayout({
 }>) {
   return (
     <ClerkProvider>
-      <html lang="en">
+      <html lang="en" className="dark" style={{ colorScheme: "dark" }} suppressHydrationWarning>
         <head>
           <link rel="manifest" href="/manifest.json" />
-          <meta name="theme-color" content="#7c3aed" />
+          <meta name="theme-color" content="#000000" />
+          <meta name="color-scheme" content="dark" />
           <meta name="mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
           <meta name="apple-mobile-web-app-title" content="Theta PM" />
@@ -125,10 +126,11 @@ export default function RootLayout({
             referrerPolicy="strict-origin-when-cross-origin"
           />
         </head>
-        <body className={`${inter.variable}`}>
+        <body className={`${inter.variable} bg-background text-foreground antialiased`} style={{ background: "#000000" }}>
           <ThemeProvider
             attribute="class"
             defaultTheme="dark"
+            forcedTheme="dark"
             enableSystem={false}
             disableTransitionOnChange
             storageKey="vibe-theme"

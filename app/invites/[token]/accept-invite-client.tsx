@@ -40,16 +40,16 @@ export default function AcceptInviteClient({ token, workspaceName }: { token: st
     };
 
     return (
-        <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
-            <Card className="max-w-md w-full p-8 text-center rounded-xl border-slate-200/50 dark:border-slate-800/50 shadow-2xl space-y-6">
-                <div className="mx-auto h-20 w-20 bg-muted rounded-full flex items-center justify-center shadow-inner">
-                    <MailOpen className="h-10 w-10 text-primary dark:text-primary/80" />
+        <div className="flex h-screen w-full items-center justify-center bg-background p-4">
+            <Card className="max-w-md w-full p-8 text-center rounded-xl border-border/50 shadow-2xl space-y-6 bg-card">
+                <div className="mx-auto h-20 w-20 bg-muted rounded-full flex items-center justify-center shadow-inner border border-border/30">
+                    <MailOpen className="h-10 w-10 text-primary" />
                 </div>
                 <div>
-                    <h1 className="text-2xl font-semibold mb-2">You&apos;ve Been Invited!</h1>
-                    <p className="text-muted-foreground">
+                    <h1 className="text-2xl font-semibold mb-2 tracking-tight">You&apos;ve Been Invited!</h1>
+                    <p className="text-muted-foreground text-sm">
                         You have been invited to collaborate in <br/>
-                        <span className="font-semibold text-xl text-slate-900 dark:text-white inline-block mt-2 px-4 py-1 bg-muted rounded-lg border">{workspaceName}</span>
+                        <span className="font-semibold text-xl text-foreground inline-block mt-2 px-4 py-1 bg-muted rounded-lg border border-border/50">{workspaceName}</span>
                     </p>
                 </div>
                 <Button 

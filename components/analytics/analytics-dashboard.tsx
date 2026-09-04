@@ -42,10 +42,10 @@ export default function AnalyticsDashboard() {
     if (analyticsError) {
         return (
             <div className="p-8 flex flex-col items-center justify-center min-h-[400px]">
-                <div className="h-16 w-16 bg-red-100 dark:bg-red-900/20 rounded-3xl flex items-center justify-center mb-4 text-red-500">
+                <div className="h-16 w-16 bg-red-500/10 border border-red-500/20 rounded-3xl flex items-center justify-center mb-4 text-red-500">
                     <AlertCircle className="h-8 w-8" />
                 </div>
-                <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Analytics Error</h2>
+                <h2 className="text-lg font-bold text-foreground mb-2">Analytics Error</h2>
                 <p className="text-sm text-muted-foreground text-center max-w-md">
                     Failed to load analytics data. Please try refreshing the page or check your workspace connection.
                 </p>
@@ -75,7 +75,7 @@ export default function AnalyticsDashboard() {
     if (!hasAccess) {
         return (
             <div className="p-4 sm:p-6 lg:p-10 max-w-5xl mx-auto">
-                <Card className="border-2 border-dashed border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 rounded-3xl py-20 flex flex-col items-center justify-center text-center shadow-xl shadow-primary/5">
+                <Card className="border border-border/50 bg-card rounded-2xl py-20 flex flex-col items-center justify-center text-center shadow-sm">
                     <div className="h-20 w-20 bg-primary/10 rounded-3xl flex items-center justify-center mb-6 text-primary shadow-inner">
                         <Lock className="h-10 w-10" />
                     </div>

@@ -56,10 +56,10 @@ export default function ResetPasswordPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4">
+    <div className="flex items-center justify-center min-h-screen p-4 bg-background text-foreground">
       <div className="w-full max-w-md space-y-6">
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Reset Password</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Reset Password</h1>
           <p className="text-sm text-muted-foreground mt-2">
             Enter the code from your email and your new password.
           </p>
@@ -75,7 +75,7 @@ export default function ResetPasswordPage() {
               type="text"
               value={code}
               onChange={(e) => setCode(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="Enter reset code"
               required
             />
@@ -90,7 +90,7 @@ export default function ResetPasswordPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="Min. 8 characters"
               required
               minLength={8}
@@ -106,7 +106,7 @@ export default function ResetPasswordPage() {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-3 py-2 border rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-lg text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               placeholder="Repeat new password"
               required
               minLength={8}
@@ -114,13 +114,13 @@ export default function ResetPasswordPage() {
           </div>
 
           {error && (
-            <div className="text-sm text-red-500 bg-red-50 dark:bg-red-950/50 p-3 rounded-lg">
+            <div className="text-sm text-red-400 bg-red-950/50 border border-red-900/30 p-3 rounded-lg">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="text-sm text-green-500 bg-green-50 dark:bg-green-950/50 p-3 rounded-lg">
+            <div className="text-sm text-emerald-400 bg-emerald-950/30 border border-emerald-900/30 p-3 rounded-lg">
               {success}
             </div>
           )}

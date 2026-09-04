@@ -18,17 +18,17 @@ export default async function InvitePage({ params }: { params: { token: string }
 
     if (!valid || !invite) {
         return (
-            <div className="flex h-screen w-full items-center justify-center bg-slate-50 dark:bg-slate-950 p-4">
-                <div className="text-center bg-white dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/50 shadow-xl rounded-3xl p-8 max-w-md w-full">
-                    <div className="h-16 w-16 bg-red-100 dark:bg-red-900/40 rounded-full flex items-center justify-center mx-auto mb-6">
+            <div className="flex h-screen w-full items-center justify-center bg-background p-4">
+                <div className="text-center bg-card border border-border/50 shadow-xl rounded-3xl p-8 max-w-md w-full">
+                    <div className="h-16 w-16 bg-red-500/10 border border-red-500/20 rounded-full flex items-center justify-center mx-auto mb-6">
                         <AlertTriangle className="h-8 w-8 text-red-500" />
                     </div>
-                    <h1 className="text-2xl font-semibold mb-2">Invalid Invitation</h1>
-                    <p className="text-muted-foreground font-medium mb-8">
+                    <h1 className="text-2xl font-semibold mb-2 tracking-tight">Invalid Invitation</h1>
+                    <p className="text-muted-foreground font-medium mb-8 text-sm">
                         {error || "This invitation link is invalid or has expired."}
                     </p>
                     <Link href="/">
-                        <Button className="w-full rounded-full py-6 text-sm font-semibold bg-slate-900 hover:bg-slate-800">
+                        <Button className="w-full rounded-full py-6 text-sm font-semibold">
                             <Home className="h-4 w-4 mr-2" />
                             Return Home
                         </Button>

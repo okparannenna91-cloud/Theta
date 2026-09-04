@@ -114,8 +114,8 @@ export function FileUpload({
                       <Image src={value} alt="Upload" fill className="object-cover" />
                    </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed rounded-2xl h-full bg-slate-50 dark:bg-slate-900/50">
-                        <FileText className="h-10 w-10 text-indigo-500 mb-2" />
+                    <div className="flex flex-col items-center justify-center p-4 border-2 border-dashed border-border/50 rounded-2xl h-full bg-muted/20">
+                        <FileText className="h-10 w-10 text-primary mb-2" />
                         <p className="text-[10px] font-black uppercase text-muted-foreground truncate max-w-full px-4">{value.split('/').pop()}</p>
                     </div>
                 )}
@@ -148,7 +148,7 @@ export function FileUpload({
                 type="button"
                 variant="outline"
                 size="sm"
-                className="w-full h-10 border-dashed border-2 bg-slate-50/50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-800/80 rounded-xl transition-all"
+                className="w-full h-10 border-dashed border-2 bg-muted/20 hover:bg-muted/40 rounded-xl transition-all border-border/50"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={disabled || isUploading}
             >
