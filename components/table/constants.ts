@@ -36,7 +36,7 @@ export const PRIORITY_META: Record<string, { label: string; text: string; dot: s
 };
 
 export const DEFAULT_COLUMNS: Column[] = [
-  { id: "__checkbox", name: "", type: "checkbox", width: 36, visible: true, pinned: true, order: -1 },
+  { id: "__checkbox", name: "", type: "checkbox", width: 36, visible: false, pinned: false, order: -1 },
   { id: "title", name: "Task", type: "title", width: 260, visible: true, pinned: true, order: 0 },
   { id: "status", name: "Status", type: "status", width: 120, visible: true, pinned: false, order: 1 },
   { id: "priority", name: "Priority", type: "priority", width: 100, visible: true, pinned: false, order: 2 },
