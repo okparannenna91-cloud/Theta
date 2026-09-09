@@ -604,6 +604,7 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
             tasks={tasks || []}
             workspaceId={workspaceId!}
             projectId={projectId || undefined}
+            availableMembers={members.map((m: any) => ({ id: m.id, name: m.name, imageUrl: m.imageUrl, image: m.imageUrl }))}
             onSelectTask={(task) => { setSelectedTask(task); setIsDetailOpen(true); }}
           />
         </div>

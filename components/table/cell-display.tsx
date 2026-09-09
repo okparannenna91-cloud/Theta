@@ -13,9 +13,9 @@ import { getStatusColor, getPriorityMeta } from "./cell-utils";
 import { isDoneStatus } from "@/lib/constants/status";
 
 export function CellDisplay({
-  col, value, row, onClick, isActive,
+  col, value, row, onClick, isActive, members,
 }: {
-  col: Column; value: any; row: any; onClick: () => void; isActive?: boolean;
+  col: Column; value: any; row: any; onClick: () => void; isActive?: boolean; members?: { id: string; name: string; imageUrl?: string; image?: string }[];
 }) {
   if (col.type === "checkbox") {
     const isDone = col.id === "__checkbox" ? isDoneStatus(row.status) : Boolean(value);
@@ -111,11 +111,22 @@ export function CellDisplay({
     if (!assignees.length) return <User className="h-3.5 w-3.5 text-muted-foreground/15" strokeWidth={1.5} />;
     return (
       <div className="flex -space-x-1 items-center h-full">
-        {assignees.map((id: string, i: number) => (
-          <div key={id || i} className="h-5 w-5 rounded-full ring-[1.5px] ring-background bg-gradient-to-br from-[#6161ff]/30 to-[#6161ff]/10 flex items-center justify-center text-[8px] font-semibold text-[#6161ff]">
-            {id?.[0]?.toUpperCase() || "?"}
-          </div>
-        ))}
+        {assignees.map((id: string, i: number) => {
+          const member = members?.find((m) => m.id === id);
+          const name = member?.name || id;
+          const imageUrl = member?.imageUrl || (member as any)?.image || null;
+          const initial = name?.[0]?.toUpperCase() || "?";
+          return (
+            <div key={id || i} className="h-5 w-5 rounded-full ring-[1.5px] ring-background overflow-hidden bg-muted flex items-center justify-center shrink-0" title={name}>
+              {imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
+              ) : (
+                <span className="h-full w-full bg-gradient-to-br from-[#6161ff]/30 to-[#6161ff]/10 flex items-center justify-center text-[8px] font-semibold text-[#6161ff]">{initial}</span>
+              )}
+            </div>
+          );
+        })}
         {overflow > 0 && (
           <div className="h-5 w-5 rounded-full ring-[1.5px] ring-background bg-muted/60 flex items-center justify-center text-[8px] font-medium text-muted-foreground">
             +{overflow}

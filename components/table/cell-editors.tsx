@@ -78,33 +78,47 @@ export function PriorityEditor({
 }
 
 export function AssigneeEditor({
-  value, options, onSave, onCancel,
+  value, options, members, onSave, onCancel,
 }: {
-  value: any; options?: string[]; onSave: (v: any) => void; onCancel: () => void;
+  value: any; options?: string[]; members?: { id: string; name: string; imageUrl?: string; image?: string }[]; onSave: (v: any) => void; onCancel: () => void;
 }) {
-  const allMembers = (options || ["Alice", "Bob", "Charlie", "Diana"]).map(m => ({ id: m, name: m }));
+  // Prefer real members with images if provided, else fallback to options
+  const allMembers = members && members.length > 0
+    ? members.map(m => ({ id: m.id, name: m.name, imageUrl: m.imageUrl || (m as any).image || null }))
+    : (options || ["Alice", "Bob", "Charlie", "Diana"]).map(m => ({ id: m, name: m, imageUrl: null as string | null }));
   const [selected, setSelected] = useState<string[]>(Array.isArray(value) ? value : []);
 
   const toggleMember = (id: string) => {
     setSelected(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
   };
 
+  const getMember = (id: string) => allMembers.find(m => m.id === id);
+
   return (
     <div className="p-1.5 min-w-[180px]">
       <div className="flex flex-wrap gap-1 mb-2 min-h-[22px]">
-        {selected.map((id, i) => (
-          <span key={id} className={cn("text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1.5 font-medium", MEMBER_COLORS[i % MEMBER_COLORS.length])}>
-            {id}
-            <button onClick={() => toggleMember(id)} className="hover:opacity-60 leading-none">✕</button>
-          </span>
-        ))}
+        {selected.map((id, i) => {
+          const m = getMember(id);
+          const name = m?.name || id;
+          return (
+            <span key={id} className={cn("text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1.5 font-medium", MEMBER_COLORS[i % MEMBER_COLORS.length])}>
+              {name}
+              <button onClick={() => toggleMember(id)} className="hover:opacity-60 leading-none">✕</button>
+            </span>
+          );
+        })}
       </div>
       <div className="flex flex-col gap-0.5 max-h-[160px] overflow-auto">
         {allMembers.filter(m => !selected.includes(m.id)).map((m, i) => (
           <button key={m.id} onClick={() => toggleMember(m.id)}
             className={cn("flex items-center gap-2.5 px-2.5 py-1.5 rounded-md text-xs text-left transition-colors hover:bg-accent/50")}>
-            <span className="h-5 w-5 rounded-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-[8px] font-semibold text-primary shrink-0">
-              {m.name[0]?.toUpperCase()}
+            <span className="h-5 w-5 rounded-full overflow-hidden bg-muted flex items-center justify-center shrink-0">
+              {m.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={m.imageUrl} alt={m.name} className="h-full w-full object-cover" />
+              ) : (
+                <span className="h-full w-full bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center text-[8px] font-semibold text-primary">{m.name[0]?.toUpperCase()}</span>
+              )}
             </span>
             <span className="font-medium">{m.name}</span>
           </button>

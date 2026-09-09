@@ -41,6 +41,17 @@ export default function ProjectTableView({ projectId }: ProjectTableViewProps) {
     enabled: !!projectId && !!activeWorkspaceId,
   });
 
+  const { data: membersData } = useQuery({
+    queryKey: ["members", activeWorkspaceId],
+    queryFn: async () => {
+      const res = await fetch(`/api/workspaces/${activeWorkspaceId}/members`);
+      if (!res.ok) throw new Error("Failed to fetch members");
+      return res.json();
+    },
+    enabled: !!activeWorkspaceId,
+  });
+  const members = Array.isArray(membersData) ? membersData : [];
+
   const tasks = Array.isArray(tasksData?.tasks) ? tasksData.tasks : Array.isArray(tasksData) ? tasksData : [];
 
   if (isLoading || !activeWorkspaceId) {
@@ -65,6 +76,7 @@ export default function ProjectTableView({ projectId }: ProjectTableViewProps) {
           tasks={tasks}
           workspaceId={activeWorkspaceId!}
           projectId={projectId}
+          availableMembers={members.map((m: any) => ({ id: m.id, name: m.name, imageUrl: m.imageUrl, image: m.imageUrl }))}
           onSelectTask={(task) => { setSelectedTask(task); setIsDetailOpen(true); }}
         />
       </div>

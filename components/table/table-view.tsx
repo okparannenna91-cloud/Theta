@@ -27,7 +27,7 @@ import {
   parsePastedValue, filterTasks, sortTasks, searchTasks, groupTasks,
   generateId,
 } from "./cell-utils";
-import { getEditorForColumn } from "./cell-editors";
+import { getEditorForColumn, AssigneeEditor } from "./cell-editors";
 import { CellDisplay } from "./cell-display";
 import { isDoneStatus, STATUS_DONE, STATUS_TODO } from "@/lib/constants/status";
 
@@ -38,7 +38,7 @@ interface TableViewProps {
   projectId?: string;
   onSelectTask?: (task: any) => void;
   onTasksChange?: () => void;
-  availableMembers?: { id: string; name: string; image?: string }[];
+  availableMembers?: { id: string; name: string; image?: string; imageUrl?: string }[];
   availableProjects?: { id: string; name: string }[];
   availableLabels?: string[];
 }
@@ -856,10 +856,14 @@ export function TableView({
                       )}
                       style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
                       {isEditing ? (
-                        getEditorForColumn(col, value,
-                          (v: any) => saveCell(globalIdx!, col, v),
-                          () => setEditingCell(null),
-                          focusRef
+                        col.type === "assignee" ? (
+                          <AssigneeEditor value={value} options={col.options} members={availableMembers} onSave={(v: any) => saveCell(globalIdx!, col, v)} onCancel={() => setEditingCell(null)} />
+                        ) : (
+                          getEditorForColumn(col, value,
+                            (v: any) => saveCell(globalIdx!, col, v),
+                            () => setEditingCell(null),
+                            focusRef
+                          )
                         )
                       ) : (
                         <div className="cursor-default" onClick={() => {
@@ -869,7 +873,7 @@ export function TableView({
                             updateMutation.mutate({ id: task.id, data: { status: newStatus } });
                           }
                         }}>
-                          <CellDisplay col={col} value={value} row={task} isActive={isCellActive} onClick={() => {}} />
+                          <CellDisplay col={col} value={value} row={task} isActive={isCellActive} onClick={() => {}} members={availableMembers} />
                         </div>
                       )}
                     </div>
@@ -891,14 +895,18 @@ export function TableView({
                       )}
                       style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
                       {isEditing ? (
-                        getEditorForColumn(col, value,
-                          (v: any) => saveCell(globalIdx!, col, v),
-                          () => setEditingCell(null),
-                          focusRef
+                        col.type === "assignee" ? (
+                          <AssigneeEditor value={value} options={col.options} members={availableMembers} onSave={(v: any) => saveCell(globalIdx!, col, v)} onCancel={() => setEditingCell(null)} />
+                        ) : (
+                          getEditorForColumn(col, value,
+                            (v: any) => saveCell(globalIdx!, col, v),
+                            () => setEditingCell(null),
+                            focusRef
+                          )
                         )
                       ) : (
                         <div className="cursor-default">
-                          <CellDisplay col={col} value={value} row={task} isActive={isCellActive} onClick={() => {}} />
+                          <CellDisplay col={col} value={value} row={task} isActive={isCellActive} onClick={() => {}} members={availableMembers} />
                         </div>
                       )}
                     </div>
