@@ -208,8 +208,34 @@ export function TableView({
     return result;
   }, [tasks, searchQuery, filterRules, sortConfig, columns]);
 
+  /* ─── Hierarchical order for subtasks (when includeSubtasks) ─── */
+  const displayTasks = useMemo(() => {
+    const hasParents = processedTasks.some((t: any) => (t as any).parentId);
+    if (!hasParents) return processedTasks;
+    const byParent = new Map<string | null, any[]>();
+    for (const t of processedTasks) {
+      const pid = (t as any).parentId || null;
+      if (!byParent.has(pid)) byParent.set(pid, []);
+      byParent.get(pid)!.push(t);
+    }
+    const result: any[] = [];
+    const visited = new Set<string>();
+    const addWithChildren = (parentId: string | null) => {
+      const children = byParent.get(parentId) || [];
+      for (const child of children) {
+        if (visited.has(child.id)) continue;
+        visited.add(child.id);
+        result.push(child);
+        addWithChildren(child.id);
+      }
+    };
+    addWithChildren(null);
+    for (const t of processedTasks) if (!visited.has(t.id)) result.push(t);
+    return result;
+  }, [processedTasks]);
+
   /* ─── Grouped tasks ─── */
-  const groupedTasks = useMemo(() => groupTasks(processedTasks, groupBy), [processedTasks, groupBy]);
+  const groupedTasks = useMemo(() => groupTasks(displayTasks, groupBy), [displayTasks, groupBy]);
 
   /* ─── Visible columns ─── */
   const visibleColumns = useMemo(() => columns.filter(c => c.visible).sort((a, b) => a.order - b.order), [columns]);
@@ -836,6 +862,7 @@ export function TableView({
                     isSelected && "bg-[#6161ff]/[0.06]",
                     isRowActive && "bg-[#6161ff]/[0.03]",
                     !isSelected && !isRowActive && "hover:bg-[#6161ff]/[0.02]",
+                    (task as any).parentId && "ml-6 border-l-2 border-l-[#0071e3]/30 bg-[#f0f4ff]/50 dark:bg-[#0071e3]/5"
                   )}
                   style={{ position: "absolute", top: item.offset, left: 0, width: pinnedWidth, minWidth: pinnedWidth, height: item.height }}
                   onClick={(e) => {
@@ -857,7 +884,7 @@ export function TableView({
                   }}
                   onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, row: task }); }}>
                   <div className="flex items-center justify-center w-4 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/0 group-hover/row:text-muted-foreground/20 transition-colors">
-                    <GripVertical className="h-3 w-3" strokeWidth={1.5} />
+                    {(task as any).parentId ? <span className="text-[10px] text-[#0071e3]">↳</span> : <GripVertical className="h-3 w-3" strokeWidth={1.5} />}
                   </div>
                   {pinnedCols.map((col, colIdx) => {
                     const value = getCellValue(task, col);
