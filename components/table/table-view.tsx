@@ -538,7 +538,7 @@ export function TableView({
   }, [createMutation, workspaceId, projectId]);
 
   return (
-    <div className="flex flex-col h-full select-none bg-[#f5f5f7] dark:bg-black rounded-2xl p-2 gap-2" ref={tableRef} tabIndex={-1} onKeyDown={handleKeyDown}>
+    <div className="flex flex-col h-full select-none" ref={tableRef} tabIndex={-1} onKeyDown={handleKeyDown}>
       {/* ─── Toolbar ─── */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-border/10 bg-background shrink-0 z-20">
         <div className="flex items-center gap-2 text-xs text-muted-foreground/40">
@@ -742,9 +742,9 @@ export function TableView({
       )}
 
       {/* ─── Table header ─── */}
-      <div className={cn("flex border-b-0 bg-white dark:bg-zinc-900 rounded-t-2xl border border-black/[0.04] dark:border-white/[0.06] shadow-sm sticky top-0 z-10 shrink-0 overflow-hidden", resizingCol.current && "col-resize-active")}>
+      <div className={cn("flex border-b border-border/5 bg-muted/[0.03] sticky top-0 z-10 shrink-0", resizingCol.current && "col-resize-active")}>
         {/* Left fixed Task header - scrollbar starts after this */}
-        <div className="flex shrink-0 bg-white dark:bg-zinc-900 rounded-tl-2xl" style={{ width: pinnedWidth, minWidth: pinnedWidth, boxSizing: 'border-box' }}>
+        <div className="flex shrink-0 border-r border-border/5 bg-muted/5" style={{ width: pinnedWidth, minWidth: pinnedWidth, boxSizing: 'border-box' }}>
           <div className="w-4 shrink-0" aria-hidden />
           {pinnedCols.map(col => (
             <div key={col.id}
@@ -780,7 +780,7 @@ export function TableView({
           ))}
         </div>
         {/* Right scrollable header - scrollbar starts here */}
-        <div ref={headerRef} className="flex-1 overflow-hidden bg-white dark:bg-zinc-900 rounded-tr-2xl [scrollbar-gutter:stable]" style={{ scrollbarGutter: 'stable' as any }}>
+        <div ref={headerRef} className="flex-1 overflow-hidden [scrollbar-gutter:stable]" style={{ scrollbarGutter: 'stable' as any }}>
           <div className="flex min-w-max" style={{ width: rightWidth, minWidth: rightWidth }}>
             {scrollCols.map(col => (
               <div key={col.id}
@@ -832,11 +832,10 @@ export function TableView({
               return (
                 <div key={item.key}
                   className={cn(
-                    "flex border border-black/[0.04] dark:border-white/[0.06] bg-white dark:bg-zinc-900 rounded-l-xl shadow-sm transition-all group/row relative mb-1.5",
-                    isSelected && "ring-2 ring-[#0071e3] ring-offset-0",
-                    isRowActive && "ring-1 ring-[#0071e3]/30",
-                    !isSelected && !isRowActive && "hover:shadow-md hover:border-black/[0.06]",
-                    task.parentId && "ml-6 border-l-2 border-l-[#0071e3]/30"
+                    "flex border-b border-border/5 transition-colors group/row relative",
+                    isSelected && "bg-[#6161ff]/[0.06]",
+                    isRowActive && "bg-[#6161ff]/[0.03]",
+                    !isSelected && !isRowActive && "hover:bg-[#6161ff]/[0.02]",
                   )}
                   style={{ position: "absolute", top: item.offset, left: 0, width: pinnedWidth, minWidth: pinnedWidth, height: item.height }}
                   onClick={(e) => {
@@ -934,11 +933,10 @@ export function TableView({
               return (
                 <div key={item.key}
                   className={cn(
-                    "flex border border-black/[0.04] dark:border-white/[0.06] bg-white dark:bg-zinc-900 rounded-r-xl shadow-sm transition-all group/row relative mb-1.5",
-                    isSelected && "ring-2 ring-[#0071e3] ring-offset-0",
-                    isRowActive && "ring-1 ring-[#0071e3]/30",
-                    !isSelected && !isRowActive && "hover:shadow-md hover:border-black/[0.06]",
-                    task.parentId && "ml-0"
+                    "flex border-b border-border/5 transition-colors group/row relative",
+                    isSelected && "bg-[#6161ff]/[0.06]",
+                    isRowActive && "bg-[#6161ff]/[0.03]",
+                    !isSelected && !isRowActive && "hover:bg-[#6161ff]/[0.02]",
                   )}
                   style={{ position: "absolute", top: item.offset, left: 0, width: rightWidth, minWidth: rightWidth, height: item.height }}
                   onClick={(e) => {
