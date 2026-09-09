@@ -79,21 +79,19 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
 
     const updateTaskMutation = useMutation({
         mutationFn: async (updatedAttachments: Attachment[]) => {
-            // Merge with existing fieldValues so we don't wipe custom fields
-            const existingFieldValues = (taskDetail?.task?.fieldValues as Record<string, unknown>) || {};
-            // Fallback to prop-derived local if detail not loaded yet
-            const base = Object.keys(existingFieldValues).length ? existingFieldValues : { ...(attachments ? { attachments } as any : {}) };
-            // Ensure attachments is the new value, preserve others
-            const merged = { ...base, attachments: updatedAttachments };
-            // Also keep any existing keys from local optimistic if base was empty
+            // Server now merges fieldValues, so we only need to send attachments key.
+            // This avoids overwriting other custom fields and avoids Prisma
+            // "Malformed ObjectID" errors when fieldValues contains non-column keys.
             const res = await fetch(`/api/tasks/${taskId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ fieldValues: merged }),
+                body: JSON.stringify({ fieldValues: { attachments: updatedAttachments } }),
             });
             if (!res.ok) {
                 const err = await res.json().catch(() => ({}));
-                throw new Error(err.error || "Failed to update attachments");
+                // Surface server detail (e.g. validation) instead of generic 500
+                const detail = err.error || err.message || `HTTP ${res.status} ${res.statusText}`;
+                throw new Error(detail);
             }
             return res.json();
         },

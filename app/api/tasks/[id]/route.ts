@@ -163,6 +163,17 @@ export async function PATCH(
     }
 
     const updateData: any = { ...data };
+    // Merge fieldValues with existing instead of replacing — preserves other custom fields
+    // and allows clients to send only {attachments} without wiping board columns.
+    // Also prevents loss when multiple clients update different fieldValues concurrently.
+    if (data.fieldValues && typeof data.fieldValues === "object" && !Array.isArray(data.fieldValues)) {
+      const existingFV = (task.fieldValues as Record<string, unknown>) || {};
+      const mergedFV = { ...existingFV, ...(data.fieldValues as Record<string, unknown>) };
+      // If client explicitly wants to delete a key by setting null, respect it
+      // (already merged). Handle attachments deletion when empty array sent.
+      data.fieldValues = mergedFV;
+      updateData.fieldValues = mergedFV;
+    }
     if (data.dueDate !== undefined) {
       updateData.dueDate = data.dueDate ? new Date(data.dueDate) : null;
     }

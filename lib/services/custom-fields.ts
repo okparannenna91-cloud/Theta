@@ -1097,7 +1097,9 @@ export async function syncFieldValuesToNative(
   fieldValues: Record<string, unknown>,
   task: { projectId: string | null; boardId: string | null },
 ): Promise<Record<string, unknown>> {
-  const columnIds = Object.keys(fieldValues || {});
+  // Ignore non-column keys like "attachments" which are stored in fieldValues but are not column IDs.
+  // Column IDs are MongoDB ObjectIds (24 hex chars); filter to avoid Prisma "Malformed ObjectID" errors.
+  const columnIds = Object.keys(fieldValues || {}).filter((id) => /^[0-9a-fA-F]{24}$/.test(id));
   if (columnIds.length === 0) return {};
 
   const columns = await prisma.column.findMany({
