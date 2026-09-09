@@ -15,6 +15,7 @@ import { ActivityTimeline } from "@/components/shared/activity-timeline";
 import { cn } from "@/lib/utils";
 import { isDoneStatus } from "@/lib/constants/status";
 import dynamic from "next/dynamic";
+import { TaskDialog } from "@/components/tasks/task-dialog";
 
 const AreaChart = dynamic(() => import("recharts").then(m => m.AreaChart), { ssr: false });
 const Area = dynamic(() => import("recharts").then(m => m.Area), { ssr: false });
@@ -30,6 +31,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const [timeRange, setTimeRange] = useState<"7" | "30">("30");
   const [includeSubtasks, setIncludeSubtasks] = useState(false);
+  const [selectedTask, setSelectedTask] = useState<any>(null);
+  const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["dashboard", activeWorkspaceId, timeRange, includeSubtasks],
     queryFn: async () => {
@@ -298,7 +301,7 @@ export default function DashboardPage() {
                 <CardTitle className="text-base font-semibold">{t("recent_projects")}</CardTitle>
                 <p className="text-xs text-muted-foreground">Active workspace workstreams</p>
               </div>
-              <Button variant="ghost" size="sm" className="h-8 text-xs text-primary rounded-md">
+              <Button variant="ghost" size="sm" className="h-8 text-xs text-primary rounded-md" onClick={() => router.push("/projects")}>
                 {t("view_all")}
                 <ArrowRight className="w-3 h-3 ml-1" />
               </Button>
@@ -309,6 +312,10 @@ export default function DashboardPage() {
               data.recentProjects.map((project: { id: string; name: string; tasksCount: number }) => (
                 <div
                   key={project.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => router.push(`/projects/${project.id}`)}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); router.push(`/projects/${project.id}`); } }}
                   className="flex items-center justify-between p-4 rounded-lg border hover:border-primary/30 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
@@ -341,16 +348,49 @@ export default function DashboardPage() {
                 <CardTitle className="text-base font-semibold">{t("priority_tasks")}</CardTitle>
                 <p className="text-xs text-muted-foreground">Tasks requiring attention</p>
               </div>
-              <Button variant="ghost" size="sm" className="h-8 text-xs text-primary rounded-md">
+              <Button variant="ghost" size="sm" className="h-8 text-xs text-primary rounded-md" onClick={() => router.push("/tasks")}>
                 {t("manage")}
               </Button>
             </div>
           </CardHeader>
           <CardContent className="space-y-2">
             {data?.recentTasks?.length > 0 ? (
-              data.recentTasks.map((task: { id: string; title: string; status: string; priority: string; project?: { name: string } }) => (
+              data.recentTasks.map((task: { id: string; title: string; status: string; priority: string; projectId?: string; workspaceId?: string; project?: { id?: string; name: string } }) => (
                 <div
                   key={task.id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => {
+                    const wsId = (task as any).workspaceId || activeWorkspaceId;
+                    if (!wsId) { router.push("/tasks"); return; }
+                    setSelectedTask({
+                      id: task.id,
+                      title: task.title,
+                      status: task.status,
+                      priority: task.priority,
+                      projectId: (task as any).projectId || (task.project as any)?.id,
+                      workspaceId: wsId,
+                      project: task.project,
+                    });
+                    setIsTaskDialogOpen(true);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      const wsId = (task as any).workspaceId || activeWorkspaceId;
+                      if (!wsId) { router.push("/tasks"); return; }
+                      setSelectedTask({
+                        id: task.id,
+                        title: task.title,
+                        status: task.status,
+                        priority: task.priority,
+                        projectId: (task as any).projectId || (task.project as any)?.id,
+                        workspaceId: wsId,
+                        project: task.project,
+                      });
+                      setIsTaskDialogOpen(true);
+                    }
+                  }}
                   className="flex items-center justify-between p-4 rounded-lg border hover:border-primary/30 transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
@@ -525,6 +565,15 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {selectedTask && activeWorkspaceId && (
+        <TaskDialog
+          task={selectedTask}
+          isOpen={isTaskDialogOpen}
+          onClose={() => { setIsTaskDialogOpen(false); setSelectedTask(null); }}
+          workspaceId={activeWorkspaceId}
+        />
+      )}
     </div>
   );
 }

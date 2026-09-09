@@ -157,7 +157,7 @@ export async function GET(req: Request) {
           where: whereTask,
           take: 5,
           orderBy: { createdAt: "desc" },
-          include: { project: { select: { name: true } } },
+          include: { project: { select: { id: true, name: true } } },
         }),
         prisma.status.findMany({ where: { projectId: { in: accessibleProjectIds } }, orderBy: { order: "asc" } }),
         // Individual counts instead of groupBy (Prisma MongoDB crashes on nullable fields in groupBy)
@@ -275,7 +275,7 @@ export async function GET(req: Request) {
           completionRate: completionRate - prevCompletionRate,
         },
         recentProjects: recentProjects.map(p => ({ id: p.id, name: p.name, tasksCount: p._count.tasks })),
-        recentTasks: recentTasks.map(t => ({ id: t.id, title: t.title, status: t.status, project: t.project, priority: t.priority })),
+        recentTasks: recentTasks.map(t => ({ id: t.id, title: t.title, status: t.status, project: t.project, projectId: (t as any).projectId, workspaceId: (t as any).workspaceId, priority: t.priority })),
         recentActivities,
         activityTrends,
         statusDistribution,
