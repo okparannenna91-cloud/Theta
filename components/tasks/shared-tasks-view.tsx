@@ -361,21 +361,18 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-[#f5f5f7] dark:bg-black -m-6 lg:-m-8 p-6 lg:p-8">
-        <div className="max-w-[1400px] mx-auto space-y-6">
-          <Skeleton className="h-8 w-48 rounded-full bg-white dark:bg-zinc-800" />
-          <Skeleton className="h-4 w-64 rounded-full bg-white dark:bg-zinc-800" />
-          <div className="space-y-3">
-            {[1, 2, 3].map((i) => (<Skeleton key={i} className="h-24 rounded-2xl bg-white dark:bg-zinc-800" />))}
-          </div>
+      <div className="pb-10 space-y-6">
+        <Skeleton className="h-8 w-48 rounded-full" />
+        <Skeleton className="h-4 w-64 rounded-full" />
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (<Skeleton key={i} className="h-24 rounded-2xl" />))}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#f5f5f7] dark:bg-black -m-6 lg:-m-8 p-6 lg:p-8">
-      <div className="max-w-[1400px] mx-auto">
+    <div className="pb-10">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-[28px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white leading-none">{projectId ? "Tasks" : "Tasks"}</h1>
@@ -394,46 +391,6 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
           </Button>
         </div>
       </div>
-
-      {projectId && tasks.length > 0 && (
-        <div className="flex items-center gap-4 px-4 py-3 rounded-2xl bg-white dark:bg-zinc-900 border border-black/[0.04] dark:border-white/[0.06] shadow-sm mb-6"
-          style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
-        >
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-emerald-500" />
-            <span className="text-[10px] text-muted-foreground/50">
-              {tasks.filter((t: any) => isDoneStatus(t.status)).length} done
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-blue-500" />
-            <span className="text-[10px] text-muted-foreground/50">
-              {tasks.filter((t: any) => isInProgressStatus(t.status)).length} in progress
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-red-500" />
-            <span className="text-[10px] text-muted-foreground/50">
-              {tasks.filter((t: any) => isBlockedStatus(t.status)).length} blocked
-            </span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="h-2 w-2 rounded-full bg-muted-foreground/30" />
-            <span className="text-[10px] text-muted-foreground/50">
-              {tasks.filter((t: any) => !isDoneStatus(t.status) && !isInProgressStatus(t.status) && !isBlockedStatus(t.status)).length} backlog
-            </span>
-          </div>
-          <div className="ml-auto flex items-center gap-1.5">
-            <span className="text-[10px] text-muted-foreground/30">Backlog</span>
-            <div className="h-1.5 w-20 bg-muted/30 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary/50"
-                style={{ width: `${tasks.length > 0 ? (tasks.filter((t: any) => isDoneStatus(t.status)).length / tasks.length) * 100 : 0}%` }}
-              />
-            </div>
-          </div>
-        </div>
-      )}
 
       <div className="flex flex-wrap items-center gap-3 mb-5 bg-white dark:bg-zinc-900 rounded-2xl p-3 border border-black/[0.04] dark:border-white/[0.06] shadow-sm">
         <form
@@ -722,7 +679,6 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
           workspaceId={workspaceId!}
         />
       )}
-      </div>
     </div>
   );
 }
