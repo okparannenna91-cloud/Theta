@@ -372,8 +372,9 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
   }
 
   return (
-    <div className="pb-10">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
+    <div className="flex flex-col h-[calc(100vh-6rem)] overflow-hidden">
+      <div className="shrink-0 sticky top-0 z-20 bg-background/80 backdrop-blur-xl pt-1">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-[28px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white leading-none">{projectId ? "Tasks" : "Tasks"}</h1>
           <p className="text-[13px] text-[#6e6e73] dark:text-zinc-400 mt-1.5 font-normal tracking-tight">
@@ -500,7 +501,9 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
         </div>
       )}
 
-      {view === "list" ? (
+      </div>
+      <div className="flex-1 overflow-auto min-h-0 pr-1 -mr-1">
+        {view === "list" ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={tasks?.map((t: any) => t.id) || []} strategy={verticalListSortingStrategy}>
             <div className="space-y-3">
@@ -604,6 +607,7 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
           )}
         </div>
       )}
+      </div>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent>
