@@ -230,6 +230,10 @@ export function TableView({
   }, [groupedTasks, collapsedGroups, groupBy]);
 
   const totalHeight = useMemo(() => flatItems.reduce((s, i) => s + i.height, 0), [flatItems]);
+  const totalWidth = useMemo(() => {
+    const colsWidth = visibleColumns.reduce((sum, c) => sum + getColWidth(c), 0);
+    return 16 + colsWidth + 30; // drag handle + columns + spacer
+  }, [visibleColumns, columnWidths]);
 
   const visibleItems = useMemo(() => {
     const result: FlatItem[] = [];
@@ -730,7 +734,7 @@ export function TableView({
 
       {/* ─── Table header ─── */}
       <div ref={headerRef} className={cn("flex border-b border-border/5 bg-muted/[0.03] sticky top-0 z-10 shrink-0 overflow-hidden", resizingCol.current && "col-resize-active")}>
-        <div className="flex min-w-max">
+        <div className="flex min-w-max" style={{ width: totalWidth, minWidth: totalWidth }}>
           <div className="w-4 shrink-0" aria-hidden />
           {pinnedCols.map((col, idx) => {
             const left = 16 + pinnedCols.slice(0, idx).reduce((acc, c) => acc + getColWidth(c), 0);
@@ -792,7 +796,7 @@ export function TableView({
 
       {/* ─── Body (virtualized) ─── */}
       <div ref={scrollRef} className="flex-1 overflow-auto" onScroll={handleScroll}>
-        <div style={{ height: totalHeight, position: "relative" }}>
+        <div style={{ height: totalHeight, width: totalWidth, minWidth: totalWidth, position: "relative" }}>
           {visibleItems.map(item => {
             if (item.type === "group") {
               const { group, isCollapsed } = item.data;
@@ -802,7 +806,7 @@ export function TableView({
               return (
                 <div key={item.key}
                   className="flex items-center gap-2 px-3 border-b border-border/5 bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors"
-                  style={{ position: "absolute", top: item.offset, left: 0, right: 0, height: item.height }}
+                  style={{ position: "absolute", top: item.offset, left: 0, width: totalWidth, minWidth: totalWidth, height: item.height }}
                   onClick={() => setCollapsedGroups(prev => {
                     const next = new Set(prev);
                     if (next.has(group!.key)) next.delete(group!.key); else next.add(group!.key);
@@ -831,7 +835,7 @@ export function TableView({
                   isRowActive && "bg-[#6161ff]/[0.03]",
                   !isSelected && !isRowActive && "hover:bg-[#6161ff]/[0.02]",
                 )}
-                style={{ position: "absolute", top: item.offset, left: 0, right: 0, height: item.height }}
+                style={{ position: "absolute", top: item.offset, left: 0, width: totalWidth, minWidth: totalWidth, height: item.height }}
                 onClick={(e) => {
                   toggleRowSelection(task.id, e as any);
                   const target = e.target as HTMLElement;
