@@ -5,7 +5,7 @@ import { isBillingCronEnabled } from "../cron-enabled";
 
 export async function runBillingCron(): Promise<CronSummary> {
   if (!isBillingCronEnabled()) {
-    logger.info("[BillingCron] Skipped - billing cron disabled (BILLING_CRON_ENABLED=false or no CRON_SECRET)");
+    logger.warn("[BillingCron] Skipped - billing cron disabled via BILLING_CRON_ENABLED=false (billing is required in prod — enable in production)");
     return {
       dunning: { processed: 0, succeeded: 0, failed: 0 } as any,
       renewals: { processed: 0, succeeded: 0, failed: 0 },

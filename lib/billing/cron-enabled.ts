@@ -1,12 +1,10 @@
 /**
- * Billing cron is optional — app should run fine without CRON_SECRET.
- * Enable explicitly with BILLING_CRON_ENABLED=true (and CRON_SECRET set).
- * Disable with BILLING_CRON_ENABLED=false or DISABLE_BILLING_CRON=true.
- * Default: enabled only when CRON_SECRET is configured (preserves existing prod behavior).
+ * Billing is NOT optional — cron must run in prod for renewals/dunning/trials.
+ * Only disable explicitly for local dev with BILLING_CRON_ENABLED=false.
+ * Default: enabled (requires CRON_SECRET).
  */
 export function isBillingCronEnabled(): boolean {
   if (process.env.DISABLE_BILLING_CRON === "true") return false;
   if (process.env.BILLING_CRON_ENABLED === "false") return false;
-  if (process.env.BILLING_CRON_ENABLED === "true") return true;
-  return !!process.env.CRON_SECRET;
+  return true;
 }

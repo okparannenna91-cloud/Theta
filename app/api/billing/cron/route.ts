@@ -4,16 +4,14 @@ import { isBillingCronEnabled } from "@/lib/billing/cron-enabled";
 import crypto from "crypto";
 
 export async function GET(req: Request) {
-  // Billing cron is optional — if disabled or not configured, return success no-op
-  // instead of 500 so the app can run without CRON_SECRET.
+  // Billing is NOT optional — cron should be enabled. Allow explicit disable for local dev only.
   if (!isBillingCronEnabled()) {
-    return NextResponse.json({ success: true, message: "Billing cron disabled", disabled: true });
+    return NextResponse.json({ success: true, message: "Billing cron disabled via env", disabled: true });
   }
 
   const expected = process.env.CRON_SECRET;
   if (!expected) {
-    // Should not happen when isBillingCronEnabled() is true, but keep as graceful no-op
-    return NextResponse.json({ success: true, message: "Billing cron disabled - CRON_SECRET not configured", disabled: true });
+    return NextResponse.json({ error: "Cron secret not configured" }, { status: 500 });
   }
 
   const authHeader = req.headers.get("authorization") ?? "";

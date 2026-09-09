@@ -5,32 +5,10 @@ on:
   workflow_dispatch:
 jobs:
   run:
-    # Billing cron is optional — skip if not configured
-    if: vars.APP_URL != '' && vars.BILLING_CRON_ENABLED != 'false'
     runs-on: ubuntu-latest
     steps:
       - name: Trigger billing cron
-        continue-on-error: true
         run: |
-          if [ -z "${{ secrets.CRON_SECRET }}" ]; then
-            echo "CRON_SECRET not set — billing cron is optional, skipping"
-            exit 0
-          fi
-          if [ -z "${{ vars.APP_URL }}" ]; then
-            echo "APP_URL not set — skipping billing cron"
-            exit 0
-          fi
-          # -f would fail on 401/500 when cron is disabled; treat as success when optional
-          HTTP_CODE=$(curl -s -o /tmp/billing-cron.out -w "%{http_code}" \
+          curl -fsS \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
-            "${{ vars.APP_URL }}/api/billing/cron" || true)
-          cat /tmp/billing-cron.out || true
-          echo "HTTP $HTTP_CODE"
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "Billing cron succeeded or was disabled (optional)"
-            exit 0
-          fi
-          # If cron is disabled, API returns 200 with {disabled:true}. Any 200 is success.
-          # Non-200 when optional should not fail the workflow.
-          echo "Billing cron returned $HTTP_CODE but is optional — not failing workflow"
-          exit 0
+            "${{ vars.APP_URL }}/api/billing/cron"
