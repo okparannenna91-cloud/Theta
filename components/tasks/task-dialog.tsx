@@ -102,6 +102,7 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             progress: t.progress || 0,
             color: t.color || "",
             assigneeIds: t.assigneeIds || [],
+            fieldValues: t.fieldValues || null,
         };
     }, []);
 
@@ -147,7 +148,15 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
         if (committed.color !== (updatedTask.color || "")) setColor(updatedTask.color || "");
         if (committed.assigneeIds?.join(",") !== (updatedTask.assigneeIds || []).join(","))
             setAssigneeIds(updatedTask.assigneeIds || []);
-    }, []);
+        // Keep fieldValues (attachments/custom fields) in sync via query cache so TaskAttachments updates in realtime
+        if (JSON.stringify(committed.fieldValues) !== JSON.stringify(updatedTask.fieldValues)) {
+            queryClient.setQueryData(["task-detail", updatedTask.id], (old: any) => {
+                if (!old) return { task: updatedTask };
+                return { ...old, task: { ...old.task, fieldValues: updatedTask.fieldValues } };
+            });
+            lastCommittedRef.current.fieldValues = updatedTask.fieldValues;
+        }
+    }, [queryClient]);
 
     useAbly(taskChannel, "task:updated", handleAblyTaskUpdate);
 
@@ -400,7 +409,7 @@ color: taskDetail.parent.color,
                                 task={task}
                                 workspaceId={workspaceId}
                                 projectId={task.projectId}
-                                attachments={task.fieldValues?.attachments || []}
+                                attachments={taskDetail?.task?.fieldValues?.attachments ?? task.fieldValues?.attachments ?? []}
                                 onOpenChild={setOpenChild}
                             />
                         </div>

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useCallback } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Image from "next/image";
 import { FileText, Image as ImageIcon, Film, Music, Archive, File, Trash2, Download, ExternalLink, Paperclip, Loader2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { invalidateTaskCaches } from "@/lib/invalidate-task-caches";
+import { useAbly } from "@/hooks/use-ably";
+import { getTaskChannel } from "@/lib/ably";
 
 interface Attachment {
     url: string;
@@ -33,25 +35,94 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
     const [lightboxUrl, setLightboxUrl] = useState<string | null>(null);
 
+    // Use server as source of truth + local optimistic state so uploads appear instantly
+    // even when parent `task` prop is stale. `attachments` prop is fallback / initial.
+    const [localAttachments, setLocalAttachments] = useState<Attachment[]>(attachments);
+
+    useEffect(() => {
+        // Keep in sync when parent prop changes (e.g. after list refetch)
+        setLocalAttachments(attachments);
+    }, [JSON.stringify(attachments)]);
+
+    const { data: taskDetail } = useQuery({
+        queryKey: ["task-detail", taskId],
+        queryFn: async () => {
+            const res = await fetch(`/api/tasks/${taskId}`);
+            if (!res.ok) throw new Error("Failed to fetch task");
+            return res.json();
+        },
+        enabled: Boolean(taskId),
+    });
+
+    useEffect(() => {
+        const serverAttachments = taskDetail?.task?.fieldValues?.attachments;
+        if (Array.isArray(serverAttachments)) {
+            // Prefer server value when it differs (handles refresh + other client's upload)
+            setLocalAttachments(serverAttachments);
+        }
+    }, [JSON.stringify(taskDetail?.task?.fieldValues?.attachments)]);
+
+    const handleAblyUpdate = useCallback((updatedTask: any) => {
+        if (updatedTask?.id !== taskId) return;
+        const updatedAttachments = updatedTask?.fieldValues?.attachments;
+        if (Array.isArray(updatedAttachments)) {
+            setLocalAttachments(updatedAttachments);
+            // Keep query cache in sync so other consumers see it
+            queryClient.setQueryData(["task-detail", taskId], (old: any) => {
+                if (!old) return old;
+                return { ...old, task: { ...old.task, fieldValues: updatedTask.fieldValues } };
+            });
+        }
+    }, [taskId, queryClient]);
+
+    useAbly(getTaskChannel(workspaceId, taskId), "task:updated", handleAblyUpdate);
+
     const updateTaskMutation = useMutation({
         mutationFn: async (updatedAttachments: Attachment[]) => {
+            // Merge with existing fieldValues so we don't wipe custom fields
+            const existingFieldValues = (taskDetail?.task?.fieldValues as Record<string, unknown>) || {};
+            // Fallback to prop-derived local if detail not loaded yet
+            const base = Object.keys(existingFieldValues).length ? existingFieldValues : { ...(attachments ? { attachments } as any : {}) };
+            // Ensure attachments is the new value, preserve others
+            const merged = { ...base, attachments: updatedAttachments };
+            // Also keep any existing keys from local optimistic if base was empty
             const res = await fetch(`/api/tasks/${taskId}`, {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ fieldValues: { attachments: updatedAttachments } }),
+                body: JSON.stringify({ fieldValues: merged }),
             });
-            if (!res.ok) throw new Error("Failed to update attachments");
+            if (!res.ok) {
+                const err = await res.json().catch(() => ({}));
+                throw new Error(err.error || "Failed to update attachments");
+            }
             return res.json();
         },
-        onSuccess: () => {
+        onSuccess: (updatedTask) => {
+            // Optimistically update caches immediately
+            if (updatedTask?.fieldValues?.attachments) {
+                setLocalAttachments(updatedTask.fieldValues.attachments);
+            }
+            queryClient.setQueryData(["task-detail", taskId], (old: any) => {
+                if (!old) return { task: updatedTask };
+                return { ...old, task: updatedTask };
+            });
+            queryClient.invalidateQueries({ queryKey: ["task-detail", taskId] });
             invalidateTaskCaches({ queryClient, workspaceId });
             toast.success("Attachments updated");
+        },
+        onError: (error: any) => {
+            // Rollback to server state on error
+            const serverAttachments = taskDetail?.task?.fieldValues?.attachments;
+            if (Array.isArray(serverAttachments)) setLocalAttachments(serverAttachments);
+            else setLocalAttachments(attachments);
+            toast.error(error.message || "Failed to update attachments");
         },
     });
 
     const handleUploadComplete = (data: any) => {
         const newAttachment: Attachment = {
             url: data.secure_url || data.url,
+            secure_url: data.secure_url || data.url,
             publicId: data.publicId,
             originalName: data.originalName,
             mimeType: data.mimeType,
@@ -60,12 +131,17 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
             createdAt: new Date().toISOString(),
         };
 
-        const updated = [...attachments, newAttachment];
+        const updated = [...localAttachments, newAttachment];
+        // Optimistic visual - show immediately before PATCH completes
+        setLocalAttachments(updated);
         updateTaskMutation.mutate(updated);
     };
 
     const handleDelete = async (attachment: Attachment) => {
         setDeleteConfirm(null);
+        const updated = localAttachments.filter((a) => a.publicId !== attachment.publicId);
+        // Optimistic removal
+        setLocalAttachments(updated);
 
         try {
             await fetch("/api/upload", {
@@ -80,7 +156,6 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
             // Continue with removal from task even if Cloudinary delete fails
         }
 
-        const updated = attachments.filter((a) => a.publicId !== attachment.publicId);
         updateTaskMutation.mutate(updated);
     };
 
@@ -119,6 +194,8 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
     };
 
+    const displayAttachments = localAttachments;
+
     return (
         <div className="space-y-6">
             <div className="flex items-center justify-between">
@@ -126,15 +203,15 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
                     <Paperclip className="h-5 w-5 text-indigo-500 rotate-45" />
                     <h3 className="text-sm font-semibold tracking-tight">Attachments</h3>
                 </div>
-                {attachments.length > 0 && (
+                {displayAttachments.length > 0 && (
                     <span className="text-[10px] font-black uppercase text-muted-foreground mr-1 h-5 min-w-5 flex items-center justify-center bg-accent/20 rounded-full px-2">
-                        {attachments.length} Total
+                        {displayAttachments.length} Total
                     </span>
                 )}
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {attachments.map((attachment) => (
+                {displayAttachments.map((attachment) => (
                     <div key={attachment.publicId} className="group relative border border-slate-200 dark:border-slate-800 rounded-xl p-3 bg-white dark:bg-slate-900 shadow-sm hover:shadow-md transition-all hover:border-indigo-500/30">
                         <div className="flex items-start gap-3">
                             <div
@@ -221,7 +298,7 @@ export function TaskAttachments({ taskId, workspaceId, attachments = [] }: TaskA
                         <Button
                             variant="destructive"
                             onClick={() => {
-                                const attachment = attachments.find((a) => a.publicId === deleteConfirm);
+                                const attachment = displayAttachments.find((a) => a.publicId === deleteConfirm);
                                 if (attachment) handleDelete(attachment);
                             }}
                             disabled={updateTaskMutation.isPending}
