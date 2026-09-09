@@ -744,7 +744,7 @@ export function TableView({
       {/* ─── Table header ─── */}
       <div className={cn("flex border-b border-border/5 bg-muted/[0.03] sticky top-0 z-10 shrink-0", resizingCol.current && "col-resize-active")}>
         {/* Left fixed Task header - scrollbar starts after this */}
-        <div className="flex shrink-0 border-r border-border/5 bg-muted/5" style={{ width: pinnedWidth, minWidth: pinnedWidth }}>
+        <div className="flex shrink-0 border-r border-border/5 bg-muted/5" style={{ width: pinnedWidth, minWidth: pinnedWidth, boxSizing: 'border-box' }}>
           <div className="w-4 shrink-0" aria-hidden />
           {pinnedCols.map(col => (
             <div key={col.id}
@@ -780,7 +780,7 @@ export function TableView({
           ))}
         </div>
         {/* Right scrollable header - scrollbar starts here */}
-        <div ref={headerRef} className="flex-1 overflow-hidden">
+        <div ref={headerRef} className="flex-1 overflow-hidden [scrollbar-gutter:stable]" style={{ scrollbarGutter: 'stable' as any }}>
           <div className="flex min-w-max" style={{ width: rightWidth, minWidth: rightWidth }}>
             {scrollCols.map(col => (
               <div key={col.id}
@@ -900,7 +900,7 @@ export function TableView({
             })}
           </div>
         </div>
-        <div ref={scrollRef} className="flex-1 overflow-auto" onScroll={handleScroll}>
+        <div ref={scrollRef} className="flex-1 overflow-auto [scrollbar-gutter:stable]" style={{ scrollbarGutter: 'stable' as any }} onScroll={handleScroll}>
           <div style={{ height: totalHeight, width: rightWidth, minWidth: rightWidth, position: "relative" }}>
             {visibleItems.map(item => {
               if (item.type === "group") {
