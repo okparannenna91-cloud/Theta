@@ -59,6 +59,7 @@ export function TableView({
   const scrollRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(600);
   const rafRef = useRef<number | null>(null);
 
@@ -102,6 +103,7 @@ export function TableView({
       rafRef.current = null;
       if (scrollRef.current) {
         setScrollTop(scrollRef.current.scrollTop);
+        setScrollLeft(scrollRef.current.scrollLeft);
         if (headerRef.current) headerRef.current.scrollLeft = scrollRef.current.scrollLeft;
       }
     });
@@ -112,7 +114,10 @@ export function TableView({
     const body = scrollRef.current;
     const header = headerRef.current;
     if (!body || !header) return;
-    const onScroll = () => { header.scrollLeft = body.scrollLeft; };
+    const onScroll = () => {
+      header.scrollLeft = body.scrollLeft;
+      setScrollLeft(body.scrollLeft);
+    };
     body.addEventListener("scroll", onScroll, { passive: true });
     return () => body.removeEventListener("scroll", onScroll);
   }, []);
@@ -741,7 +746,7 @@ export function TableView({
             return (
               <div key={col.id}
                 className={cn("relative flex items-center gap-1 shrink-0 bg-muted/5 sticky z-10", CELL_PADDING, "border-r border-border/5")}
-                style={{ width: getColWidth(col), minWidth: getColWidth(col), left }}
+                style={{ width: getColWidth(col), minWidth: getColWidth(col), left, transform: `translateX(${scrollLeft}px)` as any }}
             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
             {col.type === "checkbox" ? (
               <span className="text-[11px] font-medium text-muted-foreground/25">{col.name || ""}</span>
@@ -879,7 +884,7 @@ export function TableView({
                         isEditing && "z-[5]",
                         isCellActive && "ring-[1.5px] ring-[#6161ff]/40 ring-inset bg-[#6161ff]/[0.04]",
                       )}
-                      style={{ width: getColWidth(col), minWidth: getColWidth(col), left }}>
+                      style={{ width: getColWidth(col), minWidth: getColWidth(col), left, transform: `translateX(${scrollLeft}px)` as any }}>
                       {isEditing ? (
                         col.type === "assignee" ? (
                           <AssigneeEditor value={value} options={col.options} members={availableMembers} onSave={(v: any) => saveCell(globalIdx!, col, v)} onCancel={() => setEditingCell(null)} />
