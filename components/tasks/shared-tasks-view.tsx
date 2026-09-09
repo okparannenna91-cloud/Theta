@@ -108,7 +108,7 @@ const TaskRow = memo(function TaskRow({ task, onToggle, onDelete, onOpen, dragHa
   dragHandleProps?: Record<string, any>;
 }) {
   return (
-    <Card className="border-subtle hover:border-primary/30 transition-colors cursor-pointer group"
+    <Card className="rounded-2xl bg-white dark:bg-zinc-900 border-0 shadow-[0_1px_3px_rgba(0,0,0,0.04)] hover:shadow-[0_4px_16px_rgba(0,0,0,0.06)] hover:bg-white dark:hover:bg-zinc-900 transition-all cursor-pointer group"
       onClick={() => onOpen(task)}>
       <CardHeader className="p-4">
         <div className="flex items-start justify-between gap-4">
@@ -361,39 +361,43 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
 
   if (isLoading) {
     return (
-      <div className="space-y-6">
-        <Skeleton className="h-8 w-48" />
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (<Skeleton key={i} className="h-20 rounded-lg" />))}
+      <div className="min-h-screen bg-[#f5f5f7] dark:bg-black -m-6 lg:-m-8 p-6 lg:p-8">
+        <div className="max-w-[1400px] mx-auto space-y-6">
+          <Skeleton className="h-8 w-48 rounded-full bg-white dark:bg-zinc-800" />
+          <Skeleton className="h-4 w-64 rounded-full bg-white dark:bg-zinc-800" />
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (<Skeleton key={i} className="h-24 rounded-2xl bg-white dark:bg-zinc-800" />))}
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="pb-10">
+    <div className="min-h-screen bg-[#f5f5f7] dark:bg-black -m-6 lg:-m-8 p-6 lg:p-8">
+      <div className="max-w-[1400px] mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-semibold text-foreground">{projectId ? "Tasks" : "Tasks"}</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {projectId ? `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} in this project` : "Project-wide task orchestration and tracking"}
+          <h1 className="text-[28px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white leading-none">{projectId ? "Tasks" : "Tasks"}</h1>
+          <p className="text-[13px] text-[#6e6e73] dark:text-zinc-400 mt-1.5 font-normal tracking-tight">
+            {projectId ? `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} in this project` : "Organize and track your work"}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="border rounded-md p-0.5 flex items-center">
-            <Button variant={view === "list" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-sm px-3" onClick={() => setView("list")}>List</Button>
-            <Button variant={view === "board" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-sm px-3" onClick={() => setView("board")}>Board</Button>
-            <Button variant={view === "table" ? "secondary" : "ghost"} size="sm" className="h-8 text-xs rounded-sm px-3" onClick={() => setView("table")}>Table</Button>
+        <div className="flex items-center gap-3">
+          <div className="bg-[#e8e8ed] dark:bg-zinc-800 rounded-full p-1 flex items-center gap-0.5">
+            <Button variant="ghost" size="sm" className={cn("h-7 text-[13px] rounded-full px-4 font-medium transition-all", view === "list" ? "bg-white dark:bg-zinc-700 shadow-sm text-[#1d1d1f] dark:text-white" : "text-[#6e6e73] hover:text-[#1d1d1f] dark:text-zinc-400")} onClick={() => setView("list")}>List</Button>
+            <Button variant="ghost" size="sm" className={cn("h-7 text-[13px] rounded-full px-4 font-medium transition-all", view === "board" ? "bg-white dark:bg-zinc-700 shadow-sm text-[#1d1d1f] dark:text-white" : "text-[#6e6e73] hover:text-[#1d1d1f] dark:text-zinc-400")} onClick={() => setView("board")}>Board</Button>
+            <Button variant="ghost" size="sm" className={cn("h-7 text-[13px] rounded-full px-4 font-medium transition-all", view === "table" ? "bg-white dark:bg-zinc-700 shadow-sm text-[#1d1d1f] dark:text-white" : "text-[#6e6e73] hover:text-[#1d1d1f] dark:text-zinc-400")} onClick={() => setView("table")}>Table</Button>
           </div>
-          <Button onClick={() => setIsOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" /> New Task
+          <Button onClick={() => setIsOpen(true)} className="rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white h-9 px-5 text-[13px] font-medium shadow-sm hover:shadow-md transition-all">
+            <Plus className="h-4 w-4 mr-1.5" /> New Task
           </Button>
         </div>
       </div>
 
       {projectId && tasks.length > 0 && (
-        <div className="flex items-center gap-4 px-4 py-3 rounded-2xl bg-card/30 border-0 shadow-sm mb-6"
-          style={{ boxShadow: "0 1px 2px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.06)" }}
+        <div className="flex items-center gap-4 px-4 py-3 rounded-2xl bg-white dark:bg-zinc-900 border border-black/[0.04] dark:border-white/[0.06] shadow-sm mb-6"
+          style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.04)" }}
         >
           <div className="flex items-center gap-2">
             <div className="h-2 w-2 rounded-full bg-emerald-500" />
@@ -431,42 +435,44 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
         </div>
       )}
 
-      <div className="flex flex-wrap items-center gap-2 mb-4">
+      <div className="flex flex-wrap items-center gap-3 mb-5 bg-white dark:bg-zinc-900 rounded-2xl p-3 border border-black/[0.04] dark:border-white/[0.06] shadow-sm">
         <form
           onSubmit={(e) => { e.preventDefault(); applySearch(); }}
-          className="flex items-center gap-2 min-w-[220px]"
+          className="flex items-center gap-2 min-w-[240px] flex-1 sm:flex-none"
         >
-          <Input
-            placeholder="Search tasks..."
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            className="h-9 bg-card border text-xs"
-            aria-label="Search tasks"
-          />
-          <Button type="submit" size="sm" variant="secondary" className="h-9 text-xs">Search</Button>
+          <div className="relative flex-1">
+            <Input
+              placeholder="Search tasks..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="h-9 bg-[#f5f5f7] dark:bg-zinc-800 border-0 rounded-full text-[13px] pl-4 pr-4 placeholder:text-[#86868b] focus-visible:ring-1 focus-visible:ring-[#0071e3]"
+              aria-label="Search tasks"
+            />
+          </div>
+          <Button type="submit" size="sm" className="h-9 rounded-full bg-[#1d1d1f] dark:bg-white text-white dark:text-black hover:bg-black dark:hover:bg-zinc-100 text-[13px] px-4 font-medium">Search</Button>
         </form>
-        <Button variant="outline" size="sm" className="h-9 text-xs" onClick={() => setShowFilters((s) => !s)}>
+        <Button variant="ghost" size="sm" className="h-9 rounded-full bg-[#f5f5f7] dark:bg-zinc-800 hover:bg-[#e8e8ed] dark:hover:bg-zinc-700 text-[13px] px-4 font-medium" onClick={() => setShowFilters((s) => !s)}>
           <Filter className="h-3.5 w-3.5 mr-1.5" /> Filters
-          {hasActiveFilters && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-primary" />}
+          {hasActiveFilters && <span className="ml-1.5 h-1.5 w-1.5 rounded-full bg-[#0071e3]" />}
         </Button>
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" className="h-9 text-xs text-muted-foreground" onClick={clearFilters}>
+          <Button variant="ghost" size="sm" className="h-9 rounded-full text-[13px] text-[#6e6e73] hover:text-[#1d1d1f]" onClick={clearFilters}>
             Clear
           </Button>
         )}
-        <label className="flex items-center gap-2 cursor-pointer ml-auto">
+        <label className="flex items-center gap-2 cursor-pointer ml-auto bg-[#f5f5f7] dark:bg-zinc-800 rounded-full px-3 py-1.5">
           <input
             type="checkbox"
             checked={!!filters.includeSubtasks}
             onChange={(e) => setFilter("includeSubtasks", e.target.checked || undefined)}
-            className="h-3.5 w-3.5 accent-primary"
+            className="h-3.5 w-3.5 accent-[#0071e3] rounded"
           />
-          <span className="text-xs text-muted-foreground">Include subtasks</span>
+          <span className="text-[13px] text-[#1d1d1f] dark:text-zinc-300 font-medium">Include subtasks</span>
         </label>
       </div>
 
       {showFilters && (
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-4 p-4 rounded-xl border bg-card">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 mb-5 p-5 rounded-2xl bg-white dark:bg-zinc-900 border border-black/[0.04] dark:border-white/[0.06] shadow-sm">
           <div className="space-y-1.5">
             <Label className="text-[10px] font-medium text-muted-foreground">Status</Label>
             <Select value={filters.status || "all"} onValueChange={(v) => setFilter("status", v === "all" ? undefined : v)}>
@@ -540,7 +546,7 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
       {view === "list" ? (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={tasks?.map((t: any) => t.id) || []} strategy={verticalListSortingStrategy}>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {tasks?.map((task: any) => (
                 <SortableTaskRow
                   key={task.id}
@@ -554,22 +560,22 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
           </SortableContext>
         </DndContext>
       ) : view === "board" ? (
-        <div className="flex gap-4 overflow-x-auto pb-4 min-h-[400px]">
+        <div className="flex gap-4 overflow-x-auto pb-6 min-h-[400px] px-1">
           {statuses.map((col) => {
             const columnTasks = tasks.filter((t: any) => getStatusValue(t.status) === col.id);
             return (
-              <div key={col.id} className="flex-shrink-0 w-72">
-                <div className="flex items-center gap-2 mb-3 px-1">
+              <div key={col.id} className="flex-shrink-0 w-[300px] bg-white dark:bg-zinc-900 rounded-2xl p-3 border border-black/[0.04] dark:border-white/[0.06] shadow-sm">
+                <div className="flex items-center gap-2 mb-4 px-1">
                   <div className={cn("h-2 w-2 rounded-full",
                     col.id === "done" ? "bg-emerald-500" :
-                      col.id === "in_progress" || col.id === "in-progress" ? "bg-blue-500" : "bg-muted-foreground"
+                      col.id === "in_progress" || col.id === "in-progress" ? "bg-blue-500" : "bg-[#86868b]"
                   )} />
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{col.name}</span>
-                  <span className="text-xs text-muted-foreground/60 ml-auto">{columnTasks.length}</span>
+                  <span className="text-[11px] font-semibold text-[#1d1d1f] dark:text-white uppercase tracking-wider">{col.name}</span>
+                  <span className="text-[11px] font-medium bg-[#f5f5f7] dark:bg-zinc-800 text-[#6e6e73] dark:text-zinc-400 rounded-full px-2 py-0.5 ml-auto">{columnTasks.length}</span>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-3">
                   {columnTasks.map((task: any) => (
-                    <Card key={task.id} className="border shadow-sm hover:border-primary/30 transition-colors cursor-pointer group"
+                    <Card key={task.id} className="rounded-xl bg-white dark:bg-zinc-800 border border-black/[0.04] dark:border-white/[0.06] shadow-sm hover:shadow-md hover:border-black/[0.06] transition-all cursor-pointer group"
                       onClick={() => { setSelectedTask(task); setIsDetailOpen(true); }}>
                       <CardHeader className="p-3">
                         <div className="flex items-start justify-between gap-2">
@@ -599,7 +605,7 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
           })}
         </div>
       ) : (
-        <div className="border rounded-lg overflow-hidden bg-card h-full">
+        <div className="rounded-2xl overflow-hidden bg-white dark:bg-zinc-900 border border-black/[0.04] dark:border-white/[0.06] shadow-sm h-full">
           <TableView
             tasks={tasks || []}
             workspaceId={workspaceId!}
@@ -611,29 +617,29 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
       )}
 
       {!workspaceId && (
-        <div className="text-center py-12 border-subtle rounded-lg">
-          <p className="text-sm text-muted-foreground">Select a workspace to view tasks.</p>
+        <div className="text-center py-16 bg-white dark:bg-zinc-900 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] shadow-sm">
+          <p className="text-[13px] text-[#6e6e73] dark:text-zinc-400">Select a workspace to view tasks.</p>
         </div>
       )}
 
       {workspaceId && tasks?.length === 0 && (
-        <div className="text-center py-12 border-subtle rounded-lg">
+        <div className="text-center py-12 bg-white dark:bg-zinc-900 rounded-2xl border border-black/[0.04] dark:border-white/[0.06] shadow-sm">
           {hasActiveFilters ? (
             <>
-              <p className="text-sm text-muted-foreground mb-4">No tasks match your filters.</p>
-              <Button onClick={clearFilters} variant="outline">
+              <p className="text-[13px] text-[#6e6e73] dark:text-zinc-400 mb-4">No tasks match your filters.</p>
+              <Button onClick={clearFilters} className="rounded-full bg-[#f5f5f7] dark:bg-zinc-800 hover:bg-[#e8e8ed] dark:hover:bg-zinc-700 text-[#1d1d1f] dark:text-white border-0 text-[13px] px-5">
                 Clear Filters
               </Button>
             </>
           ) : (
             <>
-              <div className="py-6 flex flex-col items-center justify-center text-center">
-                <div className="h-12 w-12 rounded-2xl bg-muted/50 flex items-center justify-center mb-4">
-                  <ListChecks className="h-6 w-6 text-muted-foreground/40" />
+              <div className="py-8 flex flex-col items-center justify-center text-center">
+                <div className="h-14 w-14 rounded-2xl bg-[#f5f5f7] dark:bg-zinc-800 flex items-center justify-center mb-4">
+                  <ListChecks className="h-6 w-6 text-[#86868b]" />
                 </div>
-                <p className="text-sm font-medium text-muted-foreground mb-1">No tasks yet</p>
-                <p className="text-sm text-muted-foreground/50 mb-4">Create your first task to get started.</p>
-                <Button onClick={() => setIsOpen(true)} variant="outline" className="rounded-xl">
+                <p className="text-[15px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white mb-1">No tasks yet</p>
+                <p className="text-[13px] text-[#6e6e73] dark:text-zinc-400 mb-6">Create your first task to get started.</p>
+                <Button onClick={() => setIsOpen(true)} className="rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white px-6 h-9 text-[13px] font-medium shadow-sm">
                   <Plus className="h-4 w-4 mr-1.5" /> Create Task
                 </Button>
               </div>
@@ -716,6 +722,7 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
           workspaceId={workspaceId!}
         />
       )}
+      </div>
     </div>
   );
 }
