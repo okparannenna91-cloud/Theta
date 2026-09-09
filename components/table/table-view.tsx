@@ -57,6 +57,7 @@ export function TableView({
   const tableRef = useRef<HTMLDivElement>(null);
   const focusRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(600);
   const rafRef = useRef<number | null>(null);
@@ -99,8 +100,21 @@ export function TableView({
     if (rafRef.current) return;
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
-      if (scrollRef.current) setScrollTop(scrollRef.current.scrollTop);
+      if (scrollRef.current) {
+        setScrollTop(scrollRef.current.scrollTop);
+        if (headerRef.current) headerRef.current.scrollLeft = scrollRef.current.scrollLeft;
+      }
     });
+  }, []);
+
+  /* ─── Sync header horizontal scroll ─── */
+  useEffect(() => {
+    const body = scrollRef.current;
+    const header = headerRef.current;
+    if (!body || !header) return;
+    const onScroll = () => { header.scrollLeft = body.scrollLeft; };
+    body.addEventListener("scroll", onScroll, { passive: true });
+    return () => body.removeEventListener("scroll", onScroll);
   }, []);
 
   /* ─── Undo/Redo ─── */
@@ -715,11 +729,15 @@ export function TableView({
       )}
 
       {/* ─── Table header ─── */}
-      <div className={cn("flex border-b border-border/5 bg-muted/[0.03] sticky top-0 z-10 shrink-0", resizingCol.current && "col-resize-active")}>
-        {pinnedCols.map(col => (
-          <div key={col.id}
-            className={cn("relative flex items-center gap-1 shrink-0 bg-muted/5 sticky left-0 z-10", CELL_PADDING, "border-r border-border/5")}
-            style={{ width: getColWidth(col), minWidth: getColWidth(col) }}
+      <div ref={headerRef} className={cn("flex border-b border-border/5 bg-muted/[0.03] sticky top-0 z-10 shrink-0 overflow-hidden", resizingCol.current && "col-resize-active")}>
+        <div className="flex min-w-max">
+          <div className="w-4 shrink-0" aria-hidden />
+          {pinnedCols.map((col, idx) => {
+            const left = 16 + pinnedCols.slice(0, idx).reduce((acc, c) => acc + getColWidth(c), 0);
+            return (
+              <div key={col.id}
+                className={cn("relative flex items-center gap-1 shrink-0 bg-muted/5 sticky z-10", CELL_PADDING, "border-r border-border/5")}
+                style={{ width: getColWidth(col), minWidth: getColWidth(col), left }}
             onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
             {col.type === "checkbox" ? (
               <span className="text-[11px] font-medium text-muted-foreground/25">{col.name || ""}</span>
@@ -747,7 +765,8 @@ export function TableView({
               <div className="h-full w-px mx-auto transition-colors group-hover:bg-foreground/20" />
             </button>
           </div>
-        ))}
+          );
+        })}
         {scrollCols.map(col => (
           <div key={col.id}
             className={cn("relative flex items-center gap-1 shrink-0 group/header", CELL_PADDING, "border-r border-border/5")}
@@ -768,6 +787,7 @@ export function TableView({
           </div>
         ))}
         <div className="flex-1 min-w-[30px]" />
+        </div>
       </div>
 
       {/* ─── Body (virtualized) ─── */}
@@ -847,14 +867,15 @@ export function TableView({
                   const value = getCellValue(task, col);
                   const isEditing = editingCell?.row === globalIdx && editingCell?.col === colIdx;
                   const isCellActive = isActive && activeCell?.col === colIdx && !editingCell;
+                  const left = 16 + pinnedCols.slice(0, colIdx).reduce((acc, c) => acc + getColWidth(c), 0);
                   return (
                     <div key={col.id} data-col-idx={colIdx}
                       className={cn(
-                        CELL_PADDING, "text-xs border-r border-border/5 shrink-0 bg-card sticky left-0 z-[1] group/cell transition-colors relative",
+                        CELL_PADDING, "text-xs border-r border-border/5 shrink-0 bg-card sticky z-[1] group/cell transition-colors relative",
                         isEditing && "z-[5]",
                         isCellActive && "ring-[1.5px] ring-[#6161ff]/40 ring-inset bg-[#6161ff]/[0.04]",
                       )}
-                      style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
+                      style={{ width: getColWidth(col), minWidth: getColWidth(col), left }}>
                       {isEditing ? (
                         col.type === "assignee" ? (
                           <AssigneeEditor value={value} options={col.options} members={availableMembers} onSave={(v: any) => saveCell(globalIdx!, col, v)} onCancel={() => setEditingCell(null)} />
