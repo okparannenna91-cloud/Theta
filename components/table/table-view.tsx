@@ -598,7 +598,6 @@ export function TableView({
               <SelectItem value="status" className="text-[11px]">Status</SelectItem>
               <SelectItem value="priority" className="text-[11px]">Priority</SelectItem>
               <SelectItem value="assignee" className="text-[11px]">Assignee</SelectItem>
-              <SelectItem value="project" className="text-[11px]">Project</SelectItem>
               <SelectItem value="sprint" className="text-[11px]">Sprint</SelectItem>
             </SelectContent>
           </Select>

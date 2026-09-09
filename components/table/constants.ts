@@ -44,7 +44,7 @@ export const DEFAULT_COLUMNS: Column[] = [
   { id: "dueDate", name: "Due Date", type: "date", width: 120, visible: true, pinned: false, order: 4 },
   { id: "startDate", name: "Start Date", type: "date", width: 120, visible: false, pinned: false, order: 5 },
   { id: "progress", name: "Progress", type: "progress", width: 110, visible: true, pinned: false, order: 6 },
-  { id: "project", name: "Project", type: "project", width: 120, visible: true, pinned: false, order: 7 },
+  { id: "project", name: "Project", type: "project", width: 120, visible: false, pinned: false, order: 7 },
   { id: "labels", name: "Labels", type: "labels", width: 140, visible: false, pinned: false, order: 8 },
   { id: "estimate", name: "Estimate", type: "number", width: 70, visible: false, pinned: false, order: 9 },
   { id: "createdBy", name: "Created By", type: "createdBy", width: 110, visible: false, pinned: false, order: 10 },
