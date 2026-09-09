@@ -86,30 +86,133 @@ export class BitbucketService {
     async getRepositories() {
         const token = await this.getAccessToken();
 
-        const response = await fetch(`${BITBUCKET_API_URL}/repositories?role=member`, {
-            headers: {
-                Authorization: `Bearer ${token}`,
-            },
-        });
-
-        if (!response.ok) {
-            throw new Error(`Bitbucket API Error: ${response.statusText}`);
+        // CHANGE-2770 (April 14, 2026): Bitbucket removed cross-workspace
+        // GET /2.0/repositories?role=member (now 410 Gone).
+        // Replacement: list workspaces the user is member of, then list
+        // repositories per workspace. See:
+        // https://developer.atlassian.com/cloud/bitbucket/changelog#CHANGE-2770
+        const workspaces = await this.getWorkspaces(token);
+        if (workspaces.length === 0) {
+            return { values: [] };
         }
 
-        return response.json();
+        const allRepos: any[] = [];
+        for (const workspace of workspaces) {
+            const repos = await this.getRepositoriesForWorkspace(token, workspace);
+            allRepos.push(...repos);
+        }
+
+        // Keep shape compatible with sync route: { values: [...] }
+        return { values: allRepos, pagelen: allRepos.length, size: allRepos.length, page: 1 };
+    }
+
+    private async getWorkspaces(token: string): Promise<string[]> {
+        // Try endpoints in order:
+        // 1) GET /2.0/workspaces?role=member (primary, documented)
+        // 2) GET /2.0/user/workspaces (new cross-workspace endpoint per CHANGE-2770)
+        const candidates = [
+            `${BITBUCKET_API_URL}/workspaces?role=member&pagelen=100`,
+            `${BITBUCKET_API_URL}/user/workspaces?pagelen=100`,
+        ];
+
+        for (const initialUrl of candidates) {
+            let url: string | null = initialUrl;
+            const collected: string[] = [];
+            let attempted = false;
+            let lastError: string | null = null;
+
+            while (url) {
+                attempted = true;
+                const response: Response = await fetch(url, {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (!response.ok) {
+                    let detail = response.statusText;
+                    try {
+                        const body: any = await response.clone().json();
+                        detail = body?.error?.message || body?.error?.detail || body?.message || JSON.stringify(body);
+                    } catch {
+                        try { detail = await response.clone().text(); } catch {}
+                    }
+                    lastError = `Bitbucket API Error: ${response.status} ${detail}`;
+                    // If first page of first candidate fails with 404/410, try next candidate
+                    if (url === initialUrl) break;
+                    throw new Error(lastError);
+                }
+
+                const data: any = await response.json();
+                const values: any[] = data.values ?? [];
+                for (const ws of values) {
+                    if (ws.slug) collected.push(ws.slug);
+                    else if (ws.workspace?.slug) collected.push(ws.workspace.slug);
+                }
+                url = data.next ?? null;
+            }
+
+            if (collected.length > 0) return collected;
+            // If we got an empty list without error, still try next candidate
+            if (attempted && collected.length === 0 && lastError === null) continue;
+            // If first candidate errored, try next candidate
+            if (lastError && initialUrl.includes("/workspaces?role")) continue;
+            if (lastError) throw new Error(lastError);
+        }
+
+        return [];
+    }
+
+    private async getRepositoriesForWorkspace(token: string, workspace: string): Promise<any[]> {
+        const repos: any[] = [];
+        const wsEnc = encodeURIComponent(workspace);
+        let url: string | null = `${BITBUCKET_API_URL}/repositories/${wsEnc}?pagelen=100&role=member`;
+
+        while (url) {
+            const response: Response = await fetch(url, {
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            if (!response.ok) {
+                // Some tokens/workspaces may not support role=member filter; fallback without it
+                if (url.includes("role=member") && (response.status === 400 || response.status === 404)) {
+                    url = `${BITBUCKET_API_URL}/repositories/${wsEnc}?pagelen=100`;
+                    continue;
+                }
+                let detail = response.statusText;
+                try {
+                    const body: any = await response.clone().json();
+                    detail = body?.error?.message || body?.error?.detail || body?.message || JSON.stringify(body);
+                } catch {
+                    try { detail = await response.clone().text(); } catch {}
+                }
+                throw new Error(`Bitbucket API Error: ${response.status} ${detail}`);
+            }
+
+            const data: any = await response.json();
+            repos.push(...(data.values ?? []));
+            url = data.next ?? null;
+        }
+
+        return repos;
     }
 
     async getPullRequests(workspace: string, repo: string) {
         const token = await this.getAccessToken();
 
-        const response = await fetch(`${BITBUCKET_API_URL}/repositories/${workspace}/${repo}/pullrequests`, {
+        const response: Response = await fetch(`${BITBUCKET_API_URL}/repositories/${encodeURIComponent(workspace)}/${encodeURIComponent(repo)}/pullrequests`, {
             headers: {
                 Authorization: `Bearer ${token}`,
             },
         });
 
         if (!response.ok) {
-            throw new Error(`Bitbucket API Error: ${response.statusText}`);
+            let detail = response.statusText;
+            try {
+                const body: any = await response.clone().json();
+                detail = body?.error?.message || body?.error?.detail || body?.message || JSON.stringify(body);
+            } catch {
+                try { detail = await response.clone().text(); } catch {}
+            }
+            throw new Error(`Bitbucket API Error: ${response.status} ${detail}`);
         }
 
         return response.json();
