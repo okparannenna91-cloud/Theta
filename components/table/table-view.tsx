@@ -58,6 +58,7 @@ export function TableView({
   const focusRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
+  const leftBodyRef = useRef<HTMLDivElement>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
   const [viewportHeight, setViewportHeight] = useState(600);
@@ -105,6 +106,7 @@ export function TableView({
         setScrollTop(scrollRef.current.scrollTop);
         setScrollLeft(scrollRef.current.scrollLeft);
         if (headerRef.current) headerRef.current.scrollLeft = scrollRef.current.scrollLeft;
+        if (leftBodyRef.current) leftBodyRef.current.scrollTop = scrollRef.current.scrollTop;
       }
     });
   }, []);
@@ -113,10 +115,13 @@ export function TableView({
   useEffect(() => {
     const body = scrollRef.current;
     const header = headerRef.current;
+    const leftBody = leftBodyRef.current;
     if (!body || !header) return;
     const onScroll = () => {
       header.scrollLeft = body.scrollLeft;
       setScrollLeft(body.scrollLeft);
+      setScrollTop(body.scrollTop);
+      if (leftBody) leftBody.scrollTop = body.scrollTop;
     };
     body.addEventListener("scroll", onScroll, { passive: true });
     return () => body.removeEventListener("scroll", onScroll);
@@ -235,10 +240,9 @@ export function TableView({
   }, [groupedTasks, collapsedGroups, groupBy]);
 
   const totalHeight = useMemo(() => flatItems.reduce((s, i) => s + i.height, 0), [flatItems]);
-  const totalWidth = useMemo(() => {
-    const colsWidth = visibleColumns.reduce((sum, c) => sum + getColWidth(c), 0);
-    return 16 + colsWidth + 30; // drag handle + columns + spacer
-  }, [visibleColumns, columnWidths]);
+  const pinnedWidth = useMemo(() => 16 + pinnedCols.reduce((sum, c) => sum + getColWidth(c), 0), [pinnedCols, columnWidths]);
+  const rightWidth = useMemo(() => scrollCols.reduce((sum, c) => sum + getColWidth(c), 0) + 30, [scrollCols, columnWidths]);
+  const totalWidth = useMemo(() => pinnedWidth + rightWidth, [pinnedWidth, rightWidth]);
 
   const visibleItems = useMemo(() => {
     const result: FlatItem[] = [];
@@ -738,242 +742,280 @@ export function TableView({
       )}
 
       {/* ─── Table header ─── */}
-      <div ref={headerRef} className={cn("flex border-b border-border/5 bg-muted/[0.03] sticky top-0 z-10 shrink-0 overflow-hidden", resizingCol.current && "col-resize-active")}>
-        <div className="flex min-w-max" style={{ width: totalWidth, minWidth: totalWidth }}>
+      <div className={cn("flex border-b border-border/5 bg-muted/[0.03] sticky top-0 z-10 shrink-0", resizingCol.current && "col-resize-active")}>
+        {/* Left fixed Task header - scrollbar starts after this */}
+        <div className="flex shrink-0 border-r border-border/5 bg-muted/5" style={{ width: pinnedWidth, minWidth: pinnedWidth }}>
           <div className="w-4 shrink-0" aria-hidden />
-          {pinnedCols.map((col, idx) => {
-            const left = 16 + pinnedCols.slice(0, idx).reduce((acc, c) => acc + getColWidth(c), 0);
-            return (
-              <div key={col.id}
-                className={cn("relative flex items-center gap-1 shrink-0 bg-muted/5 sticky z-10", CELL_PADDING, "border-r border-border/5")}
-                style={{ width: getColWidth(col), minWidth: getColWidth(col), left, transform: `translateX(${scrollLeft}px)` as any }}
-            onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
-            {col.type === "checkbox" ? (
-              <span className="text-[11px] font-medium text-muted-foreground/25">{col.name || ""}</span>
-            ) : col.type === "title" ? (
-              <button onClick={() => toggleSort(col.id)}
-                className={cn("text-[11px] font-medium text-muted-foreground/50 flex items-center gap-1 cursor-pointer hover:text-foreground/60 transition-colors",
-                  sortConfig.some(s => s.col === col.id) && "text-foreground/60")}>
-                Task
-                {sortConfig.some(s => s.col === col.id) && (
-                  <ArrowUpDown className={cn("h-3 w-3 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} strokeWidth={1.5} />
-                )}
-              </button>
-            ) : (
-              <button onClick={() => toggleSort(col.id)}
-                className={cn("text-[11px] font-medium text-muted-foreground/50 flex items-center gap-1 cursor-pointer hover:text-foreground/60 transition-colors truncate",
-                  sortConfig.some(s => s.col === col.id) && "text-foreground/60")}>
-                {col.name}
-                {sortConfig.some(s => s.col === col.id) && (
-                  <ArrowUpDown className={cn("h-3 w-3 shrink-0 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} strokeWidth={1.5} />
-                )}
-              </button>
-            )}
-            <button className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-foreground/10 group z-20 opacity-0 group-hover/header:opacity-100 transition-opacity"
-              onMouseDown={(e) => handleResizeStart(e, col)}>
-              <div className="h-full w-px mx-auto transition-colors group-hover:bg-foreground/20" />
-            </button>
-          </div>
-          );
-        })}
-        {scrollCols.map(col => (
-          <div key={col.id}
-            className={cn("relative flex items-center gap-1 shrink-0 group/header", CELL_PADDING, "border-r border-border/5")}
-            style={{ width: getColWidth(col), minWidth: getColWidth(col) }}
-            onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
-            <button onClick={() => toggleSort(col.id)}
-              className={cn("text-[11px] font-semibold text-muted-foreground/60 flex items-center gap-1 cursor-pointer hover:text-foreground/80 transition-colors truncate",
-                sortConfig.some(s => s.col === col.id) && "text-foreground/80")}>
-              {col.name}
-              {sortConfig.some(s => s.col === col.id) && (
-                <ArrowUpDown className={cn("h-3 w-3 shrink-0 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} strokeWidth={1.5} />
+          {pinnedCols.map(col => (
+            <div key={col.id}
+              className={cn("relative flex items-center gap-1 shrink-0", CELL_PADDING, "border-r border-border/5")}
+              style={{ width: getColWidth(col), minWidth: getColWidth(col) }}
+              onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
+              {col.type === "checkbox" ? (
+                <span className="text-[11px] font-medium text-muted-foreground/25">{col.name || ""}</span>
+              ) : col.type === "title" ? (
+                <button onClick={() => toggleSort(col.id)}
+                  className={cn("text-[11px] font-medium text-muted-foreground/50 flex items-center gap-1 cursor-pointer hover:text-foreground/60 transition-colors",
+                    sortConfig.some(s => s.col === col.id) && "text-foreground/60")}>
+                  Task
+                  {sortConfig.some(s => s.col === col.id) && (
+                    <ArrowUpDown className={cn("h-3 w-3 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} strokeWidth={1.5} />
+                  )}
+                </button>
+              ) : (
+                <button onClick={() => toggleSort(col.id)}
+                  className={cn("text-[11px] font-medium text-muted-foreground/50 flex items-center gap-1 cursor-pointer hover:text-foreground/60 transition-colors truncate",
+                    sortConfig.some(s => s.col === col.id) && "text-foreground/60")}>
+                  {col.name}
+                  {sortConfig.some(s => s.col === col.id) && (
+                    <ArrowUpDown className={cn("h-3 w-3 shrink-0 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} strokeWidth={1.5} />
+                  )}
+                </button>
               )}
-            </button>
-            <button className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-foreground/10 group z-20 opacity-0 group-hover/header:opacity-100 transition-opacity"
-              onMouseDown={(e) => handleResizeStart(e, col)}>
-              <div className="h-full w-px mx-auto transition-colors group-hover:bg-foreground/20" />
-            </button>
+              <button className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-foreground/10 group z-20 opacity-0 group-hover/header:opacity-100 transition-opacity"
+                onMouseDown={(e) => handleResizeStart(e, col)}>
+                <div className="h-full w-px mx-auto transition-colors group-hover:bg-foreground/20" />
+              </button>
+            </div>
+          ))}
+        </div>
+        {/* Right scrollable header - scrollbar starts here */}
+        <div ref={headerRef} className="flex-1 overflow-hidden">
+          <div className="flex min-w-max" style={{ width: rightWidth, minWidth: rightWidth }}>
+            {scrollCols.map(col => (
+              <div key={col.id}
+                className={cn("relative flex items-center gap-1 shrink-0 group/header", CELL_PADDING, "border-r border-border/5")}
+                style={{ width: getColWidth(col), minWidth: getColWidth(col) }}
+                onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, col }); }}>
+                <button onClick={() => toggleSort(col.id)}
+                  className={cn("text-[11px] font-semibold text-muted-foreground/60 flex items-center gap-1 cursor-pointer hover:text-foreground/80 transition-colors truncate",
+                    sortConfig.some(s => s.col === col.id) && "text-foreground/80")}>
+                  {col.name}
+                  {sortConfig.some(s => s.col === col.id) && (
+                    <ArrowUpDown className={cn("h-3 w-3 shrink-0 transition-transform", sortConfig.find(s => s.col === col.id)?.dir === "desc" && "rotate-180")} strokeWidth={1.5} />
+                  )}
+                </button>
+                <button className="absolute right-0 top-0 bottom-0 w-2 cursor-col-resize hover:bg-foreground/10 group z-20 opacity-0 group-hover/header:opacity-100 transition-opacity"
+                  onMouseDown={(e) => handleResizeStart(e, col)}>
+                  <div className="h-full w-px mx-auto transition-colors group-hover:bg-foreground/20" />
+                </button>
+              </div>
+            ))}
+            <div className="flex-1 min-w-[30px]" />
           </div>
-        ))}
-        <div className="flex-1 min-w-[30px]" />
         </div>
       </div>
 
       {/* ─── Body (virtualized) ─── */}
-      <div ref={scrollRef} className="flex-1 overflow-auto" onScroll={handleScroll}>
-        <div style={{ height: totalHeight, width: totalWidth, minWidth: totalWidth, position: "relative" }}>
-          {visibleItems.map(item => {
-            if (item.type === "group") {
-              const { group, isCollapsed } = item.data;
-              if (!group) return null;
-              const isGrouped = groupBy !== null && group.key !== "all";
-              if (!isGrouped) return null;
+      <div className="flex flex-1 overflow-hidden">
+        <div ref={leftBodyRef} className="shrink-0 overflow-hidden border-r border-border/5" style={{ width: pinnedWidth, minWidth: pinnedWidth }}>
+          <div style={{ height: totalHeight, width: pinnedWidth, minWidth: pinnedWidth, position: "relative" }}>
+            {visibleItems.map(item => {
+              if (item.type === "group") {
+                const { group, isCollapsed } = item.data;
+                if (!group) return null;
+                const isGrouped = groupBy !== null && group.key !== "all";
+                if (!isGrouped) return null;
+                return (
+                  <div key={item.key}
+                    className="flex items-center gap-2 px-3 border-b border-border/5 bg-muted/10"
+                    style={{ position: "absolute", top: item.offset, left: 0, width: pinnedWidth, minWidth: pinnedWidth, height: item.height }}>
+                    <span className="text-[11px] font-medium text-muted-foreground/70 capitalize truncate">{group!.key.replace(/[_-]/g, " ")}</span>
+                  </div>
+                );
+              }
+              const { task, globalIdx } = item.data;
+              if (!task) return null;
+              const isSelected = selectedRows.has(task.id);
+              const isActive = activeCell?.row === globalIdx;
+              const isRowActive = isActive && !editingCell;
               return (
                 <div key={item.key}
-                  className="flex items-center gap-2 px-3 border-b border-border/5 bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors"
-                  style={{ position: "absolute", top: item.offset, left: 0, width: totalWidth, minWidth: totalWidth, height: item.height }}
-                  onClick={() => setCollapsedGroups(prev => {
-                    const next = new Set(prev);
-                    if (next.has(group!.key)) next.delete(group!.key); else next.add(group!.key);
-                    return next;
-                  })}>
-                  {isCollapsed
-                    ? <ChevronRight className="h-3 w-3 text-muted-foreground/50" strokeWidth={1.5} />
-                    : <ChevronDown className="h-3 w-3 text-muted-foreground/50" strokeWidth={1.5} />}
-                  <span className="text-[11px] font-medium text-muted-foreground/70 capitalize">{group!.key.replace(/[_-]/g, " ")}</span>
-                  <span className="text-[10px] text-muted-foreground/40">{group!.tasks.length}</span>
+                  className={cn(
+                    "flex border-b border-border/5 transition-colors group/row relative",
+                    isSelected && "bg-[#6161ff]/[0.06]",
+                    isRowActive && "bg-[#6161ff]/[0.03]",
+                    !isSelected && !isRowActive && "hover:bg-[#6161ff]/[0.02]",
+                  )}
+                  style={{ position: "absolute", top: item.offset, left: 0, width: pinnedWidth, minWidth: pinnedWidth, height: item.height }}
+                  onClick={(e) => {
+                    toggleRowSelection(task.id, e as any);
+                    const target = e.target as HTMLElement;
+                    const cellEl = target.closest("[data-col-idx]");
+                    if (cellEl) {
+                      const colIdx = parseInt(cellEl.getAttribute("data-col-idx") || "0");
+                      selectCell(globalIdx!, colIdx);
+                    }
+                  }}
+                  onDoubleClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    const cellEl = target.closest("[data-col-idx]");
+                    if (cellEl) {
+                      const colIdx = parseInt(cellEl.getAttribute("data-col-idx") || "0");
+                      startEditing(globalIdx!, colIdx);
+                    }
+                  }}
+                  onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, row: task }); }}>
+                  <div className="flex items-center justify-center w-4 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/0 group-hover/row:text-muted-foreground/20 transition-colors">
+                    <GripVertical className="h-3 w-3" strokeWidth={1.5} />
+                  </div>
+                  {pinnedCols.map((col, colIdx) => {
+                    const value = getCellValue(task, col);
+                    const isEditing = editingCell?.row === globalIdx && editingCell?.col === colIdx;
+                    const isCellActive = isActive && activeCell?.col === colIdx && !editingCell;
+                    return (
+                      <div key={col.id} data-col-idx={colIdx}
+                        className={cn(
+                          CELL_PADDING, "text-xs border-r border-border/5 shrink-0 bg-card group/cell transition-colors relative",
+                          isEditing && "z-[5]",
+                          isCellActive && "ring-[1.5px] ring-[#6161ff]/40 ring-inset bg-[#6161ff]/[0.04]",
+                        )}
+                        style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
+                        {isEditing ? (
+                          col.type === "assignee" ? (
+                            <AssigneeEditor value={value} options={col.options} members={availableMembers} onSave={(v: any) => saveCell(globalIdx!, col, v)} onCancel={() => setEditingCell(null)} />
+                          ) : (
+                            getEditorForColumn(col, value,
+                              (v: any) => saveCell(globalIdx!, col, v),
+                              () => setEditingCell(null),
+                              focusRef
+                            )
+                          )
+                        ) : (
+                          <div className="cursor-default" onClick={() => {
+                            if (col.type === "checkbox") {
+                              const newStatus = isDoneStatus(task.status) ? STATUS_TODO : STATUS_DONE;
+                              setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
+                              updateMutation.mutate({ id: task.id, data: { status: newStatus } });
+                            }
+                          }}>
+                            <CellDisplay col={col} value={value} row={task} isActive={isCellActive} onClick={() => {}} members={availableMembers} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               );
-            }
-
-            const { task, globalIdx } = item.data;
-            if (!task) return null;
-            const isSelected = selectedRows.has(task.id);
-            const isActive = activeCell?.row === globalIdx;
-            const isRowActive = isActive && !editingCell;
-
-            return (
-              <div key={item.key}
-                className={cn(
-                  "flex border-b border-border/5 transition-colors group/row relative",
-                  isSelected && "bg-[#6161ff]/[0.06]",
-                  isRowActive && "bg-[#6161ff]/[0.03]",
-                  !isSelected && !isRowActive && "hover:bg-[#6161ff]/[0.02]",
-                )}
-                style={{ position: "absolute", top: item.offset, left: 0, width: totalWidth, minWidth: totalWidth, height: item.height }}
-                onClick={(e) => {
-                  toggleRowSelection(task.id, e as any);
-                  const target = e.target as HTMLElement;
-                  const cellEl = target.closest("[data-col-idx]");
-                  if (cellEl) {
-                    const colIdx = parseInt(cellEl.getAttribute("data-col-idx") || "0");
-                    selectCell(globalIdx!, colIdx);
-                  }
-                }}
-                onDoubleClick={(e) => {
-                  const target = e.target as HTMLElement;
-                  const cellEl = target.closest("[data-col-idx]");
-                  if (cellEl) {
-                    const colIdx = parseInt(cellEl.getAttribute("data-col-idx") || "0");
-                    startEditing(globalIdx!, colIdx);
-                  }
-                }}
-                onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, row: task }); }}>
-                {/* Drag handle */}
-                <div className="flex items-center justify-center w-4 shrink-0 cursor-grab active:cursor-grabbing text-muted-foreground/0 group-hover/row:text-muted-foreground/20 transition-colors">
-                  <GripVertical className="h-3 w-3" strokeWidth={1.5} />
-                </div>
-
-                {/* Progress bar under row */}
-                {task.progress > 0 && (
-                  <div className="absolute bottom-0 left-0 right-0 h-[1.5px] bg-border/5 pointer-events-none z-[1]">
-                    <div className="h-full bg-[#6161ff]/30 transition-all duration-300" style={{ width: `${Math.min(100, Math.max(0, task.progress))}%` }} />
-                  </div>
-                )}
-
-                {/* Pinned cells */}
-                {pinnedCols.map((col, colIdx) => {
-                  const value = getCellValue(task, col);
-                  const isEditing = editingCell?.row === globalIdx && editingCell?.col === colIdx;
-                  const isCellActive = isActive && activeCell?.col === colIdx && !editingCell;
-                  const left = 16 + pinnedCols.slice(0, colIdx).reduce((acc, c) => acc + getColWidth(c), 0);
-                  return (
-                    <div key={col.id} data-col-idx={colIdx}
-                      className={cn(
-                        CELL_PADDING, "text-xs border-r border-border/5 shrink-0 bg-card sticky z-[1] group/cell transition-colors relative",
-                        isEditing && "z-[5]",
-                        isCellActive && "ring-[1.5px] ring-[#6161ff]/40 ring-inset bg-[#6161ff]/[0.04]",
-                      )}
-                      style={{ width: getColWidth(col), minWidth: getColWidth(col), left, transform: `translateX(${scrollLeft}px)` as any }}>
-                      {isEditing ? (
-                        col.type === "assignee" ? (
-                          <AssigneeEditor value={value} options={col.options} members={availableMembers} onSave={(v: any) => saveCell(globalIdx!, col, v)} onCancel={() => setEditingCell(null)} />
-                        ) : (
-                          getEditorForColumn(col, value,
-                            (v: any) => saveCell(globalIdx!, col, v),
-                            () => setEditingCell(null),
-                            focusRef
-                          )
-                        )
-                      ) : (
-                        <div className="cursor-default" onClick={() => {
-                          if (col.type === "checkbox") {
-                            const newStatus = isDoneStatus(task.status) ? STATUS_TODO : STATUS_DONE;
-                            setTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: newStatus } : t));
-                            updateMutation.mutate({ id: task.id, data: { status: newStatus } });
-                          }
-                        }}>
-                          <CellDisplay col={col} value={value} row={task} isActive={isCellActive} onClick={() => {}} members={availableMembers} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-                {/* Scrollable cells */}
-                {scrollCols.map((col, scrollIdx) => {
-                  const colIdx = pinnedCols.length + scrollIdx;
-                  const value = getCellValue(task, col);
-                  const isEditing = editingCell?.row === globalIdx && editingCell?.col === colIdx;
-                  const isCellActive = isActive && activeCell?.col === colIdx && !editingCell;
-                  return (
-                    <div key={col.id} data-col-idx={colIdx}
-                      className={cn(
-                        CELL_PADDING, "text-xs border-r border-border/5 shrink-0 group/cell transition-colors relative",
-                        isEditing && "z-[5]",
-                        isCellActive && "ring-[1.5px] ring-[#6161ff]/40 ring-inset bg-[#6161ff]/[0.04]",
-                      )}
-                      style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
-                      {isEditing ? (
-                        col.type === "assignee" ? (
-                          <AssigneeEditor value={value} options={col.options} members={availableMembers} onSave={(v: any) => saveCell(globalIdx!, col, v)} onCancel={() => setEditingCell(null)} />
-                        ) : (
-                          getEditorForColumn(col, value,
-                            (v: any) => saveCell(globalIdx!, col, v),
-                            () => setEditingCell(null),
-                            focusRef
-                          )
-                        )
-                      ) : (
-                        <div className="cursor-default">
-                          <CellDisplay col={col} value={value} row={task} isActive={isCellActive} onClick={() => {}} members={availableMembers} />
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-
-{/* Hover actions */}
-                <div className="flex items-center gap-0.5 px-2 shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity">
-                  <button onClick={(e) => { e.stopPropagation(); onSelectTask?.(task); }}
-                    className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground/20 hover:text-foreground/50 hover:bg-muted/50 transition-colors">
-                    <ExternalLink className="h-3 w-3" strokeWidth={1.5} />
-                  </button>
-                  <button onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(task.id); }}
-                    className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground/20 hover:text-destructive/60 hover:bg-destructive/10 transition-colors">
-                    <Trash2 className="h-3 w-3" strokeWidth={1.5} />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+            })}
+          </div>
         </div>
-
-        {allCollapsed && (
-          <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
-            All groups are collapsed
+        <div ref={scrollRef} className="flex-1 overflow-auto" onScroll={handleScroll}>
+          <div style={{ height: totalHeight, width: rightWidth, minWidth: rightWidth, position: "relative" }}>
+            {visibleItems.map(item => {
+              if (item.type === "group") {
+                const { group, isCollapsed } = item.data;
+                if (!group) return null;
+                const isGrouped = groupBy !== null && group.key !== "all";
+                if (!isGrouped) return null;
+                return (
+                  <div key={item.key}
+                    className="flex items-center gap-2 px-3 border-b border-border/5 bg-muted/10 cursor-pointer hover:bg-muted/20 transition-colors"
+                    style={{ position: "absolute", top: item.offset, left: 0, width: rightWidth, minWidth: rightWidth, height: item.height }}
+                    onClick={() => setCollapsedGroups(prev => {
+                      const next = new Set(prev);
+                      if (next.has(group!.key)) next.delete(group!.key); else next.add(group!.key);
+                      return next;
+                    })}>
+                    {isCollapsed
+                      ? <ChevronRight className="h-3 w-3 text-muted-foreground/50" strokeWidth={1.5} />
+                      : <ChevronDown className="h-3 w-3 text-muted-foreground/50" strokeWidth={1.5} />}
+                    <span className="text-[11px] font-medium text-muted-foreground/70 capitalize">{group!.key.replace(/[_-]/g, " ")}</span>
+                    <span className="text-[10px] text-muted-foreground/40">{group!.tasks.length}</span>
+                  </div>
+                );
+              }
+              const { task, globalIdx } = item.data;
+              if (!task) return null;
+              const isSelected = selectedRows.has(task.id);
+              const isActive = activeCell?.row === globalIdx;
+              const isRowActive = isActive && !editingCell;
+              return (
+                <div key={item.key}
+                  className={cn(
+                    "flex border-b border-border/5 transition-colors group/row relative",
+                    isSelected && "bg-[#6161ff]/[0.06]",
+                    isRowActive && "bg-[#6161ff]/[0.03]",
+                    !isSelected && !isRowActive && "hover:bg-[#6161ff]/[0.02]",
+                  )}
+                  style={{ position: "absolute", top: item.offset, left: 0, width: rightWidth, minWidth: rightWidth, height: item.height }}
+                  onClick={(e) => {
+                    toggleRowSelection(task.id, e as any);
+                    const target = e.target as HTMLElement;
+                    const cellEl = target.closest("[data-col-idx]");
+                    if (cellEl) {
+                      const colIdx = parseInt(cellEl.getAttribute("data-col-idx") || "0");
+                      selectCell(globalIdx!, colIdx);
+                    }
+                  }}
+                  onDoubleClick={(e) => {
+                    const target = e.target as HTMLElement;
+                    const cellEl = target.closest("[data-col-idx]");
+                    if (cellEl) {
+                      const colIdx = parseInt(cellEl.getAttribute("data-col-idx") || "0");
+                      startEditing(globalIdx!, colIdx);
+                    }
+                  }}
+                  onContextMenu={(e) => { e.preventDefault(); setContextMenu({ x: e.clientX, y: e.clientY, row: task }); }}>
+                  {scrollCols.map((col, scrollIdx) => {
+                    const colIdx = pinnedCols.length + scrollIdx;
+                    const value = getCellValue(task, col);
+                    const isEditing = editingCell?.row === globalIdx && editingCell?.col === colIdx;
+                    const isCellActive = isActive && activeCell?.col === colIdx && !editingCell;
+                    return (
+                      <div key={col.id} data-col-idx={colIdx}
+                        className={cn(
+                          CELL_PADDING, "text-xs border-r border-border/5 shrink-0 group/cell transition-colors relative",
+                          isEditing && "z-[5]",
+                          isCellActive && "ring-[1.5px] ring-[#6161ff]/40 ring-inset bg-[#6161ff]/[0.04]",
+                        )}
+                        style={{ width: getColWidth(col), minWidth: getColWidth(col) }}>
+                        {isEditing ? (
+                          col.type === "assignee" ? (
+                            <AssigneeEditor value={value} options={col.options} members={availableMembers} onSave={(v: any) => saveCell(globalIdx!, col, v)} onCancel={() => setEditingCell(null)} />
+                          ) : (
+                            getEditorForColumn(col, value,
+                              (v: any) => saveCell(globalIdx!, col, v),
+                              () => setEditingCell(null),
+                              focusRef
+                            )
+                          )
+                        ) : (
+                          <div className="cursor-default">
+                            <CellDisplay col={col} value={value} row={task} isActive={isCellActive} onClick={() => {}} members={availableMembers} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  <div className="flex items-center gap-0.5 px-2 shrink-0 opacity-0 group-hover/row:opacity-100 transition-opacity">
+                    <button onClick={(e) => { e.stopPropagation(); onSelectTask?.(task); }}
+                      className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground/20 hover:text-foreground/50 hover:bg-muted/50 transition-colors">
+                      <ExternalLink className="h-3 w-3" strokeWidth={1.5} />
+                    </button>
+                    <button onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(task.id); }}
+                      className="h-5 w-5 rounded flex items-center justify-center text-muted-foreground/20 hover:text-destructive/60 hover:bg-destructive/10 transition-colors">
+                      <Trash2 className="h-3 w-3" strokeWidth={1.5} />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
-        )}
-
-        {!allCollapsed && processedTasks.length === 0 && (
-          <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
-            <LayoutList className="h-8 w-8 opacity-20" />
-            <p className="text-sm font-medium">No tasks match your filters</p>
-            <p className="text-xs">Try adjusting your search or filter criteria</p>
-          </div>
-        )}
+          {allCollapsed && (
+            <div className="flex items-center justify-center py-12 text-sm text-muted-foreground">
+              All groups are collapsed
+            </div>
+          )}
+          {!allCollapsed && processedTasks.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-muted-foreground gap-2">
+              <LayoutList className="h-8 w-8 opacity-20" />
+              <p className="text-sm font-medium">No tasks match your filters</p>
+              <p className="text-xs">Try adjusting your search or filter criteria</p>
+            </div>
+          )}
+        </div>
       </div>
-
       {/* ─── Context menu ─── */}
       {contextMenu && (
         <>
