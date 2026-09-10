@@ -182,7 +182,7 @@ const TaskCardContent = React.memo(function TaskCardContent({ task, memberMap, f
     [task.predecessors, task.successors]
   );
 
-  const hasMetadata = subtaskProgress || commentCount > 0 || attachmentCount > 0 || dependencyCount > 0;
+  const hasMetadata = subtaskProgress || commentCount > 0 || attachmentCount > 0 || dependencyCount > 0 || (task.progress != null && task.progress > 0 && task.progress < 100);
 
   const visibleTags = useMemo(() => {
     if (!task.tags?.length) return null;
@@ -192,7 +192,6 @@ const TaskCardContent = React.memo(function TaskCardContent({ task, memberMap, f
     };
   }, [task.tags]);
 
-
   return (
     <div className="space-y-1.5">
       {/* Title — font-semibold, max 2 lines */}
@@ -200,6 +199,16 @@ const TaskCardContent = React.memo(function TaskCardContent({ task, memberMap, f
         {task.title}
       </h4>
 
+      {/* Progress bar — syncs with status */}
+      {task.progress != null && task.progress > 0 && task.progress < 100 && (
+        <div className="flex items-center gap-2">
+          <div className="h-1.5 flex-1 bg-secondary rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all duration-300" style={{ width: `${task.progress}%` }} />
+          </div>
+          <span className="text-[10px] text-muted-foreground font-medium tabular-nums">{task.progress}%</span>
+        </div>
+      )}
+      
       {/* Tags — max 2 pills, +N overflow, hidden when empty */}
       {visibleTags && (
         <div className="flex flex-wrap items-center gap-1">
