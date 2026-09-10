@@ -14,6 +14,7 @@ const isPublicRoute = createRouteMatcher([
   '/api/webhooks(.*)', // Clerk webhook: signed via Svix, must bypass session auth
   '/api/inngest(.*)', // Inngest Cloud: signed via INNGEST_SIGNING_KEY, must bypass session auth
   '/api/flow(.*)', // Flow³ bridge: server-to-server, Bearer FLOW_BRIDGE_SECRET (validated in-app), must bypass session auth
+  '/api/billing/cron(.*)', // Billing cron: server-to-server, Bearer CRON_SECRET (validated in-app), must bypass session auth
 ]);
 
 const isApiRoute = createRouteMatcher([
