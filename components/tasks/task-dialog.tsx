@@ -260,7 +260,11 @@ color: taskDetail.parent.color,
     const handleStatusChange = useCallback((val: string) => {
         setStatus(val);
         handleUpdate("status", val);
-    }, [handleUpdate]);
+        const newIdx = statuses.findIndex((s: any) => s.id === val);
+        const newProgress = Math.round((newIdx / Math.max(1, statuses.length - 1)) * 100);
+        setProgress(newProgress);
+        handleUpdate("progress", newProgress);
+    }, [handleUpdate, statuses]);
 
     const handlePriorityChange = useCallback((val: string) => {
         setPriority(val);
