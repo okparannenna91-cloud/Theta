@@ -100,6 +100,17 @@ function getPriorityColor(priority: string) {
   }
 }
 
+function getTaskTypeColor(type: string) {
+  switch (type) {
+    case "bug": return "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+    case "feature": return "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400";
+    case "story": return "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400";
+    case "epic": return "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400";
+    case "improvement": return "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400";
+    default: return "bg-muted text-muted-foreground";
+  }
+}
+
 const TaskRow = memo(function TaskRow({ task, onToggle, onDelete, onOpen, dragHandleProps }: {
   task: any;
   onToggle: (task: any) => void;
@@ -135,10 +146,28 @@ const TaskRow = memo(function TaskRow({ task, onToggle, onDelete, onOpen, dragHa
                 )}
               </div>
               {task.description && <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{task.description}</p>}
-              <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <Badge className={cn("text-xs rounded-md px-2 py-0 h-5 font-medium", getPriorityColor(task.priority))}>
                   {task.priority}
                 </Badge>
+                {task.taskType && (
+                  <Badge className={cn("text-xs rounded-md px-2 py-0 h-5 font-medium capitalize", getTaskTypeColor(task.taskType))}>
+                    {task.taskType}
+                  </Badge>
+                )}
+                {task.estimatedHours && (
+                  <span className="text-[10px] text-muted-foreground font-medium flex items-center gap-1">
+                    <Clock className="h-3 w-3" /> {task.estimatedHours}h
+                  </span>
+                )}
+                {task.progress !== undefined && task.progress > 0 && task.progress < 100 && (
+                  <div className="flex items-center gap-1.5">
+                    <div className="h-1.5 w-16 bg-[#f5f5f7] dark:bg-zinc-800 rounded-full overflow-hidden">
+                      <div className="h-full bg-[#0071e3] rounded-full" style={{ width: `${task.progress}%` }} />
+                    </div>
+                    <span className="text-[10px] text-muted-foreground font-medium">{task.progress}%</span>
+                  </div>
+                )}
                 {task.project && (
                   <Badge variant="outline" className="text-xs rounded-md px-2 py-0 h-5">
                     {task.project.name}
