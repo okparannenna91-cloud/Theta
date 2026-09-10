@@ -168,7 +168,27 @@ export function TaskDialog({ task, isOpen, onClose, workspaceId }: TaskDialogPro
             return res.json();
         },
         enabled: Boolean(task?.id),
+        staleTime: 0,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
     });
+
+    useEffect(() => {
+        if (!taskDetail) return;
+        const t = taskDetail;
+        setTitle(t.title);
+        setDescription(t.description || "");
+        setStatus(t.status);
+        setPriority(t.priority);
+        setTaskType(t.taskType || "task");
+        setDueDate(t.dueDate ? new Date(t.dueDate) : undefined);
+        setStartDate(t.startDate ? new Date(t.startDate) : undefined);
+        setEstimatedHours(t.estimatedHours || 0);
+        setProgress(t.progress || 0);
+        setColor(t.color || "");
+        setAssigneeIds(t.assigneeIds || []);
+        syncCommitted(t);
+    }, [taskDetail]);
 
     const parentTitle = taskDetail?.parent?.title;
 
