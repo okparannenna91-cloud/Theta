@@ -290,7 +290,16 @@ color: taskDetail.parent.color,
     const handleProgressChange = useCallback((val: number) => {
         setProgress(val);
         handleUpdate("progress", val);
-    }, [handleUpdate]);
+        if (statuses.length > 0) {
+            const newIdx = Math.round((val / 100) * (statuses.length - 1));
+            const clampedIdx = Math.max(0, Math.min(statuses.length - 1, newIdx));
+            const newStatus = statuses[clampedIdx].id;
+            if (newStatus !== status) {
+                setStatus(newStatus);
+                handleUpdate("status", newStatus);
+            }
+        }
+    }, [handleUpdate, statuses, status]);
 
     const handleColorChange = useCallback((c: string) => {
         setColor(c);
@@ -844,6 +853,10 @@ function ProgressSection({ progress, status, statuses, onProgressChange }: { pro
     const statusProgress = statusIdx >= 0 ? Math.round((statusIdx / Math.max(1, statuses.length - 1)) * 100) : 0;
     const [draft, setDraft] = useState<number | null>(null);
     const value = draft ?? progress;
+
+    useEffect(() => {
+        setDraft(null);
+    }, [status]);
 
     const commitDraft = useCallback(() => {
         setDraft((d) => {
