@@ -566,7 +566,7 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
     if (reorderRef.current > 0) return;
     if (ablyTimerRef.current) clearTimeout(ablyTimerRef.current);
     ablyTimerRef.current = setTimeout(() => {
-      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
+      queryClient.refetchQueries({ queryKey: ["board", boardId] });
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
     }, 500);
   }, [queryClient, boardId, activeWorkspaceId]);
@@ -619,6 +619,7 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
     enabled: !!boardId,
     staleTime: 0,
     refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 
   const { data: dbStatuses = [] } = useStatuses(activeWorkspaceId, board?.projectId);
