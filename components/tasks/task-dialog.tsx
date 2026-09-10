@@ -637,7 +637,7 @@ interface TaskDialogSidebarProps {
     onConfirmDelete: () => void;
 }
 
-const TaskDialogSidebar = React.memo(function TaskDialogSidebar({
+const TaskDialogSidebar = function TaskDialogSidebar({
     task,
     statuses,
     status,
@@ -846,7 +846,7 @@ const TaskDialogSidebar = React.memo(function TaskDialogSidebar({
             </div>
         </div>
     );
-});
+};
 
 function ProgressSection({ progress, status, statuses, onProgressChange }: { progress: number; status: string; statuses: any[]; onProgressChange: (val: number) => void }) {
     const statusIdx = statuses.findIndex((s: any) => s.id === status);
