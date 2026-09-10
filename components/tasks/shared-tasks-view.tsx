@@ -417,15 +417,6 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
             Clear
           </Button>
         )}
-        <label className="flex items-center gap-2 cursor-pointer ml-auto bg-[#f5f5f7] dark:bg-zinc-800 rounded-full px-3 py-1.5">
-          <input
-            type="checkbox"
-            checked={!!filters.includeSubtasks}
-            onChange={(e) => setFilter("includeSubtasks", e.target.checked || undefined)}
-            className="h-3.5 w-3.5 accent-[#0071e3] rounded"
-          />
-          <span className="text-[13px] text-[#1d1d1f] dark:text-zinc-300 font-medium">Include subtasks</span>
-        </label>
       </div>
 
       {showFilters && (
