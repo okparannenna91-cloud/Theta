@@ -620,6 +620,7 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
     staleTime: 0,
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    refetchInterval: 5000,
   });
 
   const { data: dbStatuses = [] } = useStatuses(activeWorkspaceId, board?.projectId);
