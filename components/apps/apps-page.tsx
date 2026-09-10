@@ -270,6 +270,22 @@ export default function AppsPage() {
         } catch { setImportProjects([]); }
     }, [activeWorkspaceId]);
 
+    const handleCreateProject = useCallback(async () => {
+        if (!activeWorkspaceId) return;
+        try {
+            const res = await fetch(`/api/projects`, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ name: "Imported Asana Tasks", workspaceId: activeWorkspaceId, visibility: "workspace_visible" }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                toast.success("Project created!");
+                loadImportProjects();
+                setImportProjectId(data.id);
+            } else { const d = await res.json().catch(() => ({})); toast.error(d.error || "Failed to create project."); }
+        } catch { toast.error("Project creation failed."); }
+    }, [activeWorkspaceId, loadImportProjects]);
+
     // Container external id -> linked project id (from synced container items)
     const containerProjectMap = useMemo(() => {
         const m: Record<string, string> = {};
@@ -750,14 +766,26 @@ export default function AppsPage() {
                                                 {importProjects.length > 0 && (
                                                     <div className="space-y-1.5">
                                                         <Label className="text-xs">Import into project</Label>
-                                                        <Select value={importProjectId} onValueChange={setImportProjectId}>
+                                                        <Select value={importProjectId} onValueChange={(v) => { if (v === "__create__") handleCreateProject(); else setImportProjectId(v); }}>
                                                             <SelectTrigger className="h-8 text-xs"><SelectValue placeholder="Select project" /></SelectTrigger>
                                                             <SelectContent>
                                                                 {importProjects.map(p => (
                                                                     <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
                                                                 ))}
+                                                                <SelectItem value="__create__">+ Create new project</SelectItem>
                                                             </SelectContent>
                                                         </Select>
+                                                    </div>
+                                                )}
+                                                {importProjects.length === 0 && (
+                                                    <div className="space-y-1.5">
+                                                        <Label className="text-xs">Import into project</Label>
+                                                        <div className="flex gap-2">
+                                                            <Button variant="outline" size="sm" className="h-8 text-xs" onClick={handleCreateProject}>
+                                                                <Plus className="h-3 w-3 mr-1" />Create project
+                                                            </Button>
+                                                            <span className="text-xs text-muted-foreground flex items-center">to import tasks</span>
+                                                        </div>
                                                     </div>
                                                 )}
                                             </>
