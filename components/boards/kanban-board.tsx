@@ -563,13 +563,13 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
   const ablyTimerRef = useRef<ReturnType<typeof setTimeout>>();
 
   const handleAblyUpdate = useCallback(() => {
-    // Skip refetch if a reorder just finished — handleDragEnd's finally block handles it
     if (reorderRef.current > 0) return;
     if (ablyTimerRef.current) clearTimeout(ablyTimerRef.current);
     ablyTimerRef.current = setTimeout(() => {
+      queryClient.invalidateQueries({ queryKey: ["board", boardId] });
       invalidateTaskCaches({ queryClient, workspaceId: activeWorkspaceId, projectId: board?.projectId });
     }, 500);
-  }, [queryClient, boardId, activeWorkspaceId]); // eslint-disable-line react-hooks/exhaustive-deps -- board is defined after this callback via useQuery
+  }, [queryClient, boardId, activeWorkspaceId]);
 
   const ablyClient = useAbly(boardChannel, "task:created", handleAblyUpdate);
   useAbly(boardChannel, "task:updated", handleAblyUpdate);
@@ -617,6 +617,8 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
     queryKey: ["board", boardId],
     queryFn: () => fetchBoard(boardId),
     enabled: !!boardId,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 
   const { data: dbStatuses = [] } = useStatuses(activeWorkspaceId, board?.projectId);
