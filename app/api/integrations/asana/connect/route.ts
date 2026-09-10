@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     // Pass workspaceId and code_verifier in the state (HMAC-signed to prevent CSRF)
     const state = signOAuthState({ workspaceId, codeVerifier });
 
-    const authUrl = `https://app.asana.com/-/oauth_authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256`;
+    const authUrl = `https://app.asana.com/-/oauth_authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&state=${state}&code_challenge=${codeChallenge}&code_challenge_method=S256&scope=default`;
 
     return NextResponse.redirect(authUrl);
 }
