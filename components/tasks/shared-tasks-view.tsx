@@ -519,14 +519,12 @@ export function SharedTasksView({ workspaceId, projectId }: SharedTasksViewProps
           </SortableContext>
         </DndContext>
         ) : (
-        <div className="rounded-2xl overflow-hidden bg-white dark:bg-zinc-900 border border-black/[0.04] dark:border-white/[0.06] shadow-sm h-full">
-          <TableView
-            tasks={tasks || []}
-            workspaceId={workspaceId!}
-            projectId={projectId || undefined}
-            availableMembers={members.map((m: any) => ({ id: m.id, name: m.name, imageUrl: m.imageUrl, image: m.imageUrl }))}
-            onSelectTask={(task) => { setSelectedTask(task); setIsDetailOpen(true); }}
-          />
+        <div className="flex flex-col items-center justify-center h-full rounded-2xl bg-white dark:bg-zinc-900 border border-black/[0.04] dark:border-white/[0.06] shadow-sm">
+          <div className="h-14 w-14 rounded-2xl bg-[#f5f5f7] dark:bg-zinc-800 flex items-center justify-center mb-4">
+            <ListChecks className="h-6 w-6 text-[#86868b]" />
+          </div>
+          <p className="text-[15px] font-semibold tracking-tight text-[#1d1d1f] dark:text-white mb-1">Coming Soon</p>
+          <p className="text-[13px] text-[#6e6e73] dark:text-zinc-400">Table view is under development.</p>
         </div>
       )}
 
