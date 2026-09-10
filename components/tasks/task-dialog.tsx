@@ -852,7 +852,7 @@ function ProgressSection({ progress, status, statuses, onProgressChange }: { pro
     const statusIdx = statuses.findIndex((s: any) => s.id === status);
     const statusProgress = statusIdx >= 0 ? Math.round((statusIdx / Math.max(1, statuses.length - 1)) * 100) : 0;
     const [draft, setDraft] = useState<number | null>(null);
-    const value = draft ?? progress;
+    const value = draft ?? statusProgress;
 
     useEffect(() => {
         setDraft(null);
