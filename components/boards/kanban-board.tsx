@@ -916,7 +916,7 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
         ...old,
         tasks: old.tasks.map((t: any) =>
           t.id === activeId
-            ? { ...t, columnId: targetColumnId, ...(derivedStatus && { status: derivedStatus }) }
+            ? { ...t, columnId: targetColumnId, ...(derivedStatus && { status: derivedStatus }), ...(derivedStatus && { progress: derivedStatus === "done" || derivedStatus === "completed" ? 100 : derivedStatus === "todo" || derivedStatus === "in_progress" ? 0 : t.progress }) }
             : t
         ),
       };
@@ -1083,7 +1083,9 @@ export default function KanbanBoard({ boardId }: KanbanBoardProps) {
           if (update) {
             const colName = columnNameMap[update.columnId];
             const status = colName ? colName.toLowerCase().replace(/\s+/g, "_") : t.status;
-            return { ...t, columnId: update.columnId, order: update.order, status };
+            const isDone = status === "done" || status === "completed";
+            const progress = isDone ? 100 : status === "todo" || status === "in_progress" ? 0 : t.progress;
+            return { ...t, columnId: update.columnId, order: update.order, status, progress };
           }
           return t;
         }),
