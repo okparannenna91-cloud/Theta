@@ -1,15 +1,13 @@
 cd /d C:\Users\USR\021-copy\Theta
 git add -A
-git commit -m "feat: comprehensive SEO improvements
+git commit -m "feat: add 31 new marketing SEO pages
 
-- Add lib/seo.ts with buildMetadata, buildArticleMetadata, structured data schemas
-- Add components/seo/json-ld.tsx for JSON-LD structured data
-- Add app/api/og-image/route.ts for dynamic OG image generation
-- Update app/layout.tsx with i18n language alternates, OG image, JSON-LD schemas
-- Expand sitemap.ts to 52 entries
-- Add metadata to all 77 pages including home, pricing, 404, error
-- Add metadata to 21+ dashboard pages and 19 remaining pages
-- Fix corrupted files from earlier batch operations
-- Add sign-in/sign-up metadata
+- Add asana, basecamp, hive, smartsheet, airtable, teamwork alternatives
+- Add automation, portfolio, reports, calendar, milestones, inbox, integrations features
+- Add how-to-use-kanban, project-management-framework, team-management, agile-methodology guides
+- Add about, careers, status, help, resources pages
+- Add free-vs-pro, business, enterprise pricing pages
+- Add github, slack integration pages
+- Update sitemap to 85 entries
 "
 git push
