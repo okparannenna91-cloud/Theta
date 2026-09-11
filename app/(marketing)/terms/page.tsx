@@ -2,7 +2,17 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Terms of Service | Theta PM",
+  description: "Read Theta PM's terms of service. Understand the rules and guidelines for using our platform.",
+  path: "/(marketing)/terms",
+});
+
 export default function TermsOfService() {
+
     return (
         <div className="min-h-screen bg-background text-foreground py-20 px-6">
             <div className="max-w-3xl mx-auto">

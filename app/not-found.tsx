@@ -1,6 +1,15 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
+import { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Page Not Found | Theta PM",
+  description: "The page you're looking for doesn't exist. Go back to the homepage and explore Theta PM.",
+  path: "/404",
+  noIndex: true,
+});
 
 export default function NotFound() {
   return (
@@ -18,4 +27,3 @@ export default function NotFound() {
     </div>
   );
 }
-

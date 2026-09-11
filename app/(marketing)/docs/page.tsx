@@ -2,7 +2,17 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Book, Shield, Zap } from "lucide-react";
 
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Documentation | Theta PM",
+  description: "Read the official Theta PM documentation. Learn to set up workspaces, manage tasks, and integrate your favorite tools.",
+  path: "/(marketing)/docs",
+});
+
 export default function Documentation() {
+
     return (
         <div className="min-h-screen bg-background text-foreground">
             <div className="max-w-4xl mx-auto px-6 py-20">

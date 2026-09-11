@@ -1,3 +1,5 @@
+
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -55,6 +57,15 @@ const TREND_ICONS = {
   stable: { icon: Minus, color: "text-slate-400" },
   declining: { icon: TrendingDown, color: "text-rose-400" },
 };
+
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Risk Management | Theta PM",
+  description: "Identify, track, and mitigate project risks. Monitor risk indicators.",
+  path: "/(dashboard)/risk",
+});
 
 export default function RiskDashboardPage() {
   const { activeWorkspace } = useWorkspace();

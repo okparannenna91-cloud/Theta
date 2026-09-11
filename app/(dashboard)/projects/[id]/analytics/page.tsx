@@ -1,3 +1,12 @@
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Project Analytics | Theta PM",
+  description: "View detailed project analytics and performance metrics.",
+  path: "/(dashboard)/projects/[id]/analytics",
+});
+
 "use client";
 
 import { TrendingUp } from "lucide-react";

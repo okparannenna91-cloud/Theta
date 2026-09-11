@@ -1,3 +1,12 @@
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Project | Theta PM",
+  description: "View and manage your project details.",
+  path: "/(dashboard)/projects/[id]",
+});
+
 "use client";
 
 import { useQuery } from "@tanstack/react-query";

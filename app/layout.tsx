@@ -11,11 +11,20 @@ import { AblyProvider } from "@/components/providers/ably-provider";
 import { PostHogProvider } from "@/components/providers/posthog-provider";
 import { ApiDebugProvider } from "@/components/providers/api-debug-provider";
 import { Toaster } from "sonner";
+import { JsonLd } from "@/components/seo/json-ld";
+import { organizationSchema, webSiteSchema } from "@/lib/seo";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-family" });
 
+const locales = ["en", "es", "fr", "de", "zh", "ar", "ja", "ru"];
+
+const languageAlternates: Record<string, string | null> = {};
+for (const l of locales) {
+  languageAlternates[l] = l === "en" ? null : `/${l}`;
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://thetapm.site"),
+  metadataBase: new URL("https://www.thetapm.site"),
   title: {
     default: "Theta PM | Project Management for High-Velocity Teams",
     template: "%s | Theta PM"
@@ -28,26 +37,20 @@ export const metadata: Metadata = {
   keywords: [
     "project management software",
     "task management tool",
-    "saas project tool",
     "team collaboration platform",
     "kanban boards",
-    "Teams",
     "real-time collaboration",
-    "SaaS Project management",
-    "Task management",
-    "Project management",
-    "real-time gantt charts",
+    "Gantt charts",
     "theta pm",
-    "theta",
-    "Theta PM",
-    "Theta PM",
-    "enterprise project isolation"
+    "project management",
+    "software development tools",
   ],
-  authors: [{ name: "Theta PM Teams", url: "https://thetapm.site" }],
+  authors: [{ name: "Theta PM Systems", url: "https://www.thetapm.site" }],
   creator: "Theta PM Systems",
   publisher: "Theta PM Systems",
   alternates: {
-    canonical: './',
+    canonical: "https://www.thetapm.site",
+    languages: languageAlternates,
   },
   robots: {
     index: true,
@@ -55,22 +58,22 @@ export const metadata: Metadata = {
     googleBot: {
       index: true,
       follow: true,
-      'max-video-preview': -1,
-      'max-image-preview': 'large',
-      'max-snippet': -1,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
     },
   },
   openGraph: {
     title: "Theta PM | Orchestrate Your Workflow",
     description: "Ship faster with sub-50ms real-time updates. The most advanced workspace for modern high-performing teams.",
-    url: "https://thetapm.site",
+    url: "https://www.thetapm.site",
     siteName: "Theta PM",
     images: [
       {
-        url: "/Logo.png",
-        width: 1024,
-        height: 1024,
-        alt: "Theta PM Workspace Preview",
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Theta PM Workspace",
       },
     ],
     locale: "en_US",
@@ -81,9 +84,12 @@ export const metadata: Metadata = {
     title: "Theta PM | Real-Time Project Synchronization",
     description: "Experience zero-latency project management with real-time collaboration. Built for scale.",
     creator: "@theta_pm",
-    images: ["/Logo.png"],
+    images: ["/og-image.png"],
   },
   category: "technology",
+  other: {
+    "theme-color": "#000000",
+  },
 };
 
 export const viewport: Viewport = {
@@ -94,7 +100,6 @@ export const viewport: Viewport = {
 };
 
 import { I18nProvider } from "@/lib/i18n";
-
 import { PopupProvider } from "@/components/popups/popup-manager";
 import dynamic from "next/dynamic";
 
@@ -119,6 +124,7 @@ export default function RootLayout({
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
           <meta name="apple-mobile-web-app-title" content="Theta PM" />
           <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+          <JsonLd data={[organizationSchema, webSiteSchema]} />
           <Script
             src="https://challenges.cloudflare.com/turnstile/v0/api.js"
             strategy="afterInteractive"
@@ -173,4 +179,3 @@ export default function RootLayout({
     </ClerkProvider>
   );
 }
-

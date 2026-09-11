@@ -1,3 +1,5 @@
+
+
 "use client";
 
 import React, { useState, useCallback } from "react";
@@ -6,6 +8,15 @@ import { DmChat } from "@/components/chat/dm-chat";
 import { DmNewMessage } from "@/components/chat/dm-new-message";
 import { useWorkspace } from "@/components/providers/workspace-provider";
 import { cn } from "@/lib/utils";
+
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Team Chat | Theta PM",
+  description: "Real-time team messaging and communication. Stay connected with your team.",
+  path: "/(dashboard)/chat",
+});
 
 export default function ChatPage() {
   const { activeWorkspace } = useWorkspace();

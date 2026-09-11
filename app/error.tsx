@@ -3,6 +3,15 @@
 import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Logo } from "@/components/ui/logo";
+import { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Something Went Wrong | Theta PM",
+  description: "Something went wrong on Theta PM. Please try again or go back to the homepage.",
+  path: "/error",
+  noIndex: true,
+});
 
 export default function Error({
   error,
@@ -28,4 +37,3 @@ export default function Error({
     </div>
   );
 }
-

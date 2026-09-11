@@ -1,3 +1,5 @@
+
+
 "use client";
 
 import { useState } from "react";
@@ -20,6 +22,15 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; icon: any }>
   completed: { label: "Completed", color: "bg-emerald-500", icon: CheckCircle2 },
   cancelled: { label: "Cancelled", color: "bg-red-500", icon: AlertTriangle },
 };
+
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Milestones | Theta PM",
+  description: "Track key project milestones and deadlines. Monitor progress toward critical goals.",
+  path: "/(dashboard)/milestones",
+});
 
 export default function Page() {
   const { activeWorkspaceId } = useWorkspace();

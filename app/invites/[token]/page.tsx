@@ -6,6 +6,15 @@ import { AlertTriangle, Home } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Accept Invitation | Theta PM",
+  description: "Accept your invitation to join a Theta PM workspace.",
+  path: "/invites/[token]",
+});
+
 export default async function InvitePage({ params }: { params: { token: string } }) {
     const user = await getCurrentUser();
     

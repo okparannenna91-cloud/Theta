@@ -1,8 +1,16 @@
 "use client";
 
+import { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
 import { useSearchParams } from "next/navigation";
 import { SignIn } from "@clerk/nextjs";
 import { Logo } from "@/components/ui/logo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Sign In | Theta PM",
+  description: "Sign in to your Theta PM account. Access your projects, tasks, and team.",
+  path: "/sign-in",
+});
 
 export default function SignInPage() {
   const searchParams = useSearchParams();

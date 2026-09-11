@@ -1,3 +1,5 @@
+
+
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -34,6 +36,15 @@ const REPORT_TYPES = [
   { type: "TEAM", description: "Workload analysis", icon: Users },
   { type: "EXECUTIVE", description: "High-level summaries", icon: FileText },
 ];
+
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Reports | Theta PM",
+  description: "Generate and view detailed reports across all projects and teams.",
+  path: "/(dashboard)/reports",
+});
 
 export default function ReportsPage() {
   const { activeWorkspace } = useWorkspace();

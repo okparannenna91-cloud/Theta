@@ -2,7 +2,17 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft } from "lucide-react";
 
+import type { Metadata } from "next";
+import { buildMetadata } from "@/lib/seo";
+
+export const metadata: Metadata = buildMetadata({
+  title: "Privacy Policy | Theta PM",
+  description: "Read Theta PM's privacy policy. Learn how we collect, use, store, and protect your personal data.",
+  path: "/(marketing)/privacy",
+});
+
 export default function PrivacyPolicy() {
+
     return (
         <div className="min-h-screen bg-background text-foreground py-20 px-6">
             <div className="max-w-3xl mx-auto">
