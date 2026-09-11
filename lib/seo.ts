@@ -72,8 +72,8 @@ export function buildArticleMetadata(params: {
   modifiedTime?: string;
   images?: string[];
 }): Metadata {
-  const { title, description, path, type = "article", images, publishedTime, modifiedTime } = params;
-  const base = buildMetadata({ ...params, type, images });
+  const { author, publishedTime, modifiedTime, ...rest } = params;
+  const base = buildMetadata({ ...rest, type: "article" });
   return {
     ...base,
     openGraph: {
