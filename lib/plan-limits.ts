@@ -1,5 +1,10 @@
 export type PlanName = "free" | "growth" | "pro" | "theta_plus";
 
+// === SCREENSHOTS: Toggle this to unlock all plan limits ===
+// Set to false to restore normal limits
+export const UNLOCK_LIMITS = true;
+// =============================================================
+
 // H1: Add explicit allowlist for plan validation
 const VALID_PLANS: PlanName[] = ["free", "growth", "pro", "theta_plus"];
 
@@ -214,6 +219,47 @@ export const PLAN_LIMITS: Record<PlanName, PlanLimits> = {    free: {
     },
 };
 
+// === SCREENSHOTS: Override all plan limits to unlimited ===
+if (UNLOCK_LIMITS) {
+    for (const plan of Object.keys(PLAN_LIMITS) as PlanName[]) {
+        PLAN_LIMITS[plan] = {
+            ...PLAN_LIMITS[plan],
+            maxWorkspaces: -1,
+            maxProjects: -1,
+            maxTasks: -1,
+            maxTeams: -1,
+            maxMembers: -1,
+            maxBoards: -1,
+            maxCustomFields: -1,
+            maxCalendarEvents: -1,
+            maxStorage: -1,
+            maxFileSize: -1,
+            maxNovaRequests: -1,
+            maxMemoryItems: -1,
+            maxAutomations: -1,
+            maxIntegrations: -1,
+            maxAPIRequests: -1,
+            activityHistoryDays: -1,
+            maxChatMessages: -1,
+            maxDocumentPages: -1,
+            hasTimeline: true,
+            hasGantt: true,
+            hasAdvancedAnalytics: true,
+            hasCustomFields: true,
+            hasExport: true,
+            hasPDFExport: true,
+            canCreateSprints: true,
+            canCreateGoals: true,
+            canUseTimer: true,
+            hasTimeReports: true,
+            hasPrioritySupport: true,
+            hasWhiteLabel: true,
+            hasAPIAccess: true,
+            supportResponseHours: 0,
+        } as PlanLimits;
+    }
+}
+// =============================================================
 
 
 /**
