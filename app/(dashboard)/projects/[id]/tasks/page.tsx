@@ -1,11 +1,4 @@
-import type { Metadata } from "next";
-import { buildMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = buildMetadata({
-  title: "Project Tasks | Theta PM",
-  description: "Manage all tasks for this project.",
-  path: "/(dashboard)/projects/[id]/tasks",
-});
 
 "use client";
 
