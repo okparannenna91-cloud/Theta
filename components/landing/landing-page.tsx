@@ -151,9 +151,9 @@ export default function LandingPage() {
             </div>
 
             {[
-              { label: "Platform", links: [["Features", "#features"], ["Pricing", "/pricing"], ["Integrations", "#"], ["Roadmap", "#"]] },
-              { label: "Company", links: [["About", "#"], ["Careers", "#"], ["Blog", "#"], ["Contact", "#"]] },
-              { label: "Resources", links: [["Docs", "/docs"], ["API Reference", "#"], ["Help Center", "#"], ["Status", "#"]] },
+              { label: "Platform", links: [["Features", "/features/tasks"], ["Kanban", "/features/kanban-board"], ["Gantt", "/features/gantt"], ["Timeline", "/features/timeline"], ["Pricing", "/pricing"]] },
+              { label: "Resources", links: [["Guides", "/guides/kanban"], ["Comparisons", "/project-management-software"], ["Alternatives", "/alternatives/jira-alternative"], ["Docs", "/docs"], ["Help Center", "/help"], ["Status", "/status"]] },
+              { label: "Company", links: [["About", "/about"], ["Careers", "/careers"], ["Privacy", "/privacy"], ["Terms", "/terms"]] },
             ].map((col, i) => (
               <div key={i}>
                 <h4 className="text-xs font-semibold text-foreground uppercase tracking-wider mb-4">{col.label}</h4>

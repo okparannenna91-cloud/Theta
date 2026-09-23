@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Logo } from "@/components/ui/logo";
+import { NavDropdown, type NavDropdownCategory } from "./nav-dropdown";
 
 function NavLink({ href, children }: { href: string; children: React.ReactNode }) {
   return (
@@ -9,6 +10,117 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   );
 }
 
+const featureColumns: NavDropdownCategory[] = [
+  {
+    title: "Plan",
+    items: [
+      { label: "Task Management", href: "/features/tasks" },
+      { label: "Kanban Board", href: "/features/kanban-board" },
+      { label: "Gantt Charts", href: "/features/gantt" },
+      { label: "Timeline", href: "/features/timeline" },
+      { label: "Calendar", href: "/features/calendar" },
+      { label: "Milestones", href: "/features/milestones" },
+      { label: "Project Planning", href: "/features/project-planning" },
+    ],
+  },
+  {
+    title: "Execute",
+    items: [
+      { label: "Collaboration", href: "/features/collaboration" },
+      { label: "Inbox", href: "/features/inbox" },
+      { label: "Automation", href: "/features/automation" },
+      { label: "Portfolio", href: "/features/portfolio" },
+      { label: "Reports", href: "/features/reports" },
+      { label: "Integrations", href: "/features/integrations" },
+    ],
+  },
+];
+
+const guideColumns: NavDropdownCategory[] = [
+  {
+    title: "Methodologies",
+    items: [
+      { label: "What is Agile", href: "/guides/what-is-agile" },
+      { label: "What is a Sprint", href: "/guides/what-is-a-sprint" },
+      { label: "Agile Methodology Guide", href: "/guides/agile-methodology-guide" },
+      { label: "Kanban Guide", href: "/guides/kanban" },
+      { label: "How to Use Kanban", href: "/guides/how-to-use-kanban" },
+      { label: "Kanban vs Scrum", href: "/guides/kanban-vs-scrum" },
+      { label: "Kanban vs Scrum vs Agile", href: "/guides/kanban-vs-scrum-vs-agile" },
+      { label: "Scrum vs Waterfall", href: "/guides/scrum-vs-waterfall" },
+    ],
+  },
+  {
+    title: "Planning & Delivery",
+    items: [
+      { label: "What is a Gantt Chart", href: "/guides/what-is-a-gantt-chart" },
+      { label: "How to Set Project Goals", href: "/guides/how-to-set-project-goals" },
+      { label: "How to Manage Project Risks", href: "/guides/how-to-manage-project-risks" },
+      { label: "How to Prioritize Tasks", href: "/guides/how-to-prioritize-tasks" },
+      { label: "PM Framework", href: "/guides/project-management-framework" },
+      { label: "How to Choose PM Software", href: "/guides/how-to-choose-project-management-software" },
+    ],
+  },
+  {
+    title: "Teams",
+    items: [
+      { label: "Team Management", href: "/guides/team-management" },
+      { label: "Task Management Best Practices", href: "/guides/task-management-best-practices" },
+      { label: "Productivity Tools for Teams", href: "/guides/productivity-tools-for-teams" },
+    ],
+  },
+];
+
+const alternativeColumns: NavDropdownCategory[] = [
+  {
+    title: "Popular",
+    items: [
+      { label: "Jira Alternative", href: "/alternatives/jira-alternative" },
+      { label: "Asana Alternative", href: "/alternatives/asana-alternative" },
+      { label: "Monday Alternative", href: "/alternatives/monday-alternative" },
+      { label: "ClickUp Alternative", href: "/alternatives/clickup-alternative" },
+      { label: "Trello Alternative", href: "/alternatives/trello-alternative" },
+      { label: "Notion Alternative", href: "/alternatives/notion-alternative" },
+    ],
+  },
+  {
+    title: "More",
+    items: [
+      { label: "MS Project Alternative", href: "/alternatives/microsoft-project-alternative" },
+      { label: "Basecamp Alternative", href: "/alternatives/basecamp-alternative" },
+      { label: "Hive Alternative", href: "/alternatives/hive-alternative" },
+      { label: "Smartsheet Alternative", href: "/alternatives/smartsheet-alternative" },
+      { label: "Airtable Alternative", href: "/alternatives/airtable-alternative" },
+      { label: "Teamwork Alternative", href: "/alternatives/teamwork-alternative" },
+    ],
+  },
+];
+
+const comparisonColumns: NavDropdownCategory[] = [
+  {
+    title: "Comparisons",
+    items: [
+      { label: "All Comparisons", href: "/project-management-software" },
+      { label: "Theta vs Asana", href: "/project-management-software/theta-vs-asana" },
+      { label: "Theta vs ClickUp", href: "/project-management-software/theta-vs-clickup" },
+      { label: "Theta vs Jira", href: "/project-management-software/theta-vs-jira" },
+      { label: "Theta vs Monday", href: "/project-management-software/theta-vs-monday" },
+      { label: "Theta vs Notion", href: "/project-management-software/theta-vs-notion" },
+      { label: "Theta vs Trello", href: "/project-management-software/theta-vs-trello" },
+      { label: "Theta vs Wrike", href: "/project-management-software/theta-vs-wrike" },
+    ],
+  },
+];
+
+const integrationColumns: NavDropdownCategory[] = [
+  {
+    items: [
+      { label: "GitHub", href: "/integrations/github" },
+      { label: "Slack", href: "/integrations/slack" },
+    ],
+  },
+];
+
 export function SeoShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col">
@@ -16,10 +128,11 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
         <div className="max-w-5xl mx-auto px-6 py-3.5 flex items-center justify-between">
           <Logo size={16} href="/" showWordmark={false} container priority />
           <div className="hidden md:flex items-center gap-6 text-sm">
-            <NavLink href="/project-management-software">Comparisons</NavLink>
-            <NavLink href="/alternatives/jira-alternative">Alternatives</NavLink>
-            <NavLink href="/guides/kanban">Guides</NavLink>
-            <NavLink href="/features/tasks">Features</NavLink>
+            <NavDropdown label="Features" columns={featureColumns} />
+            <NavDropdown label="Guides" columns={guideColumns} />
+            <NavDropdown label="Alternatives" columns={alternativeColumns} />
+            <NavDropdown label="Comparisons" columns={comparisonColumns} />
+            <NavDropdown label="Integrations" columns={integrationColumns} />
             <NavLink href="/pricing">Pricing</NavLink>
           </div>
           <div className="flex items-center gap-3">
@@ -40,8 +153,8 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
 
       <footer className="border-t py-14 bg-card">
         <div className="max-w-5xl mx-auto px-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-8">
-            <div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-x-8 gap-y-10">
+            <div className="col-span-2 md:col-span-3 lg:col-span-1">
               <Logo size={16} href="/" showWordmark={false} container />
               <p className="text-sm text-muted-foreground mt-3 max-w-xs">
                 Theta PM is a PM-native project management platform for modern teams.
@@ -60,23 +173,51 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
                 </a>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-x-16 gap-y-2">
-              <div className="space-y-2.5">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">Product</h4>
-                <NavLink href="/features/tasks">Task Management</NavLink>
-                <NavLink href="/features/kanban-board">Kanban</NavLink>
-                <NavLink href="/features/gantt">Gantt</NavLink>
-                <NavLink href="/features/collaboration">Collaboration</NavLink>
-              </div>
-              <div className="space-y-2.5">
-                <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">Resources</h4>
-                <NavLink href="/guides/kanban">Kanban Guide</NavLink>
-                <NavLink href="/guides/kanban-vs-scrum-vs-agile">Kanban vs Scrum vs Agile</NavLink>
-                <NavLink href="/project-management-software">Comparisons</NavLink>
-                <NavLink href="/alternatives/jira-alternative">Alternatives</NavLink>
-              </div>
+
+            <div className="space-y-2.5">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">Features</h4>
+              <NavLink href="/features/tasks">Task Management</NavLink>
+              <NavLink href="/features/kanban-board">Kanban</NavLink>
+              <NavLink href="/features/gantt">Gantt</NavLink>
+              <NavLink href="/features/timeline">Timeline</NavLink>
+              <NavLink href="/features/collaboration">Collaboration</NavLink>
+              <NavLink href="/features/automation">Automation</NavLink>
+              <NavLink href="/features/reports">Reports</NavLink>
+            </div>
+
+            <div className="space-y-2.5">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">Guides</h4>
+              <NavLink href="/guides/kanban">Kanban Guide</NavLink>
+              <NavLink href="/guides/what-is-agile">What is Agile</NavLink>
+              <NavLink href="/guides/kanban-vs-scrum">Kanban vs Scrum</NavLink>
+              <NavLink href="/guides/what-is-a-gantt-chart">What is a Gantt Chart</NavLink>
+              <NavLink href="/guides/how-to-prioritize-tasks">How to Prioritize</NavLink>
+              <NavLink href="/guides/team-management">Team Management</NavLink>
+            </div>
+
+            <div className="space-y-2.5">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">Compare</h4>
+              <NavLink href="/project-management-software">All Comparisons</NavLink>
+              <NavLink href="/alternatives/jira-alternative">vs Jira</NavLink>
+              <NavLink href="/alternatives/asana-alternative">vs Asana</NavLink>
+              <NavLink href="/alternatives/clickup-alternative">vs ClickUp</NavLink>
+              <NavLink href="/alternatives/monday-alternative">vs Monday</NavLink>
+              <NavLink href="/alternatives/trello-alternative">vs Trello</NavLink>
+            </div>
+
+            <div className="space-y-2.5">
+              <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">Company</h4>
+              <NavLink href="/about">About</NavLink>
+              <NavLink href="/careers">Careers</NavLink>
+              <NavLink href="/pricing">Pricing</NavLink>
+              <NavLink href="/integrations/github">GitHub</NavLink>
+              <NavLink href="/integrations/slack">Slack</NavLink>
+              <NavLink href="/docs">Documentation</NavLink>
+              <NavLink href="/help">Help Center</NavLink>
+              <NavLink href="/status">Status</NavLink>
             </div>
           </div>
+
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8 mt-10 border-t text-xs text-muted-foreground">
             <p>&copy; {new Date().getFullYear()} Theta PM Systems.</p>
             <div className="flex gap-6">
