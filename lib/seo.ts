@@ -147,10 +147,12 @@ export const faqSchema = (faqs: { q: string; a: string }[]) => ({
 export const breadcrumbSchema = (items: string[]) => ({
   "@context": "https://schema.org",
   "@type": "BreadcrumbList",
-  itemListElement: items.map((item, i) => ({
-    "@type": "ListItem",
-    position: i + 1,
-    name: item,
-    item: i === 0 ? BASE_URL : `${BASE_URL}${items.slice(1, i + 1).map(encodeURIComponent).join("/")}`,
-  })),
+  itemListElement: items.map((item, i) => {
+    if (i === 0) {
+      return { "@type": "ListItem", position: 1, name: item, item: BASE_URL };
+    }
+    const pathParts = items.slice(1, i);
+    const pathStr = "/" + pathParts.map((s) => s.toLowerCase().replace(/\s+/g, "-")).join("/");
+    return { "@type": "ListItem", position: i + 1, name: item, item: `${BASE_URL}${pathStr}` };
+  }),
 });

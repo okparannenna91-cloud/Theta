@@ -12,7 +12,7 @@ import { buildMetadata } from "@/lib/seo";
 export const metadata: Metadata = buildMetadata({
   title: "Accept Invitation | Theta PM",
   description: "Accept your invitation to join a Theta PM workspace.",
-  path: "/invites/[token]",
+  path: "/invites/accept",
 });
 
 export default async function InvitePage({ params }: { params: { token: string } }) {

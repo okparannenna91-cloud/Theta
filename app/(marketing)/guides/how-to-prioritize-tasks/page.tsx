@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
 
-const BASE = "https://thetapm.site";
+const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = {
   title: "How to Prioritize Tasks: A Practical Step-by-Step Guide (2026)",

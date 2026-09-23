@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, MessageCircleQuestion, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { breadcrumbSchema, faqSchema } from "@/lib/seo";
 
 export interface SeoSection {
   h2: string;
@@ -27,6 +28,12 @@ export interface SeoContentProps {
   schema?: Record<string, unknown>[];
 }
 
+function getBreadcrumbHref(breadcrumb: string[], index: number): string {
+  if (index === 0) return "/";
+  const pathSegments = breadcrumb.slice(1, index + 1);
+  return "/" + pathSegments.map((s) => s.toLowerCase().replace(/\s+/g, "-")).join("/");
+}
+
 export function SeoContent({
   breadcrumb,
   title,
@@ -37,8 +44,14 @@ export function SeoContent({
   cta = { title: "Start free in minutes", body: "Create a workspace, invite your team, and plan your first project today.", button: "Get Started", href: "/sign-up" },
   schema = [],
 }: SeoContentProps) {
+  const bcSchema = breadcrumbSchema(breadcrumb);
+  const faqSchemas = faqs.length > 0 ? faqSchema(faqs) : null;
   return (
     <article className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(bcSchema) }}
+      />
       {schema.map((s, i) => (
         <script
           key={i}
@@ -46,6 +59,12 @@ export function SeoContent({
           dangerouslySetInnerHTML={{ __html: JSON.stringify(s) }}
         />
       ))}
+      {faqSchemas && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchemas) }}
+        />
+      )}
 
       <nav className="text-xs text-muted-foreground mb-8 flex items-center gap-2 flex-wrap" aria-label="Breadcrumb">
         {breadcrumb.map((b, i) => {
@@ -56,7 +75,7 @@ export function SeoContent({
               {isLast ? (
                 <span className="text-foreground font-medium">{b}</span>
               ) : (
-                <Link href={i === 0 ? "/" : "#"} className="hover:text-foreground transition-colors">{b}</Link>
+                <Link href={getBreadcrumbHref(breadcrumb, i)} className="hover:text-foreground transition-colors">{b}</Link>
               )}
             </span>
           );

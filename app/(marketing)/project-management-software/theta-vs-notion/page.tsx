@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
 
-const BASE = "https://thetapm.site";
+const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = {
   title: "Theta PM vs Notion (2026): Side-by-Side Comparison",
