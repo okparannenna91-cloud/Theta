@@ -7,8 +7,6 @@
  * EU Region API configuration is used when STORYBLOK_API_REGION=eu
  */
 
-import type { GetStoryblokContentResponse } from '@storyblok/react';
-
 // Storyblok configuration
 const SPACE_ID = process.env.STORYBLOK_SPACE_ID || '';
 const PUBLIC_TOKEN = process.env.STORYBLOK_TOKEN || '';
@@ -99,7 +97,7 @@ export async function getStoryblokPage(
   } = {}
 ): Promise<{
   story: any;
-  ancher: string;
+  anchor: string;
   resolves: any;
 } | null> {
   const { version = 'published', language, preview = false } = options;
@@ -135,7 +133,7 @@ export async function getStoryblokPage(
     const data = await response.json();
     return {
       story: data.story || data.entry,
-      ancher: data_anchor || '',
+      anchor: data.story?._uid || data.entry?._uid || '',
       resolves: data.resolves || {},
     };
   } catch (error) {

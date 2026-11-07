@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import type { StoryblokEntry } from '@/lib/storyblok';
 
 // GET /api/storyblok/preview?slug=...&path=...
 // Fetches draft content from Storyblok using the preview token
@@ -19,7 +18,7 @@ export async function GET(request: Request) {
   }
 
   // Import here to avoid issues at runtime
-  const storyblok = await import('@/lib/storyblok');
+  const storyblok = await import('../../../lib/storyblok');
 
   // Always use draft version for preview, with preview token
   const data = await storyblok.default.fetchStoryblokContent(
@@ -51,7 +50,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const storyblok = await import('@/lib/storyblok');
+    const storyblok = await import('../../../lib/storyblok');
     const data = await storyblok.default.fetchStoryblokContent(
       slug || path,
       { version: 'draft' }
