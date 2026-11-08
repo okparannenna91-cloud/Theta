@@ -229,6 +229,30 @@ export function RelatedArticles({ blok }: { blok: Blok }) {
   );
 }
 
+export function ScreenshotGallery({ blok }: { blok: Blok }) {
+  const items = asArray(blok.images || blok.screenshots || blok.items);
+  return (
+    <section {...storyblokEditable(blok)} className="my-10">
+      {blok.title ? <h2 className="mb-6 text-2xl font-bold text-foreground">{asText(blok.title)}</h2> : null}
+      {blok.description ? <p className="mb-6 text-sm text-muted-foreground">{asText(blok.description)}</p> : null}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((item: any, i: number) => {
+          const src = item?.image?.filename || item?.filename || item?.src;
+          if (!src || typeof src !== "string") return null;
+          const alt = asText(item?.alt || item?.caption || blok.title || "Screenshot");
+          return (
+            <figure key={item?._uid || i} className="overflow-hidden rounded-xl border border-border/40 bg-card">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={src} alt={alt} className="h-auto w-full" loading="lazy" />
+              {item?.caption ? <figcaption className="px-3 py-2 text-xs text-muted-foreground">{asText(item.caption)}</figcaption> : null}
+            </figure>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export function Page({ blok }: { blok: Blok }) {
   const body = asArray(blok.body);
   // Lazy import pattern not needed; use registry lookup safely at render time.
@@ -269,4 +293,8 @@ export const storyblokComponents: Record<string, ComponentType<any>> = {
   "internal-links": InternalLinks,
   related_articles: RelatedArticles,
   "related-articles": RelatedArticles,
+  screenshot_gallery: ScreenshotGallery,
+  "screenshot-gallery": ScreenshotGallery,
+  screenshots: ScreenshotGallery,
+  gallery: ScreenshotGallery,
 };
