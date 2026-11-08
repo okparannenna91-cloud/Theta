@@ -14,15 +14,32 @@ const isPublicRoute = createRouteMatcher([
   '/alternatives(.*)',
   '/guides(.*)',
   '/features(.*)',
+  '/about(.*)',
+  '/careers(.*)',
+  '/status(.*)',
+  '/help(.*)',
+  '/resources(.*)',
+  '/integrations(.*)',
+  '/forgot-password(.*)',
+  '/reset-password(.*)',
   '/api/user/preferences(.*)',
   '/api/webhooks(.*)', // Clerk webhook: signed via Svix, must bypass session auth
   '/api/inngest(.*)', // Inngest Cloud: signed via INNGEST_SIGNING_KEY, must bypass session auth
   '/api/flow(.*)', // Flow³ bridge: server-to-server, Bearer FLOW_BRIDGE_SECRET (validated in-app), must bypass session auth
   '/api/billing/cron(.*)', // Billing cron: server-to-server, Bearer CRON_SECRET (validated in-app), must bypass session auth
+  '/api/storyblok(.*)', // Storyblok preview/draft routes: draft enable validates _storyblok_tk server-side
 ]);
 
 const isApiRoute = createRouteMatcher([
   '/api(.*)',
+]);
+
+// Protected application areas (require auth). All other page routes are treated as public
+// to support Storyblok-managed SEO pages at arbitrary URLs without blocking them.
+const isProtectedPageRoute = createRouteMatcher([
+  '/dashboard(.*)',
+  '/settings(.*)',
+  '/onboarding(.*)',
 ]);
 
 const limiter = rateLimit({
@@ -70,20 +87,24 @@ export default clerkMiddleware(async (auth, req) => {
     }
   }
 
-  if (!isPublicRoute(req)) {
-    if (!session.userId) {
-      // API routes → return JSON 401 so the client can handle it gracefully
-      if (isApiRoute(req)) {
-        return NextResponse.json(
-          { error: "Unauthorized", code: "auth/session-expired" },
-          { status: 401 }
-        );
-      }
-      // Page routes → redirect to sign-in preserving the intended URL
-      const signInUrl = new URL('/sign-in', req.url);
-      signInUrl.searchParams.set('redirect_url', req.nextUrl.pathname + req.nextUrl.search);
-      return NextResponse.redirect(signInUrl);
+  // Auth enforcement: protect API routes (unless public) and protected page areas.
+  // Public marketing/content pages (including Storyblok-managed URLs) remain accessible.
+  const requiresAuth = isApiRoute(req)
+    ? !isPublicRoute(req)
+    : isProtectedPageRoute(req);
+
+  if (requiresAuth && !session.userId) {
+    // API routes → return JSON 401 so the client can handle it gracefully
+    if (isApiRoute(req)) {
+      return NextResponse.json(
+        { error: "Unauthorized", code: "auth/session-expired" },
+        { status: 401 }
+      );
     }
+    // Page routes → redirect to sign-in preserving the intended URL
+    const signInUrl = new URL('/sign-in', req.url);
+    signInUrl.searchParams.set('redirect_url', req.nextUrl.pathname + req.nextUrl.search);
+    return NextResponse.redirect(signInUrl);
   }
 
   const elapsed = Date.now() - start;

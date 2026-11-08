@@ -1,4 +1,5 @@
 import { MetadataRoute } from "next";
+import { listPublishedStories, extractSeo, isStoryblokConfigured } from "@/lib/storyblok";
 
 const baseUrl = "https://www.thetapm.site";
 
@@ -77,6 +78,49 @@ const staticPages: MetadataRoute.Sitemap = [
   { url: `${baseUrl}/reset-password`, lastModified: new Date(), changeFrequency: "monthly", priority: 0.4 },
 ];
 
-export default function sitemap(): MetadataRoute.Sitemap {
-  return [...marketingPages, ...staticPages];
+async function getStoryblokSitemapEntries(): Promise<MetadataRoute.Sitemap> {
+  if (!isStoryblokConfigured()) return [];
+  try {
+    const stories = await listPublishedStories();
+    const entries: MetadataRoute.Sitemap = [];
+    for (const story of stories) {
+      // Published stories only (listPublishedStories uses published version). Exclude folders/system entries.
+      if ((story as any).is_folder) continue;
+      const full = (story.full_slug || story.slug || "").replace(/^\/+|\/+$/g, "");
+      if (!full || full === "home") continue; // home maps to / which is already in marketingPages
+      // Exclude paths that conflict with app routes/namespaces.
+      if (/^(api|dashboard|settings|sign-in|sign-up|forgot-password|reset-password|invites|_next)(\/|$)/.test(full)) continue;
+
+      const seo = extractSeo(story);
+      if (seo.noindex) continue;
+      const canonical = seo.canonical && seo.canonical.startsWith(baseUrl)
+        ? seo.canonical
+        : `${baseUrl}/${full}`;
+      // Avoid duplicating existing sitemap entries.
+      entries.push({
+        url: canonical,
+        lastModified: story.published_at ? new Date(story.published_at) : story.updated_at ? new Date(story.updated_at) : new Date(),
+        changeFrequency: "weekly",
+        priority: 0.7,
+      });
+    }
+    return entries;
+  } catch (err) {
+    console.error("[sitemap] Storyblok entries fetch failed:", err);
+    return [];
+  }
+}
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  const existing = [...marketingPages, ...staticPages];
+  const storyblok = await getStoryblokSitemapEntries();
+  const seen = new Set(existing.map((e) => e.url));
+  const merged = [...existing];
+  for (const entry of storyblok) {
+    if (!seen.has(entry.url)) {
+      seen.add(entry.url);
+      merged.push(entry);
+    }
+  }
+  return merged;
 }

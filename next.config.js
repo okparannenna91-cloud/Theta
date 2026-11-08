@@ -8,6 +8,7 @@ const nextConfig = {
     remotePatterns: [
       { protocol: 'https', hostname: 'img.clerk.com' },
       { protocol: 'https', hostname: 'res.cloudinary.com' },
+      { protocol: 'https', hostname: 'a.storyblok.com' },
     ],
     formats: ['image/avif', 'image/webp'],
   },
@@ -44,10 +45,8 @@ const nextConfig = {
             key: 'X-Content-Type-Options',
             value: 'nosniff',
           },
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
-          },
+          // X-Frame-Options removed in favor of CSP frame-ancestors to allow
+          // Storyblok Visual Editor (https://app.storyblok.com) to embed preview pages.
           {
             key: 'X-XSS-Protection',
             value: '1; mode=block',
@@ -68,13 +67,14 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.thetapm.site https://*.clerk.com",
-              "script-src-elem 'self' 'unsafe-inline' https://clerk.thetapm.site https://*.clerk.com https://vercel.live https://*.posthog.com https://us-assets.i.posthog.com",
+              "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://clerk.thetapm.site https://*.clerk.com https://app.storyblok.com https://*.storyblok.com",
+              "script-src-elem 'self' 'unsafe-inline' https://clerk.thetapm.site https://*.clerk.com https://vercel.live https://*.posthog.com https://us-assets.i.posthog.com https://app.storyblok.com https://*.storyblok.com",
               "style-src 'self' 'unsafe-inline'",
-              "img-src 'self' data: blob: https://*.cloudinary.com https://img.clerk.com https://*.gravatar.com",
-              "connect-src 'self' https://*.ably.io wss://*.ably.io https://*.ably.net wss://*.ably.net https://*.ably-realtime.com wss://*.ably-realtime.com https://*.upstash.io https://api.clerk.com https://clerk.thetapm.site wss://clerk.thetapm.site https://*.clerk.com https://api.openai.com https://*.posthog.com https://api.posthog.com https://accounts.google.com https://*.googleapis.com https://oauth2.googleapis.com https://vercel.live",
+              "img-src 'self' data: blob: https://*.cloudinary.com https://img.clerk.com https://*.gravatar.com https://a.storyblok.com https://*.storyblok.com",
+              "connect-src 'self' https://*.ably.io wss://*.ably.io https://*.ably.net wss://*.ably.net https://*.ably-realtime.com wss://*.ably-realtime.com https://*.upstash.io https://api.clerk.com https://clerk.thetapm.site wss://clerk.thetapm.site https://*.clerk.com https://api.openai.com https://*.posthog.com https://api.posthog.com https://accounts.google.com https://*.googleapis.com https://oauth2.googleapis.com https://vercel.live https://api.storyblok.com https://mapi.storyblok.com https://*.storyblok.com wss://*.storyblok.com",
               "font-src 'self' data:",
-              "frame-src 'self' https://clerk.thetapm.site https://*.accounts.dev https://*.clerk.accounts.dev https://clerk.com https://accounts.google.com https://vercel.live https://www.figma.com https://figma.com https://*.figma.com https://www.canva.com https://canva.com https://*.canva.com https://embed.figma.com",
+              "frame-src 'self' https://clerk.thetapm.site https://*.accounts.dev https://*.clerk.accounts.dev https://clerk.com https://accounts.google.com https://vercel.live https://www.figma.com https://figma.com https://*.figma.com https://www.canva.com https://canva.com https://*.canva.com https://embed.figma.com https://app.storyblok.com",
+              "frame-ancestors 'self' https://app.storyblok.com",
               "worker-src 'self' blob: https://clerk.thetapm.site https://*.clerk.com",
               "object-src 'none'",
               "base-uri 'self'",
@@ -118,4 +118,3 @@ const nextConfig = {
 }
 
 module.exports = nextConfig
-

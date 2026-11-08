@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { draftMode } from "next/headers";
 import { SeoShell } from "@/components/seo/seo-shell";
 import StoryblokStoryClient from "@/components/storyblok/StoryblokStory";
 import {
@@ -102,11 +101,7 @@ export default async function StoryblokCatchAllPage({ params, searchParams }: Pr
       {schemas.map((s, i) => (
         <script key={i} type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(s) }} />
       ))}
-      {preview ? (
-        <StoryblokStoryClient story={result.story} />
-      ) : (
-        <StoryblokStoryClient story={result.story} />
-      )}
+      <StoryblokStoryClient story={result.story} />
     </SeoShell>
   );
 }
