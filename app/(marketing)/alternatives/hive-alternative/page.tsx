@@ -7,7 +7,7 @@ const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = buildMetadata({
   title: "Best Hive Alternatives in 2026",
-  description: "Looking for a Hive alternative? Compare the best Hive alternatives for project management.",
+  description: "Looking for a Hive alternative? Compare the best Hive alternatives for project management. Find the right tool for your team's needs.",
   path: "/alternatives/hive-alternative",
 });
 

@@ -7,7 +7,7 @@ const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = buildMetadata({
   title: "Best Airtable Alternatives in 2026",
-  description: "Looking for an Airtable alternative? Compare the best project management tools with spreadsheet-style interfaces.",
+  description: "Looking for an Airtable alternative? Compare the best project management tools with spreadsheet-style interfaces. Find the right tool for your team's needs.",
   path: "/alternatives/airtable-alternative",
 });
 

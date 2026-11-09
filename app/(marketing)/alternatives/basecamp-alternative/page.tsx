@@ -7,7 +7,7 @@ const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = buildMetadata({
   title: "Best Basecamp Alternatives in 2026",
-  description: "Looking for a Basecamp alternative? Compare the best alternatives for modern team collaboration.",
+  description: "Looking for a Basecamp alternative? Compare the best alternatives for modern team collaboration. Find the right tool for your team's needs.",
   path: "/alternatives/basecamp-alternative",
 });
 
