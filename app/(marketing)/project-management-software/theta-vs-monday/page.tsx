@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = {
-  title: "Theta PM vs Monday.com (2026): Side-by-Side Comparison",
-  description: "Theta PM vs Monday.com compared on views, automation, pricing, and ease of use. See which project management tool fits your operations team in 2026.",
+  title: "Monday.com vs Theta PM (2026): Boards vs Planning Comparison",
+  description: "Monday.com vs Theta PM: visual boards vs real planning. Monday.com wins on customizable boards, but Theta PM gives every team timeline, Gantt, and calendar views — all included, no tier upgrades. Compare pricing and views to decide.",
   alternates: { canonical: `${BASE}/project-management-software/theta-vs-monday` },
   openGraph: {
-    title: "Theta PM vs Monday.com (2026): Side-by-Side Comparison",
+    title: "Monday.com vs Theta PM (2026): Boards vs Planning Comparison",
     description: "Compared on views, automation, pricing, and ease of use.",
     url: `${BASE}/project-management-software/theta-vs-monday`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Theta PM vs Monday.com (2026): Side-by-Side Comparison",
+    title: "Monday.com vs Theta PM (2026): Boards vs Planning Comparison",
     description: "Which project management tool fits your operations team?",
     creator: "@theta_pm",
   },
@@ -31,6 +31,44 @@ const pageSchema = [
     description: "Theta PM vs Monday.com compared on views, automation, pricing, and ease of use.",
     author: { "@type": "Organization", name: "Theta PM Systems" },
     publisher: { "@type": "Organization", name: "Theta PM Systems" },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        "name": "Is Theta PM better than Monday.com?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "It depends on your team. Theta PM is better for teams that want board, timeline, Gantt, and calendar views on the same tasks, plus automation without limits. Monday.com is better for teams that want a highly customizable visual board with a big marketplace behind it."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I move my Monday.com boards to Theta PM?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. You can export your board data and rebuild your projects in Theta PM. Most teams run both tools side by side for a week or two while they switch."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Theta PM have a free plan?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Theta PM's free tier covers a full small team, with unlimited tasks and boards plus timeline and Gantt views included."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Monday.com cheaper than Theta PM?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "It depends on your plan and how many seats you pay for. Monday.com's automation limits and tier-gated views can push costs up as teams grow. Theta PM's free tier covers a full small team, and paid plans keep basic views included."
+        }
+      }
+    ]
   },
 ];
 

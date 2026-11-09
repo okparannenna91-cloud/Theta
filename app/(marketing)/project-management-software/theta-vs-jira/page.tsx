@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = {
-  title: "Theta PM vs Jira (2026): Side-by-Side Comparison",
-  description: "Theta PM vs Jira compared on setup time, board experience, planning views, GitHub integration, and pricing. See which project management tool fits your team in 2026.",
+  title: "Jira vs Theta PM (2026): Agile Power Comparison",
+  description: "Jira vs Theta PM: agile power without the setup burden. Compare setup time, boards, Gantt charts, GitHub integration, and pricing. Choose agile power without the configuration tax.",
   alternates: { canonical: `${BASE}/project-management-software/theta-vs-jira` },
   openGraph: {
-    title: "Theta PM vs Jira (2026): Side-by-Side Comparison",
+    title: "Jira vs Theta PM (2026): Agile Power Comparison",
     description: "Compared on setup time, boards, planning views, GitHub integration, and pricing.",
     url: `${BASE}/project-management-software/theta-vs-jira`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Theta PM vs Jira (2026): Side-by-Side Comparison",
+    title: "Jira vs Theta PM (2026): Agile Power Comparison",
     description: "Agile power without the setup burden?",
     creator: "@theta_pm",
   },
@@ -31,6 +31,52 @@ const pageSchema = [
     description: "Theta PM vs Jira compared on setup time, boards, planning views, GitHub integration, and pricing.",
     author: { "@type": "Organization", name: "Theta PM Systems" },
     publisher: { "@type": "Organization", name: "Theta PM Systems" },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        "name": "Is Theta PM a good Jira alternative for small teams?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Theta PM gives small teams boards, sprints-style workflow, timeline, and Gantt views with no configuration, plus a built-in GitHub integration. Its free tier covers a full small team."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can Theta PM replace Jira for software teams?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "For teams that track work, code issues, and pull requests, yes — the GitHub and Bitbucket integrations bring issues and PRs into tasks automatically. Teams that need deep custom issue types and complex workflow rules may miss Jira's configurability."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Theta PM have sprints?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Theta PM focuses on kanban-style flow and planning views rather than full sprint ceremony. If your process is a simple board plus timelines, it works well; teams that need complex sprint reporting may want to stay with Jira."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Theta PM integrate with GitHub?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Link GitHub repositories to projects, sync issues into tasks, and see pull request status without leaving Theta PM. Bitbucket is also supported."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Jira worth it for a small team?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Only if you already live inside its configuration. For most small teams, the setup and learning cost outweighs what they actually use. Theta PM covers the same day-to-day workflow for a fraction of the overhead."
+        }
+      }
+    ]
   },
 ];
 
