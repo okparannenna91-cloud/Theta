@@ -7,7 +7,7 @@ const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = buildMetadata({
   title: "Best Teamwork Alternatives in 2026",
-  description: "Looking for a Teamwork alternative? Compare the best alternatives for client-facing project management.",
+  description: "Looking for a Teamwork alternative? Compare the best alternatives for client-facing project management. Find the right tool for your team's needs.",
   path: "/alternatives/teamwork-alternative",
 });
 

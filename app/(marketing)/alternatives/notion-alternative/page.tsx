@@ -6,7 +6,7 @@ const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = {
   title: "Best Notion Alternatives in 2026 (Free & Paid)",
-  description: "Looking for a Notion alternative for project management? We compared the best alternatives for teams that outgrew Notion's DIY setup — including free options.",
+  description: "Looking for a Notion alternative for project management? We compared the best alternatives for teams that outgrew Notion's DIY setup — including free options. Find the right tool for your team's needs.",
   alternates: { canonical: `${BASE}/alternatives/notion-alternative` },
   openGraph: {
     title: "Best Notion Alternatives in 2026 (Free & Paid)",

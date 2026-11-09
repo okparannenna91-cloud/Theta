@@ -6,7 +6,7 @@ const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = {
   title: "Best Monday.com Alternatives in 2026 (Free & Paid)",
-  description: "Looking for a Monday.com alternative? We compared the best Monday.com alternatives for small teams, operations teams, and agencies — including free options and easy migration.",
+  description: "Looking for a Monday.com alternative? We compared the best Monday.com alternatives for small teams, operations teams, and agencies — including free options and easy migration. Find the right tool for your team's needs.",
   alternates: { canonical: `${BASE}/alternatives/monday-alternative` },
   openGraph: {
     title: "Best Monday.com Alternatives in 2026 (Free & Paid)",
