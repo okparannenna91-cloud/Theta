@@ -47,7 +47,7 @@ export function SeoContent({
   const bcSchema = breadcrumbSchema(breadcrumb);
   const faqSchemas = faqs.length > 0 ? faqSchema(faqs) : null;
   return (
-    <article className="max-w-3xl mx-auto px-6 py-12 sm:py-16">
+    <article className="max-w-3xl mx-auto px-5 sm:px-6 py-12 sm:py-16">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(bcSchema) }}
@@ -82,7 +82,7 @@ export function SeoContent({
         })}
       </nav>
 
-      <h1 className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground mb-6">{title}</h1>
+      <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-6">{title}</h1>
 
       {intro.map((p, i) => (
         <p key={i} className="text-base text-muted-foreground leading-relaxed mb-4">{p}</p>
