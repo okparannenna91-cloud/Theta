@@ -21,6 +21,10 @@ export const metadata: Metadata = {
     description: "Scheduling power without the desktop tool.",
     creator: "@theta_pm",
   },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 const pageSchema = [

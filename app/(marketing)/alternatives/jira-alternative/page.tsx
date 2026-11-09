@@ -21,6 +21,10 @@ export const metadata: Metadata = {
     description: "The best Jira alternatives, compared.",
     creator: "@theta_pm",
   },
+  robots: {
+    index: true,
+    follow: true,
+  },
 };
 
 const pageSchema = [
