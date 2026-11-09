@@ -10,6 +10,30 @@ function NavLink({ href, children }: { href: string; children: React.ReactNode }
   );
 }
 
+function MobileNavSection({
+  title,
+  categories,
+}: {
+  title: string;
+  categories: NavDropdownCategory[];
+}) {
+  const items = categories.flatMap((c) => c.items);
+  return (
+    <div className="border-b border-border/40 px-1 py-3 last:border-b-0">
+      <p className="pb-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{title}</p>
+      <ul className="space-y-0.5">
+        {items.map((item) => (
+          <li key={`${title}-${item.href}`}>
+            <Link href={item.href} className="block rounded-md px-2 py-2 text-sm text-foreground hover:bg-muted/50">
+              {item.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 const featureColumns: NavDropdownCategory[] = [
   {
     title: "Plan",
@@ -135,16 +159,53 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
             <NavDropdown label="Integrations" columns={integrationColumns} />
             <NavLink href="/pricing">Pricing</NavLink>
           </div>
-          <div className="flex items-center gap-3">
-            <Link href="/sign-in" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link
+              href="/sign-in"
+              className="hidden sm:inline-flex text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
               Sign In
             </Link>
             <Link
               href="/sign-up"
-              className="text-sm font-medium px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
+              className="text-sm font-medium px-3 sm:px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
             >
               Get Started
             </Link>
+            <details className="relative md:hidden">
+              <summary
+                aria-label="Open navigation menu"
+                className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-lg border border-border/60 bg-background text-foreground [&::-webkit-details-marker]:hidden"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  aria-hidden="true"
+                >
+                  <path d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </summary>
+              <div className="absolute right-0 top-full z-50 mt-3 max-h-[70vh] w-[min(20rem,calc(100vw-3rem))] overflow-y-auto rounded-xl border border-border/60 bg-background p-2 shadow-xl">
+                <MobileNavSection title="Features" categories={featureColumns} />
+                <MobileNavSection title="Guides" categories={guideColumns} />
+                <MobileNavSection title="Alternatives" categories={alternativeColumns} />
+                <MobileNavSection title="Comparisons" categories={comparisonColumns} />
+                <MobileNavSection title="Integrations" categories={integrationColumns} />
+                <div className="flex flex-col gap-1 p-1 pt-3">
+                  <Link href="/pricing" className="rounded-md px-2 py-2 text-sm font-medium text-foreground hover:bg-muted/50">
+                    Pricing
+                  </Link>
+                  <Link href="/sign-in" className="rounded-md px-2 py-2 text-sm text-muted-foreground hover:bg-muted/50 sm:hidden">
+                    Sign In
+                  </Link>
+                </div>
+              </div>
+            </details>
           </div>
         </div>
       </nav>
@@ -174,7 +235,7 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
               </div>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="flex flex-col gap-2.5">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">Features</h4>
               <NavLink href="/features/tasks">Task Management</NavLink>
               <NavLink href="/features/kanban-board">Kanban</NavLink>
@@ -185,7 +246,7 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
               <NavLink href="/features/reports">Reports</NavLink>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="flex flex-col gap-2.5">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">Guides</h4>
               <NavLink href="/guides/kanban">Kanban Guide</NavLink>
               <NavLink href="/guides/what-is-agile">What is Agile</NavLink>
@@ -195,7 +256,7 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
               <NavLink href="/guides/team-management">Team Management</NavLink>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="flex flex-col gap-2.5">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">Compare</h4>
               <NavLink href="/project-management-software">All Comparisons</NavLink>
               <NavLink href="/alternatives/jira-alternative">vs Jira</NavLink>
@@ -205,7 +266,7 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
               <NavLink href="/alternatives/trello-alternative">vs Trello</NavLink>
             </div>
 
-            <div className="space-y-2.5">
+            <div className="flex flex-col gap-2.5">
               <h4 className="text-xs font-semibold uppercase tracking-wider text-foreground">Company</h4>
               <NavLink href="/about">About</NavLink>
               <NavLink href="/careers">Careers</NavLink>
@@ -220,7 +281,7 @@ export function SeoShell({ children }: { children: React.ReactNode }) {
 
           <div className="flex flex-col sm:flex-row justify-between items-center gap-4 pt-8 mt-10 border-t text-xs text-muted-foreground">
             <p>&copy; {new Date().getFullYear()} Theta PM Systems.</p>
-            <div className="flex gap-6">
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-2">
               <Link href="/privacy" className="hover:text-foreground transition-colors">Privacy Policy</Link>
               <Link href="/terms" className="hover:text-foreground transition-colors">Terms of Service</Link>
               <Link href="/docs" className="hover:text-foreground transition-colors">Documentation</Link>
