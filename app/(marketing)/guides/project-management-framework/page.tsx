@@ -6,8 +6,8 @@ import { buildMetadata } from "@/lib/seo";
 const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = buildMetadata({
-  title: "Project Management Framework",
-  description: "Learn about the different project management frameworks and how to choose the right one.",
+  title: "Project Management Frameworks (2026)",
+  description: "Waterfall, Agile, Scrum, and Kanban compared. Learn the key differences, when to use each framework, and how to choose the right one for your team's delivery style. Match the framework to your work, not the fashion.",
   path: "/guides/project-management-framework",
 });
 

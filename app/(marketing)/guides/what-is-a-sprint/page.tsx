@@ -6,7 +6,7 @@ const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = {
   title: "What is a Sprint in Scrum? A Beginner's Guide (2026)",
-  description: "What is a sprint in Scrum? Learn how sprints work, how long they last, what happens inside one, and how to run your first sprint with a kanban board.",
+  description: "Sprint vs Scrum: how fixed-length cycles help teams deliver usable work. Learn sprint length, what happens inside, and how to run your first sprint with a kanban board.",
   alternates: { canonical: `${BASE}/guides/what-is-a-sprint` },
   openGraph: {
     title: "What is a Sprint in Scrum? A Beginner's Guide (2026)",
@@ -31,6 +31,52 @@ const pageSchema = [
     description: "A beginner's guide to sprints: how they work, how long they last, and how to run your first one.",
     author: { "@type": "Organization", name: "Theta PM Systems" },
     publisher: { "@type": "Organization", name: "Theta PM Systems" },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        "name": "What is a sprint in Scrum, in simple terms?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A sprint is a fixed-length period — usually two weeks — in which the team works only on one agreed set of tasks, and delivers something usable at the end."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How long is a typical sprint?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Two weeks is the most common length. One-week sprints suit fast-moving teams; three to four weeks suit longer-horizon work. Consistency matters more than the exact length."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can the sprint scope change mid-sprint?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "In classic Scrum, no — the scope is locked at planning to protect focus. If reality demands it, the sprint can be cancelled, but that is an exception, not a habit."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What happens at the end of a sprint?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "The team reviews what it built with stakeholders, runs a short retrospective on how it worked together, then plans the next sprint with what it learned."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I need special software to run sprints?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "A simple kanban board with backlog, in progress, and done columns is enough to start. Theta PM adds sprint-friendly views — board, timeline, and Gantt — over the same tasks."
+        }
+      }
+    ]
   },
 ];
 

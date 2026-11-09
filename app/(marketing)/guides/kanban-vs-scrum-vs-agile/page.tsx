@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = {
-  title: "Kanban vs Scrum vs Agile: What's the Difference? (2026)",
-  description: "Kanban vs Scrum vs Agile explained simply: how they differ, when to use each, and how to choose the right framework for your team in 2026.",
+  title: "Agile vs Scrum vs Kanban (2026): Framework Comparison",
+  description: "Agile vs Scrum vs Kanban: which framework fits your team in 2026? Discover the key differences, when to use each, and how to choose without confusion. Match the framework to your work style, not the fashion of the moment.",
   alternates: { canonical: `${BASE}/guides/kanban-vs-scrum-vs-agile` },
   openGraph: {
-    title: "Kanban vs Scrum vs Agile: What's the Difference? (2026)",
+    title: "Agile vs Scrum vs Kanban (2026): Framework Comparison",
     description: "How they differ, when to use each, and how to choose.",
     url: `${BASE}/guides/kanban-vs-scrum-vs-agile`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Kanban vs Scrum vs Agile: What's the Difference? (2026)",
+    title: "Agile vs Scrum vs Kanban (2026): Framework Comparison",
     description: "How they differ, when to use each, and how to choose.",
     creator: "@theta_pm",
   },
@@ -31,6 +31,49 @@ const pageSchema = [
     description: "Kanban, Scrum, and Agile compared: how they differ, when to use each, and how to choose.",
     author: { "@type": "Organization", name: "Theta PM Systems" },
     publisher: { "@type": "Organization", name: "Theta PM Systems" },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        "name": "Is Kanban an Agile methodology?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Kanban is often described as an agile method, but it is really a workflow method that can be used with or without agile principles. It works well inside an agile team, especially combined with Scrum."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can you use Kanban and Scrum together?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Many teams run Scrum sprints while visualizing daily work on a kanban board with WIP limits. This hybrid is commonly called Scrumban."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the difference between Agile and Scrum?",        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Agile is a philosophy of iterative delivery and adaptation. Scrum is a specific framework — with roles, sprints, and ceremonies — that puts agile principles into practice."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Which is better: Kanban or Scrum?",        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Neither is better overall. Scrum suits product teams that can commit to fixed-length sprints. Kanban suits teams with continuous, changing work. Pick based on your workflow, not preference."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does the tool matter when choosing a methodology?",        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. A tool that only offers one view will steer your process. Platforms like Theta PM and Asana support both boards and timelines, so the methodology choice stays yours."
+        }
+      }
+    ]
   },
 ];
 

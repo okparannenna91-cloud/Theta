@@ -6,7 +6,7 @@ const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = {
   title: "What Is Agile Project Management? A Beginner's Guide (2026)",
-  description: "What is agile project management, explained for beginners in 2026. Learn the agile values, how it works in practice, and the frameworks teams use to deliver work faster.",
+  description: "Agile project management for beginners: the 4 values, how teams deliver in small increments, and which framework fits your team in 2026. Compare Scrum, Kanban, and Waterfall.",
   alternates: { canonical: `${BASE}/guides/what-is-agile` },
   openGraph: {
     title: "What Is Agile Project Management? A Beginner's Guide (2026)",
@@ -31,6 +31,52 @@ const pageSchema = [
     description: "A beginner-friendly introduction to agile project management: the four values, how agile works in practice, and the frameworks teams use to deliver in small increments.",
     author: { "@type": "Organization", name: "Theta PM Systems" },
     publisher: { "@type": "Organization", name: "Theta PM Systems" },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        "name": "What is agile project management in simple terms?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "It is a way of managing work in small pieces, delivering often, and adapting as you learn. Teams pick a small batch of work, finish it, get feedback, and adjust before moving to the next batch."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the difference between agile and waterfall?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Waterfall plans everything up front and delivers once at the end. Agile delivers in small increments and changes the plan as you go. Agile suits uncertain work; waterfall suits fixed, predictable projects."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is Scrum the same as agile?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. Agile is the philosophy, and Scrum is one framework that puts it into practice. Kanban is another. You can be agile without Scrum, and teams can use agile ideas without any framework at all."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Do I need to be a software company to use agile?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "No. Agile started in software, but marketing, HR, operations, and product teams all use it. The core ideas — small batches, feedback, adapting — work for almost any kind of project."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What are the most important agile principles for a beginner?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Start with three: deliver working pieces often, welcome change instead of fighting it, and reflect regularly on how the team works so it keeps improving."
+        }
+      }
+    ]
   },
 ];
 
