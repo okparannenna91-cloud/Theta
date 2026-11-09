@@ -256,7 +256,6 @@ export function ScreenshotGallery({ blok }: { blok: Blok }) {
 export function Page({ blok }: { blok: Blok }) {
   const body = asArray(blok.body);
   // Lazy import pattern not needed; use registry lookup safely at render time.
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
   const { StoryblokComponent } = require("@storyblok/react");
   return (
     <main {...storyblokEditable(blok)} className="mx-auto max-w-3xl space-y-8 px-6 py-12 sm:py-16">
