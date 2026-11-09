@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = {
-  title: "Theta PM vs Notion (2026): Side-by-Side Comparison",
-  description: "Theta PM vs Notion compared on task management, planning views, and structure. See which tool handles your team's work better in 2026.",
+  title: "Notion vs Theta PM (2026): Wiki vs Task Tool Comparison",
+  description: "Notion vs Theta PM: a wiki with tasks, or a task tool with structure? Compare task management, planning views, and which tool handles your team's work better. Notion gives you a blank canvas — Theta PM gives you ready-to-use projects.",
   alternates: { canonical: `${BASE}/project-management-software/theta-vs-notion` },
   openGraph: {
-    title: "Theta PM vs Notion (2026): Side-by-Side Comparison",
+    title: "Notion vs Theta PM (2026): Wiki vs Task Tool Comparison",
     description: "Compared on task management, planning views, and structure.",
     url: `${BASE}/project-management-software/theta-vs-notion`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Theta PM vs Notion (2026): Side-by-Side Comparison",
+    title: "Notion vs Theta PM (2026): Wiki vs Task Tool Comparison",
     description: "A wiki with tasks, or a task tool with structure?",
     creator: "@theta_pm",
   },
@@ -31,6 +31,52 @@ const pageSchema = [
     description: "Theta PM vs Notion compared on task management, planning views, and structure.",
     author: { "@type": "Organization", name: "Theta PM Systems" },
     publisher: { "@type": "Organization", name: "Theta PM Systems" },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: [
+      {
+        "@type": "Question",
+        "name": "Is Theta PM better than Notion for project management?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "For running projects with deadlines, dependencies, and team tracking, yes — Theta PM has task management and planning views (timeline, Gantt, calendar) ready out of the box. Notion is better for documentation and wikis."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can Notion replace project management software?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "For light task tracking, yes. For real project management — assignments, dependencies, Gantt charts, and reliable status tracking — you end up building it yourself in Notion, which takes ongoing maintenance."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use Notion and Theta PM together?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Many teams use Notion for documentation and Theta PM for project execution, linking tasks back to their docs. Theta PM's Slack integration also keeps communication connected."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does Theta PM have a free plan?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Theta PM's free plan covers a full small team with boards, timeline, Gantt, and calendar views included."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Which is easier to learn, Notion or Theta PM?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Theta PM is easier for running projects because the structure already exists. Notion is easy to start but demands design decisions before it works well for task management."
+        }
+      }
+    ]
   },
 ];
 

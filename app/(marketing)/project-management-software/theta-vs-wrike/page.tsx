@@ -5,11 +5,11 @@ import { SeoContent } from "@/components/seo/seo-content";
 const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = {
-  title: "Theta PM vs Wrike (2026): Side-by-Side Comparison",
-  description: "Theta PM vs Wrike compared on task management, planning views, automation, and pricing. See which project management tool fits your team in 2026.",
+  title: "Wrike vs Theta PM (2026): Enterprise Planning vs Adoption Comparison",
+  description: "Wrike vs Theta PM: enterprise planning vs real adoption. Wrike delivers governance at a cost — configuration, tier-gated features, and per-seat pricing that climbs quickly. Theta PM gives timeline, Gantt, and automation ready in minutes, with a free tier that actually covers your team. Compare total cost and time-to-value.",
   alternates: { canonical: `${BASE}/project-management-software/theta-vs-wrike` },
   openGraph: {
-    title: "Theta PM vs Wrike (2026): Side-by-Side Comparison",
+    title: "Wrike vs Theta PM (2026): Enterprise Planning vs Adoption Comparison",
     description: "Compared on task management, planning views, automation, and pricing.",
     url: `${BASE}/project-management-software/theta-vs-wrike`,
     siteName: "Theta PM",
@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Theta PM vs Wrike (2026): Side-by-Side Comparison",
+    title: "Wrike vs Theta PM (2026): Enterprise Planning vs Adoption Comparison",
     description: "Enterprise-grade planning, minus the bloat?",
     creator: "@theta_pm",
   },

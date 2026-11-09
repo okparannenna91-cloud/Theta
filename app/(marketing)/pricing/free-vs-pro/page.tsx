@@ -7,7 +7,7 @@ const BASE = "https://www.thetapm.site";
 
 export const metadata: Metadata = buildMetadata({
   title: "Free vs Pro: Choose the Right Plan | Theta PM",
-  description: "Compare Theta PM free tier vs Pro plan. See what features you get and which plan is right for your team.",
+  description: "Theta PM free vs Pro: which plan is right for your team? Free includes boards, timeline, Gantt, and calendar for a full small team. Pro adds automation, advanced integrations, and priority support.",
   path: "/pricing/free-vs-pro",
 });
 
