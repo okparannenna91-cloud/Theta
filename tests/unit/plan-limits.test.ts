@@ -47,19 +47,19 @@ describe("Plan Limits — isValidPlan", () => {
 });
 
 describe("Plan Limits — limits correctness", () => {
-  // TEMP (SCREENSHOTS): free plan is fully unlocked (mirrors theta_plus). REVERT WITH lib/plan-limits.ts unlock block.
   it("free plan has correct limits", () => {
     const free = PLAN_LIMITS.free;
-    expect(free.maxWorkspaces).toBe(-1);
-    expect(free.maxMembers).toBe(-1);
+    expect(free.maxWorkspaces).toBe(1);
+    expect(free.maxMembers).toBe(5);
+    expect(free.maxNovaRequests).toBe(20);
+    expect(free.maxMemoryItems).toBe(50);
     expect(free.hasCustomAutomation).toBe(true);
     expect(free.maxAutomations).toBe(-1);
     expect(free.maxBoards).toBe(-1);
-    expect(free.maxCustomFields).toBe(-1);
+    expect(free.maxCustomFields).toBe(0);
   });
 
-  // TEMP (SCREENSHOTS): free mirrors theta_plus, so growth is no longer strictly greater. REVERT WITH UNLOCK BLOCK.
-  it.skip("growth plan is strictly greater than free", () => {
+  it("growth plan is strictly greater than free", () => {
     const free = PLAN_LIMITS.free;
     const growth = PLAN_LIMITS.growth;
     expect(growth.maxMembers).toBeGreaterThan(free.maxMembers);
@@ -91,32 +91,33 @@ describe("Plan Limits — limits correctness", () => {
     }
   });
 
-  // TEMP (SCREENSHOTS): timeline/gantt/analytics/custom-fields are unlocked on free. REVERT WITH UNLOCK BLOCK.
-  it("timeline access is unlocked on all plans", () => {
-    expect(hasTimelineAccess("free")).toBe(true);
+  it("timeline access requires Growth and above", () => {
+    expect(hasTimelineAccess("free")).toBe(false);
     expect(hasTimelineAccess("growth")).toBe(true);
     expect(hasTimelineAccess("pro")).toBe(true);
     expect(hasTimelineAccess("theta_plus")).toBe(true);
   });
 
-  it("gantt access is unlocked on all plans", () => {
-    expect(hasGanttAccess("free")).toBe(true);
+  it("gantt access requires Pro and above", () => {
+    expect(hasGanttAccess("free")).toBe(false);
     expect(hasGanttAccess("growth")).toBe(false);
     expect(hasGanttAccess("pro")).toBe(true);
     expect(hasGanttAccess("theta_plus")).toBe(true);
   });
 
-  it("gantt and analytics are unlocked on free", () => {
-    expect(hasGanttAccess("free")).toBe(true);
-    expect(hasAdvancedAnalyticsAccess("free")).toBe(true);
-    expect(hasGanttAccess("growth")).toBe(false);
-    expect(hasAdvancedAnalyticsAccess("growth")).toBe(false);
-    expect(hasGanttAccess("pro")).toBe(true);
-    expect(hasAdvancedAnalyticsAccess("pro")).toBe(true);
+  it("gantt is strictly gated behind analytics on free/growth", () => {
+    for (const plan of ["free", "growth"] as PlanName[]) {
+      expect(hasGanttAccess(plan)).toBe(false);
+      expect(hasAdvancedAnalyticsAccess(plan)).toBe(false);
+    }
+    for (const plan of ["pro", "theta_plus"] as PlanName[]) {
+      expect(hasGanttAccess(plan)).toBe(true);
+      expect(hasAdvancedAnalyticsAccess(plan)).toBe(true);
+    }
   });
 
   it("custom fields scale by plan", () => {
-    expect(PLAN_LIMITS.free.maxCustomFields).toBe(-1);
+    expect(PLAN_LIMITS.free.maxCustomFields).toBe(0);
     expect(PLAN_LIMITS.growth.maxCustomFields).toBe(5);
     expect(PLAN_LIMITS.pro.maxCustomFields).toBe(-1);
     expect(PLAN_LIMITS.theta_plus.maxCustomFields).toBe(-1);
@@ -131,9 +132,8 @@ describe("Plan Limits — limits correctness", () => {
 
 describe("Plan Limits — canCreate* functions", () => {
   it("canCreateWorkspace allows within limit", () => {
-    // TEMP (SCREENSHOTS): free is unlimited. REVERT WITH UNLOCK BLOCK.
     expect(canCreateWorkspace("free", 0)).toBe(true);
-    expect(canCreateWorkspace("free", 1)).toBe(true);
+    expect(canCreateWorkspace("free", 1)).toBe(false);
   });
 
   it("canCreateWorkspace allows unlimited for growth+", () => {
@@ -146,9 +146,8 @@ describe("Plan Limits — canCreate* functions", () => {
   });
 
   it("canAddMember blocks at limit", () => {
-    // TEMP (SCREENSHOTS): free has unlimited members. REVERT WITH UNLOCK BLOCK.
     expect(canAddMember("free", 4)).toBe(true);
-    expect(canAddMember("free", 5)).toBe(true);
+    expect(canAddMember("free", 5)).toBe(false);
   });
 
   it("canCreateTask allows unlimited", () => {
@@ -156,9 +155,8 @@ describe("Plan Limits — canCreate* functions", () => {
   });
 
   it("canCreateTeam blocks at limit", () => {
-    // TEMP (SCREENSHOTS): free is unlimited. REVERT WITH UNLOCK BLOCK.
     expect(canCreateTeam("free", 0)).toBe(true);
-    expect(canCreateTeam("free", 1)).toBe(true);
+    expect(canCreateTeam("free", 1)).toBe(false);
   });
 });
 
@@ -168,7 +166,6 @@ describe("Plan Limits — enforcePlanLimit", () => {
     await cacheInvalidate(cacheKey("workspace-billing", "ws1"));
   });
 
-  // TEMP (SCREENSHOTS): free no longer blocks member creation. REVERT WITH UNLOCK BLOCK.
   it("does not throw when under limit", async () => {
     (prisma.workspace.findUnique as any).mockResolvedValue({
       id: "ws1", plan: "free", subscriptionStatus: "active",
@@ -177,6 +174,16 @@ describe("Plan Limits — enforcePlanLimit", () => {
     await expect(
       enforcePlanLimit("ws1", "members", 3)
     ).resolves.not.toThrow();
+  });
+
+  it("throws when over member limit on free plan", async () => {
+    (prisma.workspace.findUnique as any).mockResolvedValue({
+      id: "ws1", plan: "free", subscriptionStatus: "active",
+      members: [{ user: { clerkId: "c1" } }],
+    });
+    await expect(
+      enforcePlanLimit("ws1", "members", 5)
+    ).rejects.toThrow();
   });
 
   it("throws for deactivated workspace", async () => {
@@ -189,10 +196,19 @@ describe("Plan Limits — enforcePlanLimit", () => {
     ).rejects.toThrow("deactivated");
   });
 
-  // TEMP (SCREENSHOTS): timeline/custom-fields/exports are unlocked on free. REVERT WITH UNLOCK BLOCK.
-  it("allows timeline on free plan", async () => {
+  it("blocks timeline on free plan", async () => {
     (prisma.workspace.findUnique as any).mockResolvedValue({
       id: "ws1", plan: "free", subscriptionStatus: "active",
+      members: [{ user: { clerkId: "c1" } }],
+    });
+    await expect(
+      enforcePlanLimit("ws1", "timeline", 0)
+    ).rejects.toThrow("Timeline");
+  });
+
+  it("allows timeline on growth plan", async () => {
+    (prisma.workspace.findUnique as any).mockResolvedValue({
+      id: "ws1", plan: "growth", subscriptionStatus: "active",
       members: [{ user: { clerkId: "c1" } }],
     });
     await expect(
@@ -220,15 +236,14 @@ describe("Plan Limits — enforcePlanLimit", () => {
     ).resolves.not.toThrow();
   });
 
-  // TEMP (SCREENSHOTS): custom fields unlocked on free. REVERT WITH UNLOCK BLOCK.
-  it("allows custom fields on free plan", async () => {
+  it("blocks custom fields on free plan", async () => {
     (prisma.workspace.findUnique as any).mockResolvedValue({
       id: "ws1", plan: "free", subscriptionStatus: "active",
       members: [{ user: { clerkId: "c1" } }],
     });
     await expect(
       enforcePlanLimit("ws1", "custom_fields", 0)
-    ).resolves.not.toThrow();
+    ).rejects.toThrow("Custom fields");
   });
 
   it("blocks custom fields over growth limit (5/project)", async () => {
@@ -254,16 +269,17 @@ describe("Plan Limits — enforcePlanLimit", () => {
     ).resolves.not.toThrow();
   });
 
-  // TEMP (SCREENSHOTS): exports unlocked on free. REVERT WITH UNLOCK BLOCK.
-  it("allows exports on free and growth plans", async () => {
+  it("blocks exports on free plan", async () => {
     (prisma.workspace.findUnique as any).mockResolvedValue({
       id: "ws1", plan: "free", subscriptionStatus: "active",
       members: [{ user: { clerkId: "c1" } }],
     });
     await expect(
       enforcePlanLimit("ws1", "exports", 0)
-    ).resolves.not.toThrow();
+    ).rejects.toThrow("Export");
+  });
 
+  it("allows exports on growth plan", async () => {
     (prisma.workspace.findUnique as any).mockResolvedValue({
       id: "ws1", plan: "growth", subscriptionStatus: "active",
       members: [{ user: { clerkId: "c1" } }],

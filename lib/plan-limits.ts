@@ -2,7 +2,7 @@ export type PlanName = "free" | "growth" | "pro" | "theta_plus";
 
 // === SCREENSHOTS: Toggle this to unlock all plan limits ===
 // Set to false to restore normal limits
-export const UNLOCK_LIMITS = true;
+export const UNLOCK_LIMITS = false;
 // =============================================================
 
 // H1: Add explicit allowlist for plan validation
