@@ -1,7 +1,23 @@
 import Link from "next/link";
 import { ArrowRight, CheckCircle2, MessageCircleQuestion, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { breadcrumbSchema, faqSchema } from "@/lib/seo";
+import {
+  articleSchema,
+  breadcrumbSchema,
+  faqSchema,
+  SITE_CONTENT_UPDATED,
+} from "@/lib/seo";
+
+/** Emitted from props below, so copies passed via `schema` are dropped. */
+const AUTO_SCHEMA_TYPES = new Set(["BreadcrumbList", "FAQPage"]);
+/** Any of these means the page already declares its own article schema. */
+const ARTICLE_SCHEMA_TYPES = new Set(["Article", "NewsArticle", "TechArticle", "BlogPosting", "HowTo"]);
+
+const UPDATED_LABEL = new Date(`${SITE_CONTENT_UPDATED}T00:00:00Z`).toLocaleDateString("en-US", {
+  month: "long",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 export interface SeoSection {
   h2: string;
@@ -46,13 +62,18 @@ export function SeoContent({
 }: SeoContentProps) {
   const bcSchema = breadcrumbSchema(breadcrumb);
   const faqSchemas = faqs.length > 0 ? faqSchema(faqs) : null;
+  const pagePath = getBreadcrumbHref(breadcrumb, breadcrumb.length - 1);
+  const customSchema = schema.filter((s) => !AUTO_SCHEMA_TYPES.has(String(s["@type"])));
+  const autoSchema = customSchema.some((s) => ARTICLE_SCHEMA_TYPES.has(String(s["@type"])))
+    ? []
+    : [articleSchema({ title, description: intro[0] ?? title, path: pagePath })];
   return (
     <article className="max-w-3xl mx-auto px-5 sm:px-6 py-12 sm:py-16">
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(bcSchema) }}
       />
-      {schema.map((s, i) => (
+      {[...customSchema, ...autoSchema].map((s, i) => (
         <script
           key={i}
           type="application/ld+json"
@@ -82,7 +103,11 @@ export function SeoContent({
         })}
       </nav>
 
-      <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-6">{title}</h1>
+      <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-foreground mb-4">{title}</h1>
+
+      <p className="text-xs text-muted-foreground mb-8">
+        By Theta PM Systems · Updated {UPDATED_LABEL}
+      </p>
 
       {intro.map((p, i) => (
         <p key={i} className="text-base text-muted-foreground leading-relaxed mb-4">{p}</p>
