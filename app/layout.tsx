@@ -16,12 +16,6 @@ import { organizationSchema, webSiteSchema } from "@/lib/seo";
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-family" });
 
-const locales = ["en", "es", "fr", "de", "zh", "ar", "ja", "ru"];
-
-const languageAlternates: Record<string, string | null> = {};
-for (const l of locales) {
-  languageAlternates[l] = l === "en" ? null : `/${l}`;
-}
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.thetapm.site"),
@@ -48,9 +42,10 @@ export const metadata: Metadata = {
   authors: [{ name: "Theta PM Systems", url: "https://www.thetapm.site" }],
   creator: "Theta PM Systems",
   publisher: "Theta PM Systems",
+  // No `languages` map: the site has no /es, /fr, /de, /zh, /ar, /ja or /ru
+  // routes, so advertising them as hreflang alternates pointed crawlers at 404s.
   alternates: {
     canonical: "https://www.thetapm.site",
-    languages: languageAlternates,
   },
   robots: {
     index: true,
