@@ -3,9 +3,12 @@ import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
 import { buildMetadata } from "@/lib/seo";
 
+const BASE = "https://www.thetapm.site";
+
 export const metadata: Metadata = buildMetadata({
-  title: "Best Basecamp Alternatives in 2026",
-  description: "Basecamp is calm and flat-priced but has no timeline, dependencies, or sprints. See the best alternatives for teams that need real planning depth.",
+  title: "Basecamp Alternatives (2026): Free & Paid Options",
+  description:
+    "Basecamp is calm and flat-priced but has no timeline, dependencies, or sprints. Compare free and paid alternatives with the planning depth it lacks.",
   path: "/alternatives/basecamp-alternative",
 });
 

@@ -6,7 +6,7 @@ import { buildMetadata } from "@/lib/seo";
 export const metadata: Metadata = buildMetadata({
   title: "What is a Sprint in Scrum? A Beginner's Guide (2026)",
   description:
-    "Sprint vs Scrum: how fixed-length cycles help teams deliver usable work. Learn sprint length, what happens inside, and how to run your first one.",
+    "A sprint is a fixed period, usually one to four weeks, where a team delivers a slice of usable work. See how long sprints last and what happens inside.",
   path: "/guides/what-is-a-sprint",
 });
 
