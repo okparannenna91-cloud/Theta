@@ -1,9 +1,12 @@
-// One-shot SEO metadata migration for app/(marketing).
-// Makes clampDescription() sentence-aware and routes every marketing page's
-// metadata through buildMetadata with a complete 140-158 character description.
-// Exits non-zero (and the workflow pushes nothing) if the result does not verify.
-import { readFileSync, writeFileSync, readdirSync, existsSync } from "node:fs";
+// One-shot metadata migration for app/(marketing).
+// Rewrites every marketing page's metadata through buildMetadata with a
+// complete sentence description of at most 158 characters.
+// Exits non-zero (so the workflow pushes nothing) if the result does not verify.
+// Written with plain string operations only: no regexes, no escapes.
+import { readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+
+const NL = String.fromCharCode(10);
 
 function walk(dir) {
   const out = [];
@@ -13,6 +16,63 @@ function walk(dir) {
     else if (entry.name.endsWith(".tsx")) out.push(p);
   }
   return out.sort();
+}
+
+function metadataBlock(src) {
+  const start = src.indexOf("export const metadata");
+  if (start === -1) return null;
+  const lines = src.slice(start).split(NL);
+  let end = -1;
+  for (let i = 1; i < lines.length; i++) {
+    const t = lines[i].trim();
+    if (t === "};" || t === "});") { end = i; break; }
+  }
+  if (end === -1) return null;
+  return {
+    before: src.slice(0, start),
+    block: lines.slice(0, end + 1).join(NL),
+    after: lines.slice(end + 1).join(NL),
+  };
+}
+
+function fieldValue(block, field) {
+  const marker = field + ': "';
+  const i = block.indexOf(marker);
+  if (i === -1) return null;
+  const s = i + marker.length;
+  const e = block.indexOf('"', s);
+  if (e === -1) return null;
+  return block.slice(s, e);
+}
+
+function descriptionValue(block) {
+  const i = block.indexOf("description:");
+  if (i === -1) return null;
+  const s = block.indexOf('"', i);
+  if (s === -1) return null;
+  const e = block.indexOf('",', s);
+  if (e === -1) return null;
+  return block.slice(s + 1, e).split(NL).map((x) => x.trim()).join(" ");
+}
+
+function canonicalPath(block) {
+  const i = block.indexOf("canonical:");
+  if (i === -1) return null;
+  const s = block.indexOf("${BASE}", i);
+  if (s === -1) return null;
+  const e = block.indexOf("`", s);
+  if (e === -1) return null;
+  return block.slice(s + 7, e);
+}
+
+function replaceField(block, field, value) {
+  const i = block.indexOf(field + ":");
+  if (i === -1) return block;
+  const s = block.indexOf('"', i);
+  if (s === -1) return block;
+  const e = block.indexOf('"', s + 1);
+  if (e === -1) return block;
+  return block.slice(0, i) + field + ": " + JSON.stringify(value) + block.slice(e + 1);
 }
 
 const NEW_DESC = {
@@ -49,138 +109,92 @@ const NEW_DESC = {
   "/cornerstone": "Explore every Theta PM comparison, agile guide, and alternative breakdown in one place. Find the right tool without the setup tax.",
   "/privacy": "Theta PM privacy policy: we do not sell your data. Read how we store project data and integrations, and what rights you have over your information.",
   "/pricing/enterprise": "Theta Plus removes the user cap and adds role-based permissions and unlimited integrations for $20 per month plus $4 per user. See what it covers.",
-  "/pricing/free-vs-pro": "A side-by-side look at Theta PM Free, Growth, and Pro: user limits, boards, storage, automations, and integrations, with costs at real team sizes."
+  "/pricing/free-vs-pro": "A side-by-side look at Theta PM Free, Growth, and Pro: user limits, boards, storage, automations, and integrations, with costs at real team sizes.",
 };
 
-const SEO = "lib/seo.ts";
-if (existsSync(SEO)) {
-  let seo = readFileSync(SEO, "utf8");
-  if (seo.includes("word boundary so metadata never cuts mid-word")) {
-    seo = seo.replace(
-      "/** Google truncates descriptions around 158 characters. */\nconst MAX_DESCRIPTION = 158;",
-      "/** Google truncates descriptions around 158 characters. */\nconst MAX_DESCRIPTION = 158;\n/** Shortest description worth keeping when a sentence boundary is available. */\nconst MIN_DESCRIPTION = 110;"
-    );
-    const oldFn = [
-      "/** Trim to a word boundary so metadata never cuts mid-word. */",
-      "function clampDescription(description: string): string {",
-      "  const trimmed = description.trim().replace(/\\s+/g, \" \");",
-      "  if (trimmed.length <= MAX_DESCRIPTION) return trimmed;",
-      "  const cut = trimmed.slice(0, MAX_DESCRIPTION);",
-      "  const lastSpace = cut.lastIndexOf(\" \");",
-      "  const bounded = lastSpace > 100 ? cut.slice(0, lastSpace) : cut;",
-      "  return bounded.replace(/[,;:.\\s]+$/, \"\");",
-      "}"
-    ].join("\n");
-    const newFn = [
-      "/**",
-      " * Keep a description inside Google's snippet budget without ending mid-clause.",
-      " * A sentence boundary is preferred, so a snippet never dangles (\"...without\").",
-      " */",
-      "function clampDescription(description: string): string {",
-      "  const trimmed = description.trim().replace(/\\s+/g, \" \");",
-      "  if (trimmed.length <= MAX_DESCRIPTION) return trimmed;",
-      "",
-      "  const within = trimmed.slice(0, MAX_DESCRIPTION + 1);",
-      "  const sentenceEnd = /[.!?](?=\\s|$)/g;",
-      "  let bestSentenceEnd = -1;",
-      "  for (let match = sentenceEnd.exec(within); match; match = sentenceEnd.exec(within)) {",
-      "    const end = match.index + 1;",
-      "    if (end >= MIN_DESCRIPTION && end <= MAX_DESCRIPTION) bestSentenceEnd = end;",
-      "  }",
-      "  if (bestSentenceEnd > 0) return trimmed.slice(0, bestSentenceEnd);",
-      "",
-      "  const cut = trimmed.slice(0, MAX_DESCRIPTION);",
-      "  const lastSpace = cut.lastIndexOf(\" \");",
-      "  const bounded = lastSpace >= MIN_DESCRIPTION ? cut.slice(0, lastSpace) : cut;",
-      "  return `${bounded.replace(/[,;:.\\u2014\\u2013\\s]+$/, \"\")}\\u2026`;",
-      "}"
-    ].join("\n");
-    if (!seo.includes(oldFn)) {
-      console.error("could not locate clampDescription; aborting");
-      process.exit(1);
-    }
-    seo = seo.replace(oldFn, newFn);
-    writeFileSync(SEO, seo);
-    console.log("updated lib/seo.ts");
-  }
-}
-
-const pages = walk("app/(marketing)");
 let changed = 0;
-for (const f of pages) {
+for (const f of walk("app/(marketing)")) {
   const src = readFileSync(f, "utf8");
-  const startIdx = src.indexOf("export const metadata");
-  if (startIdx === -1) continue;
-  const before = src.slice(0, startIdx);
-  const lines = src.slice(startIdx).split("\n");
-  let endLine = -1;
-  for (let i = 1; i < lines.length; i++) {
-    const t = lines[i].trim();
-    if (t === "};" || t === "});") { endLine = i; break; }
-  }
-  if (endLine === -1) continue;
-  const block = lines.slice(0, endLine + 1).join("\n");
-  const after = lines.slice(endLine + 1).join("\n");
-  const isHelper = /^export const metadata: Metadata = buildMetadata\\(/m.test(block);
-  const title = block.match(/^\\s*title:\\s*\"([^\"]*)\"/m)?.[1];
-  const rawDesc = block.match(/description:\\s*\\n?\\s*\"([\\s\\S]*?)\",?\\s*\\n/)?.[1].replace(/\\s+/g, " ");
-  const rawPath =
-    block.match(/^\\s*path:\\s*\"([^\"]+)\"/m)?.[1] ??
-    block.match(/canonical:\\s*`\\$\\{BASE\\}([^`]+)`/)?.[1];
-  if (!title || !rawDesc || !rawPath) continue;
-  const path = rawPath.replace(/^\\/\\(marketing\\)/, "");
-  const newDesc = NEW_DESC[path] ?? rawDesc;
+  const parts = metadataBlock(src);
+  if (!parts) continue;
+  const { before, block, after } = parts;
+  const title = fieldValue(block, "title");
+  const rawDesc = descriptionValue(block);
+  let rawPath = fieldValue(block, "path");
+  if (!rawPath) rawPath = canonicalPath(block);
+  if (!title || !rawDesc || !rawPath) { console.log("skipped (unparsed):", f); continue; }
+
+  const path = rawPath.startsWith("/(marketing)/") ? rawPath.slice(12) : rawPath;
+  const newDesc = NEW_DESC[path] || rawDesc;
   if (newDesc.length > 158) { console.error("description too long:", f); process.exit(1); }
 
+  const isHelper = block.indexOf("buildMetadata(") !== -1;
   let out;
   if (isHelper) {
     if (newDesc === rawDesc && rawPath === path) continue;
-    let next = block.replace(/description:\\s*\\n?\\s*\"([\\s\\S]*?)\",?\\s*\\n/, `description:\n    ${JSON.stringify(newDesc)},\n`);
-    next = next.replace(/^ {2}path:\\s*\"[^\"]*\",$/m, `  path: ${JSON.stringify(path)},`);
+    let next = replaceField(block, "description", newDesc);
+    if (path !== rawPath) next = replaceField(next, "path", path);
     out = before + next + after;
   } else {
+    const keys = [];
+    for (const line of block.split(NL)) {
+      if (line.startsWith("  ") && !line.startsWith("   ") && line.indexOf(":") !== -1) {
+        keys.push(line.slice(2, line.indexOf(":")));
+      }
+    }
     const allowed = ["title", "description", "alternates", "openGraph", "twitter", "robots"];
-    const topKeys = [...block.matchAll(/^ {2}([A-Za-z]+):/gm)].map((m) => m[1]);
-    if (topKeys.some((k) => !allowed.includes(k))) { console.error("unexpected metadata keys:", f); process.exit(1); }
-    if (/index:\\s*false|follow:\\s*false/.test(block)) { console.error("noindex page:", f); process.exit(1); }
-    const newBlock = [
+    for (const k of keys) {
+      if (allowed.indexOf(k) === -1) { console.error("unexpected metadata key " + k + ":", f); process.exit(1); }
+    }
+    if (block.indexOf("index: false") !== -1 || block.indexOf("follow: false") !== -1) {
+      console.error("noindex page:", f);
+      process.exit(1);
+    }
+    const rebuilt = [
       "export const metadata: Metadata = buildMetadata({",
-      `  title: ${JSON.stringify(title)},`,
+      "  title: " + JSON.stringify(title) + ",",
       "  description:",
-      `    ${JSON.stringify(newDesc)},`,
-      `  path: ${JSON.stringify(path)},`,
-      "});"
-    ].join("\n");
-    out = before + newBlock + after;
-    const baseLine = 'const BASE = "https://www.thetapm.site";\n\n';
-    if (out.includes(baseLine) && !/\\bBASE\\b/.test(out.replace(baseLine, ""))) out = out.replace(baseLine, "");
+      "    " + JSON.stringify(newDesc) + ",",
+      "  path: " + JSON.stringify(path) + ",",
+      "});",
+    ].join(NL);
+    out = before + rebuilt + after;
   }
-  if (!/from \"@\\/lib\\/seo\"/.test(out)) {
-    out = out.replace(/(^import \\{ SeoContent \\} from \"@\\/components\\/seo\\/seo-content\";$)/m, '$1\nimport { buildMetadata } from "@/lib/seo";');
+
+  if (out.indexOf('from "@/lib/seo"') === -1) {
+    const lines = out.split(NL);
+    for (let i = 0; i < lines.length; i++) {
+      if (lines[i].indexOf('import { SeoContent } from "@/components/seo/seo-content";') === 0) {
+        lines.splice(i + 1, 0, 'import { buildMetadata } from "@/lib/seo";');
+        break;
+      }
+    }
+    out = lines.join(NL);
   }
-  out = out.replace(/\\}\\);?\\n(const |export |function )/g, "});\n\n$1");
+
+  const baseLine = 'const BASE = "https://www.thetapm.site";' + NL + NL;
+  if (out.indexOf(baseLine) !== -1) {
+    const stripped = out.split(baseLine).join("");
+    if (stripped.indexOf("BASE") === -1) out = stripped;
+  }
+
+  out = out.split("});" + NL + "const ").join("});" + NL + NL + "const ");
+  out = out.split("});" + NL + "export ").join("});" + NL + NL + "export ");
+  out = out.split("});" + NL + "function ").join("});" + NL + NL + "function ");
+
   if (out !== src) { writeFileSync(f, out); changed++; }
 }
-console.log(`updated ${changed} marketing pages`);
+console.log("updated " + changed + " marketing pages");
 
-// verify before anything is pushed
 let bad = 0;
 for (const f of walk("app/(marketing)")) {
   const src = readFileSync(f, "utf8");
-  const startIdx = src.indexOf("export const metadata");
-  if (startIdx === -1) continue;
-  const lines = src.slice(startIdx).split("\n");
-  let endLine = lines.length;
-  for (let i = 1; i < lines.length; i++) {
-    const t = lines[i].trim();
-    if (t === "};" || t === "});") { endLine = i + 1; break; }
-  }
-  const block = lines.slice(0, endLine).join("\n");
-  if (!/^export const metadata: Metadata = buildMetadata\\(/m.test(block)) { console.error("still bypassing:", f); bad++; }
-  const d = block.match(/description:\\s*\\n?\\s*\"([\\s\\S]*?)\",?\\s*\\n/)?.[1].replace(/\\s+/g, " ");
-  if (!d || d.length > 158 || !/[.!?]$/.test(d)) { console.error("bad description:", f, d && d.length); bad++; }
+  const parts = metadataBlock(src);
+  if (!parts) continue;
+  if (parts.block.indexOf("buildMetadata(") === -1) { console.error("still bypassing:", f); bad++; }
+  const d = descriptionValue(parts.block);
+  const last = d ? d.slice(-1) : "";
+  if (!d || d.length > 158 || ".!?".indexOf(last) === -1) { console.error("bad description:", f, d && d.length); bad++; }
 }
-const seoFinal = readFileSync(SEO, "utf8");
-if (!seoFinal.includes("MIN_DESCRIPTION")) { console.error("clamp not updated"); bad++; }
-if (bad) { console.error(`verification failed (${bad})`); process.exit(1); }
-console.log("verification passed: every marketing page uses buildMetadata with a complete description <=158 chars");
+if (bad) { console.error("verification failed: " + bad); process.exit(1); }
+console.log("verification passed: every marketing page uses buildMetadata with a complete description of at most 158 chars");
