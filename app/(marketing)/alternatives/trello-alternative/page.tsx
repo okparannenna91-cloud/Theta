@@ -1,31 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Best Trello Alternatives in 2026 (Free & Paid)",
-  description: "Looking for a Trello alternative? We compared the best Trello alternatives for teams that need timelines, milestones, and reporting — including free options and easy migration.",
-  alternates: { canonical: `${BASE}/alternatives/trello-alternative` },
-  openGraph: {
-    title: "Best Trello Alternatives in 2026 (Free & Paid)",
-    description: "Compared and ranked for teams that need more than boards.",
-    url: `${BASE}/alternatives/trello-alternative`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Best Trello Alternatives in 2026 (Free & Paid)",
-    description: "The best Trello alternatives, compared.",
-    creator: "@theta_pm",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+  description:
+    "Looking for a Trello alternative? Compare the best options for teams that need timelines, milestones, and reporting, including free plans.",
+  path: "/alternatives/trello-alternative",
+});
 
 const pageSchema = [
   {

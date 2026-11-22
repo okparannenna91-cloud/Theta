@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "What is a Sprint in Scrum? A Beginner's Guide (2026)",
-  description: "Sprint vs Scrum: how fixed-length cycles help teams deliver usable work. Learn sprint length, what happens inside, and how to run your first sprint with a kanban board.",
-  alternates: { canonical: `${BASE}/guides/what-is-a-sprint` },
-  openGraph: {
-    title: "What is a Sprint in Scrum? A Beginner's Guide (2026)",
-    description: "How sprints work, how long they last, and how to run one.",
-    url: `${BASE}/guides/what-is-a-sprint`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "What is a Sprint in Scrum? A Beginner's Guide (2026)",
-    description: "Small goals, short cycles, fast feedback.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Sprint vs Scrum: how fixed-length cycles help teams deliver usable work. Learn sprint length, what happens inside, and how to run your first one.",
+  path: "/guides/what-is-a-sprint",
+});
 
 const pageSchema = [
   {

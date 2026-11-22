@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Monday.com vs Theta PM (2026): Boards vs Planning Comparison",
-  description: "Monday.com vs Theta PM: visual boards vs real planning. Monday.com wins on customizable boards, but Theta PM gives every team timeline, Gantt, and calendar views — all included, no tier upgrades. Compare pricing and views to decide.",
-  alternates: { canonical: `${BASE}/project-management-software/theta-vs-monday` },
-  openGraph: {
-    title: "Monday.com vs Theta PM (2026): Boards vs Planning Comparison",
-    description: "Compared on views, automation, pricing, and ease of use.",
-    url: `${BASE}/project-management-software/theta-vs-monday`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Monday.com vs Theta PM (2026): Boards vs Planning Comparison",
-    description: "Which project management tool fits your operations team?",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Monday.com vs Theta PM: visual boards vs real planning. Compare views, included features, and pricing to see which fits how your team works.",
+  path: "/project-management-software/theta-vs-monday",
+});
 
 const pageSchema = [
   {

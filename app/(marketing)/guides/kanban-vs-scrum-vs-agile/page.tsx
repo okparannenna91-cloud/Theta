@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Agile vs Scrum vs Kanban (2026): Framework Comparison",
-  description: "Agile vs Scrum vs Kanban: which framework fits your team in 2026? Discover the key differences, when to use each, and how to choose without confusion. Match the framework to your work style, not the fashion of the moment.",
-  alternates: { canonical: `${BASE}/guides/kanban-vs-scrum-vs-agile` },
-  openGraph: {
-    title: "Agile vs Scrum vs Kanban (2026): Framework Comparison",
-    description: "How they differ, when to use each, and how to choose.",
-    url: `${BASE}/guides/kanban-vs-scrum-vs-agile`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Agile vs Scrum vs Kanban (2026): Framework Comparison",
-    description: "How they differ, when to use each, and how to choose.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Agile vs Scrum vs Kanban: which framework fits your team in 2026? Compare the key differences and when to use each, then match it to your work.",
+  path: "/guides/kanban-vs-scrum-vs-agile",
+});
 
 const pageSchema = [
   {

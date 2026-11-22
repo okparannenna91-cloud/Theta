@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Team Collaboration Software: Work Together in Real Time (2026)",
-  description: "Team collaboration software with comments, mentions, activity feeds, and inbox notifications. Keep discussion next to the work, not lost in chat.",
-  alternates: { canonical: `${BASE}/features/collaboration` },
-  openGraph: {
-    title: "Team Collaboration Software: Work Together in Real Time (2026)",
-    description: "Comments, mentions, activity feeds, and inbox notifications.",
-    url: `${BASE}/features/collaboration`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Team Collaboration Software: Work Together in Real Time (2026)",
-    description: "Keep discussion next to the work, not lost in chat.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Team collaboration software with comments, mentions, activity feeds, and inbox notifications. Keep discussion next to the work, not lost in chat.",
+  path: "/features/collaboration",
+});
 
 const pageSchema = [
   {

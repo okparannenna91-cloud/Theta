@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "How to Prioritize Tasks: A Practical Step-by-Step Guide (2026)",
-  description: "How to prioritize tasks in 2026 using the Eisenhower Matrix, MoSCoW, RICE, and ICE — plus a step-by-step process you can start using today.",
-  alternates: { canonical: `${BASE}/guides/how-to-prioritize-tasks` },
-  openGraph: {
-    title: "How to Prioritize Tasks: A Practical Step-by-Step Guide (2026)",
-    description: "Eisenhower, MoSCoW, RICE, and ICE explained — plus a simple process for deciding what to do first.",
-    url: `${BASE}/guides/how-to-prioritize-tasks`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "How to Prioritize Tasks: A Practical Step-by-Step Guide (2026)",
-    description: "A simple process for deciding what to do first — Eisenhower, MoSCoW, RICE, and ICE.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "How to prioritize tasks in 2026 using the Eisenhower Matrix, MoSCoW, RICE, and ICE — plus a step-by-step process you can start using today.",
+  path: "/guides/how-to-prioritize-tasks",
+});
 
 const pageSchema = [
   {

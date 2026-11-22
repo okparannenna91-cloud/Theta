@@ -1,31 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Best Jira Alternatives in 2026 (Free & Paid)",
-  description: "Looking for a Jira alternative? We compared the best Jira alternatives for small teams, software teams, and agencies — including free options and easy migration.",
-  alternates: { canonical: `${BASE}/alternatives/jira-alternative` },
-  openGraph: {
-    title: "Best Jira Alternatives in 2026 (Free & Paid)",
-    description: "Compared and ranked for small teams, software teams, and agencies.",
-    url: `${BASE}/alternatives/jira-alternative`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Best Jira Alternatives in 2026 (Free & Paid)",
-    description: "The best Jira alternatives, compared.",
-    creator: "@theta_pm",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+  description:
+    "Looking for a Jira alternative? Compare the best options for small teams, software teams, and agencies, including free plans and easy migration.",
+  path: "/alternatives/jira-alternative",
+});
 
 const pageSchema = [
   {

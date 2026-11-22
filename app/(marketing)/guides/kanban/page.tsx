@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "How to Use Kanban Boards: A Practical Guide (2026)",
-  description: "Learn how to use kanban boards the right way: visualize work, set up columns, limit work in progress, and keep flow healthy. Practical guide with examples.",
-  alternates: { canonical: `${BASE}/guides/kanban` },
-  openGraph: {
-    title: "How to Use Kanban Boards: A Practical Guide (2026)",
-    description: "Visualize work, set up columns, limit WIP, and keep flow healthy.",
-    url: `${BASE}/guides/kanban`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "How to Use Kanban Boards: A Practical Guide (2026)",
-    description: "The practical kanban guide.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Learn how to use kanban boards the right way: visualize work, set up columns, limit work in progress, and keep flow healthy. Practical guide with examples.",
+  path: "/guides/kanban",
+});
 
 const pageSchema = [
   {

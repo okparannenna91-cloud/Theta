@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Task Management Best Practices for Teams (2026)",
-  description: "Task management best practices that actually work in 2026: write clear tasks, assign one owner, set real deadlines, and keep work visible.",
-  alternates: { canonical: `${BASE}/guides/task-management-best-practices` },
-  openGraph: {
-    title: "Task Management Best Practices for Teams (2026)",
-    description: "Clarity, ownership, deadlines, and visibility — the four habits that keep task tracking healthy.",
-    url: `${BASE}/guides/task-management-best-practices`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Task Management Best Practices for Teams (2026)",
-    description: "The four habits that keep task tracking healthy — clarity, ownership, deadlines, visibility.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Task management best practices that actually work in 2026: write clear tasks, assign one owner, set real deadlines, and keep all work visible.",
+  path: "/guides/task-management-best-practices",
+});
 
 const pageSchema = [
   {

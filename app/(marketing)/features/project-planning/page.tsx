@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Project Planning Software: From Idea to Timeline (2026)",
-  description: "Project planning software with milestones, timelines, dependencies, and Gantt charts. Plan the whole project, keep the roadmap visible, and adapt as you learn.",
-  alternates: { canonical: `${BASE}/features/project-planning` },
-  openGraph: {
-    title: "Project Planning Software: From Idea to Timeline (2026)",
-    description: "Milestones, timelines, dependencies, and Gantt charts in one place.",
-    url: `${BASE}/features/project-planning`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Project Planning Software: From Idea to Timeline (2026)",
-    description: "Plan the whole project and keep the roadmap visible.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Project planning software with milestones, timelines, dependencies, and Gantt charts. Plan the whole project and adapt as you learn.",
+  path: "/features/project-planning",
+});
 
 const pageSchema = [
   {

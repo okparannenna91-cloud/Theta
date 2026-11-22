@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Theta PM vs Trello (2026): Side-by-Side Comparison",
-  description: "Theta PM vs Trello compared on board experience, planning views, integrations, and pricing. See which project management tool fits your team in 2026.",
-  alternates: { canonical: `${BASE}/project-management-software/theta-vs-trello` },
-  openGraph: {
-    title: "Theta PM vs Trello (2026): Side-by-Side Comparison",
-    description: "Compared on board experience, planning views, integrations, and pricing.",
-    url: `${BASE}/project-management-software/theta-vs-trello`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Theta PM vs Trello (2026): Side-by-Side Comparison",
-    description: "Do you need more than a board?",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Theta PM vs Trello compared on board experience, planning views, integrations, and pricing. See which project management tool fits your team in 2026.",
+  path: "/project-management-software/theta-vs-trello",
+});
 
 const pageSchema = [
   {

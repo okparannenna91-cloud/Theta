@@ -3,12 +3,9 @@ import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
 import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
 export const metadata: Metadata = buildMetadata({
   title: "Best Smartsheet Alternatives in 2026 for Scheduling Teams",
-  description:
-    "Smartsheet is a spreadsheet with a Gantt engine. Compare alternatives for scheduling-heavy teams that want dependencies and timelines without a formula-driven workspace.",
+  description: "Smartsheet is a spreadsheet with a Gantt engine. Compare alternatives for scheduling-heavy teams that want dependencies without a formula-first grid.",
   path: "/alternatives/smartsheet-alternative",
 });
 

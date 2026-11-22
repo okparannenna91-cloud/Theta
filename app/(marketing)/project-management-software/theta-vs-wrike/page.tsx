@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Wrike vs Theta PM (2026): Enterprise Planning vs Adoption Comparison",
-  description: "Wrike vs Theta PM: enterprise planning vs real adoption. Wrike delivers governance at a cost — configuration, tier-gated features, and per-seat pricing that climbs quickly. Theta PM gives timeline, Gantt, and automation ready in minutes, with a free tier that actually covers your team. Compare total cost and time-to-value.",
-  alternates: { canonical: `${BASE}/project-management-software/theta-vs-wrike` },
-  openGraph: {
-    title: "Wrike vs Theta PM (2026): Enterprise Planning vs Adoption Comparison",
-    description: "Compared on task management, planning views, automation, and pricing.",
-    url: `${BASE}/project-management-software/theta-vs-wrike`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Wrike vs Theta PM (2026): Enterprise Planning vs Adoption Comparison",
-    description: "Enterprise-grade planning, minus the bloat?",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Wrike vs Theta PM: enterprise governance vs fast adoption. Compare tier-gated features, per-seat pricing, time-to-value, and what each includes.",
+  path: "/project-management-software/theta-vs-wrike",
+});
 
 const pageSchema = [
   {

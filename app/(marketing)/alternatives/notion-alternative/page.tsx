@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Best Notion Alternatives in 2026 (Free & Paid)",
-  description: "Looking for a Notion alternative for project management? We compared the best alternatives for teams that outgrew Notion's DIY setup — including free options. Find the right tool for your team's needs.",
-  alternates: { canonical: `${BASE}/alternatives/notion-alternative` },
-  openGraph: {
-    title: "Best Notion Alternatives in 2026 (Free & Paid)",
-    description: "Compared for teams that outgrew Notion's DIY task setup.",
-    url: `${BASE}/alternatives/notion-alternative`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Best Notion Alternatives in 2026 (Free & Paid)",
-    description: "Alternatives for teams that outgrew the blank canvas.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Looking for a Notion alternative for project management? Compare the best options for teams that outgrew Notion's DIY setup, free plans included.",
+  path: "/alternatives/notion-alternative",
+});
 
 const pageSchema = [
   {

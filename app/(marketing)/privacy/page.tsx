@@ -7,8 +7,8 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Privacy Policy | Theta PM",
-  description: "Theta PM privacy policy: we do not sell your data. We securely store your project data, task details, and integrations. Read our transparent policy on data collection, storage, and your rights.",
-  path: "/(marketing)/privacy",
+  description: "Theta PM privacy policy: we do not sell your data. Read how we store project data and integrations, and what rights you have over your information.",
+  path: "/privacy",
 });
 
 export default function PrivacyPolicy() {

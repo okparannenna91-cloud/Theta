@@ -3,12 +3,9 @@ import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
 import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
 export const metadata: Metadata = buildMetadata({
   title: "Best Teamwork Alternatives in 2026 for Agencies",
-  description:
-    "Teamwork is built around client billing. Compare alternatives for agencies that need delivery tracking, time reporting, and client projects without per-seat billing weight.",
+  description: "Teamwork is built around client billing. Compare alternatives for agencies that want delivery tracking and time reporting without the billing weight.",
   path: "/alternatives/teamwork-alternative",
 });
 

@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Theta PM vs Asana (2026): Side-by-Side Comparison",
-  description: "Theta PM vs Asana compared on views, real-time collaboration, automation, integrations, pricing, and ease of use. See which project management tool fits your team.",
-  alternates: { canonical: `${BASE}/project-management-software/theta-vs-asana` },
-  openGraph: {
-    title: "Theta PM vs Asana (2026): Side-by-Side Comparison",
-    description: "Compared on views, real-time collaboration, automation, integrations, pricing, and ease of use.",
-    url: `${BASE}/project-management-software/theta-vs-asana`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Theta PM vs Asana (2026): Side-by-Side Comparison",
-    description: "Which project management tool fits your team?",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Theta PM vs Asana compared on views, real-time collaboration, automation, integrations, pricing, and ease of use. See which fits your team.",
+  path: "/project-management-software/theta-vs-asana",
+});
 
 const pageSchema = [
   {

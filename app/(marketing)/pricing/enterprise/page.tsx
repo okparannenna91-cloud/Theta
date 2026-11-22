@@ -3,12 +3,9 @@ import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
 import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
 export const metadata: Metadata = buildMetadata({
   title: "Theta Plus: Theta PM for Larger Organizations",
-  description:
-    "Theta Plus removes the user cap, adds role-based permissions and unlimited integrations, and costs $20 per month plus $4 per user. Here is what it covers and how to roll it out.",
+  description: "Theta Plus removes the user cap and adds role-based permissions and unlimited integrations for $20 per month plus $4 per user. See what it covers.",
   path: "/pricing/enterprise",
 });
 

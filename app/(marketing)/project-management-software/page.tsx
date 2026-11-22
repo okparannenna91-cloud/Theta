@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Best Project Management Software in 2026",
-  description: "We compared the best project management software of 2026 for small teams, startups, agencies, remote teams, and software teams. See which tool fits how you actually work.",
-  alternates: { canonical: `${BASE}/project-management-software` },
-  openGraph: {
-    title: "Best Project Management Software in 2026",
-    description: "Compared and ranked for small teams, startups, agencies, remote teams, and software teams.",
-    url: `${BASE}/project-management-software`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Best Project Management Software in 2026",
-    description: "Compared and ranked for small teams, startups, agencies, remote teams, and software teams.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "We compared the best project management software of 2026 for small teams, startups, agencies, and remote teams. See which tool fits how you work.",
+  path: "/project-management-software",
+});
 
 const pageSchema = [
   {

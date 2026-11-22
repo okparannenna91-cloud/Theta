@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Best Monday.com Alternatives in 2026 (Free & Paid)",
-  description: "Looking for a Monday.com alternative? We compared the best Monday.com alternatives for small teams, operations teams, and agencies — including free options and easy migration. Find the right tool for your team's needs.",
-  alternates: { canonical: `${BASE}/alternatives/monday-alternative` },
-  openGraph: {
-    title: "Best Monday.com Alternatives in 2026 (Free & Paid)",
-    description: "Compared and ranked for small teams, operations teams, and agencies.",
-    url: `${BASE}/alternatives/monday-alternative`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Best Monday.com Alternatives in 2026 (Free & Paid)",
-    description: "The best Monday.com alternatives, compared.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Looking for a Monday.com alternative? Compare the best options for small teams, ops teams, and agencies, including free plans.",
+  path: "/alternatives/monday-alternative",
+});
 
 const pageSchema = [
   {

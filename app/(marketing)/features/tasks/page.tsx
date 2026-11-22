@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Task Management Software That Keeps Teams in Flow (2026)",
-  description: "Task management software with assignees, custom fields, dependencies, multiple views, and real-time collaboration. Track work from idea to done in one place.",
-  alternates: { canonical: `${BASE}/features/tasks` },
-  openGraph: {
-    title: "Task Management Software That Keeps Teams in Flow (2026)",
-    description: "Assignees, custom fields, dependencies, multiple views, and real-time collaboration.",
-    url: `${BASE}/features/tasks`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Task Management Software That Keeps Teams in Flow (2026)",
-    description: "Track work from idea to done in one place.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Task management software with assignees, custom fields, dependencies, multiple views, and real-time collaboration. Track work from idea to done in one place.",
+  path: "/features/tasks",
+});
 
 const pageSchema = [
   {

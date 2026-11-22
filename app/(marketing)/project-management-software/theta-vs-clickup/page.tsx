@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "ClickUp vs Theta PM (2026): Feature Sprawl vs Focus Comparison",
-  description: "ClickUp vs Theta PM: one app vs focused toolkit. ClickUp packs docs, goals, and whiteboards — but teams often spend hours configuring. Theta PM keeps it simple: tasks, boards, timeline, and Gantt ready out of the box. Compare complexity and pricing.",
-  alternates: { canonical: `${BASE}/project-management-software/theta-vs-clickup` },
-  openGraph: {
-    title: "ClickUp vs Theta PM (2026): Feature Sprawl vs Focus Comparison",
-    description: "Compared on complexity, views, automation, and pricing.",
-    url: `${BASE}/project-management-software/theta-vs-clickup`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "ClickUp vs Theta PM (2026): Feature Sprawl vs Focus Comparison",
-    description: "Which project management tool fits your team?",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "ClickUp vs Theta PM: one app vs a focused toolkit. Compare feature sprawl, setup time, planning views, and pricing before you commit.",
+  path: "/project-management-software/theta-vs-clickup",
+});
 
 const pageSchema = [
   {

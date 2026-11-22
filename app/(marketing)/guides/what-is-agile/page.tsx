@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "What Is Agile Project Management? A Beginner's Guide (2026)",
-  description: "Agile project management for beginners: the 4 values, how teams deliver in small increments, and which framework fits your team in 2026. Compare Scrum, Kanban, and Waterfall.",
-  alternates: { canonical: `${BASE}/guides/what-is-agile` },
-  openGraph: {
-    title: "What Is Agile Project Management? A Beginner's Guide (2026)",
-    description: "The agile values, how it works in practice, and the frameworks teams use.",
-    url: `${BASE}/guides/what-is-agile`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "What Is Agile Project Management? A Beginner's Guide (2026)",
-    description: "The agile values, how it works in practice, and the frameworks teams use.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Agile project management for beginners: the four values, how teams deliver in small increments, and how Scrum, Kanban, and Waterfall compare.",
+  path: "/guides/what-is-agile",
+});
 
 const pageSchema = [
   {

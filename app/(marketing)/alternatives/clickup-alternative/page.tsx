@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Best ClickUp Alternatives in 2026 (Free & Paid)",
-  description: "Looking for a ClickUp alternative? We compared the best ClickUp alternatives for teams that want the power without the complexity — including free options and easy migration. Find the right tool for your team's needs.",
-  alternates: { canonical: `${BASE}/alternatives/clickup-alternative` },
-  openGraph: {
-    title: "Best ClickUp Alternatives in 2026 (Free & Paid)",
-    description: "Compared and ranked for teams that want power without the complexity.",
-    url: `${BASE}/alternatives/clickup-alternative`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Best ClickUp Alternatives in 2026 (Free & Paid)",
-    description: "The best ClickUp alternatives, compared.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Looking for a ClickUp alternative? Compare the best options for teams that want planning power without the complexity, including free tools.",
+  path: "/alternatives/clickup-alternative",
+});
 
 const pageSchema = [
   {

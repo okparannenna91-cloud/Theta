@@ -5,8 +5,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Project Reports & Dashboards for Delivery Teams",
-  description:
-    "Project reports that answer status, workload, and delivery questions in one view. See what Theta PM reports on, how scheduled reports work, and how to export them.",
+  description: "Project reports that answer status, workload, and delivery questions in one view. See what Theta PM reports on and how scheduled reports work.",
   path: "/features/reports",
 });
 

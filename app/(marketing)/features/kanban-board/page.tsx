@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Kanban Board Software: Plan, Track, and Ship (2026)",
-  description: "Kanban board software for teams that want a clear view of work: drag-and-drop cards, custom fields, automations, and real-time collaboration — plus timeline and Gantt views on the same tasks.",
-  alternates: { canonical: `${BASE}/features/kanban-board` },
-  openGraph: {
-    title: "Kanban Board Software: Plan, Track, and Ship (2026)",
-    description: "Boards, custom fields, automations, and real-time collaboration.",
-    url: `${BASE}/features/kanban-board`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Kanban Board Software: Plan, Track, and Ship (2026)",
-    description: "Boards, custom fields, automations, and real-time collaboration.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Kanban board software with drag-and-drop cards, custom fields, automations, and real-time collaboration, plus timeline and Gantt on the same tasks.",
+  path: "/features/kanban-board",
+});
 
 const pageSchema = [
   {

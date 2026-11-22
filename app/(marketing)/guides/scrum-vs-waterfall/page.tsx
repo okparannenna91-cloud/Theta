@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Scrum vs Waterfall (2026): Which Method Should Your Team Use?",
-  description: "Waterfall vs Scrum: plan everything up front vs adapt sprint by sprint. Compare planning, flexibility, delivery, and team fit to choose the right method for your project in 2026.",
-  alternates: { canonical: `${BASE}/guides/scrum-vs-waterfall` },
-  openGraph: {
-    title: "Scrum vs Waterfall (2026): Which Method Should Your Team Use?",
-    description: "Compared on planning, flexibility, delivery, and team fit.",
-    url: `${BASE}/guides/scrum-vs-waterfall`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Scrum vs Waterfall (2026): Which Method Should Your Team Use?",
-    description: "Plan everything, or adapt as you go?",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Waterfall vs Scrum: plan everything up front or adapt sprint by sprint. Compare planning, flexibility, delivery, and which method fits your project.",
+  path: "/guides/scrum-vs-waterfall",
+});
 
 const pageSchema = [
   {

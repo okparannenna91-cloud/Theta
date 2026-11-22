@@ -1,30 +1,16 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
 const BASE = "https://www.thetapm.site";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Project Management Software & Agile Guides Hub (2026)",
   description:
-    "Explore every Theta PM comparison, agile guide, and alternative breakdown in one place. Find the right project management tool for your team without the setup tax.",
-  alternates: { canonical: `${BASE}/cornerstone` },
-  openGraph: {
-    title: "Project Management Software & Agile Guides Hub (2026)",
-    description:
-      "Every comparison, agile guide, and alternative breakdown in one place.",
-    url: `${BASE}/cornerstone`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Project Management Software & Agile Guides Hub (2026)",
-    description:
-      "Every comparison, agile guide, and alternative breakdown in one place.",
-    creator: "@theta_pm",
-  },
-};
+    "Explore every Theta PM comparison, agile guide, and alternative breakdown in one place. Find the right tool without the setup tax.",
+  path: "/cornerstone",
+});
 
 const pageSchema = [
   {

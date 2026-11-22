@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Project Timeline Software: Plan and Track Schedules (2026)",
-  description: "Project timeline software with milestones, drag-and-drop scheduling, and real-time updates. See every project on one timeline and keep it in sync with daily work.",
-  alternates: { canonical: `${BASE}/features/timeline` },
-  openGraph: {
-    title: "Project Timeline Software: Plan and Track Schedules (2026)",
-    description: "Milestones, drag-and-drop scheduling, and real-time updates on one timeline.",
-    url: `${BASE}/features/timeline`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Project Timeline Software: Plan and Track Schedules (2026)",
-    description: "See the whole project on one line.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Project timeline software with milestones, drag-and-drop scheduling, and live updates. See every project on one timeline, in sync with daily work.",
+  path: "/features/timeline",
+});
 
 const pageSchema = [
   {

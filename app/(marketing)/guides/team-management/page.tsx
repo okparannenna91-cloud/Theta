@@ -5,8 +5,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
   title: "Team Management: Roles, Capacity, and One-on-Ones",
-  description:
-    "Team management practices that hold up under delivery pressure: clear roles, honest capacity planning, useful one-on-ones, and delegation that transfers ownership.",
+  description: "Team management practices that hold up under delivery pressure: clear roles, honest capacity planning, useful one-on-ones, and real delegation.",
   path: "/guides/team-management",
 });
 

@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "What is a Gantt Chart? A Beginner's Guide (2026)",
-  description: "What is a Gantt chart? Learn how Gantt charts work, what the bars and lines mean, and when to use one for project planning and scheduling.",
-  alternates: { canonical: `${BASE}/guides/what-is-a-gantt-chart` },
-  openGraph: {
-    title: "What is a Gantt Chart? A Beginner's Guide (2026)",
-    description: "How Gantt charts work, what the bars and lines mean, and when to use one.",
-    url: `${BASE}/guides/what-is-a-gantt-chart`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "What is a Gantt Chart? A Beginner's Guide (2026)",
-    description: "The whole project, on one timeline.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "What is a Gantt chart? Learn how Gantt charts work, what the bars and lines mean, and when to use one for project planning and scheduling.",
+  path: "/guides/what-is-a-gantt-chart",
+});
 
 const pageSchema = [
   {

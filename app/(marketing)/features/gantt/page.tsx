@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Gantt Chart Software: Plan, Sequence, and Track (2026)",
-  description: "Gantt chart software with dependencies, scheduling, and real-time updates. See the whole project on one timeline and keep it in sync with daily work.",
-  alternates: { canonical: `${BASE}/features/gantt` },
-  openGraph: {
-    title: "Gantt Chart Software: Plan, Sequence, and Track (2026)",
-    description: "Dependencies, scheduling, and real-time updates on one timeline.",
-    url: `${BASE}/features/gantt`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Gantt Chart Software: Plan, Sequence, and Track (2026)",
-    description: "See the whole project on one timeline.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Gantt chart software with dependencies, scheduling, and real-time updates. See the whole project on one timeline and keep it in sync with daily work.",
+  path: "/features/gantt",
+});
 
 const pageSchema = [
   {

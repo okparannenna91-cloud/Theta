@@ -8,7 +8,7 @@ import { buildMetadata } from "@/lib/seo";
 export const metadata: Metadata = buildMetadata({
   title: "Documentation | Theta PM",
   description: "Read the official Theta PM documentation. Learn to set up workspaces, manage tasks, and integrate your favorite tools.",
-  path: "/(marketing)/docs",
+  path: "/docs",
 });
 
 export default function Documentation() {

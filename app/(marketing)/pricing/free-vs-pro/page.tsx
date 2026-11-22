@@ -3,12 +3,9 @@ import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
 import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
 export const metadata: Metadata = buildMetadata({
   title: "Theta PM Free vs Pro: Which Plan Do You Need?",
-  description:
-    "A side-by-side look at the Theta PM free plan, Growth, and Pro — user limits, boards, storage, automations, and integrations — with cost examples at real team sizes.",
+  description: "A side-by-side look at Theta PM Free, Growth, and Pro: user limits, boards, storage, automations, and integrations, with costs at real team sizes.",
   path: "/pricing/free-vs-pro",
 });
 

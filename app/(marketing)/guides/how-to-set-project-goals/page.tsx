@@ -5,8 +5,7 @@ import { buildMetadata } from "@/lib/seo";
 
 export const metadata: Metadata = buildMetadata({
   title: "How to Set Project Goals That Actually Guide the Work",
-  description:
-    "Set project goals as outcomes with a measure and a date, then break them into milestones and tasks. Includes examples and a review cadence that keeps goals alive.",
+  description: "Set project goals as outcomes with a measure and a date, then break them into milestones and tasks. Includes examples and a review cadence.",
   path: "/guides/how-to-set-project-goals",
 });
 

@@ -8,7 +8,7 @@ import { buildMetadata } from "@/lib/seo";
 export const metadata: Metadata = buildMetadata({
   title: "Terms of Service | Theta PM",
   description: "Read Theta PM's terms of service. Understand the rules and guidelines for using our platform.",
-  path: "/(marketing)/terms",
+  path: "/terms",
 });
 
 export default function TermsOfService() {

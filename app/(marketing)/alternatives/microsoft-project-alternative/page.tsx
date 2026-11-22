@@ -1,31 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Best Microsoft Project Alternatives in 2026 (Free & Paid)",
-  description: "Looking for a Microsoft Project alternative? We compared the best options for scheduling, Gantt charts, and team collaboration — including free alternatives.",
-  alternates: { canonical: `${BASE}/alternatives/microsoft-project-alternative` },
-  openGraph: {
-    title: "Best Microsoft Project Alternatives in 2026 (Free & Paid)",
-    description: "Compared for scheduling, Gantt charts, and team collaboration.",
-    url: `${BASE}/alternatives/microsoft-project-alternative`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Best Microsoft Project Alternatives in 2026 (Free & Paid)",
-    description: "Scheduling power without the desktop tool.",
-    creator: "@theta_pm",
-  },
-  robots: {
-    index: true,
-    follow: true,
-  },
-};
+  description:
+    "Looking for a Microsoft Project alternative? Compare the best options for scheduling, Gantt charts, dependencies, and free or paid collaboration.",
+  path: "/alternatives/microsoft-project-alternative",
+});
 
 const pageSchema = [
   {

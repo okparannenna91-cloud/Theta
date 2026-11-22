@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Jira vs Theta PM (2026): Agile Power Comparison",
-  description: "Jira vs Theta PM: agile power without the setup burden. Compare setup time, boards, Gantt charts, GitHub integration, and pricing. Choose agile power without the configuration tax.",
-  alternates: { canonical: `${BASE}/project-management-software/theta-vs-jira` },
-  openGraph: {
-    title: "Jira vs Theta PM (2026): Agile Power Comparison",
-    description: "Compared on setup time, boards, planning views, GitHub integration, and pricing.",
-    url: `${BASE}/project-management-software/theta-vs-jira`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Jira vs Theta PM (2026): Agile Power Comparison",
-    description: "Agile power without the setup burden?",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Jira vs Theta PM: agile power without the setup burden. Compare boards, Gantt charts, GitHub integration, setup time, and pricing side by side.",
+  path: "/project-management-software/theta-vs-jira",
+});
 
 const pageSchema = [
   {

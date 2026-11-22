@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Kanban vs Scrum: Key Differences and How to Choose (2026)",
-  description: "Kanban vs Scrum explained simply for 2026: how the two frameworks differ in roles, cadence, and WIP limits, and how to pick the right one for your team.",
-  alternates: { canonical: `${BASE}/guides/kanban-vs-scrum` },
-  openGraph: {
-    title: "Kanban vs Scrum: Key Differences and How to Choose (2026)",
-    description: "Roles, cadence, and WIP limits compared — plus how to pick the right one.",
-    url: `${BASE}/guides/kanban-vs-scrum`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Kanban vs Scrum: Key Differences and How to Choose (2026)",
-    description: "Roles, cadence, and WIP limits compared — plus how to pick the right one.",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Kanban vs Scrum explained simply for 2026: how the two frameworks differ in roles, cadence, and WIP limits, and how to pick the right one for your team.",
+  path: "/guides/kanban-vs-scrum",
+});
 
 const pageSchema = [
   {

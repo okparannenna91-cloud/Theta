@@ -3,12 +3,9 @@ import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
 import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
 export const metadata: Metadata = buildMetadata({
   title: "Best Airtable Alternatives in 2026 for Project Teams",
-  description:
-    "Airtable is a relational database, not a delivery tool. Here is when to keep it, when to replace it, and how project teams migrate without losing their base structure.",
+  description: "Airtable is a relational database, not a delivery tool. Here is when to keep it, when to replace it, and how teams migrate without losing their base.",
   path: "/alternatives/airtable-alternative",
 });
 

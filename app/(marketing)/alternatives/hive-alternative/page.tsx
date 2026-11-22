@@ -3,12 +3,9 @@ import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
 import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
 export const metadata: Metadata = buildMetadata({
   title: "Best Hive Alternatives in 2026 for Team Work Management",
-  description:
-    "Hive bundles approvals, forms, and resourcing but asks a lot in setup. Compare the best alternatives for teams that want the useful parts without the configuration weight.",
+  description: "Hive bundles approvals, forms, and resourcing but asks a lot in setup. Compare alternatives for teams that want the useful parts without the weight.",
   path: "/alternatives/hive-alternative",
 });
 

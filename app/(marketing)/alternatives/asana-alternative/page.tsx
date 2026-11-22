@@ -3,12 +3,9 @@ import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
 import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
 export const metadata: Metadata = buildMetadata({
   title: "Best Asana Alternatives in 2026 (Free & Paid)",
-  description:
-    "Asana is polished but feature-tiered. Compare the strongest Asana alternatives for teams that need timelines, dependencies, and reporting without the per-seat upgrade ladder.",
+  description: "Asana is polished but feature-tiered. Compare the best Asana alternatives for teams that need timelines and dependencies without the upgrade ladder.",
   path: "/alternatives/asana-alternative",
 });
 

@@ -1,27 +1,14 @@
 import type { Metadata } from "next";
 import { SeoShell } from "@/components/seo/seo-shell";
 import { SeoContent } from "@/components/seo/seo-content";
+import { buildMetadata } from "@/lib/seo";
 
-const BASE = "https://www.thetapm.site";
-
-export const metadata: Metadata = {
+export const metadata: Metadata = buildMetadata({
   title: "Notion vs Theta PM (2026): Wiki vs Task Tool Comparison",
-  description: "Notion vs Theta PM: a wiki with tasks, or a task tool with structure? Compare task management, planning views, and which tool handles your team's work better. Notion gives you a blank canvas — Theta PM gives you ready-to-use projects.",
-  alternates: { canonical: `${BASE}/project-management-software/theta-vs-notion` },
-  openGraph: {
-    title: "Notion vs Theta PM (2026): Wiki vs Task Tool Comparison",
-    description: "Compared on task management, planning views, and structure.",
-    url: `${BASE}/project-management-software/theta-vs-notion`,
-    siteName: "Theta PM",
-    type: "website",
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "Notion vs Theta PM (2026): Wiki vs Task Tool Comparison",
-    description: "A wiki with tasks, or a task tool with structure?",
-    creator: "@theta_pm",
-  },
-};
+  description:
+    "Notion vs Theta PM: a wiki with tasks, or a task tool with structure? Compare task management, planning views, and which suits your team.",
+  path: "/project-management-software/theta-vs-notion",
+});
 
 const pageSchema = [
   {
