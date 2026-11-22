@@ -10,6 +10,8 @@ const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`;
 
 /** Google truncates descriptions around 158 characters. */
 const MAX_DESCRIPTION = 158;
+/** Shortest description worth keeping when a sentence boundary is available. */
+const MIN_DESCRIPTION = 110;
 
 /**
  * The root layout applies the `%s | Theta PM` title template, so any page title
@@ -22,14 +24,27 @@ function stripDuplicateBrand(title: string): string {
   return stripped.length > 0 ? stripped : title.trim();
 }
 
-/** Trim to a word boundary so metadata never cuts mid-word. */
+/**
+ * Keep a description inside Google's snippet budget without ending mid-clause.
+ * A sentence boundary is preferred, so a snippet never dangles ("...without").
+ */
 function clampDescription(description: string): string {
   const trimmed = description.trim().replace(/\s+/g, " ");
   if (trimmed.length <= MAX_DESCRIPTION) return trimmed;
+
+  const within = trimmed.slice(0, MAX_DESCRIPTION + 1);
+  const sentenceEnd = /[.!?](?=\s|$)/g;
+  let bestSentenceEnd = -1;
+  for (let match = sentenceEnd.exec(within); match; match = sentenceEnd.exec(within)) {
+    const end = match.index + 1;
+    if (end >= MIN_DESCRIPTION && end <= MAX_DESCRIPTION) bestSentenceEnd = end;
+  }
+  if (bestSentenceEnd > 0) return trimmed.slice(0, bestSentenceEnd);
+
   const cut = trimmed.slice(0, MAX_DESCRIPTION);
   const lastSpace = cut.lastIndexOf(" ");
-  const bounded = lastSpace > 100 ? cut.slice(0, lastSpace) : cut;
-  return bounded.replace(/[,;:.\s]+$/, "");
+  const bounded = lastSpace >= MIN_DESCRIPTION ? cut.slice(0, lastSpace) : cut;
+  return `${bounded.replace(/[,;:.\u2014\u2013\s]+$/, "")}\u2026`;
 }
 
 export function buildMetadata(params: {
