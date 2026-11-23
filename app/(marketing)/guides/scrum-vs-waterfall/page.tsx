@@ -118,7 +118,7 @@ export default function ScrumVsWaterfall() {
               },
               {
                 heading: "How expensive is change?",
-                body: "If a late change costs a fortune, waterfall. If it costs a sprint of effort, scrum.",
+                body: "If a late change costs a fortune, waterfall. If it costs a sprint of effort, scrum. Enterprise teams usually end up weighing [Theta vs Wrike](/project-management-software/theta-vs-wrike) at exactly this point, because how much process a tool enforces is the real difference.",
               },
               {
                 heading: "When does the team start learning?",
@@ -129,7 +129,7 @@ export default function ScrumVsWaterfall() {
           {
             h2: "You Can Also Do Both",
             paragraphs: [
-              "Hybrid approaches are common: waterfall for scope, budget, and milestones, scrum inside each phase for execution. The plan stays predictable; the work stays adaptable. Theta PM supports both — a timeline with milestones for the plan, and kanban boards for the daily work, reading from the same tasks.",
+              "Hybrid approaches are common: waterfall for scope, budget, and milestones, scrum inside each phase for execution. The plan stays predictable; the work stays adaptable. Theta PM supports both — a timeline with milestones for the plan, and kanban boards for the daily work, reading from the same tasks. If you are replacing a phase-gated tool, the [Microsoft Project alternatives](/alternatives/microsoft-project-alternative) roundup is the place to start.",
             ],
           },
         ]}
