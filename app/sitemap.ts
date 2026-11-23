@@ -7,7 +7,7 @@ const baseUrl = "https://www.thetapm.site";
  * Fixed content date instead of `new Date()`. A lastmod that changes on every
  * request teaches Google to ignore the signal entirely.
  */
-const CONTENT_UPDATED = new Date("2026-11-11T00:00:00.000Z");
+const CONTENT_UPDATED = new Date("2026-11-23T00:00:00.000Z");
 
 const marketingPages: MetadataRoute.Sitemap = [
   { url: `${baseUrl}/`, lastModified: CONTENT_UPDATED, changeFrequency: "daily", priority: 1 },

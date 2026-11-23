@@ -4,7 +4,7 @@ export const BASE_URL = "https://www.thetapm.site";
 export const SITE_NAME = "Theta PM";
 
 /** Update when page copy changes so sitemap lastmod and Article dates stay honest. */
-export const SITE_CONTENT_UPDATED = "2026-11-11";
+export const SITE_CONTENT_UPDATED = "2026-11-23";
 
 const DEFAULT_OG_IMAGE = `${BASE_URL}/og-image.png`;
 
