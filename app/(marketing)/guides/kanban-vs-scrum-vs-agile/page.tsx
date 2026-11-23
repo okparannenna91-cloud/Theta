@@ -108,7 +108,7 @@ export default function KanbanVsScrumVsAgile() {
           {
             h2: "What Is Scrum?",
             paragraphs: [
-              "Scrum is a structured framework for agile delivery. Work is planned in time-boxed cycles called sprints, usually two to four weeks. Each sprint ends with a review and a retrospective, then the next sprint begins.",
+              "Scrum is a structured framework for agile delivery. Work is planned in time-boxed cycles called sprints, usually two to four weeks. Each sprint ends with a review and a retrospective, then the next sprint begins. If your team already runs sprints in Jira, the [Theta vs Jira comparison](/project-management-software/theta-vs-jira) covers which of those mechanics carry over to a lighter tool.",
             ],
             h3s: [
               {
@@ -133,7 +133,7 @@ export default function KanbanVsScrumVsAgile() {
           {
             h2: "What Is Kanban?",
             paragraphs: [
-              "Kanban is a visual method for managing workflow with a board of columns and cards. There are no sprints and no fixed roles. Work is pulled through the system continuously, and WIP limits keep the team from overloading.",
+              "Kanban is a visual method for managing workflow with a board of columns and cards. There are no sprints and no fixed roles. Work is pulled through the system continuously, and WIP limits keep the team from overloading. Teams moving off Trello usually hit its board limits first — the [Theta vs Trello comparison](/project-management-software/theta-vs-trello) shows where a plain board stops being enough.",
             ],
             bullets: [
               "Visualize work on a board — columns are stages, cards are work items.",
@@ -180,7 +180,7 @@ export default function KanbanVsScrumVsAgile() {
               },
               {
                 heading: "Combine them (Scrumban) if",
-                body: "Many teams plan in sprints but visualize daily work on a kanban board with WIP limits. That hybrid is common and works well — the tools you pick should support both boards and sprints.",
+                body: "Many teams plan in sprints but visualize daily work on a kanban board with WIP limits. That hybrid is common and works well — the tools you pick should support both boards and sprints. [Theta vs Asana](/project-management-software/theta-vs-asana) compares two tools that hold both views on the same tasks.",
               },
             ],
           },
@@ -188,7 +188,7 @@ export default function KanbanVsScrumVsAgile() {
             h2: "Tools That Support Agile, Scrum, and Kanban",
             paragraphs: [
               "Your tool should not force the methodology. Look for a platform where you can run a kanban board for daily flow, a timeline for planning, and keep everything on the same tasks.",
-              "Theta PM shows the same work as kanban, timeline, Gantt, and calendar views, so teams can move between continuous flow and structured planning without changing tools.",
+              "Theta PM shows the same work as kanban, timeline, Gantt, and calendar views, so teams can move between continuous flow and structured planning without changing tools. If you are planning a move off a heavier suite, the [Jira alternatives](/alternatives/jira-alternative) roundup is a shorter route than a full migration plan.",
             ],
           },
         ]}
