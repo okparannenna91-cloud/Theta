@@ -114,7 +114,7 @@ export default function Page() {
             paragraphs: [
               "Kanban improves through measurement, and two metrics carry most of the signal.",
               "Cycle time is how long a card takes from start to finish. Lead time is how long it takes from request to delivery. Both are medians, not averages — one six-week outlier will distort a mean and hide a real improvement.",
-              "If you chart cycle time over a few weeks you get a cumulative flow picture: where cards pile up, which column is the bottleneck, and whether a WIP limit change actually helped.",
+              "If you chart cycle time over a few weeks you get a cumulative flow picture: where cards pile up, which column is the bottleneck, and whether a WIP limit change actually helped. Doing that by hand gets old quickly, which is the reporting difference the [Theta vs ClickUp comparison](/project-management-software/theta-vs-clickup) turns on.",
             ],
             bullets: [
               "Track cycle time per card from first pull to Done, using real start and completion timestamps.",
@@ -137,7 +137,7 @@ export default function Page() {
           {
             h2: "Running Kanban in Theta PM",
             paragraphs: [
-              "Theta PM's kanban board is one view of the tasks in a project, so the same cards appear on the timeline, the calendar, and the Gantt view without being copied. That makes the board a flow tool rather than a separate system.",
+              "Theta PM's kanban board is one view of the tasks in a project, so the same cards appear on the timeline, the calendar, and the Gantt view without being copied. That makes the board a flow tool rather than a separate system. If your board lives in Trello today, the [Theta vs Trello comparison](/project-management-software/theta-vs-trello) covers what a flow system adds, and the [Trello alternatives](/alternatives/trello-alternative) roundup is the wider shortlist.",
             ],
             bullets: [
               "Drag cards between columns, or let automation move them on status change.",
