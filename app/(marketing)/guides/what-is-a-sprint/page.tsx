@@ -102,7 +102,7 @@ export default function WhatIsASprint() {
             h3s: [
               {
                 heading: "1. Sprint planning",
-                body: "The team picks the top items from the backlog it believes it can finish, and agrees on the sprint goal. The sprint's scope is locked — no new work joins mid-sprint.",
+                body: "The team picks the top items from the backlog it believes it can finish, and agrees on the sprint goal. The sprint's scope is locked — no new work joins mid-sprint. Most teams arrive here from Jira, and the [Theta vs Jira comparison](/project-management-software/theta-vs-jira) covers which sprint mechanics survive the move.",
               },
               {
                 heading: "2. Daily work",
@@ -122,7 +122,7 @@ export default function WhatIsASprint() {
           {
             h2: "Sprint vs Backlog vs Board",
             paragraphs: [
-              "These three live together and are easy to confuse.",
+              "These three live together and are easy to confuse — and the board is usually the first part teams outgrow, because a plain task list cannot show sprint scope and the wider project at once. The [Theta vs Trello comparison](/project-management-software/theta-vs-trello) covers that gap.",
             ],
             bullets: [
               "Backlog — every piece of work the team might do, prioritized.",
@@ -149,7 +149,7 @@ export default function WhatIsASprint() {
             h2: "How to Run Your First Sprint With a Kanban Board",
             paragraphs: [
               "You do not need certification or ceremony to start. A simple board with Backlog, In Progress, and Done columns is enough for a first sprint.",
-              "In Theta PM, create a project, add your top tasks to the backlog, pick the ones for the sprint, and work the board. The timeline and Gantt views show how the sprint fits the bigger project — same tasks, different views.",
+              "In Theta PM, create a project, add your top tasks to the backlog, pick the ones for the sprint, and work the board. The timeline and Gantt views show how the sprint fits the bigger project — same tasks, different views. If sprints currently run inside a docs tool, the [Theta vs Notion comparison](/project-management-software/theta-vs-notion) explains what changes when sprint tasks live in a tracker instead.",
             ],
             bullets: [
               "Pick a two-week window and commit to a small set of tasks.",
