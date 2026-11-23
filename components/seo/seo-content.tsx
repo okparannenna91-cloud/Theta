@@ -44,6 +44,34 @@ export interface SeoContentProps {
   schema?: Record<string, unknown>[];
 }
 
+/**
+ * Inline links inside body copy. Authors write `[anchor](/path)` in a paragraph,
+ * bullet, h3 body or FAQ answer and it renders as a real link. Contextual
+ * in-body links carry more weight than the "Keep Reading" block at the bottom.
+ */
+function renderInline(text: string): React.ReactNode {
+  if (!text.includes("](/")) return text;
+  const pattern = /\[([^\]]+)\]\((\/[^)\s]+)\)/g;
+  const nodes: React.ReactNode[] = [];
+  let cursor = 0;
+  for (let match = pattern.exec(text); match; match = pattern.exec(text)) {
+    if (match.index > cursor) nodes.push(text.slice(cursor, match.index));
+    nodes.push(
+      <Link
+        key={`${match[2]}-${match.index}`}
+        href={match[2]}
+        className="font-medium text-foreground underline decoration-primary/40 underline-offset-2 transition-colors hover:decoration-primary"
+      >
+        {match[1]}
+      </Link>
+    );
+    cursor = match.index + match[0].length;
+  }
+  if (cursor === 0) return text;
+  if (cursor < text.length) nodes.push(text.slice(cursor));
+  return nodes;
+}
+
 function getBreadcrumbHref(breadcrumb: string[], index: number): string {
   if (index === 0) return "/";
   const pathSegments = breadcrumb.slice(1, index + 1);
@@ -110,7 +138,7 @@ export function SeoContent({
       </p>
 
       {intro.map((p, i) => (
-        <p key={i} className="text-base text-muted-foreground leading-relaxed mb-4">{p}</p>
+        <p key={i} className="text-base text-muted-foreground leading-relaxed mb-4">{renderInline(p)}</p>
       ))}
 
       <div className="flex flex-wrap gap-3 my-8">
@@ -128,14 +156,14 @@ export function SeoContent({
         <section key={section.h2} className="mt-12">
           <h2 className="text-2xl font-bold text-foreground mb-4">{section.h2}</h2>
           {section.paragraphs?.map((p, i) => (
-            <p key={i} className="text-base text-muted-foreground leading-relaxed mb-4">{p}</p>
+            <p key={i} className="text-base text-muted-foreground leading-relaxed mb-4">{renderInline(p)}</p>
           ))}
           {section.bullets && (
             <ul className="space-y-2.5 my-4">
               {section.bullets.map((b, i) => (
                 <li key={i} className="flex items-start gap-2.5 text-sm text-muted-foreground leading-relaxed">
                   <CheckCircle2 className="h-4 w-4 text-primary mt-0.5 flex-shrink-0" />
-                  <span>{b}</span>
+                  <span>{renderInline(b)}</span>
                 </li>
               ))}
             </ul>
@@ -167,7 +195,7 @@ export function SeoContent({
           {section.h3s?.map((h3) => (
             <div key={h3.heading} className="mt-6">
               <h3 className="text-lg font-semibold text-foreground mb-2">{h3.heading}</h3>
-              {h3.body && <p className="text-base text-muted-foreground leading-relaxed mb-3">{h3.body}</p>}
+              {h3.body && <p className="text-base text-muted-foreground leading-relaxed mb-3">{renderInline(h3.body)}</p>}
               {h3.bullets && (
                 <ul className="space-y-2.5 my-3">
                   {h3.bullets.map((b, i) => (
@@ -200,7 +228,7 @@ export function SeoContent({
                 {f.q}
                 <span className="text-muted-foreground text-lg leading-none transition-transform group-open:rotate-45">+</span>
               </summary>
-              <p className="px-5 pb-4 text-sm text-muted-foreground leading-relaxed">{f.a}</p>
+              <p className="px-5 pb-4 text-sm text-muted-foreground leading-relaxed">{renderInline(f.a)}</p>
             </details>
           ))}
         </div>
