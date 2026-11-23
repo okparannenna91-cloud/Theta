@@ -105,7 +105,7 @@ export default function TaskManagementBestPractices() {
             h3s: [
               {
                 heading: "Keep a kanban board for daily flow",
-                body: "Columns for each stage — To Do, In Progress, Done — show where work is and where it is stuck. Limit how many tasks sit in progress so work actually finishes.",
+                body: "Columns for each stage — To Do, In Progress, Done — show where work is and where it is stuck. Limit how many tasks sit in progress so work actually finishes. [Theta vs Asana](/project-management-software/theta-vs-asana) compares how the two handle board filters and WIP once more than one team shares the board.",
               },
               {
                 heading: "Use the project overview for the big picture",
@@ -144,7 +144,7 @@ export default function TaskManagementBestPractices() {
             h2: "Pick Tools That Encourage Good Habits",
             paragraphs: [
               "The best task management software makes the right behavior the easy behavior. If the tool fights your process, the process loses.",
-              "Theta PM keeps tasks, custom fields, kanban boards, timelines, and calendars in one place with real-time updates — so clarity, ownership, deadlines, and visibility all live where the work happens, and notifications through the inbox keep everyone in the loop.",
+              "Theta PM keeps tasks, custom fields, kanban boards, timelines, and calendars in one place with real-time updates — so clarity, ownership, deadlines, and visibility all live where the work happens, and notifications through the inbox keep everyone in the loop. If your tasks currently live in docs, the [Theta vs Notion comparison](/project-management-software/theta-vs-notion) and the [Notion alternatives](/alternatives/notion-alternative) roundup both cover the move.",
             ],
           },
         ]}
